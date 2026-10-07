@@ -1,0 +1,97 @@
+{
+  "name": "deckbase",
+  "productName": "Deckbase",
+  "version": "0.1.0",
+  "description": "Starter for local-first desktop apps: Electron shell, local Node HTTP server, React + Vite UI.",
+  "type": "module",
+  "license": "UNLICENSED",
+  "private": true,
+  "author": "Adriano Pena <adriano.pena@sofico.global>",
+  "bin": {
+    "deckbase": "bin/deckbase.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "dist/desktop/main.js",
+  "scripts": {
+    "build": "npm run build:node && npm run build:web",
+    "build:node": "tsc -p tsconfig.node.json",
+    "build:web": "vite build",
+    "start": "node bin/deckbase.js",
+    "desktop": "npm run build && electron .",
+    "dev:server": "tsx watch server/cli.ts --dev",
+    "dev:web": "vite",
+    "dev:desktop": "npm run build:node && electron . --dev",
+    "typecheck": "tsc -p tsconfig.node.json --noEmit && tsc -p web/tsconfig.json --noEmit",
+    "icon": "electron scripts/make-icon.mjs",
+    "dist:win": "npm run build && electron-builder --win",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:linux": "npm run build && electron-builder --linux"
+  },
+  "devDependencies": {
+    "@fontsource/geist": "^5.1.0",
+    "@fontsource/geist-mono": "^5.1.0",
+    "@types/node": "^22.10.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^44.5.1",
+    "electron-builder": "^26.15.3",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.3"
+  },
+  "build": {
+    "appId": "dev.deckbase.app",
+    "productName": "Deckbase",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json",
+      "build/icon.png"
+    ],
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "build/icon.png"
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-${os}-${arch}-portable.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.developer-tools",
+      "icon": "build/icon.png"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Development",
+      "icon": "build/icon.png",
+      "maintainer": "Adriano Pena <adriano.pena@sofico.global>"
+    }
+  },
+  "allowScripts": {
+    "electron-winstaller@5.4.0": true,
+    "esbuild@0.28.2": true,
+    "esbuild@0.25.12": true
+  }
+}
