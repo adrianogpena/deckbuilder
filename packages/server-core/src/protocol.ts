@@ -30,3 +30,21 @@ export interface AppIdentity {
   /** Lowercase id: data folder (~/.<id>), executable name in help text. */
   id: string;
 }
+
+/** GET /api/update: what the updater (updateRoutes in @deckbase/server-mods) knows. */
+export interface UpdateState {
+  /** `offline`: the release folder couldn't be read (off VPN, share down); the last good data is kept. */
+  status: 'not-configured' | 'ok' | 'offline' | 'error';
+  message?: string;
+  /** The running version. */
+  current: string;
+  available: boolean;
+  /** Newest released version; null before a check succeeded. */
+  version: string | null;
+  notes: string | null;
+  /** False when running from source: the check works but only the exe can replace itself. */
+  canApply: boolean;
+  /** Epoch ms of the last successful check, and of the next scheduled one. */
+  checkedAt: number | null;
+  nextAt: number | null;
+}

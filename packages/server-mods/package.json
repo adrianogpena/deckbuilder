@@ -7,6 +7,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@deckbase/platform": "workspace:*",
     "@deckbase/server-core": "workspace:*"
   }
 }

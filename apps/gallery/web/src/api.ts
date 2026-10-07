@@ -1,8 +1,11 @@
+import type { UpdateState } from '@deckbase/server-core/protocol';
 import { type Language, request } from '@deckbase/ui';
 
 export interface Settings {
   theme: 'dark' | 'light';
   language?: Language;
+  autostart: boolean;
+  updateFolder: string;
 }
 
 /** GET /api/info (infoRoutes in @deckbase/server-mods). */
@@ -21,5 +24,8 @@ export const api = {
   info: () => request<Info>('GET', '/api/info'),
   settings: () => request<Settings>('GET', '/api/settings'),
   saveSettings: (patch: Partial<Settings>) => request<Settings>('PUT', '/api/settings', {}, patch),
+  update: () => request<UpdateState>('GET', '/api/update'),
+  checkUpdate: () => request<UpdateState>('POST', '/api/update/check'),
+  applyUpdate: () => request<{ version: string }>('POST', '/api/update/apply'),
   echo: (text: string) => request<{ text: string; length: number; at: string }>('POST', '/api/echo', {}, { text }),
 };

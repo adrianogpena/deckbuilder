@@ -19,6 +19,8 @@ export type Routes = Record<string, Handler>;
 
 export interface ServerOptions {
   routes: Routes;
+  /** Routes outside the session token check; each handler checks its own credentials. */
+  unauthenticated?: Routes;
   token: string;
   web: WebSource;
   /** 0 picks any free port. */
@@ -52,11 +54,13 @@ export function startServer(opts: ServerOptions) {
 
       if (!url.pathname.startsWith('/api/')) return serveStatic(url.pathname);
 
-      if (!authorized(req, url)) {
+      const key = `${req.method} ${url.pathname}`;
+      const open = opts.unauthenticated?.[key];
+      if (!open && !authorized(req, url)) {
         return json(401, { kind: 'forbidden', code: 'invalidToken', message: 'Invalid session. Open the address printed in the terminal.' });
       }
 
-      const handler = opts.routes[`${req.method} ${url.pathname}`];
+      const handler = open ?? opts.routes[key];
       if (!handler) return json(404, { kind: 'notfound', code: 'routeNotFound', message: 'Route not found.' });
 
       try {

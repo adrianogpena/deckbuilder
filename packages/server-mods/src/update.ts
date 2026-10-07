@@ -1,0 +1,314 @@
+import { createHash } from 'node:crypto';
+import { createReadStream } from 'node:fs';
+import { copyFile, readFile, rename, rm } from 'node:fs/promises';
+import { join } from 'node:path';
+import { isCompiledExe, startDetached, updatePaths } from '@deckbase/platform';
+import {
+  AppError,
+  isNewerVersion,
+  MANIFEST,
+  parseManifest,
+  platformLabel,
+  type ReleaseFile,
+  type ReleaseManifest,
+  type Routes,
+  type UpdateState,
+} from '@deckbase/server-core';
+
+export const CHECK_INTERVAL_MS = 6 * 60 * 60_000;
+/** After a failed check (off VPN, share down): try again sooner than the regular interval. */
+export const RETRY_MS = 30 * 60_000;
+/** A UNC path off VPN can hang for the SMB timeout; give up before that. */
+const READ_TIMEOUT_MS = 15_000;
+/** `POST /api/update/apply` answers before the process quits. */
+const QUIT_DELAY_MS = 300;
+
+/** File operations the updater needs; faked in tests. */
+export interface UpdateFs {
+  readText(path: string): Promise<string>;
+  copy(from: string, to: string): Promise<void>;
+  sha256(path: string): Promise<string>;
+  rename(from: string, to: string): Promise<void>;
+  /** Succeeds when the file is already gone. */
+  remove(path: string): Promise<void>;
+}
+
+const withTimeout = <T>(p: Promise<T>, ms: number): Promise<T> =>
+  Promise.race([p, new Promise<T>((_, reject) => setTimeout(() => reject(new Error('timed out')), ms).unref())]);
+
+export const nodeFs: UpdateFs = {
+  readText: (path) => withTimeout(readFile(path, 'utf8'), READ_TIMEOUT_MS),
+  copy: (from, to) => copyFile(from, to),
+  sha256: (path) =>
+    new Promise((resolve, reject) => {
+      const hash = createHash('sha256');
+      createReadStream(path)
+        .on('data', (chunk) => hash.update(chunk))
+        .on('error', reject)
+        .on('end', () => resolve(hash.digest('hex')));
+    }),
+  rename: (from, to) => rename(from, to),
+  remove: (path) => rm(path, { force: true }),
+};
+
+/** A refusal or failure to show the user; `code` is its message id (`error.<code>`). */
+export class UpdateError extends AppError {
+  constructor(code: string, message: string, params?: Record<string, string | number>) {
+    super('invalid', code, message, { params });
+  }
+}
+
+/** The manifest couldn't be read (`unreachable`: off VPN, share down) or isn't a release. */
+export class SourceError extends Error {
+  constructor(
+    readonly unreachable: boolean,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+export interface Release {
+  manifest: ReleaseManifest;
+  /** Copies `file` of this release to `to`. */
+  download(file: ReleaseFile, to: string): Promise<void>;
+}
+
+/** Where releases come from. Only a folder source exists so far. */
+export interface UpdateSource {
+  /** Identifies the source: once it changes, what the previous one offered no longer applies. */
+  id: string;
+  /** Throws SourceError. */
+  latest(): Promise<Release>;
+}
+
+/**
+ * Releases in a folder (often a UNC share) holding latest.json, as `deckbase release --to`
+ * writes it; also looks in its `<subfolder>` (the app name), where `release --to <root>` puts them.
+ */
+export function folderSource(path: string, opts: { subfolder?: string; fs?: UpdateFs } = {}): UpdateSource {
+  const fs = opts.fs ?? nodeFs;
+  return {
+    id: `folder:${path}`,
+    async latest() {
+      let unreachable = true;
+      for (const dir of opts.subfolder ? [path, join(path, opts.subfolder)] : [path]) {
+        let text: string;
+        try {
+          text = await fs.readText(join(dir, MANIFEST));
+        } catch {
+          continue;
+        }
+        unreachable = false;
+        let manifest: ReleaseManifest | null = null;
+        try {
+          manifest = parseManifest(JSON.parse(text));
+        } catch {
+          // not JSON
+        }
+        if (manifest) return { manifest, download: (file, to) => fs.copy(join(dir, file.file), to) };
+      }
+      throw new SourceError(unreachable, unreachable ? `Can't read ${MANIFEST} in ${path}` : `${MANIFEST} in ${path} is not a valid release`);
+    },
+  };
+}
+
+export interface Clock {
+  now(): number;
+  setTimeout(fn: () => void, ms: number): unknown;
+  clearTimeout(handle: unknown): void;
+}
+
+const systemClock: Clock = {
+  now: () => Date.now(),
+  setTimeout: (fn, ms) => setTimeout(fn, ms),
+  clearTimeout: (h) => clearTimeout(h as ReturnType<typeof setTimeout>),
+};
+
+export interface UpdaterOptions {
+  version: string;
+  /** Read at every check; null means not configured. */
+  source(): UpdateSource | null | Promise<UpdateSource | null>;
+  execPath?: string;
+  /** False when running from source: checks work, apply refuses. */
+  compiled?: boolean;
+  /** Flags for the new exe, after `--after-update`; default: this process's flags. */
+  relaunchArgs?: string[];
+  /** Release file label to install; default: this machine (platformLabel). */
+  label?: string;
+  onChange?(state: UpdateState): void;
+  fs?: UpdateFs;
+  /** Starts the new exe detached from this process; rejects when it can't. */
+  start?: (argv: string[]) => Promise<void>;
+  clock?: Clock;
+  log?: (msg: string) => void;
+}
+
+export interface Updater {
+  /** First check, then every 6 h. */
+  start(): void;
+  /** Checks now; call it after the source setting changed. */
+  check(): Promise<UpdateState>;
+  /**
+   * Swaps the running exe for the released one and starts it; the caller then quits this
+   * process. Throws UpdateError with the current exe left in place.
+   */
+  apply(): Promise<{ version: string }>;
+  state(): UpdateState;
+  stop(): void;
+}
+
+export function createUpdater(opts: UpdaterOptions): Updater {
+  const fs = opts.fs ?? nodeFs;
+  const clock = opts.clock ?? systemClock;
+  const execPath = opts.execPath ?? process.execPath;
+  const compiled = opts.compiled ?? isCompiledExe(execPath);
+  const label = opts.label ?? platformLabel();
+  const log = opts.log ?? ((msg) => console.log(`update: ${msg}`));
+  const empty = { current: opts.version, canApply: compiled, available: false, version: null, notes: null, checkedAt: null };
+  let state: UpdateState = { ...empty, status: 'not-configured', nextAt: null };
+  let sourceId: string | null = null;
+  let timer: unknown = null;
+  let inflight: Promise<UpdateState> | null = null;
+  let queued: Promise<UpdateState> | null = null;
+  let applying = false;
+
+  const publish = (next: UpdateState) => {
+    if (next.status !== state.status || next.message !== state.message) log(`check: ${next.status}${next.message ? ` (${next.message})` : ''}`);
+    state = next;
+    opts.onChange?.(state);
+    return state;
+  };
+
+  const schedule = (ms: number | null) => {
+    if (timer !== null) clock.clearTimeout(timer);
+    timer = ms === null ? null : clock.setTimeout(() => void check(), ms);
+    return ms === null ? null : clock.now() + ms;
+  };
+
+  const run = async (): Promise<UpdateState> => {
+    const source = await opts.source();
+    if (source?.id !== sourceId) {
+      // What the previous source offered no longer applies.
+      sourceId = source?.id ?? null;
+      state = { ...state, ...empty };
+    }
+    if (!source) return publish({ ...empty, status: 'not-configured', nextAt: schedule(null) });
+    try {
+      const { manifest } = await source.latest();
+      const available = isNewerVersion(manifest.version, opts.version) && manifest.files[label] !== undefined;
+      return publish({
+        ...empty,
+        status: 'ok',
+        available,
+        version: manifest.version,
+        notes: manifest.notes,
+        checkedAt: clock.now(),
+        nextAt: schedule(CHECK_INTERVAL_MS),
+      });
+    } catch (e) {
+      // The last good result stays: a share that's briefly away shouldn't hide an update.
+      const status = e instanceof SourceError && e.unreachable ? 'offline' : 'error';
+      return publish({ ...state, status, message: (e as Error).message, nextAt: schedule(RETRY_MS) });
+    }
+  };
+
+  // A check asked for during another (e.g. the source just changed) runs again after it.
+  const check = (): Promise<UpdateState> => {
+    if (inflight) {
+      queued ??= inflight.then(() => {
+        queued = null;
+        return check();
+      });
+      return queued;
+    }
+    inflight = run().finally(() => {
+      inflight = null;
+    });
+    return inflight;
+  };
+
+  const apply = async (): Promise<{ version: string }> => {
+    if (!compiled) throw new UpdateError('updateFromSource', 'Running from source: only the built exe can update itself.');
+    const source = await opts.source();
+    if (!source) throw new UpdateError('updateNotConfigured', 'No update source is configured.');
+    if (applying) throw new UpdateError('updateBusy', 'An update is already running.');
+    applying = true;
+    try {
+      let release: Release;
+      try {
+        release = await source.latest();
+      } catch (e) {
+        throw new UpdateError('updateUnreachable', (e as Error).message);
+      }
+      const { manifest } = release;
+      if (!isNewerVersion(manifest.version, opts.version)) {
+        throw new UpdateError('updateUpToDate', `Already up to date (v${opts.version}).`, { version: opts.version });
+      }
+      const file = manifest.files[label];
+      if (!file) throw new UpdateError('updateNoBuild', `Release ${manifest.version} has no build for ${label}.`, { version: manifest.version, label });
+      const { fresh, old } = updatePaths(execPath);
+      let moved = false;
+      let installed = false;
+      try {
+        await release.download(file, fresh);
+        if ((await fs.sha256(fresh)) !== file.sha256) {
+          throw new UpdateError('updateChecksum', 'The copied file does not match the release checksum.');
+        }
+        await fs.remove(old);
+        // Windows allows renaming a running exe, not replacing it.
+        await fs.rename(execPath, old);
+        moved = true;
+        await fs.rename(fresh, execPath);
+        installed = true;
+        const args = opts.relaunchArgs ?? process.argv.slice(2).filter((a) => a !== '--after-update');
+        await (opts.start ?? startDetached)([execPath, '--after-update', ...args]);
+      } catch (e) {
+        await rollback({ fs, exe: execPath, fresh, old, moved, installed, log });
+        throw e instanceof UpdateError ? e : new UpdateError('updateFailed', `Update failed: ${(e as Error).message}`, { message: (e as Error).message });
+      }
+      log(`updating ${opts.version} → ${manifest.version}`);
+      return { version: manifest.version };
+    } finally {
+      applying = false;
+    }
+  };
+
+  return {
+    start: () => void check(),
+    check,
+    apply,
+    state: () => state,
+    stop: () => void schedule(null),
+  };
+}
+
+/** Puts the original exe back under its name; every step is attempted and logged. */
+async function rollback(s: { fs: UpdateFs; exe: string; fresh: string; old: string; moved: boolean; installed: boolean; log: (msg: string) => void }) {
+  const attempt = async (what: string, fn: () => Promise<void>) => {
+    try {
+      await fn();
+    } catch (e) {
+      s.log(`rollback: ${what} failed: ${(e as Error).message}`);
+    }
+  };
+  if (s.installed) await attempt('move new exe aside', () => s.fs.rename(s.exe, s.fresh));
+  if (s.moved) await attempt('restore exe', () => s.fs.rename(s.old, s.exe));
+  await attempt('remove new exe', () => s.fs.remove(s.fresh));
+}
+
+/**
+ * GET /api/update (state), POST /api/update/check (fresh state) and POST /api/update/apply, which
+ * swaps in the released exe, answers `{ version }`, then quits (the new exe is already starting).
+ */
+export function updateRoutes(updater: Updater, quit: () => void = () => process.exit(0)): Routes {
+  return {
+    'GET /api/update': () => updater.state(),
+    'POST /api/update/check': () => updater.check(),
+    'POST /api/update/apply': async () => {
+      const result = await updater.apply();
+      setTimeout(quit, QUIT_DELAY_MS);
+      return result;
+    },
+  };
+}

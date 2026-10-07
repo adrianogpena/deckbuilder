@@ -16,6 +16,14 @@ const baseEn = {
   'error.invalidJson': 'Invalid JSON.',
   'error.bodyTooLarge': 'Request body too large.',
   'error.http': 'HTTP error {status}',
+  'error.updateFromSource': 'Running from source: only the built exe can update itself.',
+  'error.updateNotConfigured': 'No update source is configured.',
+  'error.updateBusy': 'An update is already running.',
+  'error.updateUnreachable': 'The release folder could not be read.',
+  'error.updateUpToDate': 'Already up to date (v{version}).',
+  'error.updateNoBuild': 'Release {version} has no build for {label}.',
+  'error.updateChecksum': 'The copied file does not match the release checksum.',
+  'error.updateFailed': 'Update failed: {message}',
 };
 
 export type BaseKey = keyof typeof baseEn;
@@ -37,6 +45,14 @@ const basePtBR: Messages<typeof baseEn> = {
   'error.invalidJson': 'JSON inválido.',
   'error.bodyTooLarge': 'Corpo da requisição grande demais.',
   'error.http': 'Erro HTTP {status}',
+  'error.updateFromSource': 'Rodando do código-fonte: só o exe compilado se atualiza.',
+  'error.updateNotConfigured': 'Nenhuma fonte de atualização configurada.',
+  'error.updateBusy': 'Uma atualização já está em andamento.',
+  'error.updateUnreachable': 'Não foi possível ler a pasta de releases.',
+  'error.updateUpToDate': 'Já está atualizado (v{version}).',
+  'error.updateNoBuild': 'O release {version} não tem build para {label}.',
+  'error.updateChecksum': 'O arquivo copiado não confere com o checksum do release.',
+  'error.updateFailed': 'Falha na atualização: {message}',
 };
 
 export const LANGUAGES = [

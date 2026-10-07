@@ -37,9 +37,15 @@ Run at the root (they act on `apps/gallery`) or inside any app folder:
 | `bun run build` | Build the UI, then the executable for this machine into `apps/<app>/release/`. |
 | `bun run build --target all` | Executables for every target. Targets: `windows-x64`, `linux-x64`, `linux-arm64`, `darwin-x64`, `darwin-arm64`; comma-separate several. `--no-web` reuses the last UI build. |
 | `bun run typecheck` | Type-checks every package and app. |
+| `bun test` | (root) Unit tests of the packages. |
+| `bun run deckbase release --to <folder>` | (in the app folder) Publish a release for the self-updater, see [Releases](#releases). |
 
 The executable takes the same flags as the source: `--browser`, `--no-open`, `--port <n>`,
 `--help`.
+
+Only one instance runs (except with `--dev`): the running one publishes its port in
+`~/.<id>/instance.json`, with a secret that unlocks only `POST /api/instance/open`. A second
+launch asks it to open a new window (or browser tab for `--browser`) and exits.
 
 ## Layout
 
@@ -47,15 +53,19 @@ The executable takes the same flags as the source: `--browser`, `--no-open`, `--
 packages/
   server-core/   Bun.serve server: host and token checks, static files, AppError, routes type;
                  protocol.ts (token header, dev ports, error body) is shared with the UI
-  server-mods/   Opt-in route modules: settings (GET/PUT /api/settings), info (GET /api/info)
-  shell/         runApp(): parses flags, starts the server, opens a window (one Worker per
-                 window, Webview.run() blocks its thread) or the browser
-  platform/      OS-specific code: open URL, app data folder, error message box
+                 release.ts: latest.json manifest and version helpers
+  server-mods/   Opt-in route modules: settings (GET/PUT /api/settings), info (GET /api/info),
+                 update (self-updater + GET /api/update, POST /api/update/check|apply)
+  shell/         runApp(): parses flags, single instance, starts the server, opens a window
+                 (one Worker per window, Webview.run() blocks its thread) or the browser
+  platform/      OS-specific code: open URL, app data folder, error message box, processes
+                 (run with timeout, kill tree, start detached), exe swap for updates;
+                 win/: toasts, autostart (HKCU Run key), PowerShell runner
   ui/            React components (Sidebar, Badge, ErrorBanner, Modal, Icon, ...), hooks,
                  API client, i18n engine with the base messages, hash routing, styles.css
-  build/         The `deckbase` CLI used by app scripts: dev, build:web, build
+  build/         The `deckbase` CLI used by app scripts: dev, build:web, build, release
 apps/
-  gallery/       Example app (Home + Settings screens)
+  gallery/       Example app (Home + Settings screens; settings show autostart and updates)
     app.ts         Name and id
     server/        main.ts (composes routes, calls runApp) and routes.ts (the app's own API)
     web/           Vite root: index.html, public/favicon.svg (also the exe icon), src/
@@ -76,7 +86,12 @@ source directly; there is no package build step.
   `web/src/App.tsx`, a file in `web/src/screens/`, and its labels to `web/src/i18n/en.ts` and
   `pt-BR.ts` (TypeScript fails until both have every key).
 - **A setting**: extend `Settings` in `server/main.ts` and `web/src/api.ts`, give it a default,
-  and validate it in the `apply` option of `settingsStore`.
+  and validate it in the `apply` option of `settingsStore`; react to changes in `onChange`.
+- **Startup work** (timers, update checks): put it in `runApp`'s `onStart`, which a launch that
+  hands off to a running instance never reaches.
+- **Notifications** (Windows): `createToaster()` from `@deckbase/platform`, then
+  `toaster.show({ title, body, launch })`; a click opens `launch`. Test with
+  `bun packages/platform/src/win/toast.ts --selftest`.
 
 ## New app
 
@@ -95,6 +110,23 @@ The version comes from the app's `package.json`. Executables are named
 
 **Locally**: bump `version`, then `bun run build --target all` in the app folder.
 
+**For the self-updater** (a shared folder, e.g. a UNC share): in the app folder,
+
+```sh
+bun run deckbase release --to '\\server\share\releases' [--bump patch|minor|major] [--target <list>]
+```
+
+bumps the version, runs typecheck and tests (`--no-checks` skips them), builds this machine's
+exe (or `--target`), copies it with `latest.json` to `<folder>/<app name>/`, then commits the
+bump and tags `<app folder>-v<version>` locally; it never pushes. `--dry-run` publishes the
+same files but leaves `package.json` and git as they were. Users set the folder (the root or
+the `<app name>` subfolder) under Settings › Updates. The app checks at start and every 6 h
+(30 min after a failure); applying copies the exe next to the running one, verifies its
+SHA-256, renames the running exe to `<name>.old.exe` (Windows allows renaming a running exe,
+not replacing it), moves the new one in place, starts it with `--after-update` plus the same
+flags, and quits. The new exe deletes the old one once that has exited. The exe keeps its file
+name, so the WebView2 profile survives updates.
+
 **Through GitHub Actions**: push a tag `<app folder>-v<version>`, e.g.
 
 ```sh
@@ -103,8 +135,8 @@ git tag gallery-v0.1.1 && git push origin gallery-v0.1.1
 
 `.github/workflows/release.yml` checks the tag against `package.json`, builds every target on
 a Windows runner and uploads them to a **draft** release; check the files and publish it.
-`.github/workflows/ci.yml` type-checks and builds a Linux executable for every push and pull
-request.
+`.github/workflows/ci.yml` type-checks, runs the tests and builds a Linux executable for every
+push and pull request.
 
 ### Platform notes
 

@@ -16,5 +16,6 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - run: bun run typecheck
+      - run: bun test
       # One target is enough to prove the web build, the embedding and the compile step work.
       - run: bun run build --target linux-x64

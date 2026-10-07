@@ -1,8 +1,11 @@
 #!/usr/bin/env bun
 // `deckbase <command>`, run from an app folder (apps/<name>) through its package.json scripts.
+import { parseArgs } from 'node:util';
+import type { VersionBump } from '@deckbase/server-core';
 import { buildExe, buildWeb, parseTargets } from './build.ts';
 import { dev } from './dev.ts';
 import { loadApp } from './app.ts';
+import { BUMPS, release } from './release.ts';
 
 const [command, ...args] = process.argv.slice(2);
 const app = await loadApp(process.cwd());
@@ -21,6 +24,30 @@ switch (command) {
     for (const target of targets) await buildExe(app, target);
     break;
   }
+  case 'release': {
+    const { values } = parseArgs({
+      args,
+      options: {
+        to: { type: 'string' },
+        bump: { type: 'string', default: 'patch' },
+        target: { type: 'string' },
+        'dry-run': { type: 'boolean', default: false },
+        'no-checks': { type: 'boolean', default: false },
+      },
+    });
+    if (!values.to || !BUMPS.includes(values.bump as VersionBump)) {
+      console.error('Usage: deckbase release --to <folder> [--bump patch|minor|major] [--target <list>] [--dry-run] [--no-checks]');
+      process.exit(1);
+    }
+    await release(app, {
+      to: values.to,
+      bump: values.bump as VersionBump,
+      targets: parseTargets(values.target),
+      dryRun: values['dry-run'],
+      checks: !values['no-checks'],
+    });
+    break;
+  }
   default:
     console.log(`Usage: deckbase <command>
 
@@ -29,6 +56,11 @@ switch (command) {
   build [--target <list>]     build:web, then one exe per target into release/
                               targets: windows-x64, linux-x64, linux-arm64, darwin-x64,
                               darwin-arm64, or "all" (default: this machine)
-        [--no-web]            reuse the existing dist/web`);
+        [--no-web]            reuse the existing dist/web
+  release --to <folder>       bump the version, run typecheck + tests, build, copy the exes and
+                              latest.json to <folder>/<app name>/ (the updater's release folder),
+                              then commit and tag <app folder>-v<version> locally (never pushes)
+        [--bump patch|minor|major] [--target <list>] [--no-checks]
+        [--dry-run]           publish only; package.json and git stay as they are`);
     process.exit(command ? 1 : 0);
 }

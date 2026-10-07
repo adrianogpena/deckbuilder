@@ -52,6 +52,7 @@
       "name": "@deckbase/server-mods",
       "version": "0.0.0",
       "dependencies": {
+        "@deckbase/platform": "workspace:*",
         "@deckbase/server-core": "workspace:*",
       },
     },

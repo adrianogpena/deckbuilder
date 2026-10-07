@@ -1,12 +1,12 @@
-import { basename, join } from 'node:path';
+import { join } from 'node:path';
 import { homedir } from 'node:os';
 
 // OS-specific code lives here, so apps and the other packages stay portable.
-
-/** True inside a `bun build --compile` exe, false when running from source with bun. */
-export function isCompiledExe(execPath = process.execPath): boolean {
-  return !/^(bun|node)(\.exe)?$/i.test(basename(execPath));
-}
+export * from './exe.ts';
+export * from './run.ts';
+export * from './win/autostart.ts';
+export * from './win/powershell.ts';
+export * from './win/toast.ts';
 
 /** App data folder `~/.<id>`: outside the install folder, so data survives reinstalls and updates. */
 export function appHome(id: string): string {

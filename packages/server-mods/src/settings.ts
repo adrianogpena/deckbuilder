@@ -15,6 +15,8 @@ export interface SettingsOptions<T extends BaseSettings> {
   defaults: T;
   /** Copies the valid app-specific fields of `patch` onto `next`; unknown or malformed fields are ignored. */
   apply?: (patch: Record<string, unknown>, next: T) => void;
+  /** Runs after every save, with the new and the previous settings. */
+  onChange?: (next: T, prev: T) => void;
 }
 
 export interface SettingsStore<T extends BaseSettings> {
@@ -38,13 +40,15 @@ export function settingsStore<T extends BaseSettings>(opts: SettingsOptions<T>):
   }
 
   async function save(patch: Record<string, unknown>): Promise<T> {
-    const next: T = { ...(await load()) };
+    const prev = await load();
+    const next: T = { ...prev };
     if (patch.theme === 'dark' || patch.theme === 'light') next.theme = patch.theme;
     if (typeof patch.language === 'string' && /^[a-z]{2}(-[A-Z]{2})?$/.test(patch.language)) next.language = patch.language;
     opts.apply?.(patch, next);
     cache = next;
     await mkdir(opts.dir, { recursive: true });
     await writeFile(file, JSON.stringify(next, null, 2), 'utf8');
+    opts.onChange?.(next, prev);
     return next;
   }
 
