@@ -1,0 +1,15 @@
+{
+  "name": "electrobun",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^7"
+  },
+  "dependencies": {
+    "electrobun": "^2.0.2"
+  }
+}
