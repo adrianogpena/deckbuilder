@@ -1,0 +1,5 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "lib": ["ESNext"], "types": ["bun"] },
+  "include": ["app.ts", "server", "vite.config.ts"]
+}

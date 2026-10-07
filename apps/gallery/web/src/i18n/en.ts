@@ -1,0 +1,36 @@
+// This app's messages; the base ones (common.*, generic errors) come from @deckbase/ui.
+export const en = {
+  'nav.section.main': 'Main',
+  'nav.home': 'Home',
+  'nav.settings': 'Settings',
+  'nav.theme.dark': 'Dark theme',
+  'nav.theme.light': 'Light theme',
+
+  'home.crumb': 'Overview',
+  'home.title': 'Home',
+  'home.system': 'System',
+  'home.version': 'Version',
+  'home.platform': 'Platform',
+  'home.host': 'Host',
+  'home.runtime': 'Runtime',
+  'home.mode': 'Mode',
+  'home.mode.desktop': 'Desktop window',
+  'home.mode.browser': 'Browser',
+  'home.started': 'Started',
+  'home.dataDir': 'Data folder',
+  'home.echo': 'Example request',
+  'home.echoHint': 'Sends the text to POST /api/echo and shows the answer.',
+  'home.echoPlaceholder': 'Type something…',
+  'home.send': 'Send',
+  'home.echoResult': '{length} characters, answered at {at}',
+
+  'settings.crumb': 'Preferences',
+  'settings.title': 'Settings',
+  'settings.theme': 'Theme',
+  'settings.theme.dark': 'Dark',
+  'settings.theme.light': 'Light',
+  'settings.language': 'Language',
+  'settings.saved': 'Saved',
+
+  'error.emptyText': 'Type something first.',
+};

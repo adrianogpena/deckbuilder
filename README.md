@@ -1,205 +1,128 @@
 # Deckbase
 
-Starter for local-first desktop apps. Copy it to begin a new project.
+Base for local-first desktop apps: a Bun workspace of shared packages plus thin apps on top.
+Each app builds to **one self-contained executable** (Bun runtime, server, UI and native window
+library inside), and Windows, Linux and macOS executables can all be built from one machine.
 
-- **Electron shell** (`desktop/main.ts`) starts the local HTTP server in-process on a random
-  `127.0.0.1` port and opens the UI in a window.
-- **Local Node server** (`server/`) serves the built UI and a small JSON API. Every API call
-  needs a per-session token, and only loopback host names are accepted (blocks DNS rebinding).
-- **Web UI** (`web/`, React + Vite): sidebar layout, dark/light theme, English/Portuguese,
-  error banners, cards, tables, modals. Uses the Geist fonts and one set of color tokens.
-- The same app also runs **in the browser** (`npm start`), with no Electron involved.
-- Settings are saved to `~/.deckbase/settings.json`, outside the install folder, so they
-  survive reinstalls.
+- **Server**: `Bun.serve` on `127.0.0.1` with a random port and a per-session token. Serves the
+  built UI and a JSON API.
+- **Window**: a native WebView2 (Windows) / WebKitGTK 6 (Linux) / WKWebView (macOS) window via
+  [webview-bun](https://github.com/tr1ckydev/webview-bun). `--browser` serves the same UI to
+  the default browser instead.
+- **UI**: React + Vite. Sidebar layout, dark/light theme, English/Portuguese, error banners,
+  cards, modals, Geist fonts and one set of color tokens.
+- Data and settings live in `~/.<app id>` (here `~/.deckbase`), outside the install folder.
+
+The Electron version of this project is in the git history (commit `559a1a5`); see
+`spikes/RESULTS.md` for why webview-bun replaced it.
 
 ## Requirements
 
-Node 20 or newer (CI uses 22). `npm install` once. The Electron binary downloads on the first
-`electron` run.
+[Bun](https://bun.sh) 1.3 or newer. `bun install` once at the root.
+
+Window mode needs the OS web view: WebView2 is part of Windows 10/11; Linux needs WebKitGTK 6.0
+(GTK 4): `sudo apt install libwebkitgtk-6.0-4` on Debian/Ubuntu.
 
 ## Scripts
 
+Run at the root (they act on `apps/gallery`) or inside any app folder:
+
 | Command | What it does |
 |---|---|
-| `npm run desktop` | Build everything and open the desktop app. |
-| `npm start` | Run in browser mode: serves the built UI and opens the default browser. `--port <n>`, `--no-open`. Needs `npm run build` first. |
-| `npm run dev:server` + `npm run dev:web` | Hot reload. The server listens on port 7420 with token `dev`; open `http://localhost:5173/?t=dev`. |
-| `npm run dev:desktop` | Desktop window on top of the two dev servers above. |
-| `npm run typecheck` | Type-checks the server and the UI. |
-| `npm run build` | Compiles `server/`, `desktop/` and `shared/` to `dist/`, and bundles `web/` to `dist/web`. |
-| `npm run icon` | Renders `build/icon.svg` to `build/icon.png` (1024 px) and copies it to the favicon. |
-| `npm run dist:win` | Windows installer + portable exe in `release/`. |
-| `npm run dist:mac` | macOS `.dmg` + `.zip` in `release/` (run on a Mac). |
-| `npm run dist:linux` | Linux `.AppImage` + `.deb` in `release/` (run on Linux or WSL). |
+| `bun run dev` | Hot reload: the server in watch mode on port 7420 (token `dev`) plus Vite. Open `http://localhost:5173/?t=dev`. |
+| `bun run dev:window` | (in the app folder) The same, with a native window on the Vite URL. |
+| `bun run start` | Run from source in a native window. Needs `build:web` first. |
+| `bun run start:browser` | Run from source in browser mode. Flags: `--port <n>`, `--no-open`. |
+| `bun run build:web` | Bundle the UI into `apps/<app>/dist/web`. |
+| `bun run build` | Build the UI, then the executable for this machine into `apps/<app>/release/`. |
+| `bun run build --target all` | Executables for every target. Targets: `windows-x64`, `linux-x64`, `linux-arm64`, `darwin-x64`, `darwin-arm64`; comma-separate several. `--no-web` reuses the last UI build. |
+| `bun run typecheck` | Type-checks every package and app. |
+
+The executable takes the same flags as the source: `--browser`, `--no-open`, `--port <n>`,
+`--help`.
 
 ## Layout
 
 ```
-shared/app.ts        App name and id, used by server, desktop shell and UI
-desktop/main.ts      Electron main process: server, windows, menu, single-instance lock
-server/cli.ts        Browser mode entry (bin/deckbase.js)
-server/http.ts       HTTP server: host check, token check, static files, error handling
-server/routes.ts     The API: add endpoints here
-server/errors.ts     AppError: kind -> HTTP status, translatable code
-server/settings.ts   ~/.deckbase/settings.json
-web/src/App.tsx      Shell: loads settings, sidebar navigation, screen switch
-web/src/route.ts     Hash routes (#/home, #/settings)
-web/src/screens/     One file per screen
-web/src/components/  Sidebar and shared UI (Badge, Spinner, ErrorBanner, Modal, Icon, ...)
-web/src/i18n/        en.ts (source of keys) and pt-BR.ts
-web/src/styles.css   Color tokens for both themes, then component styles
-build/icon.svg       App icon source (build/icon.png is generated from it)
+packages/
+  server-core/   Bun.serve server: host and token checks, static files, AppError, routes type;
+                 protocol.ts (token header, dev ports, error body) is shared with the UI
+  server-mods/   Opt-in route modules: settings (GET/PUT /api/settings), info (GET /api/info)
+  shell/         runApp(): parses flags, starts the server, opens a window (one Worker per
+                 window, Webview.run() blocks its thread) or the browser
+  platform/      OS-specific code: open URL, app data folder, error message box
+  ui/            React components (Sidebar, Badge, ErrorBanner, Modal, Icon, ...), hooks,
+                 API client, i18n engine with the base messages, hash routing, styles.css
+  build/         The `deckbase` CLI used by app scripts: dev, build:web, build
+apps/
+  gallery/       Example app (Home + Settings screens)
+    app.ts         Name and id
+    server/        main.ts (composes routes, calls runApp) and routes.ts (the app's own API)
+    web/           Vite root: index.html, public/favicon.svg (also the exe icon), src/
+spikes/          Shell spike: webview-bun vs Electrobun
+scripts/         Root scripts (typecheck)
 ```
 
-### Adding things
+The base imposes no layout: an app picks the components it needs. Packages export TypeScript
+source directly; there is no package build step.
 
-- **An endpoint**: add `'GET /api/thing': async (q) => ...` to `server/routes.ts`, then a
+### Adding things to an app
+
+- **An endpoint**: add `'GET /api/thing': ({ query, json }) => ...` to `server/routes.ts`, then a
   method in `api` in `web/src/api.ts`. Throw `invalid(...)`/`notFound(...)` from
-  `server/errors.ts` for errors the UI should show; add `error.<code>` to the i18n files to
-  translate them.
-- **A screen**: add its id to `SCREENS` in `web/src/route.ts`, a file in `web/src/screens/`,
-  an entry in `NAV` and a case in `renderScreen` in `web/src/App.tsx`, and its labels to
-  `web/src/i18n/en.ts` and `pt-BR.ts` (TypeScript fails until both have every key).
-- **A setting**: extend `Settings` in `server/settings.ts` (and validate it in
-  `saveSettings`) and in `web/src/api.ts`.
+  `@deckbase/server-core` for errors the UI should show; add `error.<code>` to the app's i18n
+  files to translate them.
+- **A screen**: add its id to `SCREENS` and an entry to `NAV` and `renderScreen` in
+  `web/src/App.tsx`, a file in `web/src/screens/`, and its labels to `web/src/i18n/en.ts` and
+  `pt-BR.ts` (TypeScript fails until both have every key).
+- **A setting**: extend `Settings` in `server/main.ts` and `web/src/api.ts`, give it a default,
+  and validate it in the `apply` option of `settingsStore`.
 
-## Starting a new project from this one
+## New app
 
-1. Copy the folder without `node_modules`, `dist`, `release` and `.git`, then `git init`.
-2. Rename:
-   - `shared/app.ts`: `name` and `id`.
-   - `package.json`: `name`, `productName`, `description`, `bin` (and rename
-     `bin/deckbase.js`), the `start` script, `build.appId` (reverse-DNS, unique per app),
-     `build.productName`.
-   - `web/index.html`: `<title>`.
-   - `desktop/main.ts`: `backgroundColor` if you change the theme.
-3. Replace `build/icon.svg` and run `npm run icon`. Update `BrandMark` in
-   `web/src/components/ui.tsx` to match.
-4. Change the accent color: `--accent`, `--accent-2`, `--accent-soft` and `--ink-on-accent`
-   in `web/src/styles.css` (both themes).
-5. Delete the example `POST /api/echo` endpoint and the `EchoCard` on the home screen.
+1. Copy `apps/gallery` to `apps/<name>` (without `dist`, `release`, `.build`, `node_modules`).
+2. In the copy: `app.ts` (`name`, `id`), `package.json` (`name`, `version`, `description`),
+   `web/index.html` (`<title>`).
+3. Replace `web/public/favicon.svg`; it is also the exe icon. Update `BrandMark` in
+   `packages/ui/src/components/ui.tsx` if the brand should change for every app.
+4. Delete the example `POST /api/echo` endpoint and the `EchoCard` on the home screen.
+5. `bun install` at the root, then `bun run dev` inside the new folder.
 
 ## Releases
 
-The version comes from `version` in `package.json`; installers are named
-`Deckbase-<version>-<os>-<arch>.<ext>`. Bump it before building a release:
+The version comes from the app's `package.json`. Executables are named
+`<Name>-<version>-<win|linux|mac>-<arch>[.exe]`.
+
+**Locally**: bump `version`, then `bun run build --target all` in the app folder.
+
+**Through GitHub Actions**: push a tag `<app folder>-v<version>`, e.g.
 
 ```sh
-npm version patch      # or minor / major: edits package.json, commits, and tags v0.1.1
+git tag gallery-v0.1.1 && git push origin gallery-v0.1.1
 ```
 
-electron-builder only builds reliably for the OS it runs on. Build each platform on that
-platform, or let GitHub Actions build all three (see "Release through GitHub Actions").
+`.github/workflows/release.yml` checks the tag against `package.json`, builds every target on
+a Windows runner and uploads them to a **draft** release; check the files and publish it.
+`.github/workflows/ci.yml` type-checks and builds a Linux executable for every push and pull
+request.
 
-### Windows
+### Platform notes
 
-```sh
-npm run dist:win
-```
-
-Produces in `release/`:
-
-- `Deckbase-<ver>-win-x64.exe`: NSIS installer. Installs per user to
-  `%LOCALAPPDATA%\Programs\Deckbase`, lets the user pick the folder, and adds Start menu and
-  desktop shortcuts. Silent install: run it with `/S`.
-- `Deckbase-<ver>-win-x64-portable.exe`: single exe, no install.
-- `win-unpacked/`: the unpacked app, handy for quick testing.
-
-Notes:
-
-- The build fails if `release/win-unpacked/Deckbase.exe` is running (file lock). Quit the
-  app first.
-- The app holds a single-instance lock. Starting a new build while an old one runs only opens
-  a window in the old process; quit every window before testing a new build.
-- Without a code-signing certificate, SmartScreen warns on first run ("More info" -> "Run
-  anyway"). To sign, set `CSC_LINK` (path or base64 of a `.pfx`) and `CSC_KEY_PASSWORD`
-  before building.
-
-### macOS
-
-Must run on a Mac (Xcode command line tools: `xcode-select --install`).
-
-```sh
-npm ci
-npm run dist:mac                         # architecture of this Mac
-npx electron-builder --mac --universal   # one app for Intel and Apple silicon (after npm run build)
-```
-
-Produces `Deckbase-<ver>-mac-<arch>.dmg` (drag-to-Applications installer) and `.zip` (used by
-auto-update, also fine for manual download). electron-builder builds the `.icns` icon from
-`build/icon.png`.
-
-**Unsigned builds** work on your own Mac. When the app is downloaded on another Mac,
-Gatekeeper blocks it ("app is damaged" or "unidentified developer"). The user can run:
-
-```sh
-xattr -dr com.apple.quarantine /Applications/Deckbase.app
-```
-
-or right-click the app, choose Open, then confirm.
-
-**Signed and notarized builds** (no warnings) need a paid Apple Developer account:
-
-1. Create a "Developer ID Application" certificate and export it with its key as a `.p12`.
-2. Create an app-specific password at appleid.apple.com.
-3. Add `"notarize": true` to `build.mac` in `package.json`.
-4. Build with these environment variables:
-
-   ```sh
-   export CSC_LINK=/path/to/cert.p12        # or base64 of the file
-   export CSC_KEY_PASSWORD=...
-   export APPLE_ID=you@example.com
-   export APPLE_APP_SPECIFIC_PASSWORD=...
-   export APPLE_TEAM_ID=XXXXXXXXXX
-   npm run dist:mac
-   ```
-
-### Linux
-
-Run on Linux, or on Windows inside WSL (Ubuntu). electron-builder downloads the tools it
-needs for AppImage and `.deb` (`fpm`) by itself. An `rpm` target also needs
-`sudo apt install rpm`.
-
-```sh
-npm ci              # inside Linux: the Windows node_modules won't work
-npm run dist:linux
-```
-
-In WSL, clone or copy the project into the Linux file system (`~/src/...`), not
-`/mnt/c/...`: the Windows `node_modules` has Windows binaries, and builds under `/mnt/c` are
-slow.
-
-Produces:
-
-- `Deckbase-<ver>-linux-x86_64.AppImage`: runs on most distributions.
-  `chmod +x Deckbase-*.AppImage && ./Deckbase-*.AppImage`. Some distributions need `libfuse2`
-  (`sudo apt install libfuse2`).
-- `Deckbase-<ver>-linux-amd64.deb`: `sudo apt install ./Deckbase-*.deb`. The package
-  maintainer comes from `build.linux.maintainer` in `package.json`.
-
-For ARM (Raspberry Pi and similar) add `--arm64`: `npx electron-builder --linux --arm64`.
-Other targets (`rpm`, `snap`, `flatpak`, `tar.gz`) go in `build.linux.target`.
-
-### Release through GitHub Actions
-
-`.github/workflows/release.yml` builds Windows, macOS and Linux in parallel when a tag
-`v*` is pushed, and uploads everything to a **draft** GitHub Release.
-
-1. Push the project to a GitHub repository.
-2. `npm version patch` (creates the commit and the `v<version>` tag).
-3. `git push --follow-tags`.
-4. Wait for the "Release" workflow, open the draft release on GitHub, check the files, and
-   publish it.
-
-The workflow sets `CSC_IDENTITY_AUTO_DISCOVERY=false`, so builds are unsigned. To sign, add the
-variables from the Windows/macOS sections as repository secrets and pass them in the `env` of
-the "Package" step. `.github/workflows/ci.yml` type-checks and builds on all three OSes for
-every push and pull request.
+- **Windows**: the exe has no console window, so `--browser` mode from the exe runs in the
+  background with nothing to close; stop it in Task Manager (or run from source instead).
+  WebView2 keeps its profile in `%APPDATA%\<exe file name>\`. The webview library passes that
+  folder itself, so `WEBVIEW2_USER_DATA_FOLDER` has no effect, and each version (new file
+  name) starts with a fresh profile. App state belongs on the server (`~/.<id>`), not in
+  `localStorage`. Unsigned executables trigger SmartScreen on first run ("More info" → "Run
+  anyway").
+- **Linux**: `chmod +x` the file. Window mode needs WebKitGTK (see Requirements).
+- **macOS**: the output is a plain executable, not an `.app` bundle, and it is unsigned:
+  `xattr -d com.apple.quarantine <file>` after downloading. Not tested on a Mac yet.
 
 ## Security model
 
 The server binds to `127.0.0.1` only. API calls require the random token generated at start
 (passed to the UI in the URL, then kept in `sessionStorage` and sent as the
-`x-deckbase-token` header). Requests whose `Host` header is not a loopback name are rejected.
-In the desktop app, links to other sites open in the default browser, never inside the app
-window. The renderer runs sandboxed, with context isolation and no Node integration.
+`x-deckbase-token` header). Requests whose `Host` header is not a loopback name are rejected,
+which blocks DNS rebinding. In the native window, links to other origins open in the default
+browser, never inside the app window.

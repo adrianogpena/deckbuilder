@@ -1,0 +1,31 @@
+{
+  "name": "@deckbase/gallery",
+  "version": "0.1.0",
+  "description": "Example app built on the deckbase packages.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "deckbase dev",
+    "dev:window": "deckbase dev --window",
+    "start": "bun server/main.ts",
+    "start:browser": "bun server/main.ts --browser",
+    "build:web": "deckbase build:web",
+    "build": "deckbase build"
+  },
+  "dependencies": {
+    "@deckbase/platform": "workspace:*",
+    "@deckbase/server-core": "workspace:*",
+    "@deckbase/server-mods": "workspace:*",
+    "@deckbase/shell": "workspace:*",
+    "@deckbase/ui": "workspace:*",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@deckbase/build": "workspace:*",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^6.0.3"
+  }
+}

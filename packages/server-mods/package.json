@@ -1,0 +1,12 @@
+{
+  "name": "@deckbase/server-mods",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@deckbase/server-core": "workspace:*"
+  }
+}

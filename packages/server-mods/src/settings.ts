@@ -1,0 +1,60 @@
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import type { Routes } from '@deckbase/server-core';
+
+/** Settings every app gets; apps extend this with their own fields. */
+export interface BaseSettings {
+  theme: 'dark' | 'light';
+  /** UI language (e.g. "en", "pt-BR"); unset means "follow the browser". */
+  language?: string;
+}
+
+export interface SettingsOptions<T extends BaseSettings> {
+  /** Folder of settings.json, usually `appHome(APP.id)`. */
+  dir: string;
+  defaults: T;
+  /** Copies the valid app-specific fields of `patch` onto `next`; unknown or malformed fields are ignored. */
+  apply?: (patch: Record<string, unknown>, next: T) => void;
+}
+
+export interface SettingsStore<T extends BaseSettings> {
+  dir: string;
+  load(): Promise<T>;
+  save(patch: Record<string, unknown>): Promise<T>;
+}
+
+export function settingsStore<T extends BaseSettings>(opts: SettingsOptions<T>): SettingsStore<T> {
+  const file = join(opts.dir, 'settings.json');
+  let cache: T | null = null;
+
+  async function load(): Promise<T> {
+    if (cache) return cache;
+    try {
+      cache = { ...opts.defaults, ...JSON.parse(await readFile(file, 'utf8')) };
+    } catch {
+      cache = { ...opts.defaults };
+    }
+    return cache!;
+  }
+
+  async function save(patch: Record<string, unknown>): Promise<T> {
+    const next: T = { ...(await load()) };
+    if (patch.theme === 'dark' || patch.theme === 'light') next.theme = patch.theme;
+    if (typeof patch.language === 'string' && /^[a-z]{2}(-[A-Z]{2})?$/.test(patch.language)) next.language = patch.language;
+    opts.apply?.(patch, next);
+    cache = next;
+    await mkdir(opts.dir, { recursive: true });
+    await writeFile(file, JSON.stringify(next, null, 2), 'utf8');
+    return next;
+  }
+
+  return { dir: opts.dir, load, save };
+}
+
+/** GET and PUT /api/settings. */
+export function settingsRoutes<T extends BaseSettings>(store: SettingsStore<T>): Routes {
+  return {
+    'GET /api/settings': () => store.load(),
+    'PUT /api/settings': async ({ json }) => store.save(await json()),
+  };
+}

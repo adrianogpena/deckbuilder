@@ -1,31 +1,39 @@
 name: Release
 
+# Tag `<app>-v<version>` (e.g. `gallery-v0.2.0`) builds apps/<app> for every target and
+# uploads the executables to a draft GitHub Release. <version> must match the app's package.json.
 on:
   push:
-    tags: ['v*']
+    tags: ['*-v*']
 
 permissions:
   contents: write
 
 jobs:
-  package:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, macos-latest, ubuntu-latest]
-    runs-on: ${{ matrix.os }}
+  release:
+    # Windows, because the exe icon and version info are only verified when building on Windows.
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run build
-      - name: Package and upload to a draft release
-        # The publish target lives here, not in package.json, so local builds need no GitHub repository.
-        run: npx electron-builder --publish always -c.publish.provider=github -c.publish.releaseType=draft
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Resolve app and version from the tag
+        run: |
+          tag='${{ github.ref_name }}'
+          app="${tag%-v*}"
+          version="${tag##*-v}"
+          actual=$(bun -p "require('./apps/$app/package.json').version")
+          if [ "$actual" != "$version" ]; then
+            echo "tag says $version but apps/$app/package.json says $actual" >&2
+            exit 1
+          fi
+          echo "APP=$app" >> "$GITHUB_ENV"
+      - run: bun run typecheck
+      - run: bun run --cwd "apps/$APP" build --target all
+      - name: Upload to a draft release
+        run: gh release create '${{ github.ref_name }}' --draft --title '${{ github.ref_name }}' apps/$APP/release/*
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Builds are not code-signed yet; skip looking for signing identities.
-          CSC_IDENTITY_AUTO_DISCOVERY: 'false'

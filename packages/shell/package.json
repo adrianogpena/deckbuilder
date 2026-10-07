@@ -1,0 +1,15 @@
+{
+  "name": "@deckbase/shell",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./window-worker": "./src/window-worker.ts"
+  },
+  "dependencies": {
+    "@deckbase/platform": "workspace:*",
+    "@deckbase/server-core": "workspace:*",
+    "webview-bun": "^2.4.0"
+  }
+}

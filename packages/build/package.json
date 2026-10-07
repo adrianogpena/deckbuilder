@@ -1,0 +1,13 @@
+{
+  "name": "@deckbase/build",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "deckbase": "src/cli.ts"
+  },
+  "dependencies": {
+    "@deckbase/server-core": "workspace:*",
+    "sharp": "^0.35.5"
+  }
+}

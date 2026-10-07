@@ -17,7 +17,7 @@ Self-test: open window 1, open window 2, probe the web Notification API, record 
 | Start → window 1 ready | 0.6–0.8 s warm, 2.9 s first run | 1.5 s (dev build) |
 | RAM (server process) | 62 MB | 70 MB |
 | Console window | hidden with `--windows-hide-console` | none |
-| WebView2 data folder | `%APPDATA%\<exe name>\`; set `WEBVIEW2_USER_DATA_FOLDER` to choose | `%LOCALAPPDATA%\<identifier>\` |
+| WebView2 data folder | `%APPDATA%\<exe name>\`, passed by the webview library; `WEBVIEW2_USER_DATA_FOLDER` has no effect (checked later) | `%LOCALAPPDATA%\<identifier>\` |
 | Updates | keep Dashboard's `latest.json` updater | built-in, with binary delta patches (needs `release.baseUrl`) |
 | Setup weight | one npm package | Hutch toolchain: 286 MB in `~/.hutch`, adds itself to the user PATH. The installer breaks under Git Bash (GNU tar); run it from PowerShell |
 | Maturity / churn | small binding over the stable `webview` C library | v2 moved the SDK off npm to Hutch; default runtime is now "Cottontail", not Bun |
