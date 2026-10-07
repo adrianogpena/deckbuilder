@@ -33,26 +33,46 @@ export function SettingsScreen({ settings, onChange, onQuit }: Props) {
               {LANGUAGES.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}
             </select>
           </label>
-          <div className="field">
-            <span className="mono-label">{t('settings.autostart')}</span>
-            <div className="chips">
-              {([true, false] as const).map((on) => (
-                <button key={String(on)} className={`chip${settings.autostart === on ? ' chip-on' : ''}`} onClick={() => onChange({ autostart: on })}>
-                  {t(on ? 'settings.autostart.on' : 'settings.autostart.off')}
-                </button>
-              ))}
-            </div>
-            <span className="muted">{t('settings.autostart.hint')}</span>
-          </div>
+          <OnOffField
+            label={t('settings.autostart')}
+            hint={t('settings.autostart.hint')}
+            value={settings.autostart}
+            onChange={(autostart) => onChange({ autostart })}
+          />
+          <OnOffField
+            label={t('settings.closeToTray')}
+            hint={t('settings.closeToTray.hint')}
+            value={settings.closeToTray}
+            onChange={(closeToTray) => onChange({ closeToTray })}
+          />
         </div>
-        {!isDesktop && <GeneralCard onQuit={onQuit} />}
+        {(!isDesktop || settings.closeToTray) && <GeneralCard onQuit={onQuit} />}
         <UpdatesCard folder={settings.updateFolder} onFolder={(updateFolder) => onChange({ updateFolder })} />
       </div>
     </div>
   );
 }
 
-/** Browser and app mode only: the native window stops the app with its close button. */
+function OnOffField({ label, hint, value, onChange }: { label: string; hint: string; value: boolean; onChange: (on: boolean) => void }) {
+  return (
+    <div className="field">
+      <span className="mono-label">{label}</span>
+      <div className="chips">
+        {([true, false] as const).map((on) => (
+          <button key={String(on)} className={`chip${value === on ? ' chip-on' : ''}`} onClick={() => onChange(on)}>
+            {t(on ? 'settings.on' : 'settings.off')}
+          </button>
+        ))}
+      </div>
+      <span className="muted">{hint}</span>
+    </div>
+  );
+}
+
+/**
+ * Where closing the window doesn't stop the app: browser and app mode, and with the tray (the
+ * setting, which applies after a restart; until then the tray menu or the close button quits).
+ */
 function GeneralCard({ onQuit }: { onQuit: () => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
@@ -79,7 +99,7 @@ function GeneralCard({ onQuit }: { onQuit: () => void }) {
               {t('settings.quit')}
             </button>
           </div>
-          <span className="muted">{t('settings.quit.hint', { name: APP.name })}</span>
+          <span className="muted">{t(isDesktop ? 'settings.quit.hintTray' : 'settings.quit.hint', { name: APP.name })}</span>
         </div>
         {error && <ErrorBanner error={error} compact />}
       </div>

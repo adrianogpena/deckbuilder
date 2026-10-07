@@ -74,7 +74,12 @@ export async function buildExe(app: AppDir, target: Target): Promise<string> {
   const [os, arch] = target.split('-') as [string, string];
   const windows = os === 'windows';
   const out = join(app.dir, 'release', `${app.name}-${app.version}-${platformLabel(os, arch)}${windows ? '.exe' : ''}`);
-  rmSync(out, { force: true });
+  try {
+    rmSync(out, { force: true });
+  } catch (err) {
+    // Windows locks a running exe; Bun reports that as EFAULT or EBUSY.
+    throw new Error(`Can't replace ${relative(app.dir, out)}: quit the running app first. (${(err as Error).message})`);
+  }
 
   const cmd = ['bun', 'build', join(dir, 'entry.ts'), join(dir, 'window-worker.ts'), '--compile', '--minify', `--target=bun-${target}`, `--outfile=${out}`];
   if (windows) {

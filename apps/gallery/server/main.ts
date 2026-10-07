@@ -17,6 +17,8 @@ import { routes, setStartContext } from './routes.ts';
 export interface Settings extends BaseSettings {
   /** Start at Windows login (exe only). */
   autostart: boolean;
+  /** Tray icon, so closing the window keeps the app running; read at startup. */
+  closeToTray: boolean;
   /** Folder `deckbuilder release --to` publishes to; empty means no update checks. */
   updateFolder: string;
 }
@@ -25,9 +27,10 @@ const dataDir = appHome(APP.id);
 const autostart = createAutostart({ name: APP.name });
 const settings = settingsStore<Settings>({
   dir: dataDir,
-  defaults: { theme: 'dark', autostart: false, updateFolder: '' },
+  defaults: { theme: 'dark', autostart: false, closeToTray: false, updateFolder: '' },
   apply(patch, next) {
     if (typeof patch.autostart === 'boolean') next.autostart = patch.autostart;
+    if (typeof patch.closeToTray === 'boolean') next.closeToTray = patch.closeToTray;
     if (typeof patch.updateFolder === 'string') next.updateFolder = patch.updateFolder.trim();
   },
   onChange(next, prev) {
@@ -43,6 +46,8 @@ const updater = createUpdater({
   },
 });
 
+const { closeToTray } = await settings.load();
+
 await runApp({
   app: APP,
   routes: {
@@ -53,6 +58,7 @@ await runApp({
   },
   webDir: join(import.meta.dir, '../dist/web'),
   urlProtocol: true,
+  tray: closeToTray,
   async onStart(ctx) {
     setStartContext(ctx);
     updater.start();

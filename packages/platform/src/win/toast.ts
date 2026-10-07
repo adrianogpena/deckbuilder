@@ -1,4 +1,5 @@
 import { killTree } from '../run.ts';
+import { asciiJson, forEachLine } from './powershell.ts';
 
 export interface Toast {
   title: string;
@@ -33,10 +34,9 @@ export function toastXml(toast: Toast): string {
   );
 }
 
-/** One stdin line for the host; non-ASCII is \u-escaped so the console code page can't mangle it. */
+/** One stdin line for the host. */
 export function toastLine(toast: Toast): string {
-  const json = JSON.stringify({ xml: toastXml(toast) }).replace(/[\u007f-￿]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`);
-  return `${json}\n`;
+  return `${asciiJson({ xml: toastXml(toast) })}\n`;
 }
 
 // Reads one JSON line per toast until stdin closes. A bad line is reported on stderr and skipped.
@@ -93,18 +93,6 @@ const spawnHost: ToastSpawn = () => {
   };
 };
 
-async function forwardErrors(stderr: ReadableStream<Uint8Array>, onError: (msg: string) => void) {
-  const decoder = new TextDecoder();
-  let buffered = '';
-  for await (const chunk of stderr) {
-    buffered += decoder.decode(chunk, { stream: true });
-    const lines = buffered.split(/\r?\n/);
-    buffered = lines.pop() ?? '';
-    for (const line of lines) if (line.trim() !== '') onError(line.trim());
-  }
-  if (buffered.trim() !== '') onError(buffered.trim());
-}
-
 export interface ToasterOptions {
   spawn?: ToastSpawn;
   onError?: (msg: string) => void;
@@ -127,7 +115,7 @@ export function createToaster(opts: ToasterOptions = {}): Toaster {
 
   const start = (): Running => {
     const proc = spawn();
-    const errors = forwardErrors(proc.stderr, onError).catch(() => {});
+    const errors = forEachLine(proc.stderr, onError).catch(() => {});
     const entry: Running = { proc, done: Promise.resolve(0) };
     entry.done = Promise.all([proc.exited, errors]).then(([code]) => {
       if (current === entry) current = null;

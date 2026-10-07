@@ -107,6 +107,13 @@ source directly; there is no package build step.
   window on `#<path>`, through the running instance when there is one. Windows starts the exe
   with `--open-url <uri>`. Remove the registration with
   `reg delete HKCU\Software\Classes\<id> /f`.
+- **Tray** (Windows): `tray: true` in `runApp` shows the exe's icon in the notification area
+  (a generic icon from source; none with `--dev`), with "Open <name>" (also on double-click)
+  and "Quit". Closing the last window then keeps the app running, and it exits when idle only
+  with `--idle-exit`. Pass `tray: { openLabel, quitLabel, items: [{ id, label, run }] }` for
+  other labels and more entries between those two (ids must not start with `__`). The gallery
+  reads it from a setting at startup, so a change takes effect after a restart. Test with
+  `bun packages/platform/src/win/tray.ts --selftest`.
 
 ## New app
 
@@ -157,7 +164,8 @@ push and pull request.
 
 - **Windows**: the exe has no console window, so `--browser` mode from the exe runs in the
   background with nothing to close: stop it with the Quit button in Settings, or let it end by
-  itself 10 minutes after the last tab closes (idle exit).
+  itself 10 minutes after the last tab closes (idle exit; not when the app has a tray icon,
+  whose menu has Quit).
   WebView2 keeps its profile in `%APPDATA%\<exe file name>\`. The webview library passes that
   folder itself, so `WEBVIEW2_USER_DATA_FOLDER` has no effect, and each version (new file
   name) starts with a fresh profile. App state belongs on the server (`~/.<id>`), not in

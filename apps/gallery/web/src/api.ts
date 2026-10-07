@@ -5,6 +5,8 @@ export interface Settings {
   theme: 'dark' | 'light';
   language?: Language;
   autostart: boolean;
+  /** Tray icon; read at startup. */
+  closeToTray: boolean;
   updateFolder: string;
 }
 

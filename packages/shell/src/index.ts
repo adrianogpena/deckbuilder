@@ -11,7 +11,7 @@ import {
   TOKEN_PARAM,
   VITE_PORT,
 } from '@deckbuilder/server-core';
-import { appHome, createUrlProtocol, findAppBrowser, isCompiledExe, openExternal, removeOldExe } from '@deckbuilder/platform';
+import { appHome, createTray, createUrlProtocol, findAppBrowser, isCompiledExe, openExternal, removeOldExe, type Tray } from '@deckbuilder/platform';
 import { appWindowsOpen, closeAppWindows, openAppWindow } from './app-window.ts';
 import { createIdleWatch, type IdleWatch } from './idle.ts';
 import { acquireLock, createInstance, handOff, type OpenMode } from './instance.ts';
@@ -33,6 +33,15 @@ export interface StartContext {
   quit(): Promise<void>;
 }
 
+export interface TrayMenu {
+  /** Default "Open <app name>". */
+  openLabel?: string;
+  /** Default "Quit". */
+  quitLabel?: string;
+  /** Entries between Open and Quit; ids must not start with `__`. */
+  items?: { id: string; label: string; run(): void }[];
+}
+
 export interface RunOptions {
   app: AppIdentity;
   routes: Routes;
@@ -44,6 +53,11 @@ export interface RunOptions {
    * `app.id` must then be a valid URL scheme.
    */
   urlProtocol?: boolean;
+  /**
+   * A notification-area icon (Windows, not in --dev) with Open, the app's entries and Quit. The
+   * app then keeps running when its last window closes, and only exits when idle with --idle-exit.
+   */
+  tray?: boolean | TrayMenu;
   /** Runs once the server listens; not in a launch that hands off to a running instance. */
   onStart?: (ctx: StartContext) => void | Promise<void>;
 }
@@ -75,7 +89,8 @@ Usage: ${app.id} [--app | --browser [--no-open]] [--port <n>] [--idle-exit <min>
   --no-open          with --browser: print the address only
   --port <n>         fixed port (default: any free port)
   --idle-exit <min>  exit after <min> minutes without a request from an open UI (fractions
-                     allowed; the exe in --browser mode uses 10 without the flag)
+                     allowed; the exe in --browser mode without a tray icon uses 10 without
+                     the flag)
   --open-url <uri>   open a native window on <path> of a ${app.id}://open/<path> link
                      (Windows passes deep links this way)
   --dev              port ${DEV_PORT} and token "${DEV_TOKEN}" for the Vite dev server (opens nothing
@@ -90,6 +105,9 @@ the running instance instead.
   if (opts.urlProtocol && !isUrlScheme(app.id)) {
     throw new Error(`urlProtocol needs an app id that is a valid URL scheme, not "${app.id}".`);
   }
+  const trayMenu = opts.tray === true ? {} : opts.tray || null;
+  const reserved = trayMenu?.items?.find((item) => item.id.startsWith('__'));
+  if (reserved) throw new Error(`Tray entry ids must not start with "__", got "${reserved.id}".`);
   const dev = flag('--dev');
   const openUrl = option('--open-url');
   // A link that doesn't parse still opens the app, just without a path.
@@ -142,8 +160,13 @@ the running instance instead.
 
   let baseUrl = '';
   let idle: IdleWatch | null = null;
+  // Set while the tray icon starts or shows; `trayShown` once it does.
+  let tray: Tray | null = null;
+  let trayShown = false;
+  let closedWhileTrayStarts = false;
+  // Only the explicit --idle-exit watch, created at startup, survives the tray showing.
   const enableIdleExit = (ms: number) => {
-    if (dev || idle) return;
+    if (dev || idle || trayShown) return;
     idle = createIdleWatch({ timeoutMs: ms, onIdle: () => void quit() });
   };
   const disableIdleExit = () => {
@@ -154,12 +177,15 @@ the running instance instead.
   const quit = async (): Promise<void> => {
     disableIdleExit();
     closeAppWindows();
-    await server?.stop(true);
+    await Promise.all([server?.stop(true), tray?.close()]);
     process.exit(0);
   };
-  // Native windows and app windows both report here; the app ends once neither kind is open.
+  // Native windows and app windows both report here; the app ends once neither kind is open,
+  // unless it has a tray icon. While the icon starts, it waits to see whether it shows.
   const onAllClosed = () => {
-    if (openWindows() === 0 && !appWindowsOpen()) void quit();
+    if (openWindows() > 0 || appWindowsOpen()) return;
+    if (!tray) void quit();
+    else if (!trayShown) closedWhileTrayStarts = true;
   };
   // WebView2 keeps its profile in %APPDATA%\<exe name>\: the webview library passes that
   // folder explicitly, so WEBVIEW2_USER_DATA_FOLDER has no effect.
@@ -189,6 +215,32 @@ the running instance instead.
     return url;
   };
   const instance = dev ? null : createInstance(instanceFile, show);
+
+  const startTray = (menu: TrayMenu) => {
+    const entries = [
+      { id: '__open', label: menu.openLabel ?? `Open ${app.name}`, run: () => void show(mode === 'none' ? 'window' : mode) },
+      ...(menu.items ?? []),
+      { id: '__quit', label: menu.quitLabel ?? 'Quit', run: () => void quit() },
+    ];
+    const created = createTray({
+      tooltip: app.name,
+      items: entries.map(({ id, label }) => ({ id, label })),
+      onSelect: (id) => entries.find((entry) => entry.id === id)?.run(),
+    });
+    if (!created.supported) return;
+    tray = created;
+    created.ready.then(
+      () => {
+        trayShown = true;
+        if (idleMinutes === undefined) disableIdleExit();
+      },
+      (err: Error) => {
+        console.warn(`No tray icon: ${err.message}`);
+        tray = null;
+        if (closedWhileTrayStarts) onAllClosed();
+      },
+    );
+  };
 
   const routes: Routes = {
     ...opts.routes,
@@ -235,6 +287,7 @@ the running instance instead.
   if (opts.urlProtocol) {
     void createUrlProtocol({ scheme: app.id, name: app.name }).fixUp().catch((err) => console.error(err));
   }
+  if (trayMenu && !dev) startTray(trayMenu);
   void Promise.resolve(opts.onStart?.(ctx)).catch((err) => console.error(err));
 
   if (mode !== 'window') console.log(`\n  ${app.name} running at ${baseUrl}\n  Press Ctrl+C to stop.\n`);

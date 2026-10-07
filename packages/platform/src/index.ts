@@ -9,6 +9,7 @@ export * from './win/autostart.ts';
 export * from './win/powershell.ts';
 export * from './win/protocol.ts';
 export * from './win/toast.ts';
+export * from './win/tray.ts';
 
 /** App data folder `~/.<id>`: outside the install folder, so data survives reinstalls and updates. */
 export function appHome(id: string): string {
