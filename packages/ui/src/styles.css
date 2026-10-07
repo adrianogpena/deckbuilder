@@ -14,8 +14,11 @@
   --panel-2: #16181d;
   --hover: #1c1f25;
   --selected: #1a1830;
+  --side-active: #1f1c33;
   --border: #262a32;
   --border-soft: #1d2027;
+  --row-border: #1a1d23;
+  --keycap: #363b45;
   --text: #eceef2;
   --text-2: #a6acb7;
   --text-3: #6c727d;
@@ -29,20 +32,20 @@
   --warn-soft: rgba(245, 184, 61, 0.13);
   --err: #ff6b6b;
   --err-soft: rgba(255, 107, 107, 0.13);
+  --ink-on-err: #fff;
   --info: #5fb4ff;
   --info-soft: rgba(95, 180, 255, 0.13);
   --debug: #8b93a1;
   --debug-soft: rgba(139, 147, 161, 0.14);
   --muted-soft: rgba(148, 163, 184, 0.12);
-  --row-border: #1a1d23;
-  --keycap: #363b45;
-  --shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
   --y-key: #7cc4ff;
   --y-str: #9ee6c0;
   --y-num: #fcd34d;
   --y-bool: #f0abfc;
   --y-comment: #5b6370;
   --mark: rgba(245, 184, 61, 0.35);
+  --shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+  --backdrop: rgba(3, 7, 12, 0.55);
   --font-mono: 'Geist Mono', 'Cascadia Code', Consolas, monospace;
   color-scheme: dark;
 }
@@ -54,36 +57,39 @@
   --panel: #ffffff;
   --panel-2: #f7f9fb;
   --hover: #eef3f8;
-  --selected: #e0f5f9;
+  --selected: #ece8fd;
+  --side-active: rgba(106, 79, 216, 0.1);
   --border: #d7dee7;
   --border-soft: #e6ebf1;
+  --row-border: #e6ebf1;
+  --keycap: #c9d2dc;
   --text: #17212c;
   --text-2: #4b5b6c;
   --text-3: #7c8a99;
-  --accent: #0891b2;
-  --accent-2: #0e7490;
-  --accent-soft: rgba(8, 145, 178, 0.1);
+  --accent: #6a4fd8;
+  --accent-2: #5638c4;
+  --accent-soft: rgba(106, 79, 216, 0.1);
+  --ink-on-accent: #ffffff;
   --ok: #059669;
   --ok-soft: rgba(5, 150, 105, 0.1);
   --warn: #b45309;
   --warn-soft: rgba(217, 119, 6, 0.12);
   --err: #dc2626;
   --err-soft: rgba(220, 38, 38, 0.1);
+  --ink-on-err: #fff;
   --info: #2563eb;
   --info-soft: rgba(37, 99, 235, 0.1);
+  --debug: #64748b;
+  --debug-soft: rgba(100, 116, 139, 0.12);
   --muted-soft: rgba(100, 116, 139, 0.1);
-  --shadow: 0 20px 50px rgba(15, 23, 42, 0.18);
   --y-key: #0369a1;
   --y-str: #047857;
   --y-num: #b45309;
   --y-bool: #a21caf;
   --y-comment: #94a3b8;
   --mark: rgba(251, 191, 36, 0.45);
-  --ink-on-accent: #ffffff;
-  --debug: #64748b;
-  --debug-soft: rgba(100, 116, 139, 0.12);
-  --row-border: #e6ebf1;
-  --keycap: #c9d2dc;
+  --shadow: 0 20px 50px rgba(15, 23, 42, 0.18);
+  --backdrop: rgba(15, 23, 42, 0.35);
   --font-mono: 'Geist Mono', 'Cascadia Code', Consolas, monospace;
   color-scheme: light;
 }
@@ -161,7 +167,7 @@ kbd {
 .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--ink-on-accent); font-weight: 600; }
 .btn-primary:hover:not(:disabled) { background: var(--accent-2); border-color: var(--accent-2); color: var(--ink-on-accent); }
 .btn-danger { background: var(--err-soft); border-color: transparent; color: var(--err); font-weight: 600; }
-.btn-danger:hover:not(:disabled) { background: var(--err); border-color: var(--err); color: #fff; }
+.btn-danger:hover:not(:disabled) { background: var(--err); border-color: var(--err); color: var(--ink-on-err); }
 .chips { display: flex; gap: 6px; flex-wrap: wrap; }
 .chip {
   height: 26px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--border);
@@ -215,14 +221,13 @@ kbd {
   cursor: pointer; font-size: 13px;
 }
 .side-item:hover { background: var(--hover); color: var(--text); }
-.side-item.active { background: #1f1c33; color: var(--text); font-weight: 600; }
+.side-item.active { background: var(--side-active); color: var(--text); font-weight: 600; }
 .side-item.active::before {
   content: ""; position: absolute; left: 0; top: 7px; bottom: 7px; width: 2px; border-radius: 2px; background: var(--accent);
 }
 .side-item.active .icon, .side-item.active .side-short { color: var(--accent); }
-:root[data-theme='light'] .side-item.active { background: var(--accent-soft); }
 .side-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.side-short { font-size: 10.5px; color: #565c66; font-family: var(--font-mono); }
+.side-short { font-size: 10.5px; color: var(--text-3); font-family: var(--font-mono); }
 .side-footer { display: flex; align-items: center; gap: 6px; padding: 10px; border-top: 1px solid var(--border-soft); }
 
 .main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
@@ -296,7 +301,7 @@ kbd {
 
 /* ---- modal */
 .modal-backdrop {
-  position: fixed; inset: 0; background: rgba(3, 7, 12, 0.55); backdrop-filter: blur(3px);
+  position: fixed; inset: 0; background: var(--backdrop); backdrop-filter: blur(3px);
   display: flex; align-items: center; justify-content: center; z-index: 50; padding: 16px;
   animation: fade .12s ease-out;
 }

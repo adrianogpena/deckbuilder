@@ -33,8 +33,6 @@ export const ptBR: Messages<typeof en> = {
   'settings.crumb': 'Preferências',
   'settings.title': 'Configurações',
   'settings.theme': 'Tema',
-  'settings.theme.dark': 'Escuro',
-  'settings.theme.light': 'Claro',
   'settings.general': 'Geral',
   'settings.quit': 'Sair',
   'settings.quit.hint': 'Encerra o {name}. Fechar a aba o deixa rodando.',

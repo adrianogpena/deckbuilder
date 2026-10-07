@@ -11,7 +11,7 @@ library inside), and Windows, Linux and macOS executables can all be built from 
   `--app` opens an Edge/Chrome app window (no tabs or address bar) with its own browser profile
   in `~/.<id>/app-profile`; the app stops when its last app window closes. Without Edge or Chrome
   it falls back to `--browser`, which serves the UI to the default browser.
-- **UI**: React + Vite. Sidebar layout, dark/light theme, English/Portuguese, error banners,
+- **UI**: React + Vite. Sidebar layout, themes (System/Dark/Light and a color palette), English/Portuguese, error banners,
   cards, modals, Geist fonts and one set of color tokens.
 - Data and settings live in `~/.<app id>` (here `~/.deckbuilder`), outside the install folder.
 
@@ -98,6 +98,10 @@ source directly; there is no package build step.
   `pt-BR.ts` (TypeScript fails until both have every key).
 - **A setting**: extend `Settings` in `server/main.ts` and `web/src/api.ts`, give it a default,
   and validate it in the `apply` option of `settingsStore`; react to changes in `onChange`.
+- **Themes**: `useTheme(settings)` (from `@deckbuilder/ui`) applies the palette of `ThemeSettings`
+  (`theme`, `paletteDark`, `paletteLight`; palettes in `@deckbuilder/server-core/palettes`) to `<html>`.
+  Make the app `Settings` extend `ThemeSettings` and render `<AppearanceFields value onChange />` in
+  its settings screen. Style with the `var(--…)` tokens only.
 - **Startup work** (timers, update checks): put it in `runApp`'s `onStart`, which a launch that
   hands off to a running instance never reaches.
 - **Notifications** (Windows): `createToaster()` from `@deckbuilder/platform`, then

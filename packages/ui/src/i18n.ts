@@ -10,6 +10,11 @@ const baseEn = {
   'common.copied': 'Copied',
   'common.close': 'Close',
 
+  'theme.system': 'System',
+  'theme.dark': 'Dark',
+  'theme.light': 'Light',
+  'theme.palette': 'Color palette',
+
   'error.offline': 'The app server is not responding.',
   'error.invalidToken': 'Invalid session. Open the address printed in the terminal.',
   'error.routeNotFound': 'Route not found.',
@@ -38,6 +43,11 @@ const basePtBR: Messages<typeof baseEn> = {
   'common.copy': 'Copiar',
   'common.copied': 'Copiado',
   'common.close': 'Fechar',
+
+  'theme.system': 'Sistema',
+  'theme.dark': 'Escuro',
+  'theme.light': 'Claro',
+  'theme.palette': 'Paleta de cores',
 
   'error.offline': 'O servidor do app não está respondendo.',
   'error.invalidToken': 'Sessão inválida. Abra o endereço mostrado no terminal.',

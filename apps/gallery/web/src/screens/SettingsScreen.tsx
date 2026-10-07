@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { type ApiError, detectLanguage, ErrorBanner, errorOf, isDesktop, LANGUAGES, PageHead, Spinner, useAsync, type Language } from '@deckbuilder/ui';
+import { AppearanceFields, type ApiError, detectLanguage, ErrorBanner, errorOf, isDesktop, LANGUAGES, PageHead, Spinner, useAsync, type Language } from '@deckbuilder/ui';
 import { APP } from '../../../app';
 import { api, type Settings } from '../api';
 import { t } from '../i18n';
@@ -16,17 +16,13 @@ export function SettingsScreen({ settings, onChange, onQuit }: Props) {
     <div className="content">
       <PageHead crumb={t('settings.crumb')} title={t('settings.title')} />
       <div className="scroll">
-        <div className="card form">
-          <div className="field">
-            <span className="mono-label">{t('settings.theme')}</span>
-            <div className="chips">
-              {(['dark', 'light'] as const).map((theme) => (
-                <button key={theme} className={`chip${settings.theme === theme ? ' chip-on' : ''}`} onClick={() => onChange({ theme })}>
-                  {t(`settings.theme.${theme}`)}
-                </button>
-              ))}
-            </div>
+        <section className="section">
+          <h4 className="mono-label">{t('settings.theme')}</h4>
+          <div className="card form">
+            <AppearanceFields value={settings} onChange={onChange} />
           </div>
+        </section>
+        <div className="card form">
           <label className="field">
             <span className="mono-label">{t('settings.language')}</span>
             <select value={settings.language ?? detectLanguage()} onChange={(e) => onChange({ language: e.target.value as Language })}>

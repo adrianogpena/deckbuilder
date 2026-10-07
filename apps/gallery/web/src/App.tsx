@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { detectLanguage, ErrorBanner, Icon, isTyping, setLanguage, Sidebar, Spinner, useAsync, useHashRoute, useHeartbeat, useKey } from '@deckbuilder/ui';
+import { detectLanguage, ErrorBanner, Icon, isTyping, setLanguage, Sidebar, Spinner, useAsync, useHashRoute, useHeartbeat, useKey, useTheme } from '@deckbuilder/ui';
 import { APP } from '../../app';
 import { api, type Settings } from './api';
 import { type MessageKey, t } from './i18n';
@@ -40,9 +40,7 @@ function Shell({ initialSettings }: { initialSettings: Settings }) {
   setLanguage(settings.language ?? detectLanguage());
   useHeartbeat();
 
-  useEffect(() => {
-    document.documentElement.dataset.theme = settings.theme;
-  }, [settings.theme]);
+  const { kind } = useTheme(settings);
 
   useEffect(() => {
     const item = NAV.flatMap((s) => s.items).find((i) => i.id === screen);
@@ -63,7 +61,7 @@ function Shell({ initialSettings }: { initialSettings: Settings }) {
 
   if (stopped) return <div className="boot"><span>{t('app.stopped', { name: APP.name })}</span></div>;
 
-  const nextTheme = settings.theme === 'dark' ? 'light' : 'dark';
+  const nextTheme = kind === 'dark' ? 'light' : 'dark';
   const sections = NAV.map((s) => ({ title: t(s.title), items: s.items.map((i) => ({ ...i, label: t(i.label) })) }));
 
   return (
@@ -75,7 +73,7 @@ function Shell({ initialSettings }: { initialSettings: Settings }) {
         onSelect={go}
         footer={
           <button className="btn btn-ghost btn-sm" onClick={() => save({ theme: nextTheme })} title={t(`nav.theme.${nextTheme}`)}>
-            <Icon name={settings.theme === 'dark' ? 'sun' : 'moon'} /> {t(`nav.theme.${nextTheme}`)}
+            <Icon name={kind === 'dark' ? 'sun' : 'moon'} /> {t(`nav.theme.${nextTheme}`)}
           </button>
         }
       />

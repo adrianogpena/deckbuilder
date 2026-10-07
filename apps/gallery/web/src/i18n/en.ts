@@ -31,8 +31,6 @@ export const en = {
   'settings.crumb': 'Preferences',
   'settings.title': 'Settings',
   'settings.theme': 'Theme',
-  'settings.theme.dark': 'Dark',
-  'settings.theme.light': 'Light',
   'settings.general': 'General',
   'settings.quit': 'Quit',
   'settings.quit.hint': 'Stops {name}. Closing the tab leaves it running.',

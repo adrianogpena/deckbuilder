@@ -1,8 +1,8 @@
+import type { ThemeSettings } from '@deckbuilder/server-core/palettes';
 import type { UpdateState } from '@deckbuilder/server-core/protocol';
 import { type Language, request } from '@deckbuilder/ui';
 
-export interface Settings {
-  theme: 'dark' | 'light';
+export interface Settings extends ThemeSettings {
   language?: Language;
   autostart: boolean;
   /** Tray icon; read at startup. */
