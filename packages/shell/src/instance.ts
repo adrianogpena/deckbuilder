@@ -10,8 +10,8 @@ import type { Routes } from '@deckbuilder/server-core';
 export const INSTANCE_HEADER = 'x-deckbuilder-instance';
 export const INSTANCE_ROUTE = 'POST /api/instance/open';
 
-/** What a launch asks for: a native window, a browser tab, or nothing (`--no-open`). */
-export type OpenMode = 'window' | 'browser' | 'none';
+/** What a launch asks for: a native window, an Edge/Chrome app window, a browser tab, or nothing (`--no-open`). */
+export type OpenMode = 'window' | 'app' | 'browser' | 'none';
 
 interface InstanceInfo {
   pid: number;
@@ -66,7 +66,7 @@ export function createInstance(file: string, open: (mode: OpenMode) => string): 
         const given = Buffer.from(req.headers.get(INSTANCE_HEADER) ?? '');
         if (given.length !== secret.length || !timingSafeEqual(given, secret)) return new Response('Forbidden', { status: 403 });
         const { mode } = await json<{ mode?: unknown }>();
-        return { url: open(mode === 'browser' || mode === 'none' ? mode : 'window') };
+        return { url: open(mode === 'app' || mode === 'browser' || mode === 'none' ? mode : 'window') };
       },
     },
     publish(port) {

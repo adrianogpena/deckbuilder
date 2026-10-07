@@ -51,7 +51,7 @@ switch (command) {
   default:
     console.log(`Usage: deckbuilder <command>
 
-  dev [server flags]          server (--dev, watch mode) + Vite dev server; e.g. dev --window
+  dev [server flags]          server (--dev, watch mode) + Vite dev server; e.g. dev --window, dev --app
   build:web                   bundle web/ into dist/web
   build [--target <list>]     build:web, then one exe per target into release/
                               targets: windows-x64, linux-x64, linux-arm64, darwin-x64,

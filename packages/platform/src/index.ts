@@ -2,6 +2,7 @@ import { join } from 'node:path';
 import { homedir } from 'node:os';
 
 // OS-specific code lives here, so apps and the other packages stay portable.
+export * from './browser.ts';
 export * from './exe.ts';
 export * from './run.ts';
 export * from './win/autostart.ts';

@@ -17,7 +17,15 @@ export interface WindowRequest {
   debug: boolean;
 }
 
+/** Size of a new native or app window unless the app passes one. */
+export const DEFAULT_WINDOW = { width: 1280, height: 820 };
+
 let open = 0;
+
+/** Native windows that are still open. */
+export function openWindows(): number {
+  return open;
+}
 
 /**
  * Opens a native window on `url`. Each window runs in its own Worker because Webview.run()
@@ -30,8 +38,8 @@ export function openWindow(url: string, opts: WindowOptions, onAllClosed: () => 
   const request: WindowRequest = {
     url,
     title: opts.title ?? '',
-    width: opts.width ?? 1280,
-    height: opts.height ?? 820,
+    width: opts.width ?? DEFAULT_WINDOW.width,
+    height: opts.height ?? DEFAULT_WINDOW.height,
     debug: opts.debug ?? false,
   };
   worker.postMessage(request);

@@ -10,13 +10,14 @@ import {
   TOKEN_PARAM,
   VITE_PORT,
 } from '@deckbuilder/server-core';
-import { appHome, isCompiledExe, openExternal, removeOldExe } from '@deckbuilder/platform';
+import { appHome, findAppBrowser, isCompiledExe, openExternal, removeOldExe } from '@deckbuilder/platform';
+import { appWindowsOpen, closeAppWindows, openAppWindow } from './app-window.ts';
 import { createIdleWatch, type IdleWatch } from './idle.ts';
 import { acquireLock, createInstance, handOff, type OpenMode } from './instance.ts';
-import { openWindow, type WindowOptions } from './window.ts';
+import { openWindow, openWindows, type WindowOptions } from './window.ts';
 
 export type { OpenMode } from './instance.ts';
-export type { WindowOptions } from './window.ts';
+export { DEFAULT_WINDOW, type WindowOptions } from './window.ts';
 
 export interface RunOptions {
   app: AppIdentity;
@@ -29,9 +30,9 @@ export interface RunOptions {
 }
 
 /**
- * Starts the local server, then opens the UI in a native window (default) or the browser.
- * Outside --dev only one instance runs: a second launch makes the running one open a new
- * window (or browser tab) and exits. Run `<app> --help` for the flags.
+ * Starts the local server, then opens the UI in a native window (default), an Edge/Chrome app
+ * window or the browser. Outside --dev only one instance runs: a second launch makes the running
+ * one open a new window (or browser tab) and exits. Run `<app> --help` for the flags.
  */
 export async function runApp(opts: RunOptions): Promise<void> {
   const { app } = opts;
@@ -45,8 +46,10 @@ export async function runApp(opts: RunOptions): Promise<void> {
   if (flag('--help') || flag('-h')) {
     console.log(`${app.name}
 
-Usage: ${app.id} [--browser [--no-open]] [--port <n>] [--idle-exit <min>] [--dev [--window]]
+Usage: ${app.id} [--app | --browser [--no-open]] [--port <n>] [--idle-exit <min>] [--dev [--window | --app]]
 
+  --app              open the UI in an Edge/Chrome app window (falls back to --browser when
+                     neither is installed)
   --browser          serve the UI to the default browser instead of opening a window; the
                      Settings screen has a Quit button
   --no-open          with --browser: print the address only
@@ -54,7 +57,7 @@ Usage: ${app.id} [--browser [--no-open]] [--port <n>] [--idle-exit <min>] [--dev
   --idle-exit <min>  exit after <min> minutes without a request from an open UI (fractions
                      allowed; the exe in --browser mode uses 10 without the flag)
   --dev              port ${DEV_PORT} and token "${DEV_TOKEN}" for the Vite dev server (opens nothing
-                     unless --window or --browser is given; never exits when idle)
+                     unless --window, --app or --browser is given; never exits when idle)
 
 When ${app.name} already runs (outside --dev), a new launch opens a window or browser tab of
 the running instance instead.
@@ -63,7 +66,15 @@ the running instance instead.
   }
 
   const dev = flag('--dev');
-  const mode: OpenMode = flag('--browser') ? (flag('--no-open') ? 'none' : 'browser') : dev && !flag('--window') ? 'none' : 'window';
+  let mode: OpenMode = flag('--browser')
+    ? flag('--no-open') ? 'none' : 'browser'
+    : flag('--app') ? (flag('--no-open') ? 'none' : 'app')
+    : dev && !flag('--window') ? 'none' : 'window';
+  const browser = mode === 'app' ? findAppBrowser() : null;
+  if (mode === 'app' && !browser) {
+    console.warn('No Edge or Chrome found for --app; using the default browser.');
+    mode = 'browser';
+  }
   const port = Number(option('--port') ?? (dev ? DEV_PORT : 0));
   const token = dev ? DEV_TOKEN : randomBytes(24).toString('hex');
   const embedded = embeddedWebAssets();
@@ -114,14 +125,38 @@ the running instance instead.
   /** The single exit path. */
   const quit = async (): Promise<void> => {
     disableIdleExit();
+    closeAppWindows();
     await server?.stop(true);
     process.exit(0);
+  };
+  // Native windows and app windows both report here; the app ends once neither kind is open.
+  const onAllClosed = () => {
+    if (openWindows() === 0 && !appWindowsOpen()) void quit();
   };
   // WebView2 keeps its profile in %APPDATA%\<exe name>\: the webview library passes that
   // folder explicitly, so WEBVIEW2_USER_DATA_FOLDER has no effect.
   const show = (m: OpenMode): string => {
-    if (m === 'window') openWindow(url, { title: app.name, debug: dev, ...opts.window }, () => void quit());
-    else if (m === 'browser') openExternal(url);
+    if (m === 'window') openWindow(url, { title: app.name, debug: dev, ...opts.window }, onAllClosed);
+    else if (m === 'app') {
+      const exe = browser ?? findAppBrowser();
+      if (!exe) openExternal(url);
+      else {
+        openAppWindow(
+          url,
+          {
+            browser: exe,
+            profileDir: join(appHome(app.id), 'app-profile'),
+            window: opts.window,
+            // Windows of a browser process we don't watch never report closing: end when idle instead.
+            onUntracked: () => enableIdleExit(10 * 60_000),
+            onMainStarted: () => {
+              if (idleMinutes === undefined) disableIdleExit();
+            },
+          },
+          onAllClosed,
+        );
+      }
+    } else if (m === 'browser') openExternal(url);
     return url;
   };
   const instance = dev ? null : createInstance(instanceFile, show);
@@ -164,7 +199,7 @@ the running instance instead.
 
   if (mode !== 'window') console.log(`\n  ${app.name} running at ${url}\n  Press Ctrl+C to stop.\n`);
   // `deckbuilder dev` starts Vite only once this server answers; don't load the page before Vite does.
-  if (dev && mode === 'window') void waitFor(origin).then(() => show(mode));
+  if (dev && (mode === 'window' || mode === 'app')) void waitFor(origin).then(() => show(mode));
   else show(mode);
 }
 

@@ -6,9 +6,11 @@ library inside), and Windows, Linux and macOS executables can all be built from 
 
 - **Server**: `Bun.serve` on `127.0.0.1` with a random port and a per-session token. Serves the
   built UI and a JSON API.
-- **Window**: a native WebView2 (Windows) / WebKitGTK 6 (Linux) / WKWebView (macOS) window via
-  [webview-bun](https://github.com/tr1ckydev/webview-bun). `--browser` serves the same UI to
-  the default browser instead.
+- **Window**: three ways to show the UI. By default a native WebView2 (Windows) / WebKitGTK 6
+  (Linux) / WKWebView (macOS) window via [webview-bun](https://github.com/tr1ckydev/webview-bun).
+  `--app` opens an Edge/Chrome app window (no tabs or address bar) with its own browser profile
+  in `~/.<id>/app-profile`; the app stops when its last app window closes. Without Edge or Chrome
+  it falls back to `--browser`, which serves the UI to the default browser.
 - **UI**: React + Vite. Sidebar layout, dark/light theme, English/Portuguese, error banners,
   cards, modals, Geist fonts and one set of color tokens.
 - Data and settings live in `~/.<app id>` (here `~/.deckbuilder`), outside the install folder.
@@ -30,8 +32,8 @@ Run at the root (they act on `apps/gallery`) or inside any app folder:
 | Command | What it does |
 |---|---|
 | `bun run dev` | Hot reload: the server in watch mode on port 7420 (token `dev`) plus Vite. Open `http://localhost:5173/?t=dev`. |
-| `bun run dev:window` | (in the app folder) The same, with a native window on the Vite URL. |
-| `bun run start` | Run from source in a native window. Needs `build:web` first. |
+| `bun run dev:window` | (in the app folder) The same, with a native window on the Vite URL (`bun run dev -- --app` for an app window). |
+| `bun run start` | Run from source in a native window. Needs `build:web` first. `bun run start -- --app` for an app window. |
 | `bun run start:browser` | Run from source in browser mode. Flags: `--port <n>`, `--no-open`. |
 | `bun run build:web` | Bundle the UI into `apps/<app>/dist/web`. |
 | `bun run build` | Build the UI, then the executable for this machine into `apps/<app>/release/`. |
@@ -40,14 +42,16 @@ Run at the root (they act on `apps/gallery`) or inside any app folder:
 | `bun test` | (root) Unit tests of the packages. |
 | `bun run deckbuilder release --to <folder>` | (in the app folder) Publish a release for the self-updater, see [Releases](#releases). |
 
-The executable takes the same flags as the source: `--browser` (the Settings screen then has a
-Quit button that stops the app), `--no-open`, `--port <n>`, `--idle-exit <min>` (exit after that
+The executable takes the same flags as the source: `--app` (Edge/Chrome app window),
+`--browser` (the Settings screen then has a Quit button that stops the app; wins over `--app`),
+`--no-open`, `--port <n>`, `--idle-exit <min>` (exit after that
 many minutes without a request from an open UI; the UI sends a heartbeat every minute through
 `useHeartbeat()`; never with `--dev`), `--help`.
 
 Only one instance runs (except with `--dev`): the running one publishes its port in
 `~/.<id>/instance.json`, with a secret that unlocks only `POST /api/instance/open`. A second
-launch asks it to open a new window (or browser tab for `--browser`) and exits. Two launches at
+launch asks it to open a new window (an app window for `--app`, a browser tab for `--browser`)
+and exits. Two launches at
 the same moment are kept apart by `~/.<id>/instance.lock` (holds the pid of the launch that
 starts the instance).
 
@@ -61,8 +65,9 @@ packages/
   server-mods/   Opt-in route modules: settings (GET/PUT /api/settings), info (GET /api/info),
                  update (self-updater + GET /api/update, POST /api/update/check|apply)
   shell/         runApp(): parses flags, single instance, starts the server, opens a window
-                 (one Worker per window, Webview.run() blocks its thread) or the browser
-  platform/      OS-specific code: open URL, app data folder, error message box, processes
+                 (one Worker per window, Webview.run() blocks its thread), an app window or
+                 the browser
+  platform/      OS-specific code: open URL, find Edge/Chrome for app windows, app data folder, error message box, processes
                  (run with timeout, kill tree, start detached), exe swap for updates;
                  win/: toasts, autostart (HKCU Run key), PowerShell runner
   ui/            React components (Sidebar, Badge, ErrorBanner, Modal, Icon, ...), hooks,
