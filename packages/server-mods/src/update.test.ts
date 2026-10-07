@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from 'bun:test';
 import { join } from 'node:path';
 import type { UpdateState } from '@deckbuilder/server-core';
-import { CHECK_INTERVAL_MS, type Clock, createUpdater, folderSource, RETRY_MS, type UpdateFs, type Updater, type UpdaterOptions } from './update.ts';
+import { CHECK_INTERVAL_MS, type Clock, createUpdater, folderSource, githubSource, RETRY_MS, type UpdateFs, type Updater, type UpdaterOptions } from './update.ts';
 
 const SHARE = '\\\\server\\share\\Gallery';
 const EXE_DIR = 'C:\\apps';
@@ -225,4 +225,82 @@ test('apply refuses when already up to date', async () => {
   const { updater, ops } = setup({ version: '0.2.0' });
   await expect(updater.apply()).rejects.toThrow('Already up to date');
   expect(ops).toEqual([]);
+});
+
+const API = 'https://api.github.com/repos/o/r/releases?per_page=20';
+const asset = (name: string) => ({ name, url: `https://api.github.com/assets/${name}` });
+const rel = (tag: string, extra: Record<string, unknown> = {}) => ({
+  tag_name: tag,
+  draft: false,
+  prerelease: false,
+  assets: [asset('latest.json'), asset(`Gallery-${tag.split('-v')[1]}-win-x64.exe`)],
+  ...extra,
+});
+
+function fakeGithub(releases: unknown[], bodies: Record<string, string> = {}) {
+  const calls: { url: string; headers: Record<string, string>; redirect?: string }[] = [];
+  let offline = false;
+  const fn = (async (url: string, init: RequestInit = {}) => {
+    calls.push({ url, headers: { ...(init.headers as Record<string, string>) }, redirect: init.redirect });
+    if (offline) throw new TypeError('fetch failed');
+    if (url === API) return Response.json(releases);
+    if (url.startsWith('https://api.github.com/assets/')) {
+      return new Response(null, { status: 302, headers: { location: `https://storage.example/${url.split('/').pop()}` } });
+    }
+    const body = bodies[url.split('/').pop()!];
+    return body === undefined ? new Response('missing', { status: 404 }) : new Response(body);
+  }) as unknown as typeof fetch;
+  return { fn, calls, down: () => (offline = true) };
+}
+
+test('githubSource picks the newest published release of its own tag prefix', async () => {
+  const gh = fakeGithub(
+    [rel('gallery-v0.4.0', { draft: true }), rel('other-v9.0.0'), rel('gallery-v0.3.0', { prerelease: true }), rel('gallery-v0.2.0'), rel('gallery-v0.1.0')],
+    { 'latest.json': manifest('0.2.0') },
+  );
+  const source = githubSource({ repo: 'o/r', tagPrefix: 'gallery-v', fetch: gh.fn });
+  expect(source.id).toBe('github:o/r');
+  expect((await source.latest()).manifest.version).toBe('0.2.0');
+});
+
+test('githubSource sends the token to the API but not to the storage host', async () => {
+  const gh = fakeGithub([rel('gallery-v0.2.0')], { 'latest.json': manifest('0.2.0') });
+  await githubSource({ repo: 'o/r', tagPrefix: 'gallery-v', token: 'secret', fetch: gh.fn }).latest();
+  const [list, asset1, storage] = gh.calls;
+  expect(list!.headers.Authorization).toBe('Bearer secret');
+  expect(asset1).toMatchObject({ redirect: 'manual', headers: { Accept: 'application/octet-stream', Authorization: 'Bearer secret' } });
+  expect(storage!.url).toStartWith('https://storage.example/');
+  expect(storage!.headers.Authorization).toBeUndefined();
+});
+
+test('githubSource offline is an offline state, a missing latest.json an error', async () => {
+  const gh = fakeGithub([rel('gallery-v0.2.0')], { 'latest.json': manifest('0.2.0') });
+  const updater = createUpdater({
+    version: '0.1.0',
+    source: () => githubSource({ repo: 'o/r', tagPrefix: 'gallery-v', fetch: gh.fn }),
+    compiled: true,
+    label: 'win-x64',
+    clock: fakeClock().clock,
+    log: () => {},
+  });
+  updaters.push(updater);
+  expect(await updater.check()).toMatchObject({ status: 'ok', available: true, source: 'github:o/r' });
+  gh.down();
+  expect((await updater.check()).status).toBe('offline');
+
+  const noManifest = fakeGithub([rel('gallery-v0.2.0', { assets: [] })]);
+  const err = await githubSource({ repo: 'o/r', tagPrefix: 'gallery-v', fetch: noManifest.fn })
+    .latest()
+    .catch((e) => e);
+  expect(err).toMatchObject({ unreachable: false });
+  expect(err.message).toContain('latest.json');
+});
+
+test('githubSource download writes the asset bytes', async () => {
+  const gh = fakeGithub([rel('gallery-v0.2.0')], { 'latest.json': manifest('0.2.0'), 'Gallery-0.2.0-win-x64.exe': 'exe 0.2.0' });
+  const release = await githubSource({ repo: 'o/r', tagPrefix: 'gallery-v', fetch: gh.fn }).latest();
+  const to = join(process.env.TEMP ?? '/tmp', `gh-download-${process.pid}.bin`);
+  await release.download(release.manifest.files['win-x64']!, to);
+  expect(await Bun.file(to).text()).toBe('exe 0.2.0');
+  await Bun.file(to).delete();
 });

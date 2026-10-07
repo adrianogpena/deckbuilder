@@ -29,6 +29,8 @@ export interface AppIdentity {
   name: string;
   /** Lowercase id: data folder (~/.<id>), executable name in help text. */
   id: string;
+  /** GitHub `owner/name` that hosts the releases; unset while the app has no remote. */
+  repo?: string;
 }
 
 /** GET /api/update: what the updater (updateRoutes in @deckbuilder/server-mods) knows. */
@@ -47,6 +49,8 @@ export interface UpdateState {
   /** Epoch ms of the last successful check, and of the next scheduled one. */
   checkedAt: number | null;
   nextAt: number | null;
+  /** Id of the update source in use (`folder:<path>`, `github:<repo>`); null when none. */
+  source: string | null;
 }
 
 /** True when an app id can serve as a URL scheme (`<id>://open/<path>`). */

@@ -163,10 +163,11 @@ function UpdatesCard({ folder, onFolder }: { folder: string; onFolder: (folder: 
             <span>
               {t('settings.update.current', { version: u.current })} {status}
             </span>
+            {u.source && <span className="muted">{t('settings.update.source', { source: sourceLabel(u.source) })}</span>}
             {u.available && u.notes && <pre className="mono muted">{u.notes}</pre>}
             {u.available && !u.canApply && <span className="muted">{t('settings.update.fromSource')}</span>}
             <div className="row">
-              <button className="btn btn-sm" disabled={busy || !folder} onClick={() => run(() => api.checkUpdate().then(() => state.reload()))}>
+              <button className="btn btn-sm" disabled={busy || !u.source} onClick={() => run(() => api.checkUpdate().then(() => state.reload()))}>
                 {t('settings.update.check')}
               </button>
               {u.available && u.canApply && (
@@ -187,3 +188,5 @@ function UpdatesCard({ folder, onFolder }: { folder: string; onFolder: (folder: 
     </section>
   );
 }
+
+const sourceLabel = (id: string): string => (id.startsWith('github:') ? `GitHub ${id.slice(7)}` : `${t('settings.update.folder')} ${id.slice(7)}`);

@@ -3,6 +3,7 @@ import { appHome, createAutostart } from '@deckbuilder/platform';
 import {
   createUpdater,
   folderSource,
+  githubSource,
   infoRoutes,
   settingsRoutes,
   settingsStore,
@@ -19,7 +20,7 @@ export interface Settings extends BaseSettings {
   autostart: boolean;
   /** Tray icon, so closing the window keeps the app running; read at startup. */
   closeToTray: boolean;
-  /** Folder `deckbuilder release --to` publishes to; empty means no update checks. */
+  /** Folder `deckbuilder release --to` publishes to; empty: GitHub releases when `APP.repo` is set, else no update checks. */
   updateFolder: string;
 }
 
@@ -42,7 +43,8 @@ const updater = createUpdater({
   version: pkg.version,
   source: async () => {
     const { updateFolder } = await settings.load();
-    return updateFolder ? folderSource(updateFolder, { subfolder: APP.name }) : null;
+    if (updateFolder) return folderSource(updateFolder, { subfolder: APP.name });
+    return APP.repo ? githubSource({ repo: APP.repo, tagPrefix: 'gallery-v' }) : null;
   },
 });
 

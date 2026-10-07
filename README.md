@@ -41,6 +41,7 @@ Run at the root (they act on `apps/gallery`) or inside any app folder:
 | `bun run typecheck` | Type-checks every package and app. |
 | `bun test` | (root) Unit tests of the packages. |
 | `bun run deckbuilder release --to <folder>` | (in the app folder) Publish a release for the self-updater, see [Releases](#releases). |
+| `bun run deckbuilder manifest` | (in the app folder) Write `release/latest.json` for the built exes, see [Releases](#releases). |
 
 The executable takes the same flags as the source: `--app` (Edge/Chrome app window),
 `--browser` (the Settings screen then has a Quit button that stops the app; wins over `--app`),
@@ -156,7 +157,16 @@ git tag gallery-v0.1.1 && git push origin gallery-v0.1.1
 ```
 
 `.github/workflows/release.yml` checks the tag against `package.json`, builds every target on
-a Windows runner and uploads them to a **draft** release; check the files and publish it.
+a Windows runner, writes `latest.json` with `deckbuilder manifest` (SHA-256 per exe, notes from
+the commits since the previous tag) and uploads everything to a **draft** release; check the
+files and publish it.
+
+**GitHub releases as update source**: set `repo: 'owner/name'` in the app's `app.ts`
+(`AppIdentity.repo`) and build the app's server with `githubSource({ repo, tagPrefix })` from
+`@deckbuilder/server-mods` (the gallery does this when no update folder is set). The updater
+takes the newest published release whose tag starts with `<app folder>-v`, reads its
+`latest.json` asset and downloads the exe asset; `token` gives access to a private repo.
+`deckbuilder manifest` (in the app folder, after `build`) writes `release/latest.json` by hand.
 `.github/workflows/ci.yml` type-checks, runs the tests and builds a Linux executable for every
 push and pull request.
 

@@ -1,6 +1,6 @@
-import { copyFileSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
-import { bumpVersion, MANIFEST, platformLabel, type ReleaseManifest, type VersionBump } from '@deckbuilder/server-core';
+import { bumpVersion, MANIFEST, type ReleaseManifest, type VersionBump } from '@deckbuilder/server-core';
 import { type AppDir, workspaceRoot } from './app.ts';
 import { buildExe, buildWeb, type Target } from './build.ts';
 
@@ -17,6 +17,18 @@ export interface ReleaseOptions {
   checks: boolean;
 }
 
+/** Tags of an app's releases start with its folder name: `gallery-v0.2.0`. */
+export const tagPrefix = (app: AppDir): string => `${basename(app.dir)}-v`;
+
+/** Runs git in the workspace root; returns trimmed stdout, throws with stderr on failure. */
+const rootGit =
+  (root: string) =>
+  (args: string[]): string => {
+    const r = Bun.spawnSync(['git', ...args], { cwd: root });
+    if (r.exitCode !== 0) throw new Error(`git ${args.join(' ')}: ${r.stderr.toString().trim()}`);
+    return r.stdout.toString().trim();
+  };
+
 const sha256 = async (path: string): Promise<string> => new Bun.CryptoHasher('sha256').update(await Bun.file(path).arrayBuffer()).digest('hex');
 
 /**
@@ -25,11 +37,7 @@ const sha256 = async (path: string): Promise<string> => new Bun.CryptoHasher('sh
  */
 export async function release(app: AppDir, opts: ReleaseOptions): Promise<void> {
   const root = await workspaceRoot(app.dir);
-  const git = (args: string[]): string => {
-    const r = Bun.spawnSync(['git', ...args], { cwd: root });
-    if (r.exitCode !== 0) throw new Error(`git ${args.join(' ')}: ${r.stderr.toString().trim()}`);
-    return r.stdout.toString().trim();
-  };
+  const git = rootGit(root);
   const sh = (cmd: string[]) => {
     console.log(`> ${cmd.join(' ')}`);
     if (Bun.spawnSync(cmd, { cwd: root, stdio: ['ignore', 'inherit', 'inherit'] }).exitCode !== 0) throw new Error(`failed: ${cmd.join(' ')}`);
@@ -39,10 +47,10 @@ export async function release(app: AppDir, opts: ReleaseOptions): Promise<void> 
     throw new Error('Commit or stash your changes first: the release is built from HEAD and tagged.');
   }
   const version = bumpVersion(app.version, opts.bump);
-  const tagPrefix = `${basename(app.dir)}-v`;
-  const tag = `${tagPrefix}${version}`;
+  const prefix = tagPrefix(app);
+  const tag = `${prefix}${version}`;
   if (git(['tag', '--list', tag]) !== '') throw new Error(`Tag ${tag} already exists.`);
-  const notes = releaseNotes(git, tagPrefix);
+  const notes = releaseNotes(git, prefix, version);
 
   const pkgPath = join(app.dir, 'package.json');
   const pkgText = readFileSync(pkgPath, 'utf8');
@@ -55,13 +63,9 @@ export async function release(app: AppDir, opts: ReleaseOptions): Promise<void> 
     }
     const next = { ...app, version };
     buildWeb(next);
-    const manifest: ReleaseManifest = { version, notes, date: new Date().toISOString(), files: {} };
     const exes: string[] = [];
-    for (const target of opts.targets) {
-      const exe = await buildExe(next, target);
-      exes.push(exe);
-      manifest.files[platformLabel(...(target.split('-') as [string, string]))] = { file: basename(exe), sha256: await sha256(exe) };
-    }
+    for (const target of opts.targets) exes.push(await buildExe(next, target));
+    const manifest = await buildManifest(next, exes, notes);
     const dest = join(opts.to, app.name);
     await publish(exes, dest, manifest);
     console.log(`published ${tag} to ${dest}`);
@@ -80,11 +84,40 @@ export async function release(app: AppDir, opts: ReleaseOptions): Promise<void> 
   }
 }
 
+/** The manifest for built exes named `<name>-<version>-<label>[.exe]`: label and sha256 per file. */
+export async function buildManifest(app: AppDir, exes: string[], notes: string): Promise<ReleaseManifest> {
+  const manifest: ReleaseManifest = { version: app.version, notes, date: new Date().toISOString(), files: {} };
+  const prefix = `${app.name}-${app.version}-`;
+  for (const exe of exes) {
+    const file = basename(exe);
+    if (!file.startsWith(prefix)) throw new Error(`${file} does not start with ${prefix}`);
+    manifest.files[file.slice(prefix.length).replace(/\.exe$/, '')] = { file, sha256: await sha256(exe) };
+  }
+  return manifest;
+}
+
+/**
+ * `deckbuilder manifest`: writes release/latest.json for the exes of the current version, with
+ * notes since the previous release tag (what the release workflow uploads next to the exes).
+ */
+export async function writeManifest(app: AppDir): Promise<void> {
+  const dir = join(app.dir, 'release');
+  const prefix = `${app.name}-${app.version}-`;
+  const exes = readdirSync(dir)
+    .filter((f) => f.startsWith(prefix))
+    .map((f) => join(dir, f));
+  if (exes.length === 0) throw new Error(`No ${prefix}* files in ${dir}; run build first.`);
+  const git = rootGit(await workspaceRoot(app.dir));
+  const manifest = await buildManifest(app, exes, releaseNotes(git, tagPrefix(app), app.version));
+  writeFileSync(join(dir, MANIFEST), `${JSON.stringify(manifest, null, 2)}\n`);
+  console.log(`wrote ${join(dir, MANIFEST)} (${Object.keys(manifest.files).join(', ')})`);
+}
+
 /** Commit summaries since the app's last release tag, one `- ` line each. */
-function releaseNotes(git: (args: string[]) => string, tagPrefix: string): string {
+export function releaseNotes(git: (args: string[]) => string, prefix: string, version: string): string {
   let since: string;
   try {
-    since = git(['describe', '--tags', '--abbrev=0', '--match', `${tagPrefix}*`]);
+    since = git(['describe', '--tags', '--abbrev=0', '--match', `${prefix}*`, '--exclude', `${prefix}${version}`]);
   } catch {
     return '- First release';
   }

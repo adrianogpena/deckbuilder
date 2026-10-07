@@ -74,7 +74,7 @@ export interface Release {
   download(file: ReleaseFile, to: string): Promise<void>;
 }
 
-/** Where releases come from. Only a folder source exists so far. */
+/** Where releases come from: a folder or GitHub releases. */
 export interface UpdateSource {
   /** Identifies the source: once it changes, what the previous one offered no longer applies. */
   id: string;
@@ -109,6 +109,88 @@ export function folderSource(path: string, opts: { subfolder?: string; fs?: Upda
         if (manifest) return { manifest, download: (file, to) => fs.copy(join(dir, file.file), to) };
       }
       throw new SourceError(unreachable, unreachable ? `Can't read ${MANIFEST} in ${path}` : `${MANIFEST} in ${path} is not a valid release`);
+    },
+  };
+}
+
+interface GithubAsset {
+  name: string;
+  url: string;
+}
+
+interface GithubRelease {
+  tag_name: string;
+  draft: boolean;
+  prerelease: boolean;
+  assets: GithubAsset[];
+}
+
+/**
+ * Releases of a GitHub repo: the newest published (not draft, not prerelease) one whose tag starts
+ * with `tagPrefix` and that carries a latest.json asset, as the release workflow uploads it.
+ */
+export function githubSource(opts: { repo: string; tagPrefix: string; token?: string; fetch?: typeof fetch }): UpdateSource {
+  const doFetch = opts.fetch ?? fetch;
+  const headers = (accept: string, auth: boolean): Record<string, string> => ({
+    Accept: accept,
+    'User-Agent': 'deckbuilder',
+    ...(auth && opts.token ? { Authorization: `Bearer ${opts.token}` } : {}),
+  });
+
+  /** Asset content: the API URL answers with a redirect to a storage host, which must not get the token. */
+  const assetRequest = async (asset: GithubAsset, timeoutMs?: number): Promise<Response> => {
+    const signal = timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined;
+    let res = await doFetch(asset.url, { headers: headers('application/octet-stream', true), redirect: 'manual', signal });
+    if (res.status >= 300 && res.status < 400) {
+      const location = res.headers.get('location');
+      if (!location) throw new SourceError(false, `GitHub redirected ${asset.name} without a location`);
+      res = await doFetch(location, { headers: { 'User-Agent': 'deckbuilder' }, signal });
+    }
+    if (!res.ok) throw new SourceError(false, `GitHub answered ${res.status} for ${asset.name}`);
+    return res;
+  };
+
+  const network = async <T>(what: string, fn: () => Promise<T>): Promise<T> => {
+    try {
+      return await fn();
+    } catch (e) {
+      if (e instanceof SourceError) throw e;
+      throw new SourceError(true, `Can't reach GitHub for ${what}: ${(e as Error).message}`);
+    }
+  };
+
+  return {
+    id: `github:${opts.repo}`,
+    async latest() {
+      const releases = await network('the release list', async () => {
+        const res = await doFetch(`https://api.github.com/repos/${opts.repo}/releases?per_page=20`, {
+          headers: headers('application/vnd.github+json', true),
+          signal: AbortSignal.timeout(READ_TIMEOUT_MS),
+        });
+        if (!res.ok) throw new SourceError(false, `GitHub answered ${res.status} for the releases of ${opts.repo}`);
+        return (await res.json()) as GithubRelease[];
+      });
+      const release = releases.find((r) => !r.draft && !r.prerelease && r.tag_name.startsWith(opts.tagPrefix));
+      if (!release) throw new SourceError(false, `${opts.repo} has no published release tagged ${opts.tagPrefix}*`);
+      const find = (name: string) => release.assets.find((a) => a.name === name);
+      const manifestAsset = find(MANIFEST);
+      if (!manifestAsset) throw new SourceError(false, `Release ${release.tag_name} has no ${MANIFEST}`);
+      const text = await network(MANIFEST, async () => (await assetRequest(manifestAsset, READ_TIMEOUT_MS)).text());
+      let manifest: ReleaseManifest | null = null;
+      try {
+        manifest = parseManifest(JSON.parse(text));
+      } catch {
+        // not JSON
+      }
+      if (!manifest) throw new SourceError(false, `${MANIFEST} of ${release.tag_name} is not a valid release`);
+      return {
+        manifest,
+        async download(file, to) {
+          const asset = find(file.file);
+          if (!asset) throw new Error(`Release ${release.tag_name} has no ${file.file}`);
+          await Bun.write(to, await assetRequest(asset));
+        },
+      };
     },
   };
 }
@@ -166,16 +248,17 @@ export function createUpdater(opts: UpdaterOptions): Updater {
   const label = opts.label ?? platformLabel();
   const log = opts.log ?? ((msg) => console.log(`update: ${msg}`));
   const empty = { current: opts.version, canApply: compiled, available: false, version: null, notes: null, checkedAt: null };
-  let state: UpdateState = { ...empty, status: 'not-configured', nextAt: null };
   let sourceId: string | null = null;
+  let state: UpdateState = { ...empty, status: 'not-configured', nextAt: null, source: null };
+  const withSource = (s: Omit<UpdateState, 'source'>): UpdateState => ({ ...s, source: sourceId });
   let timer: unknown = null;
   let inflight: Promise<UpdateState> | null = null;
   let queued: Promise<UpdateState> | null = null;
   let applying = false;
 
-  const publish = (next: UpdateState) => {
+  const publish = (next: Omit<UpdateState, 'source'>) => {
     if (next.status !== state.status || next.message !== state.message) log(`check: ${next.status}${next.message ? ` (${next.message})` : ''}`);
-    state = next;
+    state = withSource(next);
     opts.onChange?.(state);
     return state;
   };

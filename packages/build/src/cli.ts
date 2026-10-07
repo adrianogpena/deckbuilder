@@ -5,7 +5,7 @@ import type { VersionBump } from '@deckbuilder/server-core';
 import { buildExe, buildWeb, parseTargets } from './build.ts';
 import { dev } from './dev.ts';
 import { loadApp } from './app.ts';
-import { BUMPS, release } from './release.ts';
+import { BUMPS, release, writeManifest } from './release.ts';
 
 const [command, ...args] = process.argv.slice(2);
 const app = await loadApp(process.cwd());
@@ -48,6 +48,9 @@ switch (command) {
     });
     break;
   }
+  case 'manifest':
+    await writeManifest(app);
+    break;
   default:
     console.log(`Usage: deckbuilder <command>
 
@@ -61,6 +64,8 @@ switch (command) {
                               latest.json to <folder>/<app name>/ (the updater's release folder),
                               then commit and tag <app folder>-v<version> locally (never pushes)
         [--bump patch|minor|major] [--target <list>] [--no-checks]
-        [--dry-run]           publish only; package.json and git stay as they are`);
+        [--dry-run]           publish only; package.json and git stay as they are
+  manifest                    write release/latest.json for the exes of the current version in
+                              release/ (what GitHub releases need next to the exes)`);
     process.exit(command ? 1 : 0);
 }
