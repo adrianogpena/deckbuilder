@@ -6,6 +6,8 @@ export interface WindowOptions {
   height?: number;
   /** Enables the WebView2 dev tools (F12, right-click → Inspect). */
   debug?: boolean;
+  /** `#rrggbb` the window should show before the page paints; not applied yet (see window-worker.ts). */
+  background?: string;
 }
 
 /** Message the window worker receives. */
@@ -15,6 +17,7 @@ export interface WindowRequest {
   width: number;
   height: number;
   debug: boolean;
+  background?: string;
 }
 
 /** Size of a new native or app window unless the app passes one. */
@@ -41,6 +44,7 @@ export function openWindow(url: string, opts: WindowOptions, onAllClosed: () => 
     width: opts.width ?? DEFAULT_WINDOW.width,
     height: opts.height ?? DEFAULT_WINDOW.height,
     debug: opts.debug ?? false,
+    background: opts.background,
   };
   worker.postMessage(request);
   worker.addEventListener('message', (e: MessageEvent<{ error?: string }>) => {

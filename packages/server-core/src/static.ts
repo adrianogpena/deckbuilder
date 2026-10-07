@@ -46,10 +46,16 @@ function lookupIn(source: WebSource): (path: string) => string | null {
   };
 }
 
-/** Serves the built UI. Unknown paths get `index.html` (the UI routes by hash); `..` segments get a 404. */
-export function staticHandler(source: WebSource): (pathname: string) => Response {
+/** Rewrites `index.html` before it is sent, e.g. to inline the saved theme. */
+export type IndexTransform = (html: string) => string | Promise<string>;
+
+/**
+ * Serves the built UI. Unknown paths get `index.html` (the UI routes by hash); `..` segments get a 404.
+ * `transformIndex` applies to every `index.html` response, the fallback included.
+ */
+export function staticHandler(source: WebSource, transformIndex?: IndexTransform): (pathname: string) => Promise<Response> {
   const lookup = lookupIn(source);
-  return (pathname) => {
+  return async (pathname) => {
     let path: string;
     try {
       path = decodeURIComponent(pathname).replace(/^\/+/, '');
@@ -61,7 +67,8 @@ export function staticHandler(source: WebSource): (pathname: string) => Response
     const name = hit ? path : 'index.html';
     const file = hit ?? lookup('index.html');
     if (!file) return new Response('UI not found. Run "bun run build:web" first.', { status: 404 });
-    return new Response(Bun.file(file), {
+    const body = transformIndex && name === 'index.html' ? await transformIndex(await Bun.file(file).text()) : Bun.file(file);
+    return new Response(body, {
       headers: {
         'Content-Type': MIME[extname(name).toLowerCase()] ?? 'application/octet-stream',
         'Cache-Control': name.startsWith('assets/') ? IMMUTABLE : 'no-cache',

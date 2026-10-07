@@ -5,6 +5,7 @@ import { homedir } from 'node:os';
 export * from './browser.ts';
 export * from './exe.ts';
 export * from './run.ts';
+export * from './theme.ts';
 export * from './win/autostart.ts';
 export * from './win/powershell.ts';
 export * from './win/protocol.ts';

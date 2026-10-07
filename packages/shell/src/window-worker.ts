@@ -28,6 +28,9 @@ window.__DECKBUILDER_SHELL__ = 'window';
 `;
 
 self.onmessage = (e: MessageEvent<WindowRequest>) => {
+  // `background` is not applied: WEBVIEW2_DEFAULT_BACKGROUND_COLOR has no effect with this webview
+  // library (set here or before the process starts, the window shows #121212 until the page paints).
+  // The palette inlined into index.html (themeHead) carries the first paint instead.
   const { url, title, width, height, debug } = e.data;
   const webview = new Webview(debug, { width, height, hint: SizeHint.NONE });
   if (!webview.unsafeHandle) {

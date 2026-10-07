@@ -1,7 +1,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import { AppError, invalid } from './errors.ts';
 import { TOKEN_HEADER, TOKEN_PARAM } from './protocol.ts';
-import { staticHandler, type WebSource } from './static.ts';
+import { type IndexTransform, staticHandler, type WebSource } from './static.ts';
 
 export interface RouteContext {
   req: Request;
@@ -22,7 +22,7 @@ export interface ServerOptions {
   /** Routes outside the session token check; each handler checks its own credentials. */
   unauthenticated?: Routes;
   token: string;
-  web: WebSource;
+  web: WebSource & { transformIndex?: IndexTransform };
   /** 0 picks any free port. */
   port?: number;
   /** Called for every request that passed the session token check. */
@@ -38,7 +38,7 @@ const MAX_BODY = 1_000_000;
  */
 export function startServer(opts: ServerOptions) {
   const tokenBuf = Buffer.from(opts.token);
-  const serveStatic = staticHandler(opts.web);
+  const serveStatic = staticHandler(opts.web, opts.web.transformIndex);
 
   function authorized(req: Request, url: URL): boolean {
     const given = Buffer.from(req.headers.get(TOKEN_HEADER) ?? url.searchParams.get(TOKEN_PARAM) ?? '');

@@ -101,7 +101,9 @@ source directly; there is no package build step.
 - **Themes**: `useTheme(settings)` (from `@deckbuilder/ui`) applies the palette of `ThemeSettings`
   (`theme`, `paletteDark`, `paletteLight`; palettes in `@deckbuilder/server-core/palettes`) to `<html>`.
   Make the app `Settings` extend `ThemeSettings` and render `<AppearanceFields value onChange />` in
-  its settings screen. Style with the `var(--…)` tokens only.
+  its settings screen. Style with the `var(--…)` tokens only. Pass
+  `transformIndex: themeHead(settings)` (from `@deckbuilder/server-mods`) to `runApp`, so
+  `index.html` already carries the saved palette and the first paint has its colours.
 - **Startup work** (timers, update checks): put it in `runApp`'s `onStart`, which a launch that
   hands off to a running instance never reaches.
 - **Notifications** (Windows): `createToaster()` from `@deckbuilder/platform`, then
