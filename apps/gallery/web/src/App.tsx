@@ -6,8 +6,9 @@ import { api, type Settings } from './api';
 import { type MessageKey, t } from './i18n';
 import { Home } from './screens/Home';
 import { SettingsScreen } from './screens/SettingsScreen';
+import { TabsScreen } from './screens/TabsScreen';
 
-const SCREENS = ['home', 'settings'] as const;
+const SCREENS = ['home', 'tabs', 'settings'] as const;
 type ScreenId = (typeof SCREENS)[number];
 
 const NAV: Array<{ title: MessageKey; items: Array<{ id: ScreenId; label: MessageKey; icon: string; hint?: string }> }> = [
@@ -15,7 +16,8 @@ const NAV: Array<{ title: MessageKey; items: Array<{ id: ScreenId; label: Messag
     title: 'nav.section.main',
     items: [
       { id: 'home', label: 'nav.home', icon: 'home', hint: '1' },
-      { id: 'settings', label: 'nav.settings', icon: 'settings', hint: '2' },
+      { id: 'tabs', label: 'nav.tabs', icon: 'split', hint: '2' },
+      { id: 'settings', label: 'nav.settings', icon: 'settings', hint: '3' },
     ],
   },
 ];
@@ -111,6 +113,8 @@ function Shell({ initialSettings }: { initialSettings: Settings }) {
 
 function renderScreen(screen: ScreenId, settings: Settings, save: (patch: Partial<Settings>) => void, onQuit: () => void) {
   switch (screen) {
+    case 'tabs':
+      return <TabsScreen settings={settings} onSave={save} />;
     case 'settings':
       return <SettingsScreen settings={settings} onChange={save} onQuit={onQuit} />;
     default:

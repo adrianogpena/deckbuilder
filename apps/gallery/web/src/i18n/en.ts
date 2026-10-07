@@ -2,6 +2,7 @@
 export const en = {
   'nav.section.main': 'Main',
   'nav.home': 'Home',
+  'nav.tabs': 'Tabs',
   'nav.settings': 'Settings',
   'nav.theme.dark': 'Dark theme',
   'nav.theme.light': 'Light theme',
@@ -33,6 +34,15 @@ export const en = {
   'home.toastHint': 'Shows a Windows notification; clicking it opens the Settings screen through a deep link.',
   'home.toastSend': 'Send test notification',
   'home.toastSent': 'Sent.',
+
+  'tabs.crumb': 'Tab workspace',
+  'tabs.page.notes': 'Notes',
+  'tabs.page.counter': 'Counter',
+  'tabs.page.info': 'Info',
+  'tabs.notes.hint': 'Text stays when you switch tabs',
+  'tabs.notes.placeholder': 'Type something…',
+  'tabs.counter.hint': 'The count stays when you switch tabs',
+  'tabs.info.hint': 'Route of this tab',
 
   'settings.crumb': 'Preferences',
   'settings.title': 'Settings',

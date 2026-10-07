@@ -8,6 +8,8 @@ export interface Settings extends ThemeSettings {
   /** Tray icon; read at startup. */
   closeToTray: boolean;
   updateFolder: string;
+  /** Layout of the Tabs screen; restored (and validated) by the screen. */
+  tabsLayout?: unknown;
 }
 
 /** GET /api/info (infoRoutes in @deckbuilder/server-mods). */

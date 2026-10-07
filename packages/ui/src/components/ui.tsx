@@ -120,6 +120,9 @@ const PATHS: Record<string, string> = {
   send: 'M22 2 11 13M22 2l-7 20-4-9-9-4z',
   plus: 'M12 5v14M5 12h14',
   chevron: 'M9 6l6 6-6 6',
+  split: 'M3 4h18v16H3zM12 4v16',
+  back: 'M19 12H5m7-7-7 7 7 7',
+  forward: 'M5 12h14m-7-7 7 7-7 7',
   cube: 'M12 2 3 7v10l9 5 9-5V7zM3 7l9 5 9-5M12 12v10',
 };
 

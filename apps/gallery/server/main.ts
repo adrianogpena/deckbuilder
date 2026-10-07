@@ -24,7 +24,11 @@ export interface Settings extends BaseSettings {
   closeToTray: boolean;
   /** Folder `deckbuilder release --to` publishes to; empty: GitHub releases when `APP.repo` is set, else no update checks. */
   updateFolder: string;
+  /** Layout of the Tabs screen (`serialize` of `@deckbuilder/ui`'s tabs); the UI validates it on restore. */
+  tabsLayout?: unknown;
 }
+
+const MAX_TABS_LAYOUT_BYTES = 64 * 1024;
 
 const dataDir = appHome(APP.id);
 const autostart = createAutostart({ name: APP.name });
@@ -35,6 +39,9 @@ const settings = settingsStore<Settings>({
     if (typeof patch.autostart === 'boolean') next.autostart = patch.autostart;
     if (typeof patch.closeToTray === 'boolean') next.closeToTray = patch.closeToTray;
     if (typeof patch.updateFolder === 'string') next.updateFolder = patch.updateFolder.trim();
+    if (typeof patch.tabsLayout === 'object' && patch.tabsLayout !== null && JSON.stringify(patch.tabsLayout).length < MAX_TABS_LAYOUT_BYTES) {
+      next.tabsLayout = patch.tabsLayout;
+    }
   },
   onChange(next, prev) {
     if (next.autostart !== prev.autostart) void autostart.set(next.autostart);

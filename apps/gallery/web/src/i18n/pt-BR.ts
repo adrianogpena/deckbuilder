@@ -4,6 +4,7 @@ import type { en } from './en';
 export const ptBR: Messages<typeof en> = {
   'nav.section.main': 'Principal',
   'nav.home': 'Início',
+  'nav.tabs': 'Abas',
   'nav.settings': 'Configurações',
   'nav.theme.dark': 'Tema escuro',
   'nav.theme.light': 'Tema claro',
@@ -35,6 +36,15 @@ export const ptBR: Messages<typeof en> = {
   'home.toastHint': 'Mostra uma notificação do Windows; clicar nela abre a tela de Configurações por um link direto.',
   'home.toastSend': 'Enviar notificação de teste',
   'home.toastSent': 'Enviada.',
+
+  'tabs.crumb': 'Espaço de abas',
+  'tabs.page.notes': 'Notas',
+  'tabs.page.counter': 'Contador',
+  'tabs.page.info': 'Info',
+  'tabs.notes.hint': 'O texto fica ao trocar de aba',
+  'tabs.notes.placeholder': 'Digite algo…',
+  'tabs.counter.hint': 'A contagem fica ao trocar de aba',
+  'tabs.info.hint': 'Rota desta aba',
 
   'settings.crumb': 'Preferências',
   'settings.title': 'Configurações',

@@ -16,6 +16,13 @@ const baseEn = {
   'palette.open': 'run',
   'palette.close': 'close',
 
+  'tabs.new': 'New tab',
+  'tabs.close': 'Close tab',
+  'tabs.split': 'Split to the right',
+  'tabs.closePane': 'Close pane',
+  'tabs.back': 'Back',
+  'tabs.forward': 'Forward',
+
   'theme.system': 'System',
   'theme.dark': 'Dark',
   'theme.light': 'Light',
@@ -55,6 +62,13 @@ const basePtBR: Messages<typeof baseEn> = {
   'palette.navigate': 'navegar',
   'palette.open': 'executar',
   'palette.close': 'fechar',
+
+  'tabs.new': 'Nova aba',
+  'tabs.close': 'Fechar aba',
+  'tabs.split': 'Dividir à direita',
+  'tabs.closePane': 'Fechar painel',
+  'tabs.back': 'Voltar',
+  'tabs.forward': 'Avançar',
 
   'theme.system': 'Sistema',
   'theme.dark': 'Escuro',

@@ -108,6 +108,14 @@ source directly; there is no package build step.
   `<CommandPalette items onClose />` (both from `@deckbuilder/ui`) with `PaletteItem`s
   `{ id, group, label, hint?, keywords?, run }`. `keywords[0]` doubles as a prefix that narrows
   to its group (`theme nord`). The gallery's `App.tsx` lists screens, themes and Quit.
+- **Tab workspace**: `<TabWorkspace layout onChange renderTab titleOf newRoute />` (from
+  `@deckbuilder/ui`) shows tabs in up to 3 split panes: open, close (also middle-click), reorder,
+  drag between panes, Back/Forward per tab. `layout` is a `Layout<R>` for your route type `R`
+  (`singlePane(newTab(route))` to start); every tab stays mounted, so hidden ones keep their
+  state, and `renderTab` gets `navigate(route)` to change what the tab shows. Alt+1..9 select a
+  tab; Ctrl+T, Ctrl+W and Ctrl+Tab only in the native window (browsers keep them). Persist with
+  `serialize(layout)` and read back with `restore(raw, isRoute)`; the gallery's Tabs screen keeps
+  it in the `tabsLayout` setting.
 - **Startup work** (timers, update checks): put it in `runApp`'s `onStart`, which a launch that
   hands off to a running instance never reaches.
 - **Notifications** (Windows): `createToaster()` from `@deckbuilder/platform`, then
