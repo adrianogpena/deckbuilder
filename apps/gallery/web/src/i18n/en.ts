@@ -5,6 +5,12 @@ export const en = {
   'nav.settings': 'Settings',
   'nav.theme.dark': 'Dark theme',
   'nav.theme.light': 'Light theme',
+  'palette.group.go': 'Go to',
+  'palette.group.theme': 'Theme',
+  'palette.group.app': 'App',
+  'palette.theme': 'Theme: {name}',
+  'palette.quit': 'Quit {name}',
+  'nav.palette': 'Command palette (Ctrl+K)',
 
   'home.crumb': 'Overview',
   'home.title': 'Home',

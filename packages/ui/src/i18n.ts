@@ -10,6 +10,12 @@ const baseEn = {
   'common.copied': 'Copied',
   'common.close': 'Close',
 
+  'palette.placeholder': 'Type a command…',
+  'palette.empty': 'No matches',
+  'palette.navigate': 'navigate',
+  'palette.open': 'run',
+  'palette.close': 'close',
+
   'theme.system': 'System',
   'theme.dark': 'Dark',
   'theme.light': 'Light',
@@ -43,6 +49,12 @@ const basePtBR: Messages<typeof baseEn> = {
   'common.copy': 'Copiar',
   'common.copied': 'Copiado',
   'common.close': 'Fechar',
+
+  'palette.placeholder': 'Digite um comando…',
+  'palette.empty': 'Nada encontrado',
+  'palette.navigate': 'navegar',
+  'palette.open': 'executar',
+  'palette.close': 'fechar',
 
   'theme.system': 'Sistema',
   'theme.dark': 'Escuro',

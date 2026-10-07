@@ -104,6 +104,10 @@ source directly; there is no package build step.
   its settings screen. Style with the `var(--…)` tokens only. Pass
   `transformIndex: themeHead(settings)` (from `@deckbuilder/server-mods`) to `runApp`, so
   `index.html` already carries the saved palette and the first paint has its colours.
+- **Command palette**: `useCommandPalette()` (Ctrl+K, Ctrl+Shift+P) gives `{ open, setOpen }`; render
+  `<CommandPalette items onClose />` (both from `@deckbuilder/ui`) with `PaletteItem`s
+  `{ id, group, label, hint?, keywords?, run }`. `keywords[0]` doubles as a prefix that narrows
+  to its group (`theme nord`). The gallery's `App.tsx` lists screens, themes and Quit.
 - **Startup work** (timers, update checks): put it in `runApp`'s `onStart`, which a launch that
   hands off to a running instance never reaches.
 - **Notifications** (Windows): `createToaster()` from `@deckbuilder/platform`, then

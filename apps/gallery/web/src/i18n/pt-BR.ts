@@ -7,6 +7,12 @@ export const ptBR: Messages<typeof en> = {
   'nav.settings': 'Configurações',
   'nav.theme.dark': 'Tema escuro',
   'nav.theme.light': 'Tema claro',
+  'palette.group.go': 'Ir para',
+  'palette.group.theme': 'Tema',
+  'palette.group.app': 'App',
+  'palette.theme': 'Tema: {name}',
+  'palette.quit': 'Sair do {name}',
+  'nav.palette': 'Paleta de comandos (Ctrl+K)',
 
   'home.crumb': 'Visão geral',
   'home.title': 'Início',
