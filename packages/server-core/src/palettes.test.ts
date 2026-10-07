@@ -32,9 +32,9 @@ test('every palette has every token, colours are valid and ids unique', () => {
 
 test('deckbuilder-dark is the dark block of styles.css plus the new tokens', () => {
   const { '--font-mono': _, ...css } = cssBlock(":root[data-theme='dark'] {");
-  const { '--side-active': a, '--backdrop': b, '--ink-on-err': c, ...tokens } = resolvePalette('dark').tokens;
-  expect(tokens as Record<string, string>).toEqual(css);
-  expect([a, b, c]).toEqual(['#1f1c33', 'rgba(3, 7, 12, 0.55)', '#fff']);
+  const tokens = resolvePalette('dark').tokens as Record<string, string>;
+  expect(tokens).toEqual(css);
+  expect([tokens['--side-active'], tokens['--backdrop'], tokens['--ink-on-err']]).toEqual(['#1f1c33', 'rgba(3, 7, 12, 0.55)', '#fff']);
 });
 
 test('resolve: saved id of the kind wins, else the other side family, else the default', () => {
