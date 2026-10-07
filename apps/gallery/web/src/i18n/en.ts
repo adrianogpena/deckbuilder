@@ -23,6 +23,10 @@ export const en = {
   'home.echoPlaceholder': 'Type something…',
   'home.send': 'Send',
   'home.echoResult': '{length} characters, answered at {at}',
+  'home.toast': 'Notification',
+  'home.toastHint': 'Shows a Windows notification; clicking it opens the Settings screen through a deep link.',
+  'home.toastSend': 'Send test notification',
+  'home.toastSent': 'Sent.',
 
   'settings.crumb': 'Preferences',
   'settings.title': 'Settings',

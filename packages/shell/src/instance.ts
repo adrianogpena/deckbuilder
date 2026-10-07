@@ -2,6 +2,7 @@ import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { linkSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import type { Routes } from '@deckbuilder/server-core';
+import { isSafePath } from './link.ts';
 
 // Single instance: the running app publishes its port and a secret in instance.json (in the app
 // data folder). A second launch asks it to open what was requested and exits. The secret only
@@ -29,17 +30,17 @@ function readInfo(file: string): InstanceInfo | null {
 }
 
 /**
- * Asks the instance published in `file` to open `mode`. Resolves with its UI address, or null
- * when none answers (no file, or a stale one left by a killed process).
+ * Asks the instance published in `file` to open `mode`, on `path` when given. Resolves with its UI
+ * address, or null when none answers (no file, or a stale one left by a killed process).
  */
-export async function handOff(file: string, mode: OpenMode, fetchFn: typeof fetch = fetch): Promise<string | null> {
+export async function handOff(file: string, mode: OpenMode, path?: string, fetchFn: typeof fetch = fetch): Promise<string | null> {
   const info = readInfo(file);
   if (!info) return null;
   try {
     const res = await fetchFn(`http://127.0.0.1:${info.port}/api/instance/open`, {
       method: 'POST',
       headers: { [INSTANCE_HEADER]: info.secret, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mode }),
+      body: JSON.stringify({ mode, path }),
       signal: AbortSignal.timeout(3000),
     });
     if (!res.ok) return null;
@@ -58,15 +59,16 @@ export interface Instance {
 }
 
 /** `open` opens what a later launch asked for and returns the UI address. */
-export function createInstance(file: string, open: (mode: OpenMode) => string): Instance {
+export function createInstance(file: string, open: (mode: OpenMode, path?: string) => string): Instance {
   const secret = Buffer.from(randomBytes(24).toString('hex'));
   return {
     routes: {
       [INSTANCE_ROUTE]: async ({ req, json }) => {
         const given = Buffer.from(req.headers.get(INSTANCE_HEADER) ?? '');
         if (given.length !== secret.length || !timingSafeEqual(given, secret)) return new Response('Forbidden', { status: 403 });
-        const { mode } = await json<{ mode?: unknown }>();
-        return { url: open(mode === 'app' || mode === 'browser' || mode === 'none' ? mode : 'window') };
+        const { mode, path } = await json<{ mode?: unknown; path?: unknown }>();
+        const safe = typeof path === 'string' && isSafePath(path) ? path : undefined;
+        return { url: open(mode === 'app' || mode === 'browser' || mode === 'none' ? mode : 'window', safe) };
       },
     },
     publish(port) {

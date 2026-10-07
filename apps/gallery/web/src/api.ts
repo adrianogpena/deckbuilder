@@ -28,5 +28,6 @@ export const api = {
   checkUpdate: () => request<UpdateState>('POST', '/api/update/check'),
   applyUpdate: () => request<{ version: string }>('POST', '/api/update/apply'),
   quit: () => request<{ ok: true }>('POST', '/api/quit'),
+  testToast: () => request<{ ok: true }>('POST', '/api/toast/test'),
   echo: (text: string) => request<{ text: string; length: number; at: string }>('POST', '/api/echo', {}, { text }),
 };

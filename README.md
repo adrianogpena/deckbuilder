@@ -99,8 +99,14 @@ source directly; there is no package build step.
 - **Startup work** (timers, update checks): put it in `runApp`'s `onStart`, which a launch that
   hands off to a running instance never reaches.
 - **Notifications** (Windows): `createToaster()` from `@deckbuilder/platform`, then
-  `toaster.show({ title, body, launch })`; a click opens `launch`. Test with
+  `toaster.show({ title, body, launch })`; a click opens `launch`. Use `ctx.link(path)` (the
+  context `onStart` gets) as `launch`, so the click opens the app on `#<path>`. Test with
   `bun packages/platform/src/win/toast.ts --selftest`.
+- **Deep links** (Windows): `urlProtocol: true` in `runApp` registers `<id>://` for the exe at
+  startup (the app id must be a valid URL scheme); `<id>://open/<path>` then opens a native
+  window on `#<path>`, through the running instance when there is one. Windows starts the exe
+  with `--open-url <uri>`. Remove the registration with
+  `reg delete HKCU\Software\Classes\<id> /f`.
 
 ## New app
 

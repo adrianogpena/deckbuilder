@@ -25,6 +25,10 @@ export const ptBR: Messages<typeof en> = {
   'home.echoPlaceholder': 'Digite algo…',
   'home.send': 'Enviar',
   'home.echoResult': '{length} caracteres, respondido às {at}',
+  'home.toast': 'Notificação',
+  'home.toastHint': 'Mostra uma notificação do Windows; clicar nela abre a tela de Configurações por um link direto.',
+  'home.toastSend': 'Enviar notificação de teste',
+  'home.toastSent': 'Enviada.',
 
   'settings.crumb': 'Preferências',
   'settings.title': 'Configurações',

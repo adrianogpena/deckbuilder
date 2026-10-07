@@ -17,14 +17,16 @@ function running() {
   dirs.push(dir);
   const file = join(dir, 'instance.json');
   const opened: OpenMode[] = [];
-  const instance = createInstance(file, (mode) => {
+  const paths: Array<string | undefined> = [];
+  const instance = createInstance(file, (mode, path) => {
     opened.push(mode);
+    paths.push(path);
     return 'http://127.0.0.1/ui';
   });
   const server = startServer({ routes: {}, unauthenticated: instance.routes, token: 'session', web: { files: {} } });
   servers.push(server);
   instance.publish(server.port!);
-  return { file, opened, server };
+  return { file, opened, paths, server };
 }
 
 test('a second launch hands its mode to the running instance', async () => {
@@ -32,6 +34,19 @@ test('a second launch hands its mode to the running instance', async () => {
   expect(await handOff(file, 'window')).toBe('http://127.0.0.1/ui');
   expect(await handOff(file, 'none')).toBe('http://127.0.0.1/ui');
   expect(opened).toEqual(['window', 'none']);
+});
+
+test('the handoff carries the path and the route drops an unsafe one', async () => {
+  const { file, paths, server } = running();
+  await handOff(file, 'window', 'settings');
+  await handOff(file, 'window');
+  const info = JSON.parse(readFileSync(file, 'utf8')) as { secret: string };
+  await fetch(`http://127.0.0.1:${server.port}/api/instance/open`, {
+    method: 'POST',
+    headers: { 'x-deckbuilder-instance': info.secret },
+    body: JSON.stringify({ mode: 'window', path: '../x<script>' }),
+  });
+  expect(paths).toEqual(['settings', undefined, undefined]);
 });
 
 test('no file or a stale one means no running instance', async () => {

@@ -48,3 +48,6 @@ export interface UpdateState {
   checkedAt: number | null;
   nextAt: number | null;
 }
+
+/** True when an app id can serve as a URL scheme (`<id>://open/<path>`). */
+export const isUrlScheme = (id: string): boolean => /^[a-z][a-z0-9+.-]*$/.test(id);

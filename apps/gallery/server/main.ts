@@ -12,7 +12,7 @@ import {
 import { runApp } from '@deckbuilder/shell';
 import { APP } from '../app.ts';
 import pkg from '../package.json';
-import { routes } from './routes.ts';
+import { routes, setStartContext } from './routes.ts';
 
 export interface Settings extends BaseSettings {
   /** Start at Windows login (exe only). */
@@ -52,7 +52,9 @@ await runApp({
     ...routes,
   },
   webDir: join(import.meta.dir, '../dist/web'),
-  async onStart() {
+  urlProtocol: true,
+  async onStart(ctx) {
+    setStartContext(ctx);
     updater.start();
     // Repairs the Run entry after the exe moved.
     if ((await settings.load()).autostart) await autostart.fixUp();

@@ -5,19 +5,33 @@ import {
   DEV_PORT,
   DEV_TOKEN,
   embeddedWebAssets,
+  isUrlScheme,
   type Routes,
   startServer,
   TOKEN_PARAM,
   VITE_PORT,
 } from '@deckbuilder/server-core';
-import { appHome, findAppBrowser, isCompiledExe, openExternal, removeOldExe } from '@deckbuilder/platform';
+import { appHome, createUrlProtocol, findAppBrowser, isCompiledExe, openExternal, removeOldExe } from '@deckbuilder/platform';
 import { appWindowsOpen, closeAppWindows, openAppWindow } from './app-window.ts';
 import { createIdleWatch, type IdleWatch } from './idle.ts';
 import { acquireLock, createInstance, handOff, type OpenMode } from './instance.ts';
+import { parseAppLink } from './link.ts';
 import { openWindow, openWindows, type WindowOptions } from './window.ts';
 
 export type { OpenMode } from './instance.ts';
 export { DEFAULT_WINDOW, type WindowOptions } from './window.ts';
+
+/** What `onStart` gets to act on the running app. */
+export interface StartContext {
+  /**
+   * A link that opens the app on `#<path>`, e.g. for a toast's `launch`: `<id>://open/<path>` when
+   * `urlProtocol` is on in the Windows exe, else the local address without the session token.
+   */
+  link(path: string): string;
+  /** Opens a window (or browser tab) like a new launch would, on `#<path>` when given. */
+  show(mode: OpenMode, path?: string): void;
+  quit(): Promise<void>;
+}
 
 export interface RunOptions {
   app: AppIdentity;
@@ -25,8 +39,13 @@ export interface RunOptions {
   /** Built UI folder, served when running from source; the exe serves its embedded copy instead. */
   webDir: string;
   window?: WindowOptions;
+  /**
+   * Registers `<app.id>://` on Windows (exe only), so `<id>://open/<path>` links open the app;
+   * `app.id` must then be a valid URL scheme.
+   */
+  urlProtocol?: boolean;
   /** Runs once the server listens; not in a launch that hands off to a running instance. */
-  onStart?: () => void | Promise<void>;
+  onStart?: (ctx: StartContext) => void | Promise<void>;
 }
 
 /**
@@ -47,6 +66,7 @@ export async function runApp(opts: RunOptions): Promise<void> {
     console.log(`${app.name}
 
 Usage: ${app.id} [--app | --browser [--no-open]] [--port <n>] [--idle-exit <min>] [--dev [--window | --app]]
+       ${app.id} --open-url <uri>
 
   --app              open the UI in an Edge/Chrome app window (falls back to --browser when
                      neither is installed)
@@ -56,6 +76,8 @@ Usage: ${app.id} [--app | --browser [--no-open]] [--port <n>] [--idle-exit <min>
   --port <n>         fixed port (default: any free port)
   --idle-exit <min>  exit after <min> minutes without a request from an open UI (fractions
                      allowed; the exe in --browser mode uses 10 without the flag)
+  --open-url <uri>   open a native window on <path> of a ${app.id}://open/<path> link
+                     (Windows passes deep links this way)
   --dev              port ${DEV_PORT} and token "${DEV_TOKEN}" for the Vite dev server (opens nothing
                      unless --window, --app or --browser is given; never exits when idle)
 
@@ -65,9 +87,15 @@ the running instance instead.
     process.exit(0);
   }
 
+  if (opts.urlProtocol && !isUrlScheme(app.id)) {
+    throw new Error(`urlProtocol needs an app id that is a valid URL scheme, not "${app.id}".`);
+  }
   const dev = flag('--dev');
-  let mode: OpenMode = flag('--browser')
-    ? flag('--no-open') ? 'none' : 'browser'
+  const openUrl = option('--open-url');
+  // A link that doesn't parse still opens the app, just without a path.
+  const startPath = openUrl === undefined ? undefined : (parseAppLink(openUrl, app.id) ?? undefined);
+  let mode: OpenMode = openUrl !== undefined ? 'window'
+    : flag('--browser') ? (flag('--no-open') ? 'none' : 'browser')
     : flag('--app') ? (flag('--no-open') ? 'none' : 'app')
     : dev && !flag('--window') ? 'none' : 'window';
   const browser = mode === 'app' ? findAppBrowser() : null;
@@ -95,7 +123,7 @@ the running instance instead.
     const deadline = Date.now() + 10_000;
     while (Date.now() < deadline) {
       await Bun.sleep(250);
-      const running = await handOff(instanceFile, mode);
+      const running = await handOff(instanceFile, mode, startPath);
       if (running) alreadyRunning(running);
     }
     console.error(`Another ${app.name} launch is starting but doesn't answer. Try again.`);
@@ -106,13 +134,13 @@ the running instance instead.
     // Started by the previous exe after it swapped itself out: wait until that one has exited.
     if (flag('--after-update') && isCompiledExe()) await removeOldExe(process.execPath);
     else {
-      const running = await handOff(instanceFile, mode);
+      const running = await handOff(instanceFile, mode, startPath);
       if (running) alreadyRunning(running);
     }
     if (acquireLock(lockFile) === 'held') await waitForOther();
   }
 
-  let url = '';
+  let baseUrl = '';
   let idle: IdleWatch | null = null;
   const enableIdleExit = (ms: number) => {
     if (dev || idle) return;
@@ -135,7 +163,8 @@ the running instance instead.
   };
   // WebView2 keeps its profile in %APPDATA%\<exe name>\: the webview library passes that
   // folder explicitly, so WEBVIEW2_USER_DATA_FOLDER has no effect.
-  const show = (m: OpenMode): string => {
+  const show = (m: OpenMode, path?: string): string => {
+    const url = path ? `${baseUrl}#${path}` : baseUrl;
     if (m === 'window') openWindow(url, { title: app.name, debug: dev, ...opts.window }, onAllClosed);
     else if (m === 'app') {
       const exe = browser ?? findAppBrowser();
@@ -187,7 +216,7 @@ the running instance instead.
   }
 
   const origin = dev ? `http://localhost:${VITE_PORT}` : `http://127.0.0.1:${server.port}`;
-  url = `${origin}/?${TOKEN_PARAM}=${token}`;
+  baseUrl = `${origin}/?${TOKEN_PARAM}=${token}`;
   instance?.publish(server.port!);
 
   for (const signal of ['SIGINT', 'SIGTERM'] as const) process.on(signal, () => void quit());
@@ -195,12 +224,23 @@ the running instance instead.
   if (idleMinutes !== undefined) enableIdleExit(idleMinutes * 60_000);
   else if (mode === 'browser' && isCompiledExe()) enableIdleExit(10 * 60_000);
 
-  void Promise.resolve(opts.onStart?.()).catch((err) => console.error(err));
+  const linkViaProtocol = !!opts.urlProtocol && process.platform === 'win32' && isCompiledExe();
+  const serverPort = server.port;
+  const ctx: StartContext = {
+    // Toast XML is stored on disk, so the http fallback leaves the token out.
+    link: (path) => (linkViaProtocol ? `${app.id}://open/${path}` : `http://127.0.0.1:${serverPort}/#${path}`),
+    show: (m, path) => void show(m, path),
+    quit,
+  };
+  if (opts.urlProtocol) {
+    void createUrlProtocol({ scheme: app.id, name: app.name }).fixUp().catch((err) => console.error(err));
+  }
+  void Promise.resolve(opts.onStart?.(ctx)).catch((err) => console.error(err));
 
-  if (mode !== 'window') console.log(`\n  ${app.name} running at ${url}\n  Press Ctrl+C to stop.\n`);
+  if (mode !== 'window') console.log(`\n  ${app.name} running at ${baseUrl}\n  Press Ctrl+C to stop.\n`);
   // `deckbuilder dev` starts Vite only once this server answers; don't load the page before Vite does.
-  if (dev && (mode === 'window' || mode === 'app')) void waitFor(origin).then(() => show(mode));
-  else show(mode);
+  if (dev && (mode === 'window' || mode === 'app')) void waitFor(origin).then(() => show(mode, startPath));
+  else show(mode, startPath);
 }
 
 /** Resolves once `url` answers, or after 30 s. */

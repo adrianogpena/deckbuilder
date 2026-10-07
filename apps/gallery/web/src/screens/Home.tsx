@@ -34,6 +34,7 @@ export function Home() {
             </div>
           </section>
         )}
+        <ToastCard />
         <EchoCard />
       </div>
     </div>
@@ -46,6 +47,42 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
       <div className="fact-label">{label}</div>
       <div className="fact-value">{children}</div>
     </div>
+  );
+}
+
+function ToastCard() {
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState<ApiError>();
+
+  async function send() {
+    setBusy(true);
+    setSent(false);
+    setError(undefined);
+    try {
+      await api.testToast();
+      setSent(true);
+    } catch (err) {
+      setError(errorOf(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="section">
+      <h4 className="mono-label">{t('home.toast')}</h4>
+      <div className="card">
+        <p className="muted small">{t('home.toastHint')}</p>
+        <div className="row">
+          <button className="btn" disabled={busy} onClick={() => void send()}>
+            {busy ? <Spinner small /> : <Icon name="send" />} {t('home.toastSend')}
+          </button>
+        </div>
+        {error && <ErrorBanner error={error} compact />}
+        {sent && <p className="tone-ok small">{t('home.toastSent')}</p>}
+      </div>
+    </section>
   );
 }
 
