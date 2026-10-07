@@ -1,9 +1,9 @@
 import { afterEach, expect, test } from 'bun:test';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { startServer } from '@deckbase/server-core';
-import { createInstance, handOff, type OpenMode } from './instance.ts';
+import { acquireLock, createInstance, handOff, type OpenMode } from './instance.ts';
 
 const dirs: string[] = [];
 const servers: Array<ReturnType<typeof startServer>> = [];
@@ -50,4 +50,37 @@ test('the route wants the instance secret, and the API still wants the session t
   expect(open.status).toBe(403);
   expect(opened).toEqual([]);
   expect((await fetch(`${base}/api/other`, { headers: { 'x-deckbase-instance': 'wrong' } })).status).toBe(401);
+});
+
+function lockFile() {
+  const dir = mkdtempSync(join(tmpdir(), 'deckbase-lock-'));
+  dirs.push(dir);
+  return join(dir, 'instance.lock');
+}
+
+test('the lock is acquired in an empty folder', () => {
+  const file = lockFile();
+  expect(acquireLock(file)).toBe('acquired');
+  expect(readFileSync(file, 'utf8')).toBe(String(process.pid));
+});
+
+test('a lock of another live process is held', () => {
+  const file = lockFile();
+  writeFileSync(file, String(process.ppid));
+  expect(acquireLock(file)).toBe('held');
+});
+
+test('a lock of an exited process is taken over', async () => {
+  const file = lockFile();
+  const child = Bun.spawn([process.execPath, '-e', '0']);
+  await child.exited;
+  writeFileSync(file, String(child.pid));
+  expect(acquireLock(file)).toBe('acquired');
+  expect(readFileSync(file, 'utf8')).toBe(String(process.pid));
+});
+
+test('a lock with garbage content is taken over', () => {
+  const file = lockFile();
+  writeFileSync(file, 'not a pid');
+  expect(acquireLock(file)).toBe('acquired');
 });

@@ -31,6 +31,9 @@ export const ptBR: Messages<typeof en> = {
   'settings.theme': 'Tema',
   'settings.theme.dark': 'Escuro',
   'settings.theme.light': 'Claro',
+  'settings.general': 'Geral',
+  'settings.quit': 'Sair',
+  'settings.quit.hint': 'Encerra o {name}. Fechar a aba o deixa rodando.',
   'settings.language': 'Idioma',
   'settings.saved': 'Salvo',
   'settings.autostart': 'Iniciar com o Windows',
@@ -49,6 +52,8 @@ export const ptBR: Messages<typeof en> = {
   'settings.update.check': 'Verificar agora',
   'settings.update.apply': 'Atualizar e reiniciar',
   'settings.update.restarting': 'Reiniciando com a v{version}…',
+
+  'app.stopped': '{name} foi encerrado. Você pode fechar esta aba.',
 
   'error.emptyText': 'Digite algo primeiro.',
 };

@@ -1,5 +1,5 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto';
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { linkSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import type { Routes } from '@deckbase/server-core';
 
@@ -78,4 +78,53 @@ export function createInstance(file: string, open: (mode: OpenMode) => string): 
       });
     },
   };
+}
+
+function lockPid(file: string): number | null {
+  try {
+    const pid = Number(readFileSync(file, 'utf8').trim());
+    return Number.isInteger(pid) && pid > 0 ? pid : null;
+  } catch {
+    return null;
+  }
+}
+
+function alive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    // EPERM: the process exists but belongs to someone else.
+    return (err as { code?: string }).code === 'EPERM';
+  }
+}
+
+/**
+ * Takes the start-up lock that keeps two launches from both becoming the instance. 'held' means
+ * another live launch has it; a lock left by a dead process is taken over. Released on exit.
+ */
+export function acquireLock(file: string): 'acquired' | 'held' {
+  mkdirSync(dirname(file), { recursive: true });
+  // Link a complete temp file into place: the lock never exists without its pid.
+  const tmp = `${file}.${process.pid}.tmp`;
+  writeFileSync(tmp, String(process.pid));
+  try {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        linkSync(tmp, file);
+        process.on('exit', () => {
+          if (lockPid(file) === process.pid) rmSync(file, { force: true });
+        });
+        return 'acquired';
+      } catch (err) {
+        if ((err as { code?: string }).code !== 'EEXIST') throw err;
+      }
+      const pid = lockPid(file);
+      if (pid !== null && pid !== process.pid && alive(pid)) return 'held';
+      rmSync(file, { force: true });
+    }
+    return 'held';
+  } finally {
+    rmSync(tmp, { force: true });
+  }
 }

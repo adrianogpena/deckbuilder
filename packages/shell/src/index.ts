@@ -11,7 +11,8 @@ import {
   VITE_PORT,
 } from '@deckbase/server-core';
 import { appHome, isCompiledExe, openExternal, removeOldExe } from '@deckbase/platform';
-import { createInstance, handOff, type OpenMode } from './instance.ts';
+import { createIdleWatch, type IdleWatch } from './idle.ts';
+import { acquireLock, createInstance, handOff, type OpenMode } from './instance.ts';
 import { openWindow, type WindowOptions } from './window.ts';
 
 export type { OpenMode } from './instance.ts';
@@ -44,13 +45,16 @@ export async function runApp(opts: RunOptions): Promise<void> {
   if (flag('--help') || flag('-h')) {
     console.log(`${app.name}
 
-Usage: ${app.id} [--browser [--no-open]] [--port <n>] [--dev [--window]]
+Usage: ${app.id} [--browser [--no-open]] [--port <n>] [--idle-exit <min>] [--dev [--window]]
 
-  --browser    serve the UI to the default browser instead of opening a window
-  --no-open    with --browser: print the address only
-  --port <n>   fixed port (default: any free port)
-  --dev        port ${DEV_PORT} and token "${DEV_TOKEN}" for the Vite dev server (opens nothing
-               unless --window or --browser is given)
+  --browser          serve the UI to the default browser instead of opening a window; the
+                     Settings screen has a Quit button
+  --no-open          with --browser: print the address only
+  --port <n>         fixed port (default: any free port)
+  --idle-exit <min>  exit after <min> minutes without a request from an open UI (fractions
+                     allowed; the exe in --browser mode uses 10 without the flag)
+  --dev              port ${DEV_PORT} and token "${DEV_TOKEN}" for the Vite dev server (opens nothing
+                     unless --window or --browser is given; never exits when idle)
 
 When ${app.name} already runs (outside --dev), a new launch opens a window or browser tab of
 the running instance instead.
@@ -64,39 +68,82 @@ the running instance instead.
   const token = dev ? DEV_TOKEN : randomBytes(24).toString('hex');
   const embedded = embeddedWebAssets();
   const instanceFile = join(appHome(app.id), 'instance.json');
+  const idleOption = option('--idle-exit');
+  const idleMinutes = idleOption === undefined ? undefined : Number(idleOption);
+  if (idleMinutes !== undefined && !(idleMinutes > 0)) {
+    console.error('--idle-exit wants a number of minutes greater than 0.');
+    process.exit(1);
+  }
 
-  // Started by the previous exe after it swapped itself out: wait until that one has exited.
-  if (flag('--after-update') && isCompiledExe()) await removeOldExe(process.execPath);
-  else if (!dev) {
-    const running = await handOff(instanceFile, mode);
-    if (running) {
-      console.log(`${app.name} is already running at ${running}`);
-      process.exit(0);
+  const alreadyRunning = (running: string) => {
+    console.log(`${app.name} is already running at ${running}`);
+    process.exit(0);
+  };
+  // Another launch holds the start-up lock: wait until it answers as the instance.
+  const waitForOther = async () => {
+    const deadline = Date.now() + 10_000;
+    while (Date.now() < deadline) {
+      await Bun.sleep(250);
+      const running = await handOff(instanceFile, mode);
+      if (running) alreadyRunning(running);
     }
+    console.error(`Another ${app.name} launch is starting but doesn't answer. Try again.`);
+    process.exit(1);
+  };
+  if (!dev) {
+    const lockFile = join(appHome(app.id), 'instance.lock');
+    // Started by the previous exe after it swapped itself out: wait until that one has exited.
+    if (flag('--after-update') && isCompiledExe()) await removeOldExe(process.execPath);
+    else {
+      const running = await handOff(instanceFile, mode);
+      if (running) alreadyRunning(running);
+    }
+    if (acquireLock(lockFile) === 'held') await waitForOther();
   }
 
   let url = '';
-  const quit = () => {
-    void server.stop(true);
+  let idle: IdleWatch | null = null;
+  const enableIdleExit = (ms: number) => {
+    if (dev || idle) return;
+    idle = createIdleWatch({ timeoutMs: ms, onIdle: () => void quit() });
+  };
+  const disableIdleExit = () => {
+    idle?.stop();
+    idle = null;
+  };
+  /** The single exit path. */
+  const quit = async (): Promise<void> => {
+    disableIdleExit();
+    await server?.stop(true);
     process.exit(0);
   };
   // WebView2 keeps its profile in %APPDATA%\<exe name>\: the webview library passes that
   // folder explicitly, so WEBVIEW2_USER_DATA_FOLDER has no effect.
   const show = (m: OpenMode): string => {
-    if (m === 'window') openWindow(url, { title: app.name, debug: dev, ...opts.window }, quit);
+    if (m === 'window') openWindow(url, { title: app.name, debug: dev, ...opts.window }, () => void quit());
     else if (m === 'browser') openExternal(url);
     return url;
   };
   const instance = dev ? null : createInstance(instanceFile, show);
 
-  let server: ReturnType<typeof startServer>;
+  const routes: Routes = {
+    ...opts.routes,
+    'POST /api/quit': () => {
+      setTimeout(() => void quit(), 200);
+      return { ok: true };
+    },
+    'POST /api/alive': () => ({ ok: true }),
+  };
+
+  let server: ReturnType<typeof startServer> | undefined;
   try {
     server = startServer({
-      routes: opts.routes,
+      routes,
       unauthenticated: instance?.routes,
       token,
       port,
       web: embedded ? { files: embedded } : { dir: opts.webDir },
+      onActivity: () => idle?.touch(),
     });
   } catch (err) {
     if ((err as { code?: string }).code === 'EADDRINUSE') console.error(`Port ${port} is already in use. Pass --port with another port.`);
@@ -108,7 +155,11 @@ the running instance instead.
   url = `${origin}/?${TOKEN_PARAM}=${token}`;
   instance?.publish(server.port!);
 
-  for (const signal of ['SIGINT', 'SIGTERM'] as const) process.on(signal, quit);
+  for (const signal of ['SIGINT', 'SIGTERM'] as const) process.on(signal, () => void quit());
+  // The exe in browser mode has no window to close, so it ends once no tab has called for a while.
+  if (idleMinutes !== undefined) enableIdleExit(idleMinutes * 60_000);
+  else if (mode === 'browser' && isCompiledExe()) enableIdleExit(10 * 60_000);
+
   void Promise.resolve(opts.onStart?.()).catch((err) => console.error(err));
 
   if (mode !== 'window') console.log(`\n  ${app.name} running at ${url}\n  Press Ctrl+C to stop.\n`);

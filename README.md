@@ -40,12 +40,16 @@ Run at the root (they act on `apps/gallery`) or inside any app folder:
 | `bun test` | (root) Unit tests of the packages. |
 | `bun run deckbase release --to <folder>` | (in the app folder) Publish a release for the self-updater, see [Releases](#releases). |
 
-The executable takes the same flags as the source: `--browser`, `--no-open`, `--port <n>`,
-`--help`.
+The executable takes the same flags as the source: `--browser` (the Settings screen then has a
+Quit button that stops the app), `--no-open`, `--port <n>`, `--idle-exit <min>` (exit after that
+many minutes without a request from an open UI; the UI sends a heartbeat every minute through
+`useHeartbeat()`; never with `--dev`), `--help`.
 
 Only one instance runs (except with `--dev`): the running one publishes its port in
 `~/.<id>/instance.json`, with a secret that unlocks only `POST /api/instance/open`. A second
-launch asks it to open a new window (or browser tab for `--browser`) and exits.
+launch asks it to open a new window (or browser tab for `--browser`) and exits. Two launches at
+the same moment are kept apart by `~/.<id>/instance.lock` (holds the pid of the launch that
+starts the instance).
 
 ## Layout
 
@@ -141,7 +145,8 @@ push and pull request.
 ### Platform notes
 
 - **Windows**: the exe has no console window, so `--browser` mode from the exe runs in the
-  background with nothing to close; stop it in Task Manager (or run from source instead).
+  background with nothing to close: stop it with the Quit button in Settings, or let it end by
+  itself 10 minutes after the last tab closes (idle exit).
   WebView2 keeps its profile in `%APPDATA%\<exe file name>\`. The webview library passes that
   folder itself, so `WEBVIEW2_USER_DATA_FOLDER` has no effect, and each version (new file
   name) starts with a fresh profile. App state belongs on the server (`~/.<id>`), not in

@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react';
-import { type ApiError, detectLanguage, ErrorBanner, errorOf, LANGUAGES, PageHead, Spinner, useAsync, type Language } from '@deckbase/ui';
+import { type ApiError, detectLanguage, ErrorBanner, errorOf, isDesktop, LANGUAGES, PageHead, Spinner, useAsync, type Language } from '@deckbase/ui';
+import { APP } from '../../../app';
 import { api, type Settings } from '../api';
 import { t } from '../i18n';
 
 interface Props {
   settings: Settings;
   onChange: (patch: Partial<Settings>) => void;
+  /** Called once the server accepted the quit. */
+  onQuit: () => void;
 }
 
-export function SettingsScreen({ settings, onChange }: Props) {
+export function SettingsScreen({ settings, onChange, onQuit }: Props) {
   return (
     <div className="content">
       <PageHead crumb={t('settings.crumb')} title={t('settings.title')} />
@@ -42,9 +45,45 @@ export function SettingsScreen({ settings, onChange }: Props) {
             <span className="muted">{t('settings.autostart.hint')}</span>
           </div>
         </div>
+        {!isDesktop && <GeneralCard onQuit={onQuit} />}
         <UpdatesCard folder={settings.updateFolder} onFolder={(updateFolder) => onChange({ updateFolder })} />
       </div>
     </div>
+  );
+}
+
+/** Browser and app mode only: the native window stops the app with its close button. */
+function GeneralCard({ onQuit }: { onQuit: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<ApiError | null>(null);
+
+  const quit = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.quit();
+      onQuit();
+    } catch (err) {
+      setError(errorOf(err));
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="section">
+      <h4 className="mono-label">{t('settings.general')}</h4>
+      <div className="card form">
+        <div className="field">
+          <div className="row">
+            <button className="btn btn-sm btn-danger" disabled={busy} onClick={quit}>
+              {t('settings.quit')}
+            </button>
+          </div>
+          <span className="muted">{t('settings.quit.hint', { name: APP.name })}</span>
+        </div>
+        {error && <ErrorBanner error={error} compact />}
+      </div>
+    </section>
   );
 }
 

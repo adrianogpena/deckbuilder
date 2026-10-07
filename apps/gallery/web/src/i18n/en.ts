@@ -29,6 +29,9 @@ export const en = {
   'settings.theme': 'Theme',
   'settings.theme.dark': 'Dark',
   'settings.theme.light': 'Light',
+  'settings.general': 'General',
+  'settings.quit': 'Quit',
+  'settings.quit.hint': 'Stops {name}. Closing the tab leaves it running.',
   'settings.language': 'Language',
   'settings.saved': 'Saved',
   'settings.autostart': 'Start at login',
@@ -47,6 +50,8 @@ export const en = {
   'settings.update.check': 'Check now',
   'settings.update.apply': 'Update and restart',
   'settings.update.restarting': 'Restarting with v{version}…',
+
+  'app.stopped': '{name} stopped. You can close this tab.',
 
   'error.emptyText': 'Type something first.',
 };

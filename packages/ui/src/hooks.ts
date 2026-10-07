@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { errorOf, type ApiError } from './api';
+import { errorOf, request, type ApiError } from './api';
 
 export interface AsyncState<T> {
   data: T | undefined;
@@ -61,6 +61,16 @@ export function useAsync<T>(fn: () => Promise<T>, deps: unknown[], intervalMs = 
   }, [intervalMs, ...deps]);
 
   return { data, error, loading, reload: () => run(false) };
+}
+
+/** Tells the server a UI is still open (it may exit when idle); any other API call counts too. */
+export function useHeartbeat(ms = 60_000) {
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      request('POST', '/api/alive').catch(() => { /* the next beat retries */ });
+    }, ms);
+    return () => window.clearInterval(id);
+  }, [ms]);
 }
 
 export function useKey(handler: (e: KeyboardEvent) => void) {

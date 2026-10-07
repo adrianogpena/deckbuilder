@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { detectLanguage, ErrorBanner, Icon, isTyping, setLanguage, Sidebar, Spinner, useAsync, useHashRoute, useKey } from '@deckbase/ui';
+import { detectLanguage, ErrorBanner, Icon, isTyping, setLanguage, Sidebar, Spinner, useAsync, useHashRoute, useHeartbeat, useKey } from '@deckbase/ui';
 import { APP } from '../../app';
 import { api, type Settings } from './api';
 import { type MessageKey, t } from './i18n';
@@ -36,7 +36,9 @@ export function App() {
 function Shell({ initialSettings }: { initialSettings: Settings }) {
   const [settings, setSettings] = useState(initialSettings);
   const [screen, go] = useHashRoute(SCREENS, 'home');
+  const [stopped, setStopped] = useState(false);
   setLanguage(settings.language ?? detectLanguage());
+  useHeartbeat();
 
   useEffect(() => {
     document.documentElement.dataset.theme = settings.theme;
@@ -59,6 +61,8 @@ function Shell({ initialSettings }: { initialSettings: Settings }) {
     if (item) go(item.id);
   });
 
+  if (stopped) return <div className="boot"><span>{t('app.stopped', { name: APP.name })}</span></div>;
+
   const nextTheme = settings.theme === 'dark' ? 'light' : 'dark';
   const sections = NAV.map((s) => ({ title: t(s.title), items: s.items.map((i) => ({ ...i, label: t(i.label) })) }));
 
@@ -75,15 +79,15 @@ function Shell({ initialSettings }: { initialSettings: Settings }) {
           </button>
         }
       />
-      <main className="main">{renderScreen(screen, settings, save)}</main>
+      <main className="main">{renderScreen(screen, settings, save, () => setStopped(true))}</main>
     </div>
   );
 }
 
-function renderScreen(screen: ScreenId, settings: Settings, save: (patch: Partial<Settings>) => void) {
+function renderScreen(screen: ScreenId, settings: Settings, save: (patch: Partial<Settings>) => void, onQuit: () => void) {
   switch (screen) {
     case 'settings':
-      return <SettingsScreen settings={settings} onChange={save} />;
+      return <SettingsScreen settings={settings} onChange={save} onQuit={onQuit} />;
     default:
       return <Home />;
   }

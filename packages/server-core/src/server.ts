@@ -25,6 +25,8 @@ export interface ServerOptions {
   web: WebSource;
   /** 0 picks any free port. */
   port?: number;
+  /** Called for every request that passed the session token check. */
+  onActivity?: () => void;
 }
 
 const ALLOWED_HOST = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/;
@@ -59,6 +61,7 @@ export function startServer(opts: ServerOptions) {
       if (!open && !authorized(req, url)) {
         return json(401, { kind: 'forbidden', code: 'invalidToken', message: 'Invalid session. Open the address printed in the terminal.' });
       }
+      if (!open) opts.onActivity?.();
 
       const handler = open ?? opts.routes[key];
       if (!handler) return json(404, { kind: 'notfound', code: 'routeNotFound', message: 'Route not found.' });
