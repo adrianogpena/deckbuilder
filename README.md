@@ -15,6 +15,12 @@ library inside), and Windows, Linux and macOS executables can all be built from 
   cards, modals, Geist fonts and one set of color tokens.
 - Data and settings live in `~/.<app id>` (here `~/.deckbuilder`), outside the install folder.
 
+## Screenshots
+
+![Home, dark](docs/home-dark.png)
+![Home, light](docs/home-light.png)
+![Settings](docs/settings.png)
+
 The Electron version of this project is in the git history (commit `559a1a5`); see
 `spikes/RESULTS.md` for why webview-bun replaced it.
 
