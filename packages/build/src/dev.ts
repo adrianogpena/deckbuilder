@@ -1,4 +1,4 @@
-import { DEV_PORT, VITE_PORT } from '@deckbase/server-core/protocol';
+import { DEV_PORT, VITE_PORT } from '@deckbuilder/server-core/protocol';
 import { join, relative } from 'node:path';
 import { type AppDir, workspaceRoot } from './app.ts';
 

@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { appHome, createAutostart } from '@deckbase/platform';
+import { appHome, createAutostart } from '@deckbuilder/platform';
 import {
   createUpdater,
   folderSource,
@@ -8,8 +8,8 @@ import {
   settingsStore,
   updateRoutes,
   type BaseSettings,
-} from '@deckbase/server-mods';
-import { runApp } from '@deckbase/shell';
+} from '@deckbuilder/server-mods';
+import { runApp } from '@deckbuilder/shell';
 import { APP } from '../app.ts';
 import pkg from '../package.json';
 import { routes } from './routes.ts';
@@ -17,7 +17,7 @@ import { routes } from './routes.ts';
 export interface Settings extends BaseSettings {
   /** Start at Windows login (exe only). */
   autostart: boolean;
-  /** Folder `deckbase release --to` publishes to; empty means no update checks. */
+  /** Folder `deckbuilder release --to` publishes to; empty means no update checks. */
   updateFolder: string;
 }
 

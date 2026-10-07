@@ -1,4 +1,4 @@
-import { type ApiErrorBody, TOKEN_HEADER, TOKEN_PARAM } from '@deckbase/server-core/protocol';
+import { type ApiErrorBody, TOKEN_HEADER, TOKEN_PARAM } from '@deckbuilder/server-core/protocol';
 import { t, tryT } from './i18n';
 
 export type ApiError = ApiErrorBody;
@@ -19,7 +19,7 @@ export function errorOf(err: unknown): ApiError {
   return { kind: 'internal', code: 'raw', message: String((err as Error)?.message ?? err) };
 }
 
-const TOKEN_KEY = 'deckbase.token';
+const TOKEN_KEY = 'deckbuilder.token';
 
 // The server hands the token over in the URL (?t=...). Keep it for this window and hide it from the address bar.
 function readToken(): string {
@@ -37,7 +37,7 @@ function readToken(): string {
 const token = readToken();
 
 /** True inside the app's native window (set by the shell's init script), false in a browser. */
-export const isDesktop = (window as { __DECKBASE_SHELL__?: string }).__DECKBASE_SHELL__ === 'window';
+export const isDesktop = (window as { __DECKBUILDER_SHELL__?: string }).__DECKBUILDER_SHELL__ === 'window';
 
 export type QueryParams = Record<string, string | number | boolean | undefined>;
 

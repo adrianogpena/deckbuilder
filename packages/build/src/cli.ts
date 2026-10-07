@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
-// `deckbase <command>`, run from an app folder (apps/<name>) through its package.json scripts.
+// `deckbuilder <command>`, run from an app folder (apps/<name>) through its package.json scripts.
 import { parseArgs } from 'node:util';
-import type { VersionBump } from '@deckbase/server-core';
+import type { VersionBump } from '@deckbuilder/server-core';
 import { buildExe, buildWeb, parseTargets } from './build.ts';
 import { dev } from './dev.ts';
 import { loadApp } from './app.ts';
@@ -36,7 +36,7 @@ switch (command) {
       },
     });
     if (!values.to || !BUMPS.includes(values.bump as VersionBump)) {
-      console.error('Usage: deckbase release --to <folder> [--bump patch|minor|major] [--target <list>] [--dry-run] [--no-checks]');
+      console.error('Usage: deckbuilder release --to <folder> [--bump patch|minor|major] [--target <list>] [--dry-run] [--no-checks]');
       process.exit(1);
     }
     await release(app, {
@@ -49,7 +49,7 @@ switch (command) {
     break;
   }
   default:
-    console.log(`Usage: deckbase <command>
+    console.log(`Usage: deckbuilder <command>
 
   dev [server flags]          server (--dev, watch mode) + Vite dev server; e.g. dev --window
   build:web                   bundle web/ into dist/web

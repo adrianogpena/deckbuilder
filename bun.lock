@@ -3,26 +3,26 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "deckbase",
+      "name": "deckbuilder",
       "devDependencies": {
         "@types/bun": "^1.3.0",
         "typescript": "^5.7.2",
       },
     },
     "apps/gallery": {
-      "name": "@deckbase/gallery",
+      "name": "@deckbuilder/gallery",
       "version": "0.1.0",
       "dependencies": {
-        "@deckbase/platform": "workspace:*",
-        "@deckbase/server-core": "workspace:*",
-        "@deckbase/server-mods": "workspace:*",
-        "@deckbase/shell": "workspace:*",
-        "@deckbase/ui": "workspace:*",
+        "@deckbuilder/platform": "workspace:*",
+        "@deckbuilder/server-core": "workspace:*",
+        "@deckbuilder/server-mods": "workspace:*",
+        "@deckbuilder/shell": "workspace:*",
+        "@deckbuilder/ui": "workspace:*",
         "react": "^18.3.1",
         "react-dom": "^18.3.1",
       },
       "devDependencies": {
-        "@deckbase/build": "workspace:*",
+        "@deckbuilder/build": "workspace:*",
         "@types/react": "^18.3.12",
         "@types/react-dom": "^18.3.1",
         "@vitejs/plugin-react": "^4.3.4",
@@ -30,46 +30,46 @@
       },
     },
     "packages/build": {
-      "name": "@deckbase/build",
+      "name": "@deckbuilder/build",
       "version": "0.0.0",
       "bin": {
-        "deckbase": "src/cli.ts",
+        "deckbuilder": "src/cli.ts",
       },
       "dependencies": {
-        "@deckbase/server-core": "workspace:*",
+        "@deckbuilder/server-core": "workspace:*",
         "sharp": "^0.35.5",
       },
     },
     "packages/platform": {
-      "name": "@deckbase/platform",
+      "name": "@deckbuilder/platform",
       "version": "0.0.0",
     },
     "packages/server-core": {
-      "name": "@deckbase/server-core",
+      "name": "@deckbuilder/server-core",
       "version": "0.0.0",
     },
     "packages/server-mods": {
-      "name": "@deckbase/server-mods",
+      "name": "@deckbuilder/server-mods",
       "version": "0.0.0",
       "dependencies": {
-        "@deckbase/platform": "workspace:*",
-        "@deckbase/server-core": "workspace:*",
+        "@deckbuilder/platform": "workspace:*",
+        "@deckbuilder/server-core": "workspace:*",
       },
     },
     "packages/shell": {
-      "name": "@deckbase/shell",
+      "name": "@deckbuilder/shell",
       "version": "0.0.0",
       "dependencies": {
-        "@deckbase/platform": "workspace:*",
-        "@deckbase/server-core": "workspace:*",
+        "@deckbuilder/platform": "workspace:*",
+        "@deckbuilder/server-core": "workspace:*",
         "webview-bun": "^2.4.0",
       },
     },
     "packages/ui": {
-      "name": "@deckbase/ui",
+      "name": "@deckbuilder/ui",
       "version": "0.0.0",
       "dependencies": {
-        "@deckbase/server-core": "workspace:*",
+        "@deckbuilder/server-core": "workspace:*",
         "@fontsource/geist": "^5.1.0",
         "@fontsource/geist-mono": "^5.1.0",
       },
@@ -121,19 +121,19 @@
 
     "@babel/types": ["@babel/types@7.29.8", "", { "dependencies": { "@babel/helper-string-parser": "^7.29.7", "@babel/helper-validator-identifier": "^7.29.7" } }, "sha512-Vj1jF3cPfxg7OAfoI7QnVKLoILlm2JF9pnVHrX8qx7AHMiYWT+NDAA7jChlNgRS4WTLc/fD1lXLmPixluj+3Gg=="],
 
-    "@deckbase/build": ["@deckbase/build@workspace:packages/build"],
+    "@deckbuilder/build": ["@deckbuilder/build@workspace:packages/build"],
 
-    "@deckbase/gallery": ["@deckbase/gallery@workspace:apps/gallery"],
+    "@deckbuilder/gallery": ["@deckbuilder/gallery@workspace:apps/gallery"],
 
-    "@deckbase/platform": ["@deckbase/platform@workspace:packages/platform"],
+    "@deckbuilder/platform": ["@deckbuilder/platform@workspace:packages/platform"],
 
-    "@deckbase/server-core": ["@deckbase/server-core@workspace:packages/server-core"],
+    "@deckbuilder/server-core": ["@deckbuilder/server-core@workspace:packages/server-core"],
 
-    "@deckbase/server-mods": ["@deckbase/server-mods@workspace:packages/server-mods"],
+    "@deckbuilder/server-mods": ["@deckbuilder/server-mods@workspace:packages/server-mods"],
 
-    "@deckbase/shell": ["@deckbase/shell@workspace:packages/shell"],
+    "@deckbuilder/shell": ["@deckbuilder/shell@workspace:packages/shell"],
 
-    "@deckbase/ui": ["@deckbase/ui@workspace:packages/ui"],
+    "@deckbuilder/ui": ["@deckbuilder/ui@workspace:packages/ui"],
 
     "@emnapi/runtime": ["@emnapi/runtime@1.11.3", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-Xz4Tpyki7XyrpbUK1jR1AhdAdaXyhhY4lZ3neLodmhpuWfy2PAQN5B46sAiU4liOXGLkHypn/qU+jvfWSCYYLA=="],
 

@@ -1,5 +1,5 @@
-import type { UpdateState } from '@deckbase/server-core/protocol';
-import { type Language, request } from '@deckbase/ui';
+import type { UpdateState } from '@deckbuilder/server-core/protocol';
+import { type Language, request } from '@deckbuilder/ui';
 
 export interface Settings {
   theme: 'dark' | 'light';
@@ -8,7 +8,7 @@ export interface Settings {
   updateFolder: string;
 }
 
-/** GET /api/info (infoRoutes in @deckbase/server-mods). */
+/** GET /api/info (infoRoutes in @deckbuilder/server-mods). */
 export interface Info {
   name: string;
   version: string;

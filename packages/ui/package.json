@@ -1,5 +1,5 @@
 {
-  "name": "@deckbase/ui",
+  "name": "@deckbuilder/ui",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -8,7 +8,7 @@
     "./styles.css": "./src/styles.css"
   },
   "dependencies": {
-    "@deckbase/server-core": "workspace:*",
+    "@deckbuilder/server-core": "workspace:*",
     "@fontsource/geist": "^5.1.0",
     "@fontsource/geist-mono": "^5.1.0"
   },

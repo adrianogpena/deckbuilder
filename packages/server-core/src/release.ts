@@ -1,4 +1,4 @@
-// Release manifest and version helpers, shared by the updater and `deckbase release`.
+// Release manifest and version helpers, shared by the updater and `deckbuilder release`.
 
 const SEMVER = /^(\d+)\.(\d+)\.(\d+)$/;
 
@@ -10,7 +10,7 @@ export interface ReleaseFile {
   sha256: string;
 }
 
-/** `latest.json` in a release folder, written by `deckbase release`. */
+/** `latest.json` in a release folder, written by `deckbuilder release`. */
 export interface ReleaseManifest {
   version: string;
   /** One commit summary per line, `- ` prefixed. */

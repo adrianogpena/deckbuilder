@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { copyFile, readFile, rename, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { isCompiledExe, startDetached, updatePaths } from '@deckbase/platform';
+import { isCompiledExe, startDetached, updatePaths } from '@deckbuilder/platform';
 import {
   AppError,
   isNewerVersion,
@@ -13,7 +13,7 @@ import {
   type ReleaseManifest,
   type Routes,
   type UpdateState,
-} from '@deckbase/server-core';
+} from '@deckbuilder/server-core';
 
 export const CHECK_INTERVAL_MS = 6 * 60 * 60_000;
 /** After a failed check (off VPN, share down): try again sooner than the regular interval. */
@@ -83,7 +83,7 @@ export interface UpdateSource {
 }
 
 /**
- * Releases in a folder (often a UNC share) holding latest.json, as `deckbase release --to`
+ * Releases in a folder (often a UNC share) holding latest.json, as `deckbuilder release --to`
  * writes it; also looks in its `<subfolder>` (the app name), where `release --to <root>` puts them.
  */
 export function folderSource(path: string, opts: { subfolder?: string; fs?: UpdateFs } = {}): UpdateSource {

@@ -1,5 +1,5 @@
 {
-  "name": "@deckbase/server-mods",
+  "name": "@deckbuilder/server-mods",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -7,7 +7,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@deckbase/platform": "workspace:*",
-    "@deckbase/server-core": "workspace:*"
+    "@deckbuilder/platform": "workspace:*",
+    "@deckbuilder/server-core": "workspace:*"
   }
 }

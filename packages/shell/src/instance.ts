@@ -1,13 +1,13 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { linkSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import type { Routes } from '@deckbase/server-core';
+import type { Routes } from '@deckbuilder/server-core';
 
 // Single instance: the running app publishes its port and a secret in instance.json (in the app
 // data folder). A second launch asks it to open what was requested and exits. The secret only
 // unlocks this one route, not the API.
 
-export const INSTANCE_HEADER = 'x-deckbase-instance';
+export const INSTANCE_HEADER = 'x-deckbuilder-instance';
 export const INSTANCE_ROUTE = 'POST /api/instance/open';
 
 /** What a launch asks for: a native window, a browser tab, or nothing (`--no-open`). */

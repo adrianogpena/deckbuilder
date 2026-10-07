@@ -2,7 +2,7 @@ import { afterEach, expect, test } from 'bun:test';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { startServer } from '@deckbase/server-core';
+import { startServer } from '@deckbuilder/server-core';
 import { acquireLock, createInstance, handOff, type OpenMode } from './instance.ts';
 
 const dirs: string[] = [];
@@ -13,7 +13,7 @@ afterEach(() => {
 });
 
 function running() {
-  const dir = mkdtempSync(join(tmpdir(), 'deckbase-instance-'));
+  const dir = mkdtempSync(join(tmpdir(), 'deckbuilder-instance-'));
   dirs.push(dir);
   const file = join(dir, 'instance.json');
   const opened: OpenMode[] = [];
@@ -35,7 +35,7 @@ test('a second launch hands its mode to the running instance', async () => {
 });
 
 test('no file or a stale one means no running instance', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'deckbase-instance-'));
+  const dir = mkdtempSync(join(tmpdir(), 'deckbuilder-instance-'));
   dirs.push(dir);
   const file = join(dir, 'instance.json');
   expect(await handOff(file, 'window')).toBeNull();
@@ -46,14 +46,14 @@ test('no file or a stale one means no running instance', async () => {
 test('the route wants the instance secret, and the API still wants the session token', async () => {
   const { opened, server } = running();
   const base = `http://127.0.0.1:${server.port}`;
-  const open = await fetch(`${base}/api/instance/open`, { method: 'POST', headers: { 'x-deckbase-instance': 'wrong' }, body: '{}' });
+  const open = await fetch(`${base}/api/instance/open`, { method: 'POST', headers: { 'x-deckbuilder-instance': 'wrong' }, body: '{}' });
   expect(open.status).toBe(403);
   expect(opened).toEqual([]);
-  expect((await fetch(`${base}/api/other`, { headers: { 'x-deckbase-instance': 'wrong' } })).status).toBe(401);
+  expect((await fetch(`${base}/api/other`, { headers: { 'x-deckbuilder-instance': 'wrong' } })).status).toBe(401);
 });
 
 function lockFile() {
-  const dir = mkdtempSync(join(tmpdir(), 'deckbase-lock-'));
+  const dir = mkdtempSync(join(tmpdir(), 'deckbuilder-lock-'));
   dirs.push(dir);
   return join(dir, 'instance.lock');
 }

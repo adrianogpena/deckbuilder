@@ -1,6 +1,6 @@
 import { copyFileSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
-import { bumpVersion, MANIFEST, platformLabel, type ReleaseManifest, type VersionBump } from '@deckbase/server-core';
+import { bumpVersion, MANIFEST, platformLabel, type ReleaseManifest, type VersionBump } from '@deckbuilder/server-core';
 import { type AppDir, workspaceRoot } from './app.ts';
 import { buildExe, buildWeb, type Target } from './build.ts';
 

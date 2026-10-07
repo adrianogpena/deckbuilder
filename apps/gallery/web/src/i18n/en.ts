@@ -1,4 +1,4 @@
-// This app's messages; the base ones (common.*, generic errors) come from @deckbase/ui.
+// This app's messages; the base ones (common.*, generic errors) come from @deckbuilder/ui.
 export const en = {
   'nav.section.main': 'Main',
   'nav.home': 'Home',
@@ -40,7 +40,7 @@ export const en = {
   'settings.autostart.hint': 'Windows, built exe only.',
   'settings.updates': 'Updates',
   'settings.updateFolder': 'Release folder',
-  'settings.updateFolder.hint': 'Folder that `deckbase release --to` publishes to. Empty: no update checks.',
+  'settings.updateFolder.hint': 'Folder that `deckbuilder release --to` publishes to. Empty: no update checks.',
   'settings.update.current': 'Running v{version}.',
   'settings.update.available': 'Version {version} is available.',
   'settings.update.latest': 'Up to date.',

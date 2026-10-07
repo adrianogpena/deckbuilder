@@ -1,5 +1,5 @@
 {
-  "name": "deckbase",
+  "name": "deckbuilder",
   "private": true,
   "type": "module",
   "workspaces": [

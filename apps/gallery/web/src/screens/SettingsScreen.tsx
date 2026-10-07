@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { type ApiError, detectLanguage, ErrorBanner, errorOf, isDesktop, LANGUAGES, PageHead, Spinner, useAsync, type Language } from '@deckbase/ui';
+import { type ApiError, detectLanguage, ErrorBanner, errorOf, isDesktop, LANGUAGES, PageHead, Spinner, useAsync, type Language } from '@deckbuilder/ui';
 import { APP } from '../../../app';
 import { api, type Settings } from '../api';
 import { t } from '../i18n';

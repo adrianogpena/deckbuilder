@@ -1,5 +1,5 @@
 {
-  "name": "@deckbase/shell",
+  "name": "@deckbuilder/shell",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -8,8 +8,8 @@
     "./window-worker": "./src/window-worker.ts"
   },
   "dependencies": {
-    "@deckbase/platform": "workspace:*",
-    "@deckbase/server-core": "workspace:*",
+    "@deckbuilder/platform": "workspace:*",
+    "@deckbuilder/server-core": "workspace:*",
     "webview-bun": "^2.4.0"
   }
 }

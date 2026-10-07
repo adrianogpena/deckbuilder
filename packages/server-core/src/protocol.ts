@@ -1,7 +1,7 @@
 // Shared by the server and the web UI; keep this file free of runtime imports.
 
 /** Header the web UI sends with the session token. */
-export const TOKEN_HEADER = 'x-deckbase-token';
+export const TOKEN_HEADER = 'x-deckbuilder-token';
 
 /** URL parameter that hands the token to a new window; the UI moves it into sessionStorage. */
 export const TOKEN_PARAM = 't';
@@ -31,7 +31,7 @@ export interface AppIdentity {
   id: string;
 }
 
-/** GET /api/update: what the updater (updateRoutes in @deckbase/server-mods) knows. */
+/** GET /api/update: what the updater (updateRoutes in @deckbuilder/server-mods) knows. */
 export interface UpdateState {
   /** `offline`: the release folder couldn't be read (off VPN, share down); the last good data is kept. */
   status: 'not-configured' | 'ok' | 'offline' | 'error';

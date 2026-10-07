@@ -1,4 +1,4 @@
-import { showError } from '@deckbase/platform';
+import { showError } from '@deckbuilder/platform';
 
 export interface WindowOptions {
   title?: string;
@@ -25,7 +25,7 @@ let open = 0;
  */
 export function openWindow(url: string, opts: WindowOptions, onAllClosed: () => void): void {
   open++;
-  // In the exe this resolves next to the bundled entry, where `deckbase build` puts the worker entrypoint.
+  // In the exe this resolves next to the bundled entry, where `deckbuilder build` puts the worker entrypoint.
   const worker = new Worker(new URL('./window-worker.ts', import.meta.url).href);
   const request: WindowRequest = {
     url,

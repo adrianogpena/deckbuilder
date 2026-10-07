@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from 'bun:test';
 import { join } from 'node:path';
-import type { UpdateState } from '@deckbase/server-core';
+import type { UpdateState } from '@deckbuilder/server-core';
 import { CHECK_INTERVAL_MS, type Clock, createUpdater, folderSource, RETRY_MS, type UpdateFs, type Updater, type UpdaterOptions } from './update.ts';
 
 const SHARE = '\\\\server\\share\\Gallery';

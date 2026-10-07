@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { detectLanguage, ErrorBanner, Icon, isTyping, setLanguage, Sidebar, Spinner, useAsync, useHashRoute, useHeartbeat, useKey } from '@deckbase/ui';
+import { detectLanguage, ErrorBanner, Icon, isTyping, setLanguage, Sidebar, Spinner, useAsync, useHashRoute, useHeartbeat, useKey } from '@deckbuilder/ui';
 import { APP } from '../../app';
 import { api, type Settings } from './api';
 import { type MessageKey, t } from './i18n';

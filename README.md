@@ -1,4 +1,4 @@
-# Deckbase
+# DeckBuilder
 
 Base for local-first desktop apps: a Bun workspace of shared packages plus thin apps on top.
 Each app builds to **one self-contained executable** (Bun runtime, server, UI and native window
@@ -11,7 +11,7 @@ library inside), and Windows, Linux and macOS executables can all be built from 
   the default browser instead.
 - **UI**: React + Vite. Sidebar layout, dark/light theme, English/Portuguese, error banners,
   cards, modals, Geist fonts and one set of color tokens.
-- Data and settings live in `~/.<app id>` (here `~/.deckbase`), outside the install folder.
+- Data and settings live in `~/.<app id>` (here `~/.deckbuilder`), outside the install folder.
 
 The Electron version of this project is in the git history (commit `559a1a5`); see
 `spikes/RESULTS.md` for why webview-bun replaced it.
@@ -38,7 +38,7 @@ Run at the root (they act on `apps/gallery`) or inside any app folder:
 | `bun run build --target all` | Executables for every target. Targets: `windows-x64`, `linux-x64`, `linux-arm64`, `darwin-x64`, `darwin-arm64`; comma-separate several. `--no-web` reuses the last UI build. |
 | `bun run typecheck` | Type-checks every package and app. |
 | `bun test` | (root) Unit tests of the packages. |
-| `bun run deckbase release --to <folder>` | (in the app folder) Publish a release for the self-updater, see [Releases](#releases). |
+| `bun run deckbuilder release --to <folder>` | (in the app folder) Publish a release for the self-updater, see [Releases](#releases). |
 
 The executable takes the same flags as the source: `--browser` (the Settings screen then has a
 Quit button that stops the app), `--no-open`, `--port <n>`, `--idle-exit <min>` (exit after that
@@ -67,7 +67,7 @@ packages/
                  win/: toasts, autostart (HKCU Run key), PowerShell runner
   ui/            React components (Sidebar, Badge, ErrorBanner, Modal, Icon, ...), hooks,
                  API client, i18n engine with the base messages, hash routing, styles.css
-  build/         The `deckbase` CLI used by app scripts: dev, build:web, build, release
+  build/         The `deckbuilder` CLI used by app scripts: dev, build:web, build, release
 apps/
   gallery/       Example app (Home + Settings screens; settings show autostart and updates)
     app.ts         Name and id
@@ -84,7 +84,7 @@ source directly; there is no package build step.
 
 - **An endpoint**: add `'GET /api/thing': ({ query, json }) => ...` to `server/routes.ts`, then a
   method in `api` in `web/src/api.ts`. Throw `invalid(...)`/`notFound(...)` from
-  `@deckbase/server-core` for errors the UI should show; add `error.<code>` to the app's i18n
+  `@deckbuilder/server-core` for errors the UI should show; add `error.<code>` to the app's i18n
   files to translate them.
 - **A screen**: add its id to `SCREENS` and an entry to `NAV` and `renderScreen` in
   `web/src/App.tsx`, a file in `web/src/screens/`, and its labels to `web/src/i18n/en.ts` and
@@ -93,7 +93,7 @@ source directly; there is no package build step.
   and validate it in the `apply` option of `settingsStore`; react to changes in `onChange`.
 - **Startup work** (timers, update checks): put it in `runApp`'s `onStart`, which a launch that
   hands off to a running instance never reaches.
-- **Notifications** (Windows): `createToaster()` from `@deckbase/platform`, then
+- **Notifications** (Windows): `createToaster()` from `@deckbuilder/platform`, then
   `toaster.show({ title, body, launch })`; a click opens `launch`. Test with
   `bun packages/platform/src/win/toast.ts --selftest`.
 
@@ -117,7 +117,7 @@ The version comes from the app's `package.json`. Executables are named
 **For the self-updater** (a shared folder, e.g. a UNC share): in the app folder,
 
 ```sh
-bun run deckbase release --to '\\server\share\releases' [--bump patch|minor|major] [--target <list>]
+bun run deckbuilder release --to '\\server\share\releases' [--bump patch|minor|major] [--target <list>]
 ```
 
 bumps the version, runs typecheck and tests (`--no-checks` skips them), builds this machine's
@@ -160,6 +160,6 @@ push and pull request.
 
 The server binds to `127.0.0.1` only. API calls require the random token generated at start
 (passed to the UI in the URL, then kept in `sessionStorage` and sent as the
-`x-deckbase-token` header). Requests whose `Host` header is not a loopback name are rejected,
+`x-deckbuilder-token` header). Requests whose `Host` header is not a loopback name are rejected,
 which blocks DNS rebinding. In the native window, links to other origins open in the default
 browser, never inside the app window.

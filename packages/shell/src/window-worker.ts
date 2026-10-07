@@ -1,5 +1,5 @@
 // One native window per Worker: Webview.run() blocks this thread until the window closes.
-import { openExternal } from '@deckbase/platform';
+import { openExternal } from '@deckbuilder/platform';
 import { SizeHint, Webview } from 'webview-bun';
 import type { WindowRequest } from './window.ts';
 
@@ -8,7 +8,7 @@ declare const self: Worker;
 // Runs before every page load. Tells the UI it is in a window, and sends links to other
 // origins to the default browser instead of navigating the app window away.
 const INIT = `
-window.__DECKBASE_SHELL__ = 'window';
+window.__DECKBUILDER_SHELL__ = 'window';
 (() => {
   const external = (href) => {
     try { return new URL(href, location.href).origin !== location.origin; } catch { return false; }
@@ -17,11 +17,11 @@ window.__DECKBASE_SHELL__ = 'window';
     const a = e.target instanceof Element ? e.target.closest('a[href]') : null;
     if (!a || e.defaultPrevented || !external(a.href)) return;
     e.preventDefault();
-    window.__deckbaseOpenExternal(a.href);
+    window.__deckbuilderOpenExternal(a.href);
   });
   const open = window.open;
   window.open = (url, ...rest) => {
-    if (url && external(String(url))) { window.__deckbaseOpenExternal(String(url)); return null; }
+    if (url && external(String(url))) { window.__deckbuilderOpenExternal(String(url)); return null; }
     return open.call(window, url, ...rest);
   };
 })();
@@ -37,7 +37,7 @@ self.onmessage = (e: MessageEvent<WindowRequest>) => {
     process.exit(1);
   }
   webview.title = title;
-  webview.bind('__deckbaseOpenExternal', (href: string) => openExternal(href));
+  webview.bind('__deckbuilderOpenExternal', (href: string) => openExternal(href));
   webview.init(INIT);
   webview.navigate(url);
   webview.run();

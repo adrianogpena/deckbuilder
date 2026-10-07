@@ -1,4 +1,4 @@
-import type { Messages } from '@deckbase/ui';
+import type { Messages } from '@deckbuilder/ui';
 import type { en } from './en';
 
 export const ptBR: Messages<typeof en> = {
@@ -42,7 +42,7 @@ export const ptBR: Messages<typeof en> = {
   'settings.autostart.hint': 'Somente Windows, no exe compilado.',
   'settings.updates': 'Atualizações',
   'settings.updateFolder': 'Pasta de releases',
-  'settings.updateFolder.hint': 'Pasta onde `deckbase release --to` publica. Vazio: sem verificação de atualizações.',
+  'settings.updateFolder.hint': 'Pasta onde `deckbuilder release --to` publica. Vazio: sem verificação de atualizações.',
   'settings.update.current': 'Versão atual v{version}.',
   'settings.update.available': 'A versão {version} está disponível.',
   'settings.update.latest': 'Atualizado.',

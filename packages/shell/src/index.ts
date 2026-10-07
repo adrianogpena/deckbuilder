@@ -9,8 +9,8 @@ import {
   startServer,
   TOKEN_PARAM,
   VITE_PORT,
-} from '@deckbase/server-core';
-import { appHome, isCompiledExe, openExternal, removeOldExe } from '@deckbase/platform';
+} from '@deckbuilder/server-core';
+import { appHome, isCompiledExe, openExternal, removeOldExe } from '@deckbuilder/platform';
 import { createIdleWatch, type IdleWatch } from './idle.ts';
 import { acquireLock, createInstance, handOff, type OpenMode } from './instance.ts';
 import { openWindow, type WindowOptions } from './window.ts';
@@ -163,7 +163,7 @@ the running instance instead.
   void Promise.resolve(opts.onStart?.()).catch((err) => console.error(err));
 
   if (mode !== 'window') console.log(`\n  ${app.name} running at ${url}\n  Press Ctrl+C to stop.\n`);
-  // `deckbase dev` starts Vite only once this server answers; don't load the page before Vite does.
+  // `deckbuilder dev` starts Vite only once this server answers; don't load the page before Vite does.
   if (dev && mode === 'window') void waitFor(origin).then(() => show(mode));
   else show(mode);
 }

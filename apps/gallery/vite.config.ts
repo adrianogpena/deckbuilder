@@ -1,8 +1,8 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { DEV_PORT } from '@deckbase/server-core/protocol';
+import { DEV_PORT } from '@deckbuilder/server-core/protocol';
 
-// Dev: `deckbase dev` runs the server on DEV_PORT; Vite proxies the API there.
+// Dev: `deckbuilder dev` runs the server on DEV_PORT; Vite proxies the API there.
 export default defineConfig({
   root: 'web',
   plugins: [react()],

@@ -1,4 +1,4 @@
-import { invalid, type Routes } from '@deckbase/server-core';
+import { invalid, type Routes } from '@deckbuilder/server-core';
 
 /**
  * This app's own endpoints. Keys are "METHOD /path"; handlers return a JSON-serializable value

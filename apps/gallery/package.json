@@ -1,28 +1,28 @@
 {
-  "name": "@deckbase/gallery",
+  "name": "@deckbuilder/gallery",
   "version": "0.1.0",
-  "description": "Example app built on the deckbase packages.",
+  "description": "Example app built on the deckbuilder packages.",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "deckbase dev",
-    "dev:window": "deckbase dev --window",
+    "dev": "deckbuilder dev",
+    "dev:window": "deckbuilder dev --window",
     "start": "bun server/main.ts",
     "start:browser": "bun server/main.ts --browser",
-    "build:web": "deckbase build:web",
-    "build": "deckbase build"
+    "build:web": "deckbuilder build:web",
+    "build": "deckbuilder build"
   },
   "dependencies": {
-    "@deckbase/platform": "workspace:*",
-    "@deckbase/server-core": "workspace:*",
-    "@deckbase/server-mods": "workspace:*",
-    "@deckbase/shell": "workspace:*",
-    "@deckbase/ui": "workspace:*",
+    "@deckbuilder/platform": "workspace:*",
+    "@deckbuilder/server-core": "workspace:*",
+    "@deckbuilder/server-mods": "workspace:*",
+    "@deckbuilder/shell": "workspace:*",
+    "@deckbuilder/ui": "workspace:*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "@deckbase/build": "workspace:*",
+    "@deckbuilder/build": "workspace:*",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",

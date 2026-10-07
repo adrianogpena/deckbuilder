@@ -26,7 +26,7 @@ const IMMUTABLE = 'public, max-age=31536000, immutable';
 
 let embedded: AssetMap | null = null;
 
-/** Called by the entry that `deckbase build` generates, before the app's own code runs. */
+/** Called by the entry that `deckbuilder build` generates, before the app's own code runs. */
 export function setEmbeddedWebAssets(files: AssetMap): void {
   embedded = files;
 }
