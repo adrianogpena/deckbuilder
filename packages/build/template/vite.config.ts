@@ -1,0 +1,18 @@
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { DEV_PORT } from '@deckbuilder/server-core/protocol';
+
+// Dev: `deckbuilder dev` runs the server on DEV_PORT; Vite proxies the API there.
+export default defineConfig({
+  root: 'web',
+  plugins: [react()],
+  build: {
+    outDir: '../dist/web',
+    emptyOutDir: true,
+  },
+  server: {
+    proxy: {
+      '/api': { target: `http://127.0.0.1:${DEV_PORT}`, changeOrigin: false },
+    },
+  },
+});

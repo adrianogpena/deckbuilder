@@ -1,4 +1,5 @@
-// `bun run typecheck`: runs tsc on the root tsconfig.json (scripts/) and every one under packages/ and apps/.
+// `bun run typecheck`: runs tsc on the root tsconfig.json (scripts/) and every one under packages/ and apps/
+// (except the app template, whose placeholders only become valid names through `deckbuilder new`).
 import { Glob } from 'bun';
 import { dirname, join } from 'node:path';
 
@@ -7,7 +8,7 @@ const configs = [
   'tsconfig.json',
   ...[...new Glob('{packages,apps}/**/tsconfig.json').scanSync({ cwd: ROOT })]
     .map((path) => path.replaceAll('\\', '/'))
-    .filter((path) => !path.includes('node_modules'))
+    .filter((path) => !path.includes('node_modules') && !path.includes('/template/'))
     .sort(),
 ];
 

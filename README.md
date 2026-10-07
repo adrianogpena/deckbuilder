@@ -38,6 +38,7 @@ Run at the root (they act on `apps/gallery`) or inside any app folder:
 | `bun run build:web` | Bundle the UI into `apps/<app>/dist/web`. |
 | `bun run build` | Build the UI, then the executable for this machine into `apps/<app>/release/`. |
 | `bun run build --target all` | Executables for every target. Targets: `windows-x64`, `linux-x64`, `linux-arm64`, `darwin-x64`, `darwin-arm64`; comma-separate several. `--no-web` reuses the last UI build. |
+| `bun run new <dir> [--name] [--id]` | (root) Create an app in `apps/<dir>` from the template, see [New app](#new-app). |
 | `bun run typecheck` | Type-checks every package and app. |
 | `bun test` | (root) Unit tests of the packages. |
 | `bun scripts/screenshot.ts --out <png>` | (root) Screenshot of the gallery UI in headless Edge/Chrome, with its own `--dev` server on port 7799 and a temp home. Flags: `--hash <route>`, `--settings '<json>'` (seeds `settings.json`), `--eval '<js>'`, `--size WxH`, `--wait <ms>`, `--no-build`. |
@@ -74,7 +75,8 @@ packages/
                  win/: toasts, autostart (HKCU Run key), PowerShell runner
   ui/            React components (Sidebar, Badge, ErrorBanner, Modal, Icon, ...), hooks,
                  API client, i18n engine with the base messages, hash routing, styles.css
-  build/         The `deckbuilder` CLI used by app scripts: dev, build:web, build, release
+  build/         The `deckbuilder` CLI used by app scripts: dev, build:web, build, release; new
+                 template/ is the app that `deckbuilder new` copies
 apps/
   gallery/       Example app (Home + Settings screens; settings show autostart and updates)
     app.ts         Name and id
@@ -145,13 +147,20 @@ source directly; there is no package build step.
 
 ## New app
 
-1. Copy `apps/gallery` to `apps/<name>` (without `dist`, `release`, `.build`, `node_modules`).
-2. In the copy: `app.ts` (`name`, `id`), `package.json` (`name`, `version`, `description`),
-   `web/index.html` (`<title>`).
-3. Replace `web/public/favicon.svg`; it is also the exe icon. Update `BrandMark` in
+```sh
+bun run new <dir> [--name "<Name>"] [--id <id>]
+bun install
+cd apps/<dir> && bun run dev
+```
+
+Creates `apps/<dir>` from `packages/build/template/` (Home + Settings with Appearance, Updates,
+autostart and tray; no demos). `<dir>` is lowercase letters, digits and dashes; `--name` is the
+display name (default: the folder, capitalised); `--id` is the data folder `~/.<id>` and the URL
+scheme for deep links (default: the folder without dashes). Then:
+
+1. Replace `web/public/favicon.svg`; it is also the exe icon. Update `BrandMark` in
    `packages/ui/src/components/ui.tsx` if the brand should change for every app.
-4. Delete the example `POST /api/echo` endpoint and the `EchoCard` on the home screen.
-5. `bun install` at the root, then `bun run dev` inside the new folder.
+2. Add the app's endpoints in `server/routes.ts` and its screens under `web/src/screens/`.
 
 ## Releases
 

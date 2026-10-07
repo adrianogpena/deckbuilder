@@ -1,0 +1,31 @@
+{
+  "name": "@deckbuilder/__APP_DIR__",
+  "version": "0.1.0",
+  "description": "__APP_NAME__",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "deckbuilder dev",
+    "dev:window": "deckbuilder dev --window",
+    "start": "bun server/main.ts",
+    "start:browser": "bun server/main.ts --browser",
+    "build:web": "deckbuilder build:web",
+    "build": "deckbuilder build"
+  },
+  "dependencies": {
+    "@deckbuilder/platform": "workspace:*",
+    "@deckbuilder/server-core": "workspace:*",
+    "@deckbuilder/server-mods": "workspace:*",
+    "@deckbuilder/shell": "workspace:*",
+    "@deckbuilder/ui": "workspace:*",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@deckbuilder/build": "workspace:*",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^6.0.3"
+  }
+}

@@ -5,9 +5,33 @@ import type { VersionBump } from '@deckbuilder/server-core';
 import { buildExe, buildWeb, parseTargets } from './build.ts';
 import { dev } from './dev.ts';
 import { loadApp } from './app.ts';
+import { createApp } from './new.ts';
 import { BUMPS, release, writeManifest } from './release.ts';
 
 const [command, ...args] = process.argv.slice(2);
+// Only `new` runs outside an app folder.
+if (command === 'new') {
+  const { values, positionals } = parseArgs({ args, allowPositionals: true, options: { name: { type: 'string' }, id: { type: 'string' } } });
+  const [dir] = positionals;
+  if (!dir) {
+    console.error('Usage: deckbuilder new <dir> [--name <Name>] [--id <id>]');
+    process.exit(1);
+  }
+  try {
+    const target = await createApp({ dir, name: values.name, id: values.id }, process.cwd());
+    console.log(`Created ${target}
+
+Next:
+  bun install
+  cd apps/${dir}
+  bun run dev`);
+  } catch (err) {
+    console.error((err as Error).message);
+    process.exit(1);
+  }
+  process.exit(0);
+}
+
 const app = await loadApp(process.cwd());
 
 switch (command) {
@@ -54,6 +78,9 @@ switch (command) {
   default:
     console.log(`Usage: deckbuilder <command>
 
+  new <dir> [--name <Name>] [--id <id>]
+                              create apps/<dir> from the template (run from the repo root:
+                              bun run new <dir>); id = URL scheme, data folder ~/.<id>
   dev [server flags]          server (--dev, watch mode) + Vite dev server; e.g. dev --window, dev --app
   build:web                   bundle web/ into dist/web
   build [--target <list>]     build:web, then one exe per target into release/
