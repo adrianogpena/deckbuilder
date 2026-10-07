@@ -26,6 +26,36 @@ export interface Settings extends BaseSettings {
   updateFolder: string;
   /** Layout of the Tabs screen (`serialize` of `@deckbuilder/ui`'s tabs); the UI validates it on restore. */
   tabsLayout?: unknown;
+  /** Layout of the Grid screen: `{ id, x, y, w, h, collapsed? }[]`, validated by `validGridLayout`. */
+  gridLayout?: GridLayoutItem[];
+}
+
+interface GridLayoutItem {
+  id: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  collapsed?: boolean;
+}
+
+const GRID_PANELS = ['clock', 'info', 'update', 'list'];
+const GRID_COLS = 12;
+const MAX_GRID_ITEMS = 50;
+
+const inRange = (n: unknown, min: number, max: number): n is number => Number.isInteger(n) && (n as number) >= min && (n as number) <= max;
+
+/** Plain-TS check of the Grid screen layout; anything else is ignored. */
+function validGridLayout(value: unknown): value is GridLayoutItem[] {
+  if (!Array.isArray(value) || value.length > MAX_GRID_ITEMS) return false;
+  return value.every((i) => {
+    if (typeof i !== 'object' || i === null) return false;
+    const { id, x, y, w, h, collapsed } = i as Record<string, unknown>;
+    return typeof id === 'string' && GRID_PANELS.includes(id)
+      && inRange(x, 0, GRID_COLS - 1) && inRange(w, 1, GRID_COLS) && x + w <= GRID_COLS
+      && inRange(y, 0, 1000) && inRange(h, 1, 100)
+      && (collapsed === undefined || typeof collapsed === 'boolean');
+  });
 }
 
 const MAX_TABS_LAYOUT_BYTES = 64 * 1024;
@@ -42,6 +72,7 @@ const settings = settingsStore<Settings>({
     if (typeof patch.tabsLayout === 'object' && patch.tabsLayout !== null && JSON.stringify(patch.tabsLayout).length < MAX_TABS_LAYOUT_BYTES) {
       next.tabsLayout = patch.tabsLayout;
     }
+    if (validGridLayout(patch.gridLayout)) next.gridLayout = patch.gridLayout;
   },
   onChange(next, prev) {
     if (next.autostart !== prev.autostart) void autostart.set(next.autostart);

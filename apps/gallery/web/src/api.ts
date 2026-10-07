@@ -10,6 +10,8 @@ export interface Settings extends ThemeSettings {
   updateFolder: string;
   /** Layout of the Tabs screen; restored (and validated) by the screen. */
   tabsLayout?: unknown;
+  /** Layout of the Grid screen (`GridItem[]`); the server validates it. */
+  gridLayout?: unknown;
 }
 
 /** GET /api/info (infoRoutes in @deckbuilder/server-mods). */

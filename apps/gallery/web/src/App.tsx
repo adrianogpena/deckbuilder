@@ -4,11 +4,12 @@ import { CommandPalette, detectLanguage, ErrorBanner, Icon, isDesktop, isTyping,
 import { APP } from '../../app';
 import { api, type Settings } from './api';
 import { type MessageKey, t } from './i18n';
+import { GridScreen } from './screens/GridScreen';
 import { Home } from './screens/Home';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { TabsScreen } from './screens/TabsScreen';
 
-const SCREENS = ['home', 'tabs', 'settings'] as const;
+const SCREENS = ['home', 'tabs', 'grid', 'settings'] as const;
 type ScreenId = (typeof SCREENS)[number];
 
 const NAV: Array<{ title: MessageKey; items: Array<{ id: ScreenId; label: MessageKey; icon: string; hint?: string }> }> = [
@@ -17,7 +18,8 @@ const NAV: Array<{ title: MessageKey; items: Array<{ id: ScreenId; label: Messag
     items: [
       { id: 'home', label: 'nav.home', icon: 'home', hint: '1' },
       { id: 'tabs', label: 'nav.tabs', icon: 'split', hint: '2' },
-      { id: 'settings', label: 'nav.settings', icon: 'settings', hint: '3' },
+      { id: 'grid', label: 'nav.grid', icon: 'cube', hint: '3' },
+      { id: 'settings', label: 'nav.settings', icon: 'settings', hint: '4' },
     ],
   },
 ];
@@ -115,6 +117,8 @@ function renderScreen(screen: ScreenId, settings: Settings, save: (patch: Partia
   switch (screen) {
     case 'tabs':
       return <TabsScreen settings={settings} onSave={save} />;
+    case 'grid':
+      return <GridScreen settings={settings} onSave={save} />;
     case 'settings':
       return <SettingsScreen settings={settings} onChange={save} onQuit={onQuit} />;
     default:

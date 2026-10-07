@@ -22,6 +22,9 @@ const baseEn = {
   'tabs.closePane': 'Close pane',
   'tabs.back': 'Back',
   'tabs.forward': 'Forward',
+  'panel.collapse': 'Collapse',
+  'panel.expand': 'Expand',
+  'panel.remove': 'Remove panel',
 
   'theme.system': 'System',
   'theme.dark': 'Dark',
@@ -69,6 +72,9 @@ const basePtBR: Messages<typeof baseEn> = {
   'tabs.closePane': 'Fechar painel',
   'tabs.back': 'Voltar',
   'tabs.forward': 'Avançar',
+  'panel.collapse': 'Recolher',
+  'panel.expand': 'Expandir',
+  'panel.remove': 'Remover painel',
 
   'theme.system': 'Sistema',
   'theme.dark': 'Escuro',

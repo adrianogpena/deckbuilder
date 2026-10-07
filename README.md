@@ -116,6 +116,14 @@ source directly; there is no package build step.
   tab; Ctrl+T, Ctrl+W and Ctrl+Tab only in the native window (browsers keep them). Persist with
   `serialize(layout)` and read back with `restore(raw, isRoute)`; the gallery's Tabs screen keeps
   it in the `tabsLayout` setting.
+- **Panel grid**: `<PanelGrid items defs render onChange />` (from `@deckbuilder/ui`) shows draggable,
+  resizable panels in a 12-column grid (6 and 1 column on narrower windows). `defs` are `PanelDef`s
+  `{ id, title, icon, defaultSize, minW, minH }`, `items` the `GridItem`s `{ id, x, y, w, h, collapsed? }`;
+  `render(id)` returns a panel's content, the grid adds the frame (drag by the header, collapse,
+  remove). Only the full-width layout is editable and reported through `onChange`; keep it in a
+  setting, validated on the server (the gallery's `gridLayout`), and bring a removed panel back
+  with `addItem(items, def)`. Inside a panel, `PanelLoading`, `PanelNotice` and `PanelBanner`
+  show loading, empty/error and offline states. `PanelFrame` also works on its own.
 - **Startup work** (timers, update checks): put it in `runApp`'s `onStart`, which a launch that
   hands off to a running instance never reaches.
 - **Notifications** (Windows): `createToaster()` from `@deckbuilder/platform`, then
