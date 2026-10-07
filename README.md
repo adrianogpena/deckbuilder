@@ -40,6 +40,7 @@ Run at the root (they act on `apps/gallery`) or inside any app folder:
 | `bun run build --target all` | Executables for every target. Targets: `windows-x64`, `linux-x64`, `linux-arm64`, `darwin-x64`, `darwin-arm64`; comma-separate several. `--no-web` reuses the last UI build. |
 | `bun run typecheck` | Type-checks every package and app. |
 | `bun test` | (root) Unit tests of the packages. |
+| `bun scripts/screenshot.ts --out <png>` | (root) Screenshot of the gallery UI in headless Edge/Chrome, with its own `--dev` server on port 7799 and a temp home. Flags: `--hash <route>`, `--settings '<json>'` (seeds `settings.json`), `--eval '<js>'`, `--size WxH`, `--wait <ms>`, `--no-build`. |
 | `bun run deckbuilder release --to <folder>` | (in the app folder) Publish a release for the self-updater, see [Releases](#releases). |
 | `bun run deckbuilder manifest` | (in the app folder) Write `release/latest.json` for the built exes, see [Releases](#releases). |
 

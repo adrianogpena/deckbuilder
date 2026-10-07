@@ -1,10 +1,10 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Routes } from '@deckbuilder/server-core';
+import { PALETTES, type ThemeKind, type ThemeSettings } from '@deckbuilder/server-core/palettes';
 
 /** Settings every app gets; apps extend this with their own fields. */
-export interface BaseSettings {
-  theme: 'dark' | 'light';
+export interface BaseSettings extends ThemeSettings {
   /** UI language (e.g. "en", "pt-BR"); unset means "follow the browser". */
   language?: string;
 }
@@ -42,7 +42,9 @@ export function settingsStore<T extends BaseSettings>(opts: SettingsOptions<T>):
   async function save(patch: Record<string, unknown>): Promise<T> {
     const prev = await load();
     const next: T = { ...prev };
-    if (patch.theme === 'dark' || patch.theme === 'light') next.theme = patch.theme;
+    if (patch.theme === 'system' || patch.theme === 'dark' || patch.theme === 'light') next.theme = patch.theme;
+    applyPalette(patch.paletteDark, 'dark', next);
+    applyPalette(patch.paletteLight, 'light', next);
     if (typeof patch.language === 'string' && /^[a-z]{2}(-[A-Z]{2})?$/.test(patch.language)) next.language = patch.language;
     opts.apply?.(patch, next);
     cache = next;
@@ -53,6 +55,13 @@ export function settingsStore<T extends BaseSettings>(opts: SettingsOptions<T>):
   }
 
   return { dir: opts.dir, load, save };
+}
+
+/** Saves `value` as the `kind` palette when it is a palette id of that kind; an empty string clears it, anything else is ignored. */
+function applyPalette(value: unknown, kind: ThemeKind, next: ThemeSettings): void {
+  const key = kind === 'dark' ? 'paletteDark' : 'paletteLight';
+  if (value === '') delete next[key];
+  else if (PALETTES.some((p) => p.id === value && p.kind === kind)) next[key] = value as string;
 }
 
 /** GET and PUT /api/settings. */
