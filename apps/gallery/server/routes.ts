@@ -2,7 +2,7 @@ import { statSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
 import { appHome, createToaster, openWithDefault, revealInFolder, saveFileAs, secretStore, writeFileAtomic } from '@deckbuilder/platform';
 import { forbidden, invalid, ndjson, type Routes } from '@deckbuilder/server-core';
-import { dialogRoutes, fromPlatform, recordRoutes, recordStore, rootedFs } from '@deckbuilder/server-mods';
+import { dialogRoutes, fromPlatform, pickedPaths, recordRoutes, recordStore, rootedFs } from '@deckbuilder/server-mods';
 import type { StartContext } from '@deckbuilder/shell';
 import { APP } from '../app.ts';
 
@@ -16,15 +16,21 @@ const isDirectory = (path: string) => {
   }
 };
 
+/** Folders the folder dialog returned; a project path must be one of them (taken once). */
+const pickedFolders = pickedPaths();
+
 /** The folders the Explorer screen shows; each is a root of the rooted file system. */
 const projects = recordStore<{ name: string; path: string }>({
   dir: appHome(APP.id),
   name: 'projects',
-  validate(input) {
+  validate(input, prev) {
     const { name, path } = (input ?? {}) as { name?: unknown; path?: unknown };
     const trimmed = typeof name === 'string' ? name.trim() : '';
     if (trimmed.length < 1 || trimmed.length > 80) throw invalid('badProjectName', 'The name must have 1 to 80 characters.');
-    if (typeof path !== 'string' || !isAbsolute(path) || !isDirectory(path)) throw invalid('badProjectPath', 'The path must be an existing folder.');
+    // An unchanged path skips the stat: it would block the server while a share is offline.
+    if (typeof path === 'string' && path === prev?.path) return { name: trimmed, path };
+    if (typeof path !== 'string' || !pickedFolders.take(path)) throw invalid('pickFolderFirst', 'Choose the folder with Browse.');
+    if (!isAbsolute(path) || !isDirectory(path)) throw invalid('badProjectPath', 'The path must be an existing folder.');
     return { name: trimmed, path };
   },
 });
@@ -43,7 +49,7 @@ const MAX_DEMO_ROWS = 100_000;
 const DEMO_BATCH = 500;
 const DEMO_PAUSE_MS = 20;
 /** Paths the save dialog returned and `/api/demo/save` may still write once. */
-const saveTargets = new Set<string>();
+const saveTargets = pickedPaths();
 
 const target = async (json: <T>() => Promise<T>) => {
   const { root, path } = await json<{ root?: unknown; path?: unknown }>();
@@ -57,7 +63,7 @@ const target = async (json: <T>() => Promise<T>) => {
 export const routes = (ctx: StartContext): Routes => ({
   ...recordRoutes(projects, '/api/projects'),
   ...fs.routes,
-  ...dialogRoutes(),
+  ...dialogRoutes({ picked: pickedFolders }),
   'POST /api/fs/reveal': async ({ json }) => {
     await revealInFolder(await target(json)).catch(fromPlatform);
     return { ok: true };
@@ -83,7 +89,7 @@ export const routes = (ctx: StartContext): Routes => ({
   },
   'POST /api/demo/save': async ({ json }) => {
     const { path, text } = await json<{ path?: unknown; text?: unknown }>();
-    if (typeof path !== 'string' || typeof text !== 'string' || !saveTargets.delete(path)) throw forbidden('notASaveTarget', 'Choose where to save first.');
+    if (typeof path !== 'string' || typeof text !== 'string' || !saveTargets.take(path)) throw forbidden('notASaveTarget', 'Choose where to save first.');
     await writeFileAtomic(path, text).catch(fromPlatform);
     return { ok: true };
   },

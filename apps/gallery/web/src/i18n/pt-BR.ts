@@ -115,6 +115,10 @@ export const ptBR: Messages<typeof en> = {
   'settings.closeToTray.hint': 'Somente Windows. Vale após reiniciar o app.',
   'settings.updates': 'Atualizações',
   'settings.updateFolder': 'Pasta de releases',
+  'settings.updateFolder.browse': 'Procurar…',
+  'settings.updateFolder.clear': 'Limpar',
+  'settings.updateFolder.pick': 'Escolha a pasta de releases',
+  'settings.updateFolder.none': 'Não definida',
   'settings.updateFolder.hint': 'Pasta onde `deckbuilder release --to` publica. Vazio: os releases do GitHub do app, se ele tiver um repositório.',
   'settings.update.current': 'Versão atual v{version}.',
   'settings.update.available': 'A versão {version} está disponível.',
@@ -146,4 +150,6 @@ export const ptBR: Messages<typeof en> = {
   'error.emptyText': 'Digite algo primeiro.',
   'error.badProjectPath': 'O caminho deve ser uma pasta existente.',
   'error.badProjectName': 'O nome deve ter de 1 a 80 caracteres.',
+  'error.pickFolderFirst': 'Escolha a pasta com Procurar.',
+  'error.notASaveTarget': 'Escolha onde salvar primeiro.',
 };

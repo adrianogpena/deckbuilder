@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { AppearanceFields, type ApiError, detectLanguage, ErrorBanner, errorMessage, errorOf, isDesktop, LANGUAGES, PageHead, Spinner, useAsync, type Language } from '@deckbuilder/ui';
 import { APP } from '../../../app';
 import { api, type Settings } from '../api';
@@ -104,13 +104,10 @@ function GeneralCard({ onQuit }: { onQuit: () => void }) {
 }
 
 function UpdatesCard({ folder, onFolder }: { folder: string; onFolder: (folder: string) => void }) {
-  const [draft, setDraft] = useState(folder);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
   const [restarting, setRestarting] = useState<string | null>(null);
   const state = useAsync(() => api.update(), [folder], 60_000);
-
-  useEffect(() => setDraft(folder), [folder]);
 
   const run = async (fn: () => Promise<unknown>) => {
     setBusy(true);
@@ -143,17 +140,28 @@ function UpdatesCard({ folder, onFolder }: { folder: string; onFolder: (folder: 
     <section className="section">
       <h4 className="mono-label">{t('settings.updates')}</h4>
       <div className="card form">
-        <label className="field">
-          <span className="mono-label">{t('settings.updateFolder')}</span>
-          <input
-            value={draft}
-            placeholder="\\server\share\releases"
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={() => draft.trim() !== folder && onFolder(draft.trim())}
-            onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-          />
+        <div className="field">
+          <label className="mono-label" htmlFor="update-folder">{t('settings.updateFolder')}</label>
+          <div className="row">
+            <input id="update-folder" value={folder} placeholder={t('settings.updateFolder.none')} readOnly />
+            <button
+              className="btn btn-sm"
+              disabled={busy}
+              onClick={() => run(async () => {
+                const next = (await api.pickUpdateFolder(t('settings.updateFolder.pick'))).updateFolder;
+                if (next !== folder) onFolder(next);
+              })}
+            >
+              {t('settings.updateFolder.browse')}
+            </button>
+            {folder && (
+              <button className="btn btn-sm" disabled={busy} onClick={() => onFolder('')}>
+                {t('settings.updateFolder.clear')}
+              </button>
+            )}
+          </div>
           <span className="muted">{t('settings.updateFolder.hint')}</span>
-        </label>
+        </div>
         {!u && !state.error && <Spinner small />}
         {state.error && <ErrorBanner error={state.error} onRetry={state.reload} compact />}
         {u && (

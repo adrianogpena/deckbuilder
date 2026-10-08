@@ -14,24 +14,55 @@ function filters(v: unknown): DialogFilter[] | undefined {
 
 const body = async (json: () => Promise<unknown>) => (await json()) as Record<string, unknown>;
 
+/** Paths a server dialog returned that a later route may accept once. */
+export interface PickedPaths {
+  add(path: string): void;
+  /** True once for a path added less than `ttlMs` ago (exact match); removes it. */
+  take(path: string): boolean;
+}
+
+/** A one-shot set of dialog results; adding beyond `max` drops the oldest entry. */
+export function pickedPaths(opts: { max?: number; ttlMs?: number; now?: () => number } = {}): PickedPaths {
+  const { max = 20, ttlMs = 600_000, now = Date.now } = opts;
+  const added = new Map<string, number>();
+  return {
+    add(path) {
+      added.delete(path);
+      added.set(path, now());
+      while (added.size > max) added.delete(added.keys().next().value as string);
+    },
+    take(path) {
+      const at = added.get(path);
+      if (at === undefined) return false;
+      added.delete(path);
+      return now() - at < ttlMs;
+    },
+  };
+}
+
 /**
  * `POST /api/dialog/folder|file|save` with the dialog options → `{ path: string | null }` (null =
- * cancelled). The path is absolute: use it to register a root or as a one-shot save target only.
+ * cancelled). The path is absolute: a route that takes it back from the client must check it with
+ * `picked.take` (folder and file results are added to `picked`; save targets need their own route).
  */
-export function dialogRoutes(): Routes {
-  const result = (path: Promise<string | null>) => path.then((p) => ({ path: p }), fromPlatform);
+export function dialogRoutes(opts: { picked?: PickedPaths } = {}): Routes {
+  const result = (path: Promise<string | null>, pick = true) =>
+    path.then((p) => {
+      if (pick && p !== null) opts.picked?.add(p);
+      return { path: p };
+    }, fromPlatform);
   return {
     'POST /api/dialog/folder': async ({ json }) => {
       const b = await body(json);
-      return result(pickFolder({ title: str(b.title), start: str(b.start) }));
+      return result(pickFolder({ title: str(b.title) }));
     },
     'POST /api/dialog/file': async ({ json }) => {
       const b = await body(json);
-      return result(pickFile({ title: str(b.title), start: str(b.start), filters: filters(b.filters) }));
+      return result(pickFile({ title: str(b.title), filters: filters(b.filters) }));
     },
     'POST /api/dialog/save': async ({ json }) => {
       const b = await body(json);
-      return result(saveFileAs({ title: str(b.title), suggestedName: str(b.suggestedName), filters: filters(b.filters) }));
+      return result(saveFileAs({ title: str(b.title), suggestedName: str(b.suggestedName), filters: filters(b.filters) }), false);
     },
   };
 }

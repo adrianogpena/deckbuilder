@@ -113,6 +113,10 @@ export const en = {
   'settings.closeToTray.hint': 'Windows only. Takes effect after a restart.',
   'settings.updates': 'Updates',
   'settings.updateFolder': 'Release folder',
+  'settings.updateFolder.browse': 'Browse…',
+  'settings.updateFolder.clear': 'Clear',
+  'settings.updateFolder.pick': 'Choose the release folder',
+  'settings.updateFolder.none': 'Not set',
   'settings.updateFolder.hint': 'Folder that `deckbuilder release --to` publishes to. Empty: the GitHub releases of the app, if it has a repo.',
   'settings.update.current': 'Running v{version}.',
   'settings.update.available': 'Version {version} is available.',
@@ -144,4 +148,6 @@ export const en = {
   'error.emptyText': 'Type something first.',
   'error.badProjectPath': 'The path must be an existing folder.',
   'error.badProjectName': 'The name must have 1 to 80 characters.',
+  'error.pickFolderFirst': 'Choose the folder with Browse.',
+  'error.notASaveTarget': 'Choose where to save first.',
 };

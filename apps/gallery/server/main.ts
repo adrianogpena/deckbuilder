@@ -1,11 +1,13 @@
 import { join } from 'node:path';
-import { appHome, createAutostart } from '@deckbuilder/platform';
+import { appHome, createAutostart, pickFolder } from '@deckbuilder/platform';
 import { updatePublicKey } from '@deckbuilder/server-core';
 import {
   createUpdater,
   folderSource,
+  fromPlatform,
   githubSource,
   infoRoutes,
+  pickedPaths,
   settingsRoutes,
   settingsStore,
   themeHead,
@@ -23,7 +25,10 @@ export interface Settings extends BaseSettings {
   autostart: boolean;
   /** Tray icon, so closing the window keeps the app running; read at startup. */
   closeToTray: boolean;
-  /** Folder `deckbuilder release --to` publishes to; empty: GitHub releases when `APP.repo` is set, else no update checks. */
+  /**
+   * Folder `deckbuilder release --to` publishes to; empty: GitHub releases when `APP.repo` is set,
+   * else no update checks. Set only through the folder dialog of `POST /api/settings/update-folder`.
+   */
   updateFolder: string;
   /** Layout of the Tabs screen (`serialize` of `@deckbuilder/ui`'s tabs); the UI validates it on restore. */
   tabsLayout?: unknown;
@@ -104,13 +109,18 @@ function validWorkbench(raw: unknown): WorkbenchSettings | null {
 
 const dataDir = appHome(APP.id);
 const autostart = createAutostart({ name: APP.name });
+/** The folder the update-folder dialog returned; `apply` takes it once. */
+const pickedUpdateFolder = pickedPaths({ max: 1 });
 const settings = settingsStore<Settings>({
   dir: dataDir,
   defaults: { theme: 'dark', autostart: false, closeToTray: false, updateFolder: '' },
   apply(patch, next) {
     if (typeof patch.autostart === 'boolean') next.autostart = patch.autostart;
     if (typeof patch.closeToTray === 'boolean') next.closeToTray = patch.closeToTray;
-    if (typeof patch.updateFolder === 'string') next.updateFolder = patch.updateFolder.trim();
+    // A client may only clear it: a typed path could be any UNC share.
+    if (patch.updateFolder === '' || (typeof patch.updateFolder === 'string' && pickedUpdateFolder.take(patch.updateFolder))) {
+      next.updateFolder = patch.updateFolder;
+    }
     if (typeof patch.tabsLayout === 'object' && patch.tabsLayout !== null && JSON.stringify(patch.tabsLayout).length < MAX_TABS_LAYOUT_BYTES) {
       next.tabsLayout = patch.tabsLayout;
     }
@@ -143,6 +153,13 @@ await runApp({
   routes: (ctx) => ({
     ...infoRoutes({ app: APP, version: pkg.version, dataDir }),
     ...settingsRoutes(settings),
+    'POST /api/settings/update-folder': async ({ json }) => {
+      const { title } = await json<{ title?: unknown }>();
+      const path = await pickFolder({ title: typeof title === 'string' ? title : undefined }).catch(fromPlatform);
+      if (path === null) return settings.load();
+      pickedUpdateFolder.add(path);
+      return settings.save({ updateFolder: path });
+    },
     ...updateRoutes(updater, ctx.quit),
     ...routes(ctx),
   }),

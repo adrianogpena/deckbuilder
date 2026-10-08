@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import type { ApiError } from '../api';
+import { errorOf, type ApiError } from '../api';
 import { t } from '../i18n';
 import type { IconName } from '../icons';
 import { Empty, ErrorBanner, Icon, useDialogs } from './ui';
@@ -85,7 +85,7 @@ export interface ResourceFormProps {
   value: Record<string, unknown>;
   onSubmit(values: Record<string, unknown>): void;
   onCancel(): void;
-  /** Opens a picker for a `path` field; the path it resolves to fills the field, null leaves it unchanged. */
+  /** Opens a picker for a `path` field, which is then read-only; the path it resolves to fills the field, null leaves it unchanged. */
   onBrowse?(key: string): Promise<string | null>;
   error?: ApiError;
 }
@@ -104,6 +104,7 @@ export function ResourceForm({ fields, value, onSubmit, onCancel, onBrowse, erro
     return init;
   });
   const [missing, setMissing] = useState<string[]>([]);
+  const [browseError, setBrowseError] = useState<ApiError>();
   const set = (key: string, text: string) => setDraft((d) => ({ ...d, [key]: text }));
 
   const submit = (e: FormEvent) => {
@@ -127,6 +128,7 @@ export function ResourceForm({ fields, value, onSubmit, onCancel, onBrowse, erro
   return (
     <form className="resource-form" onSubmit={submit} noValidate>
       {error && <ErrorBanner error={error} compact />}
+      {browseError && <ErrorBanner error={browseError} compact />}
       {fields.map((f) => {
         const text = draft[f.key];
         const saved = f.kind === 'password' && hasSecret(value[f.key]) && text === undefined;
@@ -147,11 +149,16 @@ export function ResourceForm({ fields, value, onSubmit, onCancel, onBrowse, erro
               </select>
             ) : f.kind === 'path' ? (
               <div className="row">
-                <input {...common} type="text" />
+                <input {...common} type="text" readOnly={!!onBrowse} />
                 {onBrowse && (
                   <button type="button" className="btn btn-sm" onClick={async () => {
-                    const picked = await onBrowse(f.key);
-                    if (picked !== null) set(f.key, picked);
+                    try {
+                      const picked = await onBrowse(f.key);
+                      setBrowseError(undefined);
+                      if (picked !== null) set(f.key, picked);
+                    } catch (err) {
+                      setBrowseError(errorOf(err));
+                    }
                   }}>
                     {t('resource.browse')}
                   </button>

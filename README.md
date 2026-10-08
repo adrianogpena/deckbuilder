@@ -146,7 +146,9 @@ source directly; there is no package build step.
   `<Explorer>` (sidebar plus tab workspace). The gallery's Explorer screen puts them together.
 - **Dialogs**: `useDialogs()` (from `@deckbuilder/ui`) gives `confirm` and `prompt` modals.
   Native pickers: `dialogRoutes()` on the server and the `dialogs` client in the UI (`pickFolder`,
-  `pickFile`, `saveFileAs`). Tested on Windows; other systems are best-effort.
+  `pickFile`, `saveFileAs`). A route that takes back a path the client got from a dialog must
+  check it with `pickedPaths().take` (pass the set to `dialogRoutes({ picked })`), so a client
+  can't hand in any other absolute path. Tested on Windows; other systems are best-effort.
 - **DataTable**: `<DataTable columns rows rowKey />` windows its rows (fixed row height), sorts,
   resizes columns (`widths` + `onWidthsChange` to persist), selects and copies. `toCsv` and `toTsv`
   build exports.
@@ -170,7 +172,7 @@ source directly; there is no package build step.
   user's DPAPI key; pass it as `secrets` to a `recordStore`. Routes must return `hasSecret`, never the value.
   Tested on Windows only.
 - **Opening files**: `revealInFolder` and `openWithDefault` (from `@deckbuilder/platform`); the
-  latter refuses executables.
+  latter opens only documents, images and media (`isOpenable`), never programs or scripts.
 - **Startup work** (timers, update checks): put it in `runApp`'s `onStart`, which a launch that
   hands off to a running instance never reaches.
 - **Notifications** (Windows): `createToaster()` from `@deckbuilder/platform`, then
@@ -235,8 +237,8 @@ bun run deckbuilder release --to '\\server\share\releases' [--bump patch|minor|m
 bumps the version, runs typecheck and tests (`--no-checks` skips them), builds this machine's
 exe (or `--target`), copies it with `latest.json` to `<folder>/<app name>/`, then commits the
 bump and tags `<app folder>-v<version>` locally; it never pushes. `--dry-run` publishes the
-same files but leaves `package.json` and git as they were. Users set the folder (the root or
-the `<app name>` subfolder) under Settings › Updates. The app checks at start and every 6 h
+same files but leaves `package.json` and git as they were. Users pick the folder (the root or
+the `<app name>` subfolder) with Browse under Settings › Updates. The app checks at start and every 6 h
 (30 min after a failure); applying copies the exe next to the running one, verifies its
 SHA-256, renames the running exe to `<name>.old.exe` (Windows allows renaming a running exe,
 not replacing it), moves the new one in place, starts it with `--after-update` plus the same
