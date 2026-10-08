@@ -9,6 +9,7 @@ export * from './json-file.ts';
 export * from './run.ts';
 export * from './secrets.ts';
 export * from './theme.ts';
+export * from './trash.ts';
 export * from './win/autostart.ts';
 export * from './win/powershell.ts';
 export * from './win/protocol.ts';

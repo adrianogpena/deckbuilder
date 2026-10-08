@@ -41,3 +41,4 @@ export class AppError extends Error {
 
 export const invalid = (code: string, message: string, params?: ErrorParams) => new AppError('invalid', code, message, { params });
 export const notFound = (code: string, message: string, params?: ErrorParams) => new AppError('notfound', code, message, { params });
+export const forbidden = (code: string, message: string, params?: ErrorParams) => new AppError('forbidden', code, message, { params });
