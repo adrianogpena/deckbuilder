@@ -147,8 +147,12 @@ export function createToaster(opts: ToasterOptions = {}): Toaster {
       if (!entry) return null;
       current = null;
       entry.proc.end();
-      const timeout = new Promise<null>((resolve) => setTimeout(resolve, 5000, null));
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const timeout = new Promise<null>((resolve) => {
+        timer = setTimeout(resolve, 5000, null);
+      });
       const code = await Promise.race([entry.done, timeout]);
+      clearTimeout(timer);
       if (code === null) killTree(entry.proc.pid);
       return code;
     },

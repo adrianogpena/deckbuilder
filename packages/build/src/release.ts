@@ -2,7 +2,7 @@ import { copyFileSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFi
 import { basename, join } from 'node:path';
 import { bumpVersion, MANIFEST, type ReleaseManifest, type VersionBump } from '@deckbuilder/server-core';
 import { type AppDir, workspaceRoot } from './app.ts';
-import { buildExe, buildWeb, type Target } from './build.ts';
+import { buildExe, buildWeb, releasePrefix, type Target } from './build.ts';
 
 export const BUMPS: VersionBump[] = ['patch', 'minor', 'major'];
 
@@ -87,7 +87,7 @@ export async function release(app: AppDir, opts: ReleaseOptions): Promise<void> 
 /** The manifest for built exes named `<name>-<version>-<label>[.exe]`: label and sha256 per file. */
 export async function buildManifest(app: AppDir, exes: string[], notes: string): Promise<ReleaseManifest> {
   const manifest: ReleaseManifest = { version: app.version, notes, date: new Date().toISOString(), files: {} };
-  const prefix = `${app.name}-${app.version}-`;
+  const prefix = releasePrefix(app);
   for (const exe of exes) {
     const file = basename(exe);
     if (!file.startsWith(prefix)) throw new Error(`${file} does not start with ${prefix}`);
@@ -102,7 +102,7 @@ export async function buildManifest(app: AppDir, exes: string[], notes: string):
  */
 export async function writeManifest(app: AppDir): Promise<void> {
   const dir = join(app.dir, 'release');
-  const prefix = `${app.name}-${app.version}-`;
+  const prefix = releasePrefix(app);
   const exes = readdirSync(dir)
     .filter((f) => f.startsWith(prefix))
     .map((f) => join(dir, f));

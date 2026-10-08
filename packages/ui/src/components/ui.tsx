@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { errorMessage, type ApiError } from '../api';
 import { copyText } from '../hooks';
 import { t } from '../i18n';
@@ -70,6 +70,8 @@ export function ErrorBanner({ error, onRetry, compact }: { error: ApiError; onRe
 
 export function CopyButton({ text, label = t('common.copy') }: { text: string; label?: string }) {
   const [done, setDone] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => clearTimeout(timer.current), []);
   return (
     <button
       className="btn btn-ghost btn-sm"
@@ -77,7 +79,8 @@ export function CopyButton({ text, label = t('common.copy') }: { text: string; l
         e.stopPropagation();
         if (await copyText(text)) {
           setDone(true);
-          setTimeout(() => setDone(false), 1200);
+          clearTimeout(timer.current);
+          timer.current = setTimeout(() => setDone(false), 1200);
         }
       }}
       title={label}

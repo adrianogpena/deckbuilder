@@ -15,6 +15,10 @@ test('rejects bad folder names and ids', () => {
   expect('error' in validateNewApp({ dir: 'tool', id: '1x' })).toBe(true);
 });
 
+test('rejects names that would break the app.ts string literal', () => {
+  for (const name of ["a'b", '../x', 'a/b', 'a"b', 'a`b', 'a\\b', 'a\nb']) expect('error' in validateNewApp({ dir: 'tool', name })).toBe(true);
+});
+
 test('fills every placeholder', () => {
   const app = { dir: 'my-tool', name: 'My Tool', id: 'mytool' };
   expect(fillPlaceholders('__APP_NAME__ __APP_ID__ __APP_DIR__ __APP_DIR__-v', app)).toBe('My Tool mytool my-tool my-tool-v');

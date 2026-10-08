@@ -1,6 +1,6 @@
 import { type Runner, runWithTimeout } from './run.ts';
 
-const PERSONALIZE = 'HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize';
+const PERSONALIZE = String.raw`HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize`;
 const TIMEOUT_MS = 5_000;
 
 /** The light/dark value in `reg.exe query <Personalize> /v AppsUseLightTheme` output. */

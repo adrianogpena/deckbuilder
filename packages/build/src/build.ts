@@ -19,6 +19,20 @@ export function parseTargets(value: string | undefined): Target[] {
   return list as Target[];
 }
 
+/** A file-name-safe form of an app name (the update manifest only accepts `[\w.-]`); `fallback` when nothing usable is left. */
+export function fileSlug(name: string, fallback = 'app'): string {
+  const slug = name
+    .replace(/\s+/g, '-')
+    .replace(/[^\w.-]/g, '')
+    .replace(/([.-])\1+/g, '$1');
+  return !slug || slug.startsWith('.') ? fallback : slug;
+}
+
+/** `<slug>-<version>-`: what every release file name of the app starts with. */
+export function releasePrefix(app: AppDir): string {
+  return `${fileSlug(app.name, app.id)}-${app.version}-`;
+}
+
 export function buildWeb(app: AppDir): void {
   run(app, ['bun', 'x', 'vite', 'build', '--logLevel', 'warn']);
 }
@@ -73,7 +87,7 @@ export async function buildExe(app: AppDir, target: Target): Promise<string> {
   const dir = writeEntries(app);
   const [os, arch] = target.split('-') as [string, string];
   const windows = os === 'windows';
-  const out = join(app.dir, 'release', `${app.name}-${app.version}-${platformLabel(os, arch)}${windows ? '.exe' : ''}`);
+  const out = join(app.dir, 'release', `${releasePrefix(app)}${platformLabel(os, arch)}${windows ? '.exe' : ''}`);
   try {
     rmSync(out, { force: true });
   } catch (err) {

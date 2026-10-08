@@ -27,6 +27,7 @@ export function validateNewApp(opts: NewAppOptions): { app: NewApp } | { error: 
   const id = opts.id ?? opts.dir.replaceAll('-', '');
   if (!isUrlScheme(id)) return { error: `Id "${id}" must be lowercase letters, digits, "+", "." or "-", starting with a letter (it is the URL scheme).` };
   const name = opts.name?.trim() || titleOf(opts.dir);
+  if (/['"`/\\\x00-\x1f\x7f]|\.\./.test(name)) return { error: `Name "${name}" must not contain quotes, slashes, ".." or control characters.` };
   return { app: { dir: opts.dir, name, id } };
 }
 

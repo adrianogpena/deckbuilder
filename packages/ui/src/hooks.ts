@@ -37,8 +37,9 @@ export function useAsync<T>(fn: () => Promise<T>, deps: unknown[], intervalMs = 
         setError(errorOf(err));
       })
       .finally(() => {
+        if (gen !== generation.current) return;
         inFlight.current = false;
-        if (gen === generation.current) setLoading(false);
+        setLoading(false);
       });
   }, []);
 

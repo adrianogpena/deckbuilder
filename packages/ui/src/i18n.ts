@@ -122,9 +122,9 @@ export function detectLanguage(): Language {
 // The app re-renders from the top when the language changes.
 let current: Language = detectLanguage();
 
-export function setLanguage(lang: Language) {
-  current = lang;
-  document.documentElement.lang = lang;
+export function setLanguage(lang: string) {
+  current = isLanguage(lang) ? lang : 'en';
+  if (typeof document !== 'undefined') document.documentElement.lang = current;
 }
 
 function interpolate(text: string, params?: Params): string {
