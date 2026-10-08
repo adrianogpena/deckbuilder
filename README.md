@@ -200,6 +200,14 @@ source directly; there is no package build step.
   is rotated or cleared (shown as stale; copy and save answer `rangeStale`) and does not follow a
   rename. The gallery's `LogTab` (Explorer, `.log` files) persists highlights and bookmarks in
   the `logs` setting, capped and validated by `validLogs`.
+- **Open in editor**: `editorRoutes({ dir, fs })` (from `@deckbuilder/server-mods`, with a `rootedFs`)
+  serves `/api/editors` (list, pick, override, open) for VS Code and IntelliJ IDEA. `findEditor`
+  (platform) detects the real `.exe` (`code.cmd` on PATH leads to `Code.exe`; IntelliJ comes from the
+  Toolbox script or the install folders); `openInEditor` opens the project folder, plus a file and
+  line. The client never sends a program: it comes from detection or from an override chosen in a
+  server-side file dialog (saved in `editors.json`). `.cmd` scripts are refused because they would
+  go through `cmd.exe`, which interprets `&`, `%` and `^` in a project path. The gallery adds the
+  entries to the Explorer's context menu and an Editors section to Settings.
 
 ## New app
 

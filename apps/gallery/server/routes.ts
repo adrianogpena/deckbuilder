@@ -2,7 +2,7 @@ import { statSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
 import { appHome, createToaster, openWithDefault, revealInFolder, saveFileAs, secretStore, writeFileAtomic } from '@deckbuilder/platform';
 import { forbidden, invalid, ndjson, type Routes } from '@deckbuilder/server-core';
-import { dialogRoutes, fromPlatform, pickedPaths, recordRoutes, recordStore, rootedFs } from '@deckbuilder/server-mods';
+import { dialogRoutes, editorRoutes, fromPlatform, pickedPaths, recordRoutes, recordStore, rootedFs } from '@deckbuilder/server-mods';
 import type { StartContext } from '@deckbuilder/shell';
 import { APP } from '../app.ts';
 
@@ -64,6 +64,7 @@ export const routes = (ctx: StartContext): Routes => ({
   ...recordRoutes(projects, '/api/projects'),
   ...fs.routes,
   ...dialogRoutes({ picked: pickedFolders }),
+  ...editorRoutes({ dir: appHome(APP.id), fs }),
   'POST /api/fs/reveal': async ({ json }) => {
     await revealInFolder(await target(json)).catch(fromPlatform);
     return { ok: true };

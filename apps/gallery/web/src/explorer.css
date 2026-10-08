@@ -24,3 +24,9 @@
 
 .wb-pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; height: 100%; overflow: hidden; }
 .wb-token { margin: 8px 14px 14px; }
+
+/* Settings > Editors: names above, then one row per editor; the button columns are shared so they line up. */
+.editors { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px 8px; align-items: center; }
+.editors .mono-label { grid-column: 1 / -1; }
+.editors .editor-path { min-width: 0; overflow-wrap: anywhere; }
+.editors .mono-label:not(:first-child) { margin-top: 12px; }

@@ -1,6 +1,7 @@
 // OS-specific code lives here, so apps and the other packages stay portable.
 export * from './browser.ts';
 export * from './dialogs.ts';
+export * from './editors.ts';
 export * from './errors.ts';
 export * from './exe.ts';
 export * from './files.ts';

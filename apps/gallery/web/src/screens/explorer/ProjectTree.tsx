@@ -10,6 +10,7 @@ import {
   Spinner,
   TreeView,
   type TreeViewHandle,
+  useAsync,
   useDialogs,
   useStream,
 } from '@deckbuilder/ui';
@@ -52,6 +53,7 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
   const [content, setContent] = useState(false);
   const [searched, setSearched] = useState(false);
   const search = useStream<SearchHit>({ maxItems: MAX_HITS });
+  const editors = useAsync(() => api.editors(), []);
 
   const roots = useMemo<Node[]>(() => [{ project: project.id, path: '', name: project.name, kind: 'dir' }], [project.id, project.name]);
 
@@ -165,6 +167,12 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
             'sep' as const,
           ]),
       item('reveal', t('explorer.reveal'), call(() => api.fsReveal(project.id, node.path))),
+      ...(editors.data ?? []).map((editor) =>
+        item(`editor-${editor.id}`, t('explorer.openInEditor', { editor: editor.name }), call(() => api.openInEditor(editor.id, project.id, node.path)), {
+          disabled: disabled || editor.path === null,
+          hint: editor.path === null ? t('explorer.editorMissing') : undefined,
+        }),
+      ),
       ...(isDir(node) ? [] : [item('openDefault', t('explorer.openDefault'), call(() => api.fsOpen(project.id, node.path)))]),
     ];
   };

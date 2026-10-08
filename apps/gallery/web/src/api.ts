@@ -53,6 +53,13 @@ export interface ExplorerSettings {
   tabs?: unknown;
 }
 
+export interface EditorInfo {
+  id: 'vscode' | 'intellij';
+  name: string;
+  path: string | null;
+  custom: boolean;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -120,6 +127,11 @@ export const api = {
   fsDelete: (root: string, paths: string[]) => request<{ ok: true }>('POST', '/api/fs/delete', {}, { root, paths }),
   fsReveal: (root: string, path: string) => request<{ ok: true }>('POST', '/api/fs/reveal', {}, { root, path }),
   fsOpen: (root: string, path: string) => request<{ ok: true }>('POST', '/api/fs/open', {}, { root, path }),
+  editors: () => request<EditorInfo[]>('GET', '/api/editors'),
+  pickEditor: (editor: EditorInfo['id']) => request<EditorInfo[]>('POST', '/api/editors/pick', {}, { editor }),
+  resetEditor: (editor: EditorInfo['id']) => request<EditorInfo[]>('DELETE', '/api/editors/override', { editor }),
+  openInEditor: (editor: EditorInfo['id'], root: string, path?: string) =>
+    request<{ ok: true }>('POST', '/api/editors/open', {}, { editor, root, path: path || undefined }),
   saveTarget: () => request<{ path: string | null }>('POST', '/api/demo/save-target'),
   saveDemo: (path: string, text: string) => request<{ ok: true }>('POST', '/api/demo/save', {}, { path, text }),
   demoSecrets: () => request<DemoSecret[]>('GET', '/api/demo/secrets'),

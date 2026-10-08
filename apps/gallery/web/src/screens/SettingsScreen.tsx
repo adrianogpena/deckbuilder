@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { AppearanceFields, type ApiError, detectLanguage, ErrorBanner, errorMessage, errorOf, isDesktop, LANGUAGES, PageHead, Spinner, useAsync, type Language } from '@deckbuilder/ui';
 import { APP } from '../../../app';
-import { api, type Settings } from '../api';
+import { api, type EditorInfo, type Settings } from '../api';
 import { t } from '../i18n';
 
 interface Props {
@@ -43,6 +43,7 @@ export function SettingsScreen({ settings, onChange, onQuit }: Props) {
           />
         </div>
         {(!isDesktop || settings.closeToTray) && <GeneralCard onQuit={onQuit} />}
+        <EditorsCard />
         <UpdatesCard folder={settings.updateFolder} onFolder={(updateFolder) => onChange({ updateFolder })} />
       </div>
     </div>
@@ -97,6 +98,57 @@ function GeneralCard({ onQuit }: { onQuit: () => void }) {
           </div>
           <span className="muted">{t(isDesktop ? 'settings.quit.hintTray' : 'settings.quit.hint', { name: APP.name })}</span>
         </div>
+        {error && <ErrorBanner error={error} compact />}
+      </div>
+    </section>
+  );
+}
+
+function EditorsCard() {
+  const state = useAsync(() => api.editors(), []);
+  const [list, setList] = useState<EditorInfo[]>();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<ApiError | null>(null);
+
+  const run = async (job: () => Promise<EditorInfo[]>) => {
+    setBusy(true);
+    setError(null);
+    try {
+      setList(await job());
+    } catch (err) {
+      setError(errorOf(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const editors = list ?? state.data;
+  return (
+    <section className="section">
+      <h4 className="mono-label">{t('settings.editors')}</h4>
+      <div className="card form">
+        {!editors && !state.error && <Spinner small />}
+        {state.error && <ErrorBanner error={state.error} onRetry={state.reload} compact />}
+        {editors && (
+          <div className="editors">
+            {editors.map((editor) => (
+              <Fragment key={editor.id}>
+                <span className="mono-label">{editor.name}</span>
+                <span className="mono editor-path">{editor.path ?? t('settings.editors.notFound')}</span>
+                <button className="btn btn-sm" disabled={busy} onClick={() => run(() => api.pickEditor(editor.id))}>
+                  {t('settings.editors.choose')}
+                </button>
+                {editor.custom ? (
+                  <button className="btn btn-sm" disabled={busy} onClick={() => run(() => api.resetEditor(editor.id))}>
+                    {t('settings.editors.reset')}
+                  </button>
+                ) : (
+                  <span />
+                )}
+              </Fragment>
+            ))}
+          </div>
+        )}
         {error && <ErrorBanner error={error} compact />}
       </div>
     </section>
