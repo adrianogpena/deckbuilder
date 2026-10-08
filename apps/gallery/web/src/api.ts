@@ -56,14 +56,16 @@ export interface FsEntry {
   size: number;
   mtime: number;
   /** A link that leads out of the project folder. */
-  outside?: boolean;
+  outside?: true;
+  /** What a link inside the project points to. */
+  target?: 'file' | 'dir';
 }
 
 export type FsRead = { text: string; size: number; mtime: number; truncated: boolean } | { binary: true; size: number; mtime: number };
 
 export interface SearchHit {
   path: string;
-  kind: 'file' | 'dir' | 'link';
+  kind: 'file' | 'dir';
   line?: number;
   text?: string;
 }

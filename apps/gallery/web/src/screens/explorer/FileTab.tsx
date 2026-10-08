@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CodeEditor, FilePreview, langOfFile, previewKind, type PreviewContent } from '@deckbuilder/editor';
-import { type ApiError, errorOf, ErrorBanner, Icon, PanelBanner, PanelLoading, requestBlob, useDialogs, useKey } from '@deckbuilder/ui';
+import { type ApiError, errorOf, ErrorBanner, Icon, PanelBanner, PanelLoading, relPath, requestBlob, useDialogs, useKey } from '@deckbuilder/ui';
 import { api } from '../../api';
 import { t } from '../../i18n';
-import { basename } from '../../explorer-paths';
 
 type State =
   | { status: 'loading' }
@@ -20,7 +19,7 @@ interface FileTabProps {
 
 /** One open file: a preview by extension, and for text files an editor with Save (Ctrl+S). */
 export function FileTab({ project, projectName, path, focused }: FileTabProps) {
-  const name = basename(path);
+  const name = relPath.basename(path);
   const [state, setState] = useState<State>({ status: 'loading' });
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');

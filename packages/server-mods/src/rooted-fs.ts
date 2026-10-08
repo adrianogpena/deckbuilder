@@ -40,6 +40,8 @@ export interface FsEntry {
   mtime: number;
   /** A link whose target is outside the root (or missing); every route but list refuses it. */
   outside?: true;
+  /** What a link inside the root points to. */
+  target?: 'file' | 'dir';
 }
 
 export interface SearchHit {
@@ -288,7 +290,8 @@ export function rootedFs(opts: RootedFsOptions): RootedFs {
     const target = await realpath(path).catch(() => null);
     const tst = target && inside(target, realRoot) ? await stat(target).catch(() => null) : null;
     if (!tst) return { name, kind: 'link', size: 0, mtime: Math.round(st.mtimeMs), outside: true };
-    return { name, kind: 'link', size: tst.isDirectory() ? 0 : tst.size, mtime: Math.round(tst.mtimeMs) };
+    const dir = tst.isDirectory();
+    return { name, kind: 'link', size: dir ? 0 : tst.size, mtime: Math.round(tst.mtimeMs), target: dir ? 'dir' : 'file' };
   }
 
   async function described(path: string, name: string, realRoot: string): Promise<FsEntry> {
@@ -317,7 +320,8 @@ export function rootedFs(opts: RootedFsOptions): RootedFs {
       const entries = (await Promise.all(names.map((name) => describe(join(loc.real, name), name, loc.realRoot)))).filter(
         (e): e is FsEntry => e !== null,
       );
-      entries.sort((a, b) => Number(b.kind === 'dir') - Number(a.kind === 'dir') || collator.compare(a.name, b.name));
+      const isDir = (e: FsEntry) => e.kind === 'dir' || e.target === 'dir';
+      entries.sort((a, b) => Number(isDir(b)) - Number(isDir(a)) || collator.compare(a.name, b.name));
       return { entries };
     },
 

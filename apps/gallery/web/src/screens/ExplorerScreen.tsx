@@ -26,9 +26,10 @@ import {
   useAsync,
   useDebouncedSave,
   type Layout,
+  relPath,
 } from '@deckbuilder/ui';
 import { api, type ExplorerSettings, type Project, type Settings } from '../api';
-import { basename, isUnder, movedPath, nodeId } from '../explorer-paths';
+import { nodeId } from '../explorer-paths';
 import { t } from '../i18n';
 import { ProjectTree } from './explorer/ProjectTree';
 
@@ -89,7 +90,7 @@ function closeTabsWhere(layout: Layout<Route>, matches: (route: Route) => boolea
 }
 
 /** Ids of `project` under `path`, the folder itself included. */
-const idsUnder = (project: string, path: string) => (id: string) => id.startsWith(`${project}:`) && isUnder(id.slice(project.length + 1), path);
+const idsUnder = (project: string, path: string) => (id: string) => id.startsWith(`${project}:`) && relPath.isUnder(id.slice(project.length + 1), path);
 
 export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSave: (patch: Partial<Settings>) => void }) {
   const projects = useAsync(() => api.projects(), []);
@@ -137,11 +138,11 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
   const moved = (project: string, from: string, to: string) =>
     update((s) => ({
       ...s,
-      layout: mapRoutes(s.layout, (r) => (r.kind === 'file' && r.project === project && isUnder(r.path, from) ? { ...r, path: movedPath(r.path, from, to) } : r)),
+      layout: mapRoutes(s.layout, (r) => (r.kind === 'file' && r.project === project && relPath.isUnder(r.path, from) ? { ...r, path: relPath.moved(r.path, from, to) } : r)),
       expanded: s.expanded[project]
         ? {
             ...s.expanded,
-            [project]: s.expanded[project].map((id) => (idsUnder(project, from)(id) ? nodeId(project, movedPath(id.slice(project.length + 1), from, to)) : id)),
+            [project]: s.expanded[project].map((id) => (idsUnder(project, from)(id) ? nodeId(project, relPath.moved(id.slice(project.length + 1), from, to)) : id)),
           }
         : s.expanded,
     }));
@@ -149,7 +150,7 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
   const deleted = (project: string, path: string) =>
     update((s) => ({
       ...s,
-      layout: closeTabsWhere(s.layout, (r) => r.kind === 'file' && r.project === project && isUnder(r.path, path)),
+      layout: closeTabsWhere(s.layout, (r) => r.kind === 'file' && r.project === project && relPath.isUnder(r.path, path)),
       expanded: s.expanded[project] ? { ...s.expanded, [project]: s.expanded[project].filter((id) => !idsUnder(project, path)(id)) } : s.expanded,
     }));
 
@@ -190,7 +191,7 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
   const titleOf = (route: Route) =>
     route.kind === 'welcome'
       ? { title: t('explorer.welcome') }
-      : { title: basename(route.path), tooltip: `${nameOf(route.project)}/${route.path}` };
+      : { title: relPath.basename(route.path), tooltip: `${nameOf(route.project)}/${route.path}` };
 
   const sidebar = (
     <>

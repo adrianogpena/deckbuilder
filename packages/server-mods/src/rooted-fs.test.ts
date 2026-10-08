@@ -74,14 +74,16 @@ test('a dangling link is refused: where it points cannot be checked', async () =
 });
 
 test('list puts folders first and marks links that leave the root', async () => {
-  const { call } = await setup();
+  const { root, call } = await setup();
+  symlinkSync(join(root, 'a'), join(root, 'a-link'), 'junction');
   const { entries } = (await call('GET /api/fs/list', 'root=r')) as { entries: FsEntry[] };
-  expect(entries.map(({ name, kind, outside }) => ({ name, kind, outside }))).toEqual([
-    { name: 'a', kind: 'dir', outside: undefined },
-    { name: 'link', kind: 'link', outside: true },
-    { name: 'top.txt', kind: 'file', outside: undefined },
+  expect(entries.map(({ name, kind, outside, target }) => ({ name, kind, outside, target }))).toEqual([
+    { name: 'a', kind: 'dir', outside: undefined, target: undefined },
+    { name: 'a-link', kind: 'link', outside: undefined, target: 'dir' },
+    { name: 'link', kind: 'link', outside: true, target: undefined },
+    { name: 'top.txt', kind: 'file', outside: undefined, target: undefined },
   ]);
-  expect(entries[2]).toMatchObject({ size: 3, mtime: expect.any(Number) });
+  expect(entries[3]).toMatchObject({ size: 3, mtime: expect.any(Number) });
   expect(await call('GET /api/fs/stat', 'root=r&path=a/b.txt')).toEqual({ name: 'b.txt', kind: 'file', size: 17, mtime: OLD.getTime() });
 });
 

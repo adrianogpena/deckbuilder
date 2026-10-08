@@ -6,6 +6,7 @@ import {
   errorOf,
   ErrorBanner,
   Icon,
+  relPath,
   Spinner,
   TreeView,
   type TreeViewHandle,
@@ -13,7 +14,7 @@ import {
   useStream,
 } from '@deckbuilder/ui';
 import { api, type FsEntry, type Project, type SearchHit } from '../../api';
-import { dirname, isUnder, joinPath, nodeId } from '../../explorer-paths';
+import { nodeId } from '../../explorer-paths';
 import { t } from '../../i18n';
 
 const MAX_HITS = 500;
@@ -24,9 +25,11 @@ interface Node {
   name: string;
   kind: FsEntry['kind'];
   outside?: boolean;
+  target?: FsEntry['target'];
 }
 
 const isRoot = (node: Node) => node.path === '';
+const isDir = (node: Node) => node.kind === 'dir' || node.target === 'dir';
 
 export interface ProjectTreeProps {
   project: Project;
@@ -68,17 +71,18 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
   const loadChildren = async (node: Node): Promise<Node[]> =>
     (await api.fsList(project.id, node.path)).map((e) => ({
       project: project.id,
-      path: joinPath(node.path, e.name),
+      path: relPath.join(node.path, e.name),
       name: e.name,
       kind: e.kind,
       outside: e.outside,
+      target: e.target,
     }));
 
   const reloadDir = (path: string) => tree.current?.reload(nodeId(project.id, path));
 
   const open = (node: Node) => {
     if (node.outside) return;
-    if (node.kind === 'dir') {
+    if (isDir(node)) {
       const id = nodeId(project.id, node.path);
       onExpandedChange(expanded.includes(id) ? expanded.filter((x) => x !== id) : [...expanded, id]);
     } else {
@@ -88,14 +92,14 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
 
   const create = (kind: 'file' | 'dir', node: Node) =>
     run(async () => {
-      const dir = node.kind === 'dir' ? node.path : dirname(node.path);
+      const dir = isDir(node) ? node.path : relPath.dirname(node.path);
       const name = await prompt({
         title: t(kind === 'file' ? 'explorer.newFile' : 'explorer.newFolder'),
         label: t('explorer.name'),
         validate: (value) => (!value.trim() ? '' : /[\\/]/.test(value) ? t('explorer.nameInvalid') : null),
       });
       if (!name?.trim()) return;
-      const path = joinPath(dir, name.trim());
+      const path = relPath.join(dir, name.trim());
       try {
         await api.fsCreate(project.id, path, kind);
       } finally {
@@ -109,8 +113,8 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
     run(async () => {
       if (isRoot(node) || node.outside) return;
       await api.fsRename(project.id, node.path, name);
-      onMoved(project.id, node.path, joinPath(dirname(node.path), name));
-      reloadDir(dirname(node.path));
+      onMoved(project.id, node.path, relPath.join(relPath.dirname(node.path), name));
+      reloadDir(relPath.dirname(node.path));
     });
 
   const remove = (node: Node) =>
@@ -127,19 +131,19 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
         await api.fsDelete(project.id, [node.path]);
         onDeleted(project.id, node.path);
       } finally {
-        reloadDir(dirname(node.path));
+        reloadDir(relPath.dirname(node.path));
       }
     });
 
   const move = (dragged: Node, target: Node) =>
     run(async () => {
-      if (isRoot(dragged) || dragged.outside || target.outside || dirname(dragged.path) === target.path || isUnder(target.path, dragged.path)) return;
-      const to = joinPath(target.path, dragged.name);
+      if (isRoot(dragged) || dragged.outside || target.outside || relPath.dirname(dragged.path) === target.path || relPath.isUnder(target.path, dragged.path)) return;
+      const to = relPath.join(target.path, dragged.name);
       try {
         await api.fsMove(project.id, dragged.path, to);
         onMoved(project.id, dragged.path, to);
       } finally {
-        reloadDir(dirname(dragged.path));
+        reloadDir(relPath.dirname(dragged.path));
         reloadDir(target.path);
       }
     });
@@ -149,7 +153,7 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
     const item = (id: string, label: string, act: () => void, extra: Partial<ContextMenuItem> = {}): ContextMenuItem => ({ id, label, run: act, disabled, ...extra });
     const call = (job: () => Promise<unknown>) => () => void run(async () => void (await job()));
     return [
-      ...(node.kind === 'dir' ? [] : [item('open', t('explorer.open'), () => open(node), { icon: 'file' })]),
+      ...(isDir(node) ? [] : [item('open', t('explorer.open'), () => open(node), { icon: 'file' })]),
       item('newFile', t('explorer.newFile'), () => void create('file', node), { icon: 'plus' }),
       item('newDir', t('explorer.newFolder'), () => void create('dir', node), { icon: 'folder' }),
       'sep',
@@ -161,7 +165,7 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
             'sep' as const,
           ]),
       item('reveal', t('explorer.reveal'), call(() => api.fsReveal(project.id, node.path))),
-      ...(node.kind === 'dir' ? [] : [item('openDefault', t('explorer.openDefault'), call(() => api.fsOpen(project.id, node.path)))]),
+      ...(isDir(node) ? [] : [item('openDefault', t('explorer.openDefault'), call(() => api.fsOpen(project.id, node.path)))]),
     ];
   };
 
@@ -260,8 +264,8 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
           roots={roots}
           idOf={(n) => nodeId(n.project, n.path)}
           labelOf={(n) => (n.outside ? `${n.name} (${t('explorer.outside')})` : n.name)}
-          iconOf={(n) => (n.kind === 'dir' ? 'folder' : 'file')}
-          hasChildren={(n) => n.kind === 'dir'}
+          iconOf={(n) => (isDir(n) ? (n.kind === 'link' ? 'folder-link' : 'folder') : 'file')}
+          hasChildren={(n) => isDir(n)}
           loadChildren={loadChildren}
           expanded={expanded}
           onExpandedChange={onExpandedChange}
