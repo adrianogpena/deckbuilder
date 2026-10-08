@@ -4,6 +4,7 @@ import { homedir } from 'node:os';
 // OS-specific code lives here, so apps and the other packages stay portable.
 export * from './browser.ts';
 export * from './exe.ts';
+export * from './json-file.ts';
 export * from './run.ts';
 export * from './theme.ts';
 export * from './win/autostart.ts';

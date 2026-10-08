@@ -1,5 +1,5 @@
-import { afterEach, expect, test } from 'bun:test';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { afterEach, expect, spyOn, test } from 'bun:test';
+import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { type BaseSettings, settingsStore } from './settings.ts';
@@ -41,4 +41,28 @@ test('wrong-kind, unknown and malformed values are ignored, an empty string clea
 test('an existing settings file keeps working', async () => {
   const { store: s } = await store({ theme: 'light', language: 'pt-BR' });
   expect(await s.load()).toEqual({ theme: 'light', language: 'pt-BR' });
+});
+
+test('a corrupt settings file is renamed aside and defaults load', async () => {
+  const { dir, store: s } = await store();
+  await writeFile(join(dir, 'settings.json'), '{ nope');
+  const err = spyOn(console, 'error').mockImplementation(() => {});
+  try {
+    expect(await s.load()).toEqual({ theme: 'dark' });
+  } finally {
+    err.mockRestore();
+  }
+  expect((await readdir(dir)).some((name) => name.startsWith('settings.json.corrupt-'))).toBe(true);
+});
+
+test('settings that are not a plain object count as corrupt', async () => {
+  const { dir, store: s } = await store();
+  await writeFile(join(dir, 'settings.json'), '[1, 2]');
+  const err = spyOn(console, 'error').mockImplementation(() => {});
+  try {
+    expect(await s.load()).toEqual({ theme: 'dark' });
+  } finally {
+    err.mockRestore();
+  }
+  expect((await readdir(dir)).some((name) => name.startsWith('settings.json.corrupt-'))).toBe(true);
 });

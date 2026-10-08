@@ -414,6 +414,26 @@ kbd {
 .output-time { margin-right: 8px; color: var(--text-3); }
 .output-jump { position: absolute; right: 16px; bottom: 12px; }
 
+/* ---- resource list and form */
+.resource-list { display: flex; flex-direction: column; gap: 8px; }
+.resource-head { display: flex; justify-content: flex-end; }
+.resource-rows { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.resource-row { display: flex; align-items: center; gap: 4px; padding: 2px 4px 2px 2px; border: 1px solid var(--border-soft); border-radius: 9px; background: var(--panel); }
+.resource-row:hover { background: var(--hover); }
+.resource-open {
+  display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; padding: 7px 10px; border: 0; border-radius: 7px;
+  background: transparent; color: var(--text); cursor: pointer; text-align: left;
+}
+.resource-text { display: flex; flex-direction: column; min-width: 0; }
+.resource-title, .resource-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.resource-title { font-weight: 500; }
+.resource-sub { font-size: 12px; color: var(--text-3); }
+.resource-btn { width: 28px; padding: 0; justify-content: center; color: var(--text-3); }
+.resource-form { display: flex; flex-direction: column; gap: 14px; max-width: 520px; }
+.resource-form .field select { align-self: stretch; }
+.resource-required { font-size: 12px; color: var(--err); }
+.resource-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
 /* ---- menu */
 .menu-wrap { position: relative; }
 .menu {

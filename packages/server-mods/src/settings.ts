@@ -1,5 +1,5 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { readJsonFile, writeJsonAtomic } from '@deckbuilder/platform';
 import type { Routes } from '@deckbuilder/server-core';
 import { PALETTES, type ThemeKind, type ThemeSettings } from '@deckbuilder/server-core/palettes';
 
@@ -31,12 +31,9 @@ export function settingsStore<T extends BaseSettings>(opts: SettingsOptions<T>):
 
   async function load(): Promise<T> {
     if (cache) return cache;
-    try {
-      cache = { ...opts.defaults, ...JSON.parse(await readFile(file, 'utf8')) };
-    } catch {
-      cache = { ...opts.defaults };
-    }
-    return cache!;
+    const stored = await readJsonFile(file, isPlainObject);
+    cache = { ...opts.defaults, ...(stored as object | undefined) };
+    return cache;
   }
 
   async function save(patch: Record<string, unknown>): Promise<T> {
@@ -48,14 +45,15 @@ export function settingsStore<T extends BaseSettings>(opts: SettingsOptions<T>):
     if (typeof patch.language === 'string' && /^[a-z]{2}(-[A-Z]{2})?$/.test(patch.language)) next.language = patch.language;
     opts.apply?.(patch, next);
     cache = next;
-    await mkdir(opts.dir, { recursive: true });
-    await writeFile(file, JSON.stringify(next, null, 2), 'utf8');
+    await writeJsonAtomic(file, next);
     opts.onChange?.(next, prev);
     return next;
   }
 
   return { dir: opts.dir, load, save };
 }
+
+const isPlainObject = (v: unknown) => typeof v === 'object' && v !== null && !Array.isArray(v);
 
 /** Saves `value` as the `kind` palette when it is a palette id of that kind; an empty string clears it, anything else is ignored. */
 function applyPalette(value: unknown, kind: ThemeKind, next: ThemeSettings): void {

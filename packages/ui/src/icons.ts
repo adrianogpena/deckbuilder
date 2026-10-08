@@ -19,6 +19,8 @@ export const PATHS = {
   forward: 'M5 12h14m-7-7 7 7-7 7',
   'chevron-down': 'M6 9l6 6 6-6',
   'wifi-off': 'M1 1l22 22M16.7 11.1A11 11 0 0 1 19 12.5M5 12.5a11 11 0 0 1 5.2-2.9M8.5 16.1a6 6 0 0 1 7 0M12 20h.01M10.7 5.1A16 16 0 0 1 22.6 9M1.4 9a16 16 0 0 1 4.7-2.9',
+  edit: 'M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z',
+  trash: 'M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m3 0-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m5 5v6m4-6v6',
   cube: 'M12 2 3 7v10l9 5 9-5V7zM3 7l9 5 9-5M12 12v10',
 } as const satisfies Record<string, string>;
 
