@@ -2,6 +2,7 @@ import { join } from 'node:path';
 import { appHome, createAutostart, pickFolder } from '@deckbuilder/platform';
 import { updatePublicKey } from '@deckbuilder/server-core';
 import {
+  backupRoutes,
   createUpdater,
   folderSource,
   fromPlatform,
@@ -26,7 +27,7 @@ import {
 } from '@deckbuilder/ui/log';
 import { APP } from '../app.ts';
 import pkg from '../package.json';
-import { routes } from './routes.ts';
+import { demoSecrets, projects, routes } from './routes.ts';
 
 export interface Settings extends BaseSettings {
   /** Start at Windows login (exe only). */
@@ -209,6 +210,8 @@ await runApp({
       return settings.save({ updateFolder: path });
     },
     ...updateRoutes(updater, ctx.quit),
+    // Machine-specific: autostart writes the Run key, updateFolder is a local or share path.
+    ...backupRoutes({ app: { id: APP.id, version: pkg.version }, settings, stores: { projects, demoSecrets }, excludeSettings: ['autostart', 'updateFolder'] }),
     ...routes(ctx),
   }),
   webDir: join(import.meta.dir, '../dist/web'),

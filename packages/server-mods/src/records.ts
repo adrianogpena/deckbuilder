@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { readJsonFile, writeJsonAtomic } from '@deckbuilder/platform';
-import { invalid, notFound, type Routes } from '@deckbuilder/server-core';
+import { AppError, invalid, notFound, type Routes } from '@deckbuilder/server-core';
 import { fromPlatform } from './platform-errors.ts';
 
 /** A stored record: the app's fields plus the ones the store owns. */
@@ -17,8 +17,12 @@ export interface RecordStoreOptions<T extends object> {
   /** Folder of `<name>.json`, usually `appHome(APP.id)`. */
   dir: string;
   name: string;
-  /** Builds a fresh `T` from raw client input (never spread the input) and throws `invalid(...)`; `prev` is set on update. */
-  validate(input: unknown, prev?: Rec<T>): T;
+  /**
+   * Builds a fresh `T` from raw client input (never spread the input) and throws `invalid(...)`;
+   * `prev` is set on update, `ctx.imported` when the input comes from a backup file the user
+   * picked in a native dialog (`importItems`) rather than from a form.
+   */
+  validate(input: unknown, prev?: Rec<T>, ctx?: { imported?: true }): T;
   /** Most records the store holds. */
   max?: number;
   /**
@@ -38,6 +42,21 @@ export interface RecordStore<T extends object> {
   remove(id: string): Promise<void>;
   /** Server-only: the stored value of a secret field, null when none is set. Never return it from a route. */
   secret(id: string, field: string): Promise<string | null>;
+  /**
+   * Adds or updates records by id from a backup, in one write. Imports never change secrets: an
+   * updated record keeps its stored ones, an added one has none. `replace` also removes the
+   * records whose id is not in `items`.
+   */
+  importItems(items: unknown[], mode: 'merge' | 'replace'): Promise<ImportResult>;
+  /** Every record without its secret fields (not even the `hasSecret` marker), for a backup. */
+  exportItems(): Promise<Rec<T>[]>;
+}
+
+export interface ImportResult {
+  added: number;
+  updated: number;
+  removed: number;
+  skipped: Array<{ id?: string; code: string; message: string }>;
 }
 
 interface RecordFile<T> {
@@ -54,6 +73,10 @@ interface SecretRef {
 }
 
 const isRef = (v: unknown): v is SecretRef => typeof v === 'object' && v !== null && typeof (v as SecretRef).ref === 'string';
+
+const IMPORT_ID = /^[\w-]{1,64}$/;
+
+const isValidDate = (v: unknown): v is string => typeof v === 'string' && !Number.isNaN(Date.parse(v));
 
 const isRecordFile = (v: unknown) =>
   typeof v === 'object' && v !== null && (v as RecordFile<object>).version === 1 && Array.isArray((v as RecordFile<object>).items);
@@ -177,6 +200,65 @@ export function recordStore<T extends object>(opts: RecordStoreOptions<T>): Reco
         const stored = fields(find(await load(), id))[field];
         return isRef(stored) ? secrets!.get(stored.ref) : null;
       }),
+    importItems: (list, mode) =>
+      locked(async () => {
+        const all = await load();
+        const result: ImportResult = { added: 0, updated: 0, removed: 0, skipped: [] };
+        const skip = (id: string | undefined, code: string, message: string) => result.skipped.push({ ...(id && { id }), code, message });
+        const valid: Array<{ id: string; item: Record<string, unknown> }> = [];
+        const ids = new Set<string>();
+        for (const item of list) {
+          const id = typeof item === 'object' && item !== null ? (item as Record<string, unknown>).id : undefined;
+          if (typeof id !== 'string' || !IMPORT_ID.test(id)) skip(undefined, 'badRecord', 'Invalid record.');
+          else if (ids.has(id)) skip(id, 'badRecord', 'Invalid record.');
+          else {
+            ids.add(id);
+            valid.push({ id, item: item as Record<string, unknown> });
+          }
+        }
+        const kept = mode === 'merge' ? all : all.filter((r) => ids.has(r.id));
+        const updates = new Map<string, Rec<T>>();
+        const added: Rec<T>[] = [];
+        const now = new Date().toISOString();
+        for (const { id, item } of valid) {
+          const { id: _id, createdAt, updatedAt: _updatedAt, ...input } = item;
+          for (const field of secretFields) delete input[field];
+          const prev = all.find((r) => r.id === id);
+          if (!prev && kept.length + added.length >= max) {
+            skip(id, 'tooManyRecords', 'Too many records.');
+            continue;
+          }
+          let value: T;
+          try {
+            value = opts.validate(input, prev && masked(prev), { imported: true });
+          } catch (e) {
+            if (!(e instanceof AppError)) throw e;
+            skip(id, e.code, e.message);
+            continue;
+          }
+          if (prev) {
+            const rec = { ...value, id, createdAt: prev.createdAt, updatedAt: now } as Rec<T>;
+            await applySecrets(input, rec, prev);
+            updates.set(id, rec);
+          } else {
+            const rec = { ...value, id, createdAt: isValidDate(createdAt) ? new Date(createdAt).toISOString() : now, updatedAt: now } as Rec<T>;
+            for (const field of secretFields) delete fields(rec)[field];
+            added.push(rec);
+          }
+        }
+        const removed = all.filter((r) => !kept.includes(r));
+        await commit([...kept.map((r) => updates.get(r.id) ?? r), ...added]);
+        await removeSecrets(removed.flatMap(secretRefs));
+        return { ...result, added: added.length, updated: updates.size, removed: removed.length };
+      }),
+    exportItems: () =>
+      locked(async () =>
+        (await load()).map((rec) => {
+          const copy = fields(structuredClone(rec));
+          for (const field of secretFields) delete copy[field];
+          return copy as unknown as Rec<T>;
+        }),
+      ),
   };
 }
 

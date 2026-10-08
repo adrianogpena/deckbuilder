@@ -1,8 +1,8 @@
 import { Fragment, useState } from 'react';
-import { AppearanceFields, type ApiError, detectLanguage, ErrorBanner, errorMessage, errorOf, isDesktop, LANGUAGES, PageHead, Spinner, useAsync, type Language } from '@deckbuilder/ui';
+import { AppearanceFields, type ApiError, detectLanguage, ErrorBanner, errorMessage, errorOf, isDesktop, LANGUAGES, Modal, PageHead, Spinner, useAsync, type Language } from '@deckbuilder/ui';
 import { APP } from '../../../app';
-import { api, type EditorInfo, type Settings } from '../api';
-import { t } from '../i18n';
+import { api, type BackupInfo, type EditorInfo, type ImportResult, type Settings } from '../api';
+import { type MessageKey, t } from '../i18n';
 
 interface Props {
   settings: Settings;
@@ -45,6 +45,7 @@ export function SettingsScreen({ settings, onChange, onQuit }: Props) {
         {(!isDesktop || settings.closeToTray) && <GeneralCard onQuit={onQuit} />}
         <EditorsCard />
         <UpdatesCard folder={settings.updateFolder} onFolder={(updateFolder) => onChange({ updateFolder })} />
+        <BackupCard onSettings={onChange} />
       </div>
     </div>
   );
@@ -248,3 +249,187 @@ function UpdatesCard({ folder, onFolder }: { folder: string; onFolder: (folder: 
 }
 
 const sourceLabel = (id: string): string => (id.startsWith('github:') ? `GitHub ${id.slice(7)}` : `${t('settings.update.folder')} ${id.slice(7)}`);
+
+const STORE_LABELS: Record<string, MessageKey> = {
+  projects: 'settings.backup.store.projects',
+  demoSecrets: 'settings.backup.store.demoSecrets',
+};
+const storeLabel = (name: string) => (Object.hasOwn(STORE_LABELS, name) ? t(STORE_LABELS[name]!) : name);
+
+const toggled = (list: string[], name: string) => (list.includes(name) ? list.filter((n) => n !== name) : [...list, name]);
+
+type Inspected = Extract<BackupInfo, { token: string }>;
+type Imported = { settings: boolean; stores: Record<string, ImportResult> };
+
+function BackupCard({ onSettings }: { onSettings: (settings: Settings) => void }) {
+  const parts = useAsync(() => api.backupParts(), []);
+  const [settings, setSettings] = useState(true);
+  const [stores, setStores] = useState<string[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<ApiError | null>(null);
+  const [saved, setSaved] = useState<string | null>(null);
+  const [inspected, setInspected] = useState<Inspected | null>(null);
+
+  const chosen = stores ?? parts.data?.stores ?? [];
+  const run = async (job: () => Promise<void>) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await job();
+    } catch (err) {
+      setError(errorOf(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="section">
+      <h4 className="mono-label">{t('settings.backup')}</h4>
+      <div className="card form">
+        {!parts.data && !parts.error && <Spinner small />}
+        {parts.error && <ErrorBanner error={parts.error} onRetry={parts.reload} compact />}
+        {parts.data && (
+          <div className="field">
+            <span className="mono-label">{t('settings.backup.parts')}</span>
+            <div className="chips">
+              <button className={`chip${settings ? ' chip-on' : ''}`} onClick={() => setSettings(!settings)}>
+                {t('settings.backup.settings')}
+              </button>
+              {parts.data.stores.map((name) => (
+                <button key={name} className={`chip${chosen.includes(name) ? ' chip-on' : ''}`} onClick={() => setStores(toggled(chosen, name))}>
+                  {storeLabel(name)}
+                </button>
+              ))}
+            </div>
+            <span className="muted">{t('settings.backup.hint')}</span>
+            <div className="row">
+              <button
+                className="btn btn-sm"
+                disabled={busy || (!settings && chosen.length === 0)}
+                onClick={() => run(async () => setSaved((await api.exportBackup(settings, chosen)).path))}
+              >
+                {t('settings.backup.export')}
+              </button>
+              <button
+                className="btn btn-sm"
+                disabled={busy}
+                onClick={() => run(async () => {
+                  const info = await api.inspectBackup();
+                  if (info.token !== null) setInspected(info);
+                })}
+              >
+                {t('settings.backup.import')}
+              </button>
+            </div>
+            {saved && <span className="muted">{t('settings.backup.saved', { path: saved })}</span>}
+          </div>
+        )}
+        {error && <ErrorBanner error={error} compact />}
+      </div>
+      {inspected && <ImportDialog info={inspected} onSettings={onSettings} onClose={() => setInspected(null)} />}
+    </section>
+  );
+}
+
+function ImportDialog({ info, onSettings, onClose }: { info: Inspected; onSettings: (settings: Settings) => void; onClose: () => void }) {
+  const [settings, setSettings] = useState(info.settings);
+  const [stores, setStores] = useState(info.stores.filter((s) => s.known).map((s) => s.name));
+  const [mode, setMode] = useState<'merge' | 'replace'>('merge');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<ApiError | null>(null);
+  const [result, setResult] = useState<Imported | null>(null);
+
+  const start = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const done = await api.importBackup(info.token, settings, stores, mode);
+      setResult(done);
+      if (done.settings) onSettings(await api.settings());
+    } catch (err) {
+      setError(errorOf(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const footer = result ? (
+    <button className="btn btn-primary" onClick={onClose}>{t('settings.backup.close')}</button>
+  ) : (
+    <>
+      <button className="btn" onClick={onClose}>{t('dialog.cancel')}</button>
+      <button className="btn btn-primary" disabled={busy || (!settings && stores.length === 0)} onClick={start}>
+        {t('settings.backup.importNow')}
+      </button>
+    </>
+  );
+  const date = info.exportedAt ? new Date(info.exportedAt).toLocaleString() : '?';
+
+  return (
+    <Modal title={t('settings.backup.importTitle')} onClose={onClose} footer={footer}>
+      <div className="form">
+        <span className="muted">{t('settings.backup.from', { date, version: info.appVersion || '?' })}</span>
+        {result ? (
+          <ImportSummary result={result} />
+        ) : (
+          <>
+            <div className="field">
+              <span className="mono-label">{t('settings.backup.parts')}</span>
+              <div className="chips">
+                {info.settings && (
+                  <button className={`chip${settings ? ' chip-on' : ''}`} onClick={() => setSettings(!settings)}>
+                    {t('settings.backup.settings')}
+                  </button>
+                )}
+                {info.stores.map((s) => (
+                  <button
+                    key={s.name}
+                    className={`chip${stores.includes(s.name) ? ' chip-on' : ''}`}
+                    disabled={!s.known}
+                    title={s.known ? undefined : t('settings.backup.unknown')}
+                    onClick={() => setStores(toggled(stores, s.name))}
+                  >
+                    {storeLabel(s.name)} ({s.count})
+                  </button>
+                ))}
+              </div>
+              {info.stores.some((s) => !s.known) && <span className="muted">{t('settings.backup.unknownHint')}</span>}
+            </div>
+            <div className="field">
+              <span className="mono-label">{t('settings.backup.mode')}</span>
+              <div className="chips">
+                {(['merge', 'replace'] as const).map((m) => (
+                  <button key={m} className={`chip${mode === m ? ' chip-on' : ''}`} onClick={() => setMode(m)}>
+                    {t(m === 'merge' ? 'settings.backup.merge' : 'settings.backup.replace')}
+                  </button>
+                ))}
+              </div>
+              <span className="muted">{t(mode === 'merge' ? 'settings.backup.merge.hint' : 'settings.backup.replace.hint')}</span>
+            </div>
+          </>
+        )}
+        {error && <ErrorBanner error={error} compact />}
+      </div>
+    </Modal>
+  );
+}
+
+function ImportSummary({ result }: { result: Imported }) {
+  return (
+    <>
+      {result.settings && <span>{t('settings.backup.settingsDone')}</span>}
+      {Object.entries(result.stores).map(([name, r]) => (
+        <div key={name} className="field">
+          <span className="mono-label">{storeLabel(name)}</span>
+          <span>{t('settings.backup.counts', { added: r.added, updated: r.updated, removed: r.removed })}</span>
+          {r.skipped.map((s, i) => (
+            <span key={i} className="tone-err small">
+              {t('settings.backup.skipped', { id: s.id ?? '?', reason: errorMessage({ kind: 'invalid', code: s.code, message: s.message }) })}
+            </span>
+          ))}
+        </div>
+      ))}
+    </>
+  );
+}

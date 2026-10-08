@@ -208,6 +208,17 @@ source directly; there is no package build step.
   server-side file dialog (saved in `editors.json`). `.cmd` scripts are refused because they would
   go through `cmd.exe`, which interprets `&`, `%` and `^` in a project path. The gallery adds the
   entries to the Explorer's context menu and an Editors section to Settings.
+- **Backup**: `backupRoutes({ app, settings, stores, excludeSettings })` (from `@deckbuilder/server-mods`)
+  serves `/api/backup/*`: export writes the settings and the chosen record stores to a file picked
+  in the save dialog; inspect reads a file picked in the open dialog (other app ids and malformed
+  files are refused) and keeps it under a one-shot token for 10 minutes; import applies the chosen
+  parts. The file is JSON: `{ format: 'deckbuilder-backup', version: 1, app, appVersion, exportedAt,
+  settings?, records?: { <store>: Rec[] } }`. Settings go through `settings.save`, so its validation
+  drops unknown fields; records go through `store.importItems(items, 'merge' | 'replace')`, which
+  runs `validate` (with `ctx.imported`) per item and reports skipped ones with their error code.
+  Secret fields are never exported and imports never change them: the user enters them again.
+  Leave machine-specific settings out with `excludeSettings` (the gallery excludes `autostart`
+  and `updateFolder`). The gallery's Settings screen has a Backup section.
 
 ## New app
 

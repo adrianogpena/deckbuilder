@@ -209,3 +209,67 @@ test('routes map the store, ids come from the query', async () => {
   expect(await routes['DELETE /api/things']!(ctx(`id=${created.id}`))).toEqual({ ok: true });
   await expect(routes['DELETE /api/things']!(ctx()) as Promise<unknown>).rejects.toMatchObject({ code: 'missingId' });
 });
+
+test('importItems merge adds and updates by id and keeps the stored secret of an updated record', async () => {
+  const { secrets, store } = await secretSetup();
+  const a = await store.create({ title: 'a', password: 'keep' });
+  const result = await store.importItems(
+    [
+      { id: a.id, title: 'a2', password: 'other', createdAt: '2000-01-01T00:00:00.000Z' },
+      { id: 'new-1', title: 'n', password: 'nope', createdAt: '2001-02-03T04:05:06Z' },
+    ],
+    'merge',
+  );
+  expect(result).toEqual({ added: 1, updated: 1, removed: 0, skipped: [] });
+  const list = await store.list();
+  expect(list.map((r) => [r.id, r.title])).toEqual([
+    [a.id, 'a2'],
+    ['new-1', 'n'],
+  ]);
+  expect(list[0]!.createdAt).toBe(a.createdAt);
+  expect(list[1]!.createdAt).toBe('2001-02-03T04:05:06.000Z');
+  expect(list[1]).not.toHaveProperty('password');
+  expect(await store.secret(a.id, 'password')).toBe('keep');
+  expect(await store.secret('new-1', 'password')).toBeNull();
+  expect(secrets.values.size).toBe(1);
+});
+
+test('importItems replace removes the others and their secrets', async () => {
+  const { secrets, store } = await secretSetup();
+  const a = await store.create({ title: 'a' });
+  await store.create({ title: 'b', password: 'x' });
+  const result = await store.importItems([{ id: a.id, title: 'a' }, { id: 'c', title: 'c' }], 'replace');
+  expect(result).toMatchObject({ added: 1, updated: 1, removed: 1 });
+  expect((await store.list()).map((r) => r.title)).toEqual(['a', 'c']);
+  expect(secrets.values.size).toBe(0);
+});
+
+test('importItems skips bad ids, duplicates, failing records and records beyond max', async () => {
+  const { store } = await setup(2);
+  const a = await store.create({ title: 'a' });
+  const result = await store.importItems(
+    [{ id: 'bad id', title: 'x' }, 'str', { id: a.id }, { id: 'b', title: 'b' }, { id: 'b', title: 'b2' }, { id: 'c', title: 'c' }],
+    'replace',
+  );
+  expect(result).toEqual({
+    added: 1,
+    updated: 0,
+    removed: 0,
+    skipped: [
+      { code: 'badRecord', message: 'Invalid record.' },
+      { code: 'badRecord', message: 'Invalid record.' },
+      { id: 'b', code: 'badRecord', message: 'Invalid record.' },
+      { id: a.id, code: 'badTitle', message: 'Title required.' },
+      { id: 'c', code: 'tooManyRecords', message: 'Too many records.' },
+    ],
+  });
+  expect((await store.list()).map((r) => r.title)).toEqual(['a', 'b']);
+});
+
+test('exportItems has no secret field', async () => {
+  const { store } = await secretSetup();
+  await store.create({ title: 'a', password: 'x' });
+  const items = await store.exportItems();
+  expect(items).toHaveLength(1);
+  expect(items[0]).not.toHaveProperty('password');
+});

@@ -60,6 +60,18 @@ export interface EditorInfo {
   custom: boolean;
 }
 
+/** POST /api/backup/inspect (backupRoutes in @deckbuilder/server-mods); token null = cancelled. */
+export type BackupInfo =
+  | { token: null }
+  | { token: string; appVersion: string; exportedAt: string; settings: boolean; stores: Array<{ name: string; count: number; known: boolean }> };
+
+export interface ImportResult {
+  added: number;
+  updated: number;
+  removed: number;
+  skipped: Array<{ id?: string; code: string; message: string }>;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -127,6 +139,12 @@ export const api = {
   fsDelete: (root: string, paths: string[]) => request<{ ok: true }>('POST', '/api/fs/delete', {}, { root, paths }),
   fsReveal: (root: string, path: string) => request<{ ok: true }>('POST', '/api/fs/reveal', {}, { root, path }),
   fsOpen: (root: string, path: string) => request<{ ok: true }>('POST', '/api/fs/open', {}, { root, path }),
+  backupParts: () => request<{ stores: string[] }>('GET', '/api/backup/parts'),
+  exportBackup: (settings: boolean, stores: string[]) =>
+    request<{ path: string | null; counts?: Record<string, number> }>('POST', '/api/backup/export', {}, { settings, stores }),
+  inspectBackup: () => request<BackupInfo>('POST', '/api/backup/inspect'),
+  importBackup: (token: string, settings: boolean, stores: string[], mode: 'merge' | 'replace') =>
+    request<{ settings: boolean; stores: Record<string, ImportResult> }>('POST', '/api/backup/import', {}, { token, settings, stores, mode }),
   editors: () => request<EditorInfo[]>('GET', '/api/editors'),
   pickEditor: (editor: EditorInfo['id']) => request<EditorInfo[]>('POST', '/api/editors/pick', {}, { editor }),
   resetEditor: (editor: EditorInfo['id']) => request<EditorInfo[]>('DELETE', '/api/editors/override', { editor }),
