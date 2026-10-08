@@ -220,3 +220,70 @@ test('search stops once aborted', async () => {
   ac.abort();
   expect((await hits.next()).done).toBe(true);
 });
+
+const tailSetup = async (content: string | Buffer, saveAs?: (o: unknown) => Promise<string | null>) => {
+  const t = await setup();
+  const fs = rootedFs({ roots: async () => [{ id: 'r', path: t.root }], saveAs: saveAs as never });
+  await writeFile(join(t.root, 'x.log'), content);
+  const call = (key: string, input: string | Record<string, unknown>) =>
+    fs.routes[key]!({
+      req: new Request('http://x/'),
+      query: new URLSearchParams(typeof input === 'string' ? input : ''),
+      json: async () => input,
+    } as unknown as RouteContext);
+  return { ...t, call, fail: (key: string, input: string | Record<string, unknown>) => Promise.resolve(call(key, input)).catch((e: unknown) => e) };
+};
+
+test('tail reads whole lines and keeps the unterminated last line as partial', async () => {
+  const { call } = await tailSetup('one\ntwo\nthr');
+  expect(await call('GET /api/fs/tail', 'root=r&path=x.log&from=0')).toMatchObject({ from: 0, to: 8, size: 11, text: 'one\ntwo\n', partial: 'thr' });
+  expect(await call('GET /api/fs/tail', 'root=r&path=x.log&from=4')).toMatchObject({ from: 4, to: 8, text: 'two\n', partial: 'thr' });
+  expect(await call('GET /api/fs/tail', 'root=r&path=x.log&from=11')).toMatchObject({ from: 11, to: 11, text: '' });
+});
+
+test('tail without from drops the cut first line', async () => {
+  const { call } = await tailSetup('aaaa\nbbbb\ncccc\n');
+  expect(await call('GET /api/fs/tail', 'root=r&path=x.log&max=8')).toMatchObject({ from: 10, to: 15, text: 'cccc\n' });
+});
+
+test('tail reports reset when from is past the end', async () => {
+  const { call } = await tailSetup('abc\n');
+  expect(await call('GET /api/fs/tail', 'root=r&path=x.log&from=99')).toMatchObject({ reset: true, from: 4, to: 4, text: '' });
+});
+
+test('tail advances through one line longer than max', async () => {
+  const { call } = await tailSetup('x'.repeat(3000));
+  const chunk = (await call('GET /api/fs/tail', 'root=r&path=x.log&from=0&max=1000')) as { to: number; text: string; partial?: string };
+  expect(chunk.to).toBe(1000);
+  expect(chunk.text).toHaveLength(1000);
+  expect(chunk.partial).toBeUndefined();
+});
+
+test('tail clamps max, refuses bad input, outside paths and binary files', async () => {
+  const { call, fail, root } = await tailSetup('abc\n');
+  await writeFile(join(root, 'b.bin'), Buffer.from([1, 0, 2]));
+  expect(await fail('GET /api/fs/tail', 'root=r&path=x.log&from=1.5')).toMatchObject({ code: 'badRequest' });
+  expect(await fail('GET /api/fs/tail', 'root=r&path=x.log&max=abc')).toMatchObject({ code: 'badRequest' });
+  expect(await fail('GET /api/fs/tail', 'root=r&path=link/secret.txt')).toMatchObject({ code: 'outsideRoot' });
+  expect(await fail('GET /api/fs/tail', 'root=r&path=b.bin')).toMatchObject({ code: 'notText' });
+  expect(await call('GET /api/fs/tail', 'root=r&path=x.log&max=999999999')).toMatchObject({ text: 'abc\n' });
+  expect(await call('GET /api/fs/tail', 'root=r&path=x.log&max=0')).toMatchObject({ size: 4 });
+});
+
+test('save-range writes the bytes after the bookmark to the dialog target', async () => {
+  const seen: unknown[] = [];
+  const t = await tailSetup('hello world\n', async (o) => {
+    seen.push(o);
+    return join(t.root, 'out.log');
+  });
+  expect(await t.call('POST /api/fs/save-range', { root: 'r', path: 'x.log', from: 6 })).toEqual({ path: join(t.root, 'out.log'), bytes: 6 });
+  expect(await readFile(join(t.root, 'out.log'), 'utf8')).toBe('world\n');
+  expect(seen[0]).toMatchObject({ suggestedName: 'x-from-6.log' });
+});
+
+test('save-range writes nothing when cancelled and refuses stale or bad offsets', async () => {
+  const t = await tailSetup('abc\n', async () => null);
+  expect(await t.call('POST /api/fs/save-range', { root: 'r', path: 'x.log', from: 0 })).toEqual({ path: null });
+  expect(await t.fail('POST /api/fs/save-range', { root: 'r', path: 'x.log', from: 99 })).toMatchObject({ code: 'rangeStale' });
+  expect(await t.fail('POST /api/fs/save-range', { root: 'r', path: 'x.log', from: -1 })).toMatchObject({ code: 'badRequest' });
+});

@@ -1,7 +1,7 @@
 import type { Dirent } from 'node:fs';
 import { lstat, mkdir, readdir, realpath, rename, stat, writeFile } from 'node:fs/promises';
 import { basename, dirname, extname, isAbsolute, join, sep } from 'node:path';
-import { moveToTrash, writeFileAtomic } from '@deckbuilder/platform';
+import { moveToTrash, type SaveDialogOptions, saveFileAs, writeFileAtomic } from '@deckbuilder/platform';
 import { AppError, forbidden, type Handler, invalid, ndjson, notFound, type Routes } from '@deckbuilder/server-core';
 import { fromPlatform } from './platform-errors.ts';
 
@@ -21,6 +21,21 @@ export interface RootedFsOptions {
   maxReadBytes?: number;
   /** Moves absolute paths to the recycle bin: `moveToTrash` from platform, a fake in tests. */
   trash?: (paths: string[]) => Promise<void>;
+  /** The save dialog: `saveFileAs` from platform, a fake in tests. */
+  saveAs?: (opts: SaveDialogOptions) => Promise<string | null>;
+}
+
+/** One `GET /api/fs/tail` answer: the whole lines in bytes `[from, to)` of a file `size` bytes long. */
+export interface TailChunk {
+  from: number;
+  to: number;
+  size: number;
+  mtime: number;
+  text: string;
+  /** The unterminated last line being written; `to` stops before it. */
+  partial?: string;
+  /** The file is shorter than the requested `from` (truncated or rotated). */
+  reset?: true;
 }
 
 export interface Resolved {
@@ -146,6 +161,14 @@ function fsError(err: unknown): unknown {
   return err;
 }
 
+/** `value` as an integer in `[min, max]`; undefined when absent, `badRequest` otherwise. */
+function optionalInt(value: string | null, min: number, max: number): number | undefined {
+  if (value === null) return undefined;
+  const n = Number(value);
+  if (value.trim() === '' || !Number.isSafeInteger(n) || n < min || n > max) throw badRequest();
+  return n;
+}
+
 const isBinary = (bytes: Uint8Array) => bytes.subarray(0, 8192).includes(0);
 
 const present = (path: string) => lstat(path).then(() => true, () => false);
@@ -153,6 +176,9 @@ const present = (path: string) => lstat(path).then(() => true, () => false);
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 
 const MAX_RAW_BYTES = 50_000_000;
+const MAX_TAIL_BYTES = 20_000_000;
+const DEFAULT_TAIL_BYTES = 1_000_000;
+const MAX_SAVE_RANGE_BYTES = 200_000_000;
 const MAX_SEARCH_HITS = 5000;
 const MAX_CONTENT_BYTES = 1_000_000;
 const MAX_HITS_PER_FILE = 20;
@@ -248,6 +274,7 @@ async function contentHits(file: string, q: string): Promise<Array<{ line: numbe
 export function rootedFs(opts: RootedFsOptions): RootedFs {
   const maxReadBytes = opts.maxReadBytes ?? 5_000_000;
   const trash = opts.trash ?? moveToTrash;
+  const saveAs = opts.saveAs ?? saveFileAs;
 
   async function locate(rootId: unknown, rel: unknown, mustExist = false) {
     const root = typeof rootId === 'string' ? (await opts.roots()).find((r) => r.id === rootId) : undefined;
@@ -341,6 +368,66 @@ export function rootedFs(opts: RootedFsOptions): RootedFs {
       const mtime = Math.round(st.mtimeMs);
       if (isBinary(bytes)) return { binary: true, size: st.size, mtime };
       return { text: new TextDecoder().decode(bytes), size: st.size, mtime, truncated: st.size > maxReadBytes };
+    },
+
+    'GET /api/fs/tail': async ({ query }) => {
+      const { root, path } = fromQuery(query);
+      const from = optionalInt(query.get('from'), 0, Number.MAX_SAFE_INTEGER);
+      const max = optionalInt(query.get('max'), -Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER) ?? DEFAULT_TAIL_BYTES;
+      const window = Math.min(Math.max(max, 1), MAX_TAIL_BYTES);
+      const loc = await locate(root, path, true);
+      const st = await stat(loc.real);
+      if (st.isDirectory()) throw notAFile();
+      const { size } = st;
+      const mtime = Math.round(st.mtimeMs);
+      if (from !== undefined && from > size) {
+        const reset: TailChunk = { reset: true, from: size, to: size, size, mtime, text: '' };
+        return reset;
+      }
+      const file = Bun.file(loc.real);
+      let start = from ?? Math.max(0, size - window);
+      let bytes = new Uint8Array(await file.slice(start, Math.min(size, start + window)).arrayBuffer());
+      if (isBinary(bytes)) throw invalid('notText', 'This file is not a text file.');
+      if (from === undefined && start > 0) {
+        const cut = bytes.indexOf(10);
+        if (cut >= 0) {
+          start += cut + 1;
+          bytes = bytes.subarray(cut + 1);
+        }
+      }
+      const reachesEof = start + bytes.length >= size;
+      const lastNl = bytes.lastIndexOf(10);
+      const decoder = new TextDecoder();
+      const chunk: TailChunk = { from: start, to: start, size, mtime, text: '' };
+      if (lastNl < 0 && bytes.length >= window) {
+        chunk.to = start + bytes.length;
+        chunk.text = decoder.decode(bytes);
+      } else {
+        chunk.to = start + lastNl + 1;
+        chunk.text = decoder.decode(bytes.subarray(0, lastNl + 1));
+        if (reachesEof && lastNl + 1 < bytes.length) chunk.partial = decoder.decode(bytes.subarray(lastNl + 1));
+      }
+      return chunk;
+    },
+
+    'POST /api/fs/save-range': async ({ json }) => {
+      const b = await body(json);
+      if (!Number.isSafeInteger(b.from) || (b.from as number) < 0) throw badRequest();
+      const from = b.from as number;
+      const loc = await locate(b.root, b.path, true);
+      const st = await stat(loc.real);
+      if (st.isDirectory()) throw notAFile();
+      const size = st.size;
+      if (size < from) throw invalid('rangeStale', 'The file is shorter than the bookmark; it was rotated or cleared.');
+      if (size - from > MAX_SAVE_RANGE_BYTES) throw invalid('rangeTooLarge', 'The range is too large.');
+      const name = basename(loc.real);
+      const target = await saveAs({
+        suggestedName: `${name.slice(0, name.length - extname(name).length)}-from-${from}.log`,
+        filters: [{ name: 'Log', patterns: ['*.log'] }],
+      }).catch(fromPlatform);
+      if (target === null) return { path: null };
+      await writeFileAtomic(target, new Uint8Array(await Bun.file(loc.real).slice(from, size).arrayBuffer()));
+      return { path: target, bytes: size - from };
     },
 
     'GET /api/fs/raw': async ({ query }) => {

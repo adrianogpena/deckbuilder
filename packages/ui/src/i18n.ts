@@ -113,6 +113,9 @@ const baseEn = {
   'error.notAFile': 'This is not a file.',
   'error.moveIntoSelf': "A folder can't be moved into itself.",
   'error.fileTooLarge': 'The file is too large to show.',
+  'error.notText': 'This file is not a text file.',
+  'error.rangeStale': 'The file is shorter than the bookmark; it was rotated or cleared.',
+  'error.rangeTooLarge': 'The range is too large.',
   'error.accessDenied': 'Access denied, or the file is in use.',
 };
 
@@ -232,6 +235,9 @@ const basePtBR: Messages<typeof baseEn> = {
   'error.notAFile': 'Isto não é um arquivo.',
   'error.moveIntoSelf': 'Uma pasta não pode ser movida para dentro dela mesma.',
   'error.fileTooLarge': 'O arquivo é grande demais para exibir.',
+  'error.notText': 'Este arquivo não é um arquivo de texto.',
+  'error.rangeStale': 'O arquivo é menor que o marcador; foi rotacionado ou limpo.',
+  'error.rangeTooLarge': 'O intervalo é grande demais.',
   'error.accessDenied': 'Acesso negado, ou o arquivo está em uso.',
 };
 

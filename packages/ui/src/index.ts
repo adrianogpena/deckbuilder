@@ -18,6 +18,7 @@ export * from './grid';
 export * from './hooks';
 export * from './i18n';
 export * from './json-path';
+export * from './log';
 export * from './palette';
 export * from './route';
 export * from './split';
