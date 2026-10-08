@@ -3,6 +3,7 @@ import { lstat, mkdir, readdir, realpath, rename, stat, writeFile } from 'node:f
 import { basename, dirname, extname, isAbsolute, join, sep } from 'node:path';
 import { moveToTrash, type SaveDialogOptions, saveFileAs, writeFileAtomic } from '@deckbuilder/platform';
 import { AppError, forbidden, type Handler, invalid, ndjson, notFound, type Routes } from '@deckbuilder/server-core';
+import { isBinary } from './bytes.ts';
 import { fromPlatform } from './platform-errors.ts';
 
 /** A folder the app registered; every file route is confined to one. */
@@ -168,8 +169,6 @@ function optionalInt(value: string | null, min: number, max: number): number | u
   if (value.trim() === '' || !Number.isSafeInteger(n) || n < min || n > max) throw badRequest();
   return n;
 }
-
-const isBinary = (bytes: Uint8Array) => bytes.subarray(0, 8192).includes(0);
 
 const present = (path: string) => lstat(path).then(() => true, () => false);
 

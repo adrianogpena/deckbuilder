@@ -1,0 +1,233 @@
+import { extname } from 'node:path';
+import { saveFileAs, writeFileAtomic } from '@deckbuilder/platform';
+import { AppError, invalid, type Routes } from '@deckbuilder/server-core';
+import {
+  HTTP_MAX_BODY_BYTES,
+  HTTP_METHODS,
+  type HttpMethod,
+  type HttpRequestSpec,
+  type HttpResponseInfo,
+} from '@deckbuilder/server-core/protocol';
+import { isBinary } from './bytes.ts';
+import { fromPlatform } from './platform-errors.ts';
+
+export interface HttpExecutorOptions {
+  /** Most body bytes read; the rest is cut and the response is marked `truncated`. */
+  maxBodyBytes?: number;
+  /** How many response bodies stay available to `body`/save; the oldest is dropped. */
+  keep?: number;
+  fetchImpl?: typeof fetch;
+}
+
+export interface KeptBody {
+  bytes: Uint8Array;
+  contentType: string;
+  /** The final URL. */
+  url: string;
+}
+
+export interface HttpExecutor {
+  send(spec: HttpRequestSpec, signal?: AbortSignal): Promise<HttpResponseInfo>;
+  body(id: string): KeptBody | undefined;
+}
+
+export interface HttpRoutesOptions {
+  /** Headers to add for a saved request's secret, for names the request doesn't have; the values never reach the client. */
+  secretHeaders?: (ref: string, url: string) => Promise<Array<[string, string]>>;
+  save?: typeof saveFileAs;
+}
+
+const MAX_HEADERS = 100;
+const MAX_BODY_CHARS = 900_000;
+const DEFAULT_TIMEOUT_MS = 60_000;
+const HEADER_NAME = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
+const HEADER_VALUE_BAD = /[\r\n\0]/;
+
+const badRequest = () => invalid('badRequest', 'Invalid request.');
+const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+
+/** The request as a fresh, fully defaulted spec; throws an `invalid` AppError for anything out of range (never clamps). */
+export function validateRequest(input: unknown): HttpRequestSpec {
+  if (!isObject(input)) throw badRequest();
+  const { method, url, headers = [], body, timeoutMs = DEFAULT_TIMEOUT_MS, insecure = false, followRedirects = true } = input;
+  if (typeof method !== 'string') throw badRequest();
+  if (!(HTTP_METHODS as readonly string[]).includes(method)) throw invalid('badMethod', 'This HTTP method is not supported.');
+  if (typeof url !== 'string') throw badRequest();
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw invalid('badUrl', 'Enter a valid http:// or https:// URL.');
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') throw invalid('badUrl', 'Enter a valid http:// or https:// URL.');
+  if (!Array.isArray(headers)) throw badRequest();
+  const pairs: Array<[string, string]> = headers.map((pair) => {
+    if (!Array.isArray(pair) || pair.length !== 2 || typeof pair[0] !== 'string' || typeof pair[1] !== 'string') throw badRequest();
+    return [pair[0], pair[1]];
+  });
+  if (pairs.length > MAX_HEADERS || pairs.some(([name, value]) => !HEADER_NAME.test(name) || HEADER_VALUE_BAD.test(value))) {
+    throw invalid('badHeader', 'A header name or value is not valid.');
+  }
+  if (body !== undefined && (typeof body !== 'string' || body.length > MAX_BODY_CHARS)) throw badRequest();
+  if (body && (method === 'GET' || method === 'HEAD')) throw invalid('bodyNotAllowed', 'GET and HEAD requests cannot have a body.');
+  if (typeof timeoutMs !== 'number' || !Number.isInteger(timeoutMs) || timeoutMs < 1_000 || timeoutMs > 300_000) throw badRequest();
+  if (typeof insecure !== 'boolean' || typeof followRedirects !== 'boolean') throw badRequest();
+  const spec: HttpRequestSpec = { method: method as HttpMethod, url, headers: pairs, timeoutMs, insecure, followRedirects };
+  if (body) spec.body = body;
+  return spec;
+}
+
+const isTextType = (contentType: string) => {
+  const type = contentType.split(';')[0]!.trim().toLowerCase();
+  return (
+    type === '' ||
+    type.startsWith('text/') ||
+    type.includes('json') ||
+    type.includes('xml') ||
+    type.includes('javascript') ||
+    type === 'application/x-www-form-urlencoded'
+  );
+};
+
+/**
+ * The HTTP engine of the base: sends a validated request from the server (no CORS, and the
+ * session token never leaves) and keeps the last `keep` response bodies for saving.
+ */
+export function httpExecutor(opts: HttpExecutorOptions = {}): HttpExecutor {
+  const { maxBodyBytes = HTTP_MAX_BODY_BYTES, keep = 10, fetchImpl = fetch } = opts;
+  const kept = new Map<string, KeptBody>();
+
+  async function read(res: Response): Promise<{ bytes: Uint8Array; truncated: boolean }> {
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+    let truncated = false;
+    const reader = res.body?.getReader();
+    while (reader) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const room = maxBodyBytes - total;
+      if (value.length > room) {
+        chunks.push(value.subarray(0, room));
+        total += room;
+        truncated = true;
+        await reader.cancel().catch(() => {});
+        break;
+      }
+      chunks.push(value);
+      total += value.length;
+    }
+    const bytes = new Uint8Array(total);
+    let at = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, at);
+      at += chunk.length;
+    }
+    return { bytes, truncated };
+  }
+
+  return {
+    async send(spec, signal) {
+      const timeout = AbortSignal.timeout(spec.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+      const started = performance.now();
+      try {
+        const res = await fetchImpl(spec.url, {
+          method: spec.method,
+          headers: spec.headers,
+          body: spec.body,
+          redirect: spec.followRedirects === false ? 'manual' : 'follow',
+          signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
+          tls: { rejectUnauthorized: !spec.insecure },
+        });
+        const ms = Math.round(performance.now() - started);
+        const { bytes, truncated } = await read(res);
+        const totalMs = Math.round(performance.now() - started);
+        const contentType = res.headers.get('content-type') ?? '';
+        const id = crypto.randomUUID();
+        kept.set(id, { bytes, contentType, url: res.url });
+        while (kept.size > keep) kept.delete(kept.keys().next().value as string);
+        const info: HttpResponseInfo = {
+          id,
+          status: res.status,
+          statusText: res.statusText,
+          url: res.url,
+          redirected: res.redirected,
+          headers: [...res.headers],
+          ms,
+          totalMs,
+          size: bytes.length,
+          truncated,
+          contentType,
+        };
+        if (isTextType(contentType) && !isBinary(bytes)) info.text = new TextDecoder().decode(bytes);
+        else info.binary = true;
+        return info;
+      } catch (err) {
+        if (signal?.aborted) throw err;
+        if (timeout.aborted) throw invalid('httpTimeout', 'The request timed out.');
+        if (err instanceof AppError) throw err;
+        throw new AppError('invalid', 'httpFailed', 'The request failed.', { detail: err instanceof Error ? err.message : String(err) });
+      }
+    },
+    body: (id) => kept.get(id),
+  };
+}
+
+const EXTENSIONS: Array<[string, string]> = [
+  ['json', '.json'],
+  ['html', '.html'],
+  ['xml', '.xml'],
+  ['text/', '.txt'],
+];
+
+/** A file name for a saved response: the last segment of the URL path, made safe, with an extension from the content type when it has none. */
+export function suggestedName(url: string, contentType: string): string {
+  let name = new URL(url).pathname.split('/').pop() ?? '';
+  try {
+    name = decodeURIComponent(name);
+  } catch {
+    // Not valid percent-encoding: keep the name as it is.
+  }
+  name = name
+    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_')
+    .replace(/[. ]+$/, '')
+    .slice(0, 100)
+    .replace(/[. ]+$/, '');
+  if (name === '') name = 'response';
+  if (extname(name) === '') {
+    const type = contentType.toLowerCase();
+    name += EXTENSIONS.find(([part]) => type.includes(part))?.[1] ?? '';
+  }
+  return name;
+}
+
+/** `POST /api/http/send` (`{ request, secretRef? }`) and `POST /api/http/save` (`{ id }`, asks for the target in a server-side dialog). */
+export function httpRoutes(executor: HttpExecutor, opts: HttpRoutesOptions = {}): Routes {
+  const { secretHeaders, save = saveFileAs } = opts;
+  return {
+    'POST /api/http/send': async ({ req, json }) => {
+      const body = await json();
+      if (!isObject(body)) throw badRequest();
+      const spec = validateRequest(body.request);
+      if (typeof body.secretRef === 'string' && secretHeaders) {
+        const have = new Set(spec.headers.map(([name]) => name.toLowerCase()));
+        for (const [name, value] of await secretHeaders(body.secretRef, spec.url)) {
+          if (have.has(name.toLowerCase())) continue;
+          have.add(name.toLowerCase());
+          spec.headers.push([name, value]);
+        }
+      }
+      return executor.send(spec, req.signal);
+    },
+
+    'POST /api/http/save': async ({ json }) => {
+      const body = await json();
+      if (!isObject(body) || typeof body.id !== 'string') throw badRequest();
+      const response = executor.body(body.id);
+      if (!response) throw invalid('responseGone', 'This response is no longer kept; send the request again.');
+      const path = await save({ suggestedName: suggestedName(response.url, response.contentType) }).catch(fromPlatform);
+      if (path === null) return { path: null };
+      await writeFileAtomic(path, response.bytes);
+      return { path, bytes: response.bytes.length };
+    },
+  };
+}

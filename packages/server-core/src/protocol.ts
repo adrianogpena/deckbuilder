@@ -57,5 +57,48 @@ export interface UpdateState {
   source: string | null;
 }
 
+export const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'] as const;
+export type HttpMethod = (typeof HTTP_METHODS)[number];
+
+/** Response bodies above this are cut and marked `truncated`. */
+export const HTTP_MAX_BODY_BYTES = 10_000_000;
+
+export interface HttpRequestSpec {
+  method: HttpMethod;
+  url: string;
+  headers: Array<[string, string]>;
+  body?: string;
+  /** Default 60_000, 1_000..300_000. */
+  timeoutMs?: number;
+  /** Default false: skip TLS certificate checks. */
+  insecure?: boolean;
+  /** Default true. */
+  followRedirects?: boolean;
+}
+
+export interface HttpResponseInfo {
+  /** Key for POST /api/http/save. */
+  id: string;
+  status: number;
+  statusText: string;
+  /** Final URL after redirects. */
+  url: string;
+  redirected: boolean;
+  headers: Array<[string, string]>;
+  /** Until the headers arrived. */
+  ms: number;
+  /** Until the body was read. */
+  totalMs: number;
+  /** Body bytes read. */
+  size: number;
+  truncated: boolean;
+  /** The Content-Type header, '' when absent. */
+  contentType: string;
+  /** Set for text-like bodies (UTF-8). */
+  text?: string;
+  /** Set otherwise; the bytes are only reachable through save. */
+  binary?: true;
+}
+
 /** True when an app id can serve as a URL scheme (`<id>://open/<path>`). */
 export const isUrlScheme = (id: string): boolean => /^[a-z][a-z0-9+.-]*$/.test(id);

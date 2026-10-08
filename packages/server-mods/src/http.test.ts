@@ -1,0 +1,179 @@
+import { afterAll, beforeAll, expect, test } from 'bun:test';
+import type { saveFileAs } from '@deckbuilder/platform';
+import type { AppError, RouteContext } from '@deckbuilder/server-core';
+import { httpExecutor, httpRoutes, suggestedName, validateRequest } from './http.ts';
+
+let server: ReturnType<typeof Bun.serve>;
+let base: string;
+
+beforeAll(() => {
+  server = Bun.serve({
+    port: 0,
+    hostname: '127.0.0.1',
+    async fetch(req) {
+      const path = new URL(req.url).pathname;
+      if (path === '/echo') {
+        return Response.json({ method: req.method, headers: Object.fromEntries(req.headers), body: await req.text() });
+      }
+      if (path === '/big') return new Response(new Uint8Array(12_000_000).fill(97), { headers: { 'content-type': 'text/plain' } });
+      if (path === '/slow') {
+        await Bun.sleep(3000);
+        return new Response('late');
+      }
+      if (path === '/redirect') return new Response(null, { status: 302, headers: { location: '/echo' } });
+      if (path === '/bin') return new Response(new Uint8Array([1, 0, 2, 0]), { headers: { 'content-type': 'application/octet-stream' } });
+      return new Response('nope', { status: 404 });
+    },
+  });
+  base = `http://127.0.0.1:${server.port}`;
+});
+
+afterAll(() => {
+  server.stop(true);
+});
+
+const spec = (path: string, extra: Record<string, unknown> = {}) => validateRequest({ method: 'GET', url: base + path, headers: [], ...extra });
+const code = async (promise: Promise<unknown>) => ((await promise.catch((e) => e)) as AppError).code;
+
+test('echo round trip sends the method, body and custom headers and never the session token', async () => {
+  const res = await httpExecutor().send(
+    spec('/echo', { method: 'POST', body: '{"a":1}', headers: [['x-custom', 'yes'], ['content-type', 'application/json']] }),
+  );
+  expect(res.status).toBe(200);
+  expect(res.binary).toBeUndefined();
+  const echoed = JSON.parse(res.text!);
+  expect(echoed.method).toBe('POST');
+  expect(echoed.body).toBe('{"a":1}');
+  expect(echoed.headers['x-custom']).toBe('yes');
+  expect(echoed.headers).not.toHaveProperty('x-deckbuilder-token');
+});
+
+test('a body above maxBodyBytes is cut and marked truncated', async () => {
+  const res = await httpExecutor({ maxBodyBytes: 1_000 }).send(spec('/big'));
+  expect(res.truncated).toBe(true);
+  expect(res.size).toBe(1_000);
+  const full = await httpExecutor().send(spec('/big'));
+  expect(full.truncated).toBe(true);
+  expect(full.size).toBe(10_000_000);
+});
+
+test('a slow response ends in httpTimeout', async () => {
+  expect(await code(httpExecutor().send(spec('/slow', { timeoutMs: 1000 })))).toBe('httpTimeout');
+});
+
+test('redirects are followed by default and kept as 302 when disabled', async () => {
+  const followed = await httpExecutor().send(spec('/redirect'));
+  expect(followed.status).toBe(200);
+  expect(followed.redirected).toBe(true);
+  expect(followed.url).toBe(`${base}/echo`);
+  const manual = await httpExecutor().send(spec('/redirect', { followRedirects: false }));
+  expect(manual.status).toBe(302);
+});
+
+test('a binary body has no text', async () => {
+  const res = await httpExecutor().send(spec('/bin'));
+  expect(res.binary).toBe(true);
+  expect(res.text).toBeUndefined();
+  expect(res.size).toBe(4);
+});
+
+test('a client abort is rethrown as is', async () => {
+  const controller = new AbortController();
+  const sending = httpExecutor().send(spec('/slow'), controller.signal);
+  controller.abort();
+  expect(await code(sending)).not.toBe('httpTimeout');
+  expect(controller.signal.aborted).toBe(true);
+});
+
+test('a refused port is httpFailed', async () => {
+  const closed = Bun.serve({ port: 0, hostname: '127.0.0.1', fetch: () => new Response('') });
+  const url = `http://127.0.0.1:${closed.port}/`;
+  closed.stop(true);
+  const err = (await httpExecutor().send(validateRequest({ method: 'GET', url })).catch((e) => e)) as AppError;
+  expect(err.code).toBe('httpFailed');
+  expect(err.opts.detail).toBeTruthy();
+});
+
+test('validateRequest refuses what the executor must not send', () => {
+  const fail = (input: Record<string, unknown>) => {
+    try {
+      validateRequest({ method: 'GET', url: 'http://localhost/', ...input });
+    } catch (err) {
+      return (err as AppError).code;
+    }
+    return 'ok';
+  };
+  expect(fail({ url: 'file:///c:/x' })).toBe('badUrl');
+  expect(fail({ url: 'nonsense' })).toBe('badUrl');
+  expect(fail({ method: 'TRACE' })).toBe('badMethod');
+  expect(fail({ headers: [['x-a', 'a\r\nb: c']] })).toBe('badHeader');
+  expect(fail({ headers: [['bad name', 'a']] })).toBe('badHeader');
+  expect(fail({ headers: Array.from({ length: 101 }, (_, i) => [`h${i}`, 'v']) })).toBe('badHeader');
+  expect(fail({ headers: 'x' })).toBe('badRequest');
+  expect(fail({ headers: [['only-name']] })).toBe('badRequest');
+  expect(fail({ body: 'x' })).toBe('bodyNotAllowed');
+  expect(fail({ method: 'POST', body: 'x'.repeat(900_001) })).toBe('badRequest');
+  expect(fail({ method: 'POST', body: 5 })).toBe('badRequest');
+  expect(fail({ timeoutMs: 999 })).toBe('badRequest');
+  expect(fail({ timeoutMs: 1.5 })).toBe('badRequest');
+  expect(fail({ insecure: 'yes' })).toBe('badRequest');
+  expect(fail({ method: 'POST', body: 'x'.repeat(900_000) })).toBe('ok');
+});
+
+test('validateRequest builds a fresh object with the defaults', () => {
+  const input = { method: 'POST', url: 'http://localhost/', headers: [['a', 'b']], body: 'x', extra: 1 };
+  const out = validateRequest(input);
+  expect(out).toEqual({ method: 'POST', url: 'http://localhost/', headers: [['a', 'b']], body: 'x', timeoutMs: 60_000, insecure: false, followRedirects: true });
+  expect(out.headers).not.toBe(input.headers);
+});
+
+test('secretHeaders gets the request URL and adds Authorization only when absent', async () => {
+  const calls: Array<[string, string]> = [];
+  const routes = httpRoutes(httpExecutor(), {
+    secretHeaders: async (ref, url) => {
+      calls.push([ref, url]);
+      return [['Authorization', 'Bearer s3cret']];
+    },
+  });
+  const send = (headers: Array<[string, string]>) =>
+    Promise.resolve(
+      routes['POST /api/http/send']!({
+        req: new Request('http://x/'),
+        json: async () => ({ request: { method: 'GET', url: `${base}/echo`, headers }, secretRef: 'tok' }),
+      } as unknown as RouteContext),
+    ) as Promise<{ text: string }>;
+  expect(JSON.parse((await send([])).text).headers.authorization).toBe('Bearer s3cret');
+  expect(JSON.parse((await send([['authorization', 'mine']])).text).headers.authorization).toBe('mine');
+  expect(calls).toEqual([
+    ['tok', `${base}/echo`],
+    ['tok', `${base}/echo`],
+  ]);
+});
+
+test('suggested file names come from the final URL and content type', () => {
+  expect(suggestedName('http://h/files/r%C3%A9sum%C3%A9', 'application/json; charset=utf-8')).toBe('résumé.json');
+  expect(suggestedName('http://h/data.json', 'application/json')).toBe('data.json');
+  expect(suggestedName('http://h/', 'text/html')).toBe('response.html');
+  expect(suggestedName('http://h/a%2Fb%3F', 'image/png')).toBe('a_b_');
+  expect(suggestedName('http://h/%E0%A4%A', 'application/xml')).toBe('%E0%A4%A.xml');
+  expect(suggestedName(`http://h/${'n'.repeat(300)}`, 'text/plain')).toHaveLength(104);
+});
+
+test('save writes the kept bytes through the dialog, and an evicted id is responseGone', async () => {
+  const written: string[] = [];
+  const executor = httpExecutor({ keep: 1 });
+  const target = { path: `${process.env.TEMP ?? '.'}/deckbuilder-http-save-${Date.now()}.json` as string | null };
+  const routes = httpRoutes(executor, { save: (async () => target.path) as typeof saveFileAs });
+  const call = (id: string) =>
+    Promise.resolve(routes['POST /api/http/save']!({ json: async () => ({ id }) } as unknown as RouteContext)).catch((e) => e);
+  const first = await executor.send(spec('/echo'));
+  const second = await executor.send(spec('/echo'));
+  expect(((await call(first.id)) as AppError).code).toBe('responseGone');
+  const saved = (await call(second.id)) as { path: string; bytes: number };
+  expect(saved.bytes).toBe(second.size);
+  written.push(saved.path);
+  expect(await Bun.file(saved.path).text()).toBe(second.text!);
+  target.path = null;
+  expect(await call(second.id)).toEqual({ path: null });
+  await Bun.file(written[0]!).delete();
+});
