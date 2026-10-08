@@ -29,6 +29,10 @@ const baseEn = {
   'output.filter': 'Filter output',
   'output.copyAll': 'Copy all',
   'output.clear': 'Clear',
+
+  'table.empty': 'No rows',
+  'table.copied': 'Copied to the clipboard',
+  'table.null': 'null',
   'output.jumpToLatest': 'Jump to latest',
 
   'dialog.ok': 'OK',
@@ -130,6 +134,10 @@ const basePtBR: Messages<typeof baseEn> = {
   'output.filter': 'Filtrar saída',
   'output.copyAll': 'Copiar tudo',
   'output.clear': 'Limpar',
+
+  'table.empty': 'Nenhuma linha',
+  'table.copied': 'Copiado para a área de transferência',
+  'table.null': 'nulo',
   'output.jumpToLatest': 'Ir para o fim',
 
   'dialog.ok': 'OK',

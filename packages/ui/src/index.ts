@@ -1,6 +1,7 @@
 export * from './components/AppearanceFields';
 export * from './components/CommandPalette';
 export * from './components/ContextMenu';
+export * from './components/DataTable';
 export * from './components/Explorer';
 export * from './components/OutputPanel';
 export * from './components/Panel';
@@ -19,6 +20,7 @@ export * from './palette';
 export * from './route';
 export * from './split';
 export * from './stream';
+export * from './table';
 export * from './tabs';
 export * from './theme';
 export * from './tree';
