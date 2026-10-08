@@ -47,8 +47,10 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
   const wasRunning = useRef(false);
 
   const persist = useDebouncedSave((next: WorkbenchSettings) => onSave({ workbench: next }));
-  const update = (patch: WorkbenchSettings) => {
-    const next = { ...state, ...patch };
+  const latest = useRef(state);
+  const update = (patch: (s: WorkbenchSettings) => WorkbenchSettings) => {
+    const next = { ...latest.current, ...patch(latest.current) };
+    latest.current = next;
     setState(next);
     persist(next);
   };
@@ -116,7 +118,7 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
         direction="column"
         sizes={[sizes.main[0], sizes.main[1]]}
         defaultSizes={DEFAULT_MAIN}
-        onResize={(s) => update({ sizes: { ...sizes, main: [s[0], s[1]] } })}
+        onResize={(s) => update((cur) => ({ sizes: { ...(cur.sizes ?? sizes), main: [s[0], s[1]] } }))}
       >
         <div key="editor" className="wb-pane">
           <CodeEditor value={query} lang="sql" onChange={setQuery} onRun={run} height="100%" />
@@ -126,7 +128,7 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
             direction="row"
             sizes={[sizes.results[0], sizes.results[1]]}
             defaultSizes={DEFAULT_RESULTS}
-            onResize={(s) => update({ sizes: { ...sizes, results: [s[0], s[1]] } })}
+            onResize={(s) => update((cur) => ({ sizes: { ...(cur.sizes ?? sizes), results: [s[0], s[1]] } }))}
           >
             <div key="table" className="wb-pane">
               <DataTable
@@ -134,7 +136,7 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
                 rows={rows.items}
                 rowKey={(r) => String(r.id)}
                 widths={state.widths}
-                onWidthsChange={(widths) => update({ widths })}
+                onWidthsChange={(widths) => update(() => ({ widths }))}
               />
             </div>
             <div key="output" className="wb-pane">

@@ -22,6 +22,15 @@ test('ndjson writes items in order, then $end', async () => {
   expect(out.at(-1)).toEqual({ $end: true });
 });
 
+test('ndjson survives more concurrent emits than the high-water mark', async () => {
+  const res = ndjson(new Request('http://x/'), async (emit) => {
+    await Promise.all(Array.from({ length: 100 }, (_, i) => emit({ i })));
+  });
+  const out = await lines(res);
+  expect(out).toHaveLength(101);
+  expect(out.at(-1)).toEqual({ $end: true });
+});
+
 test('ndjson ends with $error for an AppError and for other errors', async () => {
   const app = await lines(ndjson(new Request('http://x/'), async (emit) => {
     await emit(1);

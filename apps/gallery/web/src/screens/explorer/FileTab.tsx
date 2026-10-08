@@ -27,6 +27,7 @@ export function FileTab({ project, projectName, path, focused }: FileTabProps) {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<ApiError>();
   const generation = useRef(0);
+  const editingRef = useRef(false);
   const blobUrl = useRef<string>();
   const { confirm, element } = useDialogs();
 
@@ -34,6 +35,8 @@ export function FileTab({ project, projectName, path, focused }: FileTabProps) {
     if (blobUrl.current) URL.revokeObjectURL(blobUrl.current);
     blobUrl.current = undefined;
   };
+
+  editingRef.current = editing;
 
   const load = useCallback(async () => {
     const gen = ++generation.current;
@@ -60,7 +63,7 @@ export function FileTab({ project, projectName, path, focused }: FileTabProps) {
   }, [project, path, name]);
 
   useEffect(() => {
-    void load();
+    if (!editingRef.current) void load();
   }, [load]);
   useEffect(() => () => {
     generation.current++;
@@ -72,6 +75,9 @@ export function FileTab({ project, projectName, path, focused }: FileTabProps) {
   const editable = text !== undefined && !(content && 'truncated' in content && content.truncated);
   const dirty = editing && text !== undefined && draft !== text;
 
+  const confirmDiscard = async () =>
+    !dirty || confirm({ title: t('explorer.discardTitle'), body: t('explorer.discardBody', { name }), okLabel: t('explorer.discard'), danger: true });
+
   const toggleEdit = async () => {
     if (!editing) {
       setDraft(text ?? '');
@@ -79,9 +85,13 @@ export function FileTab({ project, projectName, path, focused }: FileTabProps) {
       setEditing(true);
       return;
     }
-    if (dirty && !(await confirm({ title: t('explorer.discardTitle'), body: t('explorer.discardBody', { name }), okLabel: t('explorer.discard'), danger: true }))) return;
+    if (!(await confirmDiscard())) return;
     setSaveError(undefined);
     setEditing(false);
+  };
+
+  const reload = async () => {
+    if (await confirmDiscard()) void load();
   };
 
   const save = async () => {
@@ -119,12 +129,12 @@ export function FileTab({ project, projectName, path, focused }: FileTabProps) {
             {t('explorer.save')}
           </button>
         )}
-        <button className="btn btn-ghost btn-sm" onClick={() => void load()} title={t('explorer.reload')} aria-label={t('explorer.reload')}>
+        <button className="btn btn-ghost btn-sm" onClick={reload} title={t('explorer.reload')} aria-label={t('explorer.reload')}>
           <Icon name="refresh" />
         </button>
       </div>
       {saveError?.code === 'fileChanged' ? (
-        <PanelBanner tone="err" icon="alert" action={<button className="btn btn-sm" onClick={() => void load()}>{t('explorer.reload')}</button>}>
+        <PanelBanner tone="err" icon="alert" action={<button className="btn btn-sm" onClick={reload}>{t('explorer.reload')}</button>}>
           {t('error.fileChanged')}
         </PanelBanner>
       ) : saveError && <ErrorBanner error={saveError} compact />}

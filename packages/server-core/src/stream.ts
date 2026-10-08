@@ -21,11 +21,11 @@ export function ndjson(req: Request, produce: (emit: Emit, signal: AbortSignal) 
   else req.signal.addEventListener('abort', stop, { once: true });
 
   // Resolves the pending emit when the consumer pulls (or the stream goes away).
-  let wake: (() => void) | null = null;
+  let waiters: Array<() => void> = [];
   const release = () => {
-    const w = wake;
-    wake = null;
-    w?.();
+    const ws = waiters;
+    waiters = [];
+    for (const w of ws) w();
   };
   signal.addEventListener('abort', release, { once: true });
 
@@ -34,7 +34,7 @@ export function ndjson(req: Request, produce: (emit: Emit, signal: AbortSignal) 
       const emit: Emit = async (item) => {
         if (signal.aborted) return;
         while ((controller.desiredSize ?? 0) <= 0 && !signal.aborted) {
-          await new Promise<void>((resolve) => { wake = resolve; });
+          await new Promise<void>((resolve) => { waiters.push(resolve); });
         }
         if (!signal.aborted) controller.enqueue(line(item));
       };

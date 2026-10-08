@@ -14,7 +14,7 @@ import {
 import { errorMessage, errorOf, type ApiError } from '../api';
 import { t } from '../i18n';
 import type { IconName } from '../icons';
-import { firstChildId, isInside, nextId, parentId, prevId, visibleRows, type TreeRow } from '../tree';
+import { firstChildId, isInside, nextId, parentId, prevId, subtreeIds, visibleRows, type TreeRow } from '../tree';
 import { Icon, Spinner } from './ui';
 
 export const TREE_DRAG_TYPE = 'application/x-deckbuilder-tree';
@@ -131,6 +131,12 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle>) {
     latest.current.loadChildren(node).then(
       (children) => {
         if (generations.current.get(id) !== gen) return;
+        const kept = new Set(children.map(idOf));
+        const missing = (childrenOf(id) ?? []).map(idOf).filter((c) => !kept.has(c));
+        for (const gone of subtreeIds(missing, childrenOf, idOf)) {
+          bumpGeneration(gone);
+          cache.current.delete(gone);
+        }
         cache.current.set(id, { status: 'ok', children });
         bump();
       },
@@ -216,6 +222,7 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle>) {
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).getAttribute('role') !== 'treeitem') return;
     if (renaming !== null || e.altKey || e.metaKey || !rows.length) return;
     const go = (id: string | null) => {
       const row = rowOf(id);

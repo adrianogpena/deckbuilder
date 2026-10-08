@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { firstChildId, isInside, nextId, parentId, prevId, visibleRows } from '../src/tree.ts';
+import { firstChildId, isInside, nextId, parentId, prevId, subtreeIds, visibleRows } from '../src/tree.ts';
 
 interface Node {
   id: string;
@@ -75,5 +75,22 @@ describe('moves', () => {
     expect(isInside(rows, 'a', 'a')).toBe(true);
     expect(isInside(rows, 'a', 'a1')).toBe(false);
     expect(isInside(rows, 'b', 'a')).toBe(false);
+  });
+});
+
+describe('subtreeIds', () => {
+  const cache = new Map<string, { id: string }[]>([
+    ['a', [{ id: 'a/b' }, { id: 'a/c' }]],
+    ['a/b', [{ id: 'a/b/d' }]],
+  ]);
+  const ids = (given: string[]) => subtreeIds(given, (id) => cache.get(id), (n) => n.id).sort();
+
+  test('adds every cached descendant', () => {
+    expect(ids(['a'])).toEqual(['a', 'a/b', 'a/b/d', 'a/c']);
+  });
+
+  test('keeps ids without cached children and handles none', () => {
+    expect(ids(['x'])).toEqual(['x']);
+    expect(ids([])).toEqual([]);
   });
 });

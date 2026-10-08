@@ -63,3 +63,19 @@ export function isInside<N>(rows: TreeRow<N>[], id: string, ancestor: string): b
   }
   return false;
 }
+
+/** The given ids plus every descendant id reachable through `childrenOf`. */
+export function subtreeIds<N>(
+  ids: string[],
+  childrenOf: (id: string) => N[] | undefined,
+  idOf: (node: N) => string,
+): string[] {
+  const out: string[] = [];
+  const stack = [...ids];
+  while (stack.length) {
+    const id = stack.pop()!;
+    out.push(id);
+    for (const child of childrenOf(id) ?? []) stack.push(idOf(child));
+  }
+  return out;
+}
