@@ -84,7 +84,8 @@ export interface ResourceFormProps {
   fields: FieldSpec[];
   value: Record<string, unknown>;
   onSubmit(values: Record<string, unknown>): void;
-  onCancel(): void;
+  /** Without it the form has no Cancel button. */
+  onCancel?(): void;
   /** Opens a picker for a `path` field, which is then read-only; the path it resolves to fills the field, null leaves it unchanged. */
   onBrowse?(key: string): Promise<string | null>;
   error?: ApiError;
@@ -181,7 +182,7 @@ export function ResourceForm({ fields, value, onSubmit, onCancel, onBrowse, erro
         );
       })}
       <div className="resource-actions">
-        <button type="button" className="btn" onClick={onCancel}>{t('resource.cancel')}</button>
+        {onCancel && <button type="button" className="btn" onClick={onCancel}>{t('resource.cancel')}</button>}
         <button type="submit" className="btn btn-primary">{t('resource.save')}</button>
       </div>
     </form>

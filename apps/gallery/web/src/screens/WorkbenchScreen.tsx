@@ -154,6 +154,8 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
 function TokenCard() {
   const secrets = useAsync(() => api.demoSecrets(), []);
   const [error, setError] = useState<ApiError>();
+  // Remounts the form after each save, so the field shows "Saved" instead of the typed text.
+  const [saves, setSaves] = useState(0);
   const record = secrets.data?.[0];
   const fields: FieldSpec[] = [{ key: 'token', label: t('workbench.token'), kind: 'password' }];
 
@@ -162,6 +164,7 @@ function TokenCard() {
     try {
       if (record) await api.updateDemoSecret(record.id, values);
       else await api.createDemoSecret(values);
+      setSaves((n) => n + 1);
       secrets.reload();
     } catch (err) {
       setError(errorOf(err));
@@ -172,7 +175,7 @@ function TokenCard() {
   return (
     <section className="card wb-token">
       <h4 className="mono-label">{t('workbench.tokenTitle')}</h4>
-      <ResourceForm key={record?.id ?? 'new'} fields={fields} value={{ ...record }} onSubmit={submit} onCancel={() => {}} error={error} />
+      <ResourceForm key={saves} fields={fields} value={{ ...record }} onSubmit={submit} error={error} />
     </section>
   );
 }

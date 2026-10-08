@@ -45,6 +45,9 @@ interface RecordFile<T> {
   items: Rec<T>[];
 }
 
+/** Longest secret field value, in characters; the secret store is rewritten on every set. */
+const MAX_SECRET_LENGTH = 65_536;
+
 /** What a secret field holds in the file. */
 interface SecretRef {
   ref: string;
@@ -110,6 +113,10 @@ export function recordStore<T extends object>(opts: RecordStoreOptions<T>): Reco
    */
   async function applySecrets(input: unknown, rec: Rec<T>, prev?: Rec<T>): Promise<string[]> {
     const raw = typeof input === 'object' && input !== null ? (input as Record<string, unknown>) : {};
+    for (const field of secretFields) {
+      const value = raw[field];
+      if (typeof value === 'string' && value.length > MAX_SECRET_LENGTH) throw invalid('secretTooLong', 'The secret is too long.');
+    }
     const removals: string[] = [];
     for (const field of secretFields) {
       const value = raw[field];

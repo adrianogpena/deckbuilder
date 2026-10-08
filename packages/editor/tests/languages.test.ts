@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { langOfFile, previewKind } from '../src/languages.ts';
+import { langOfFile, parserOf, previewKind } from '../src/languages.ts';
 
 describe('langOfFile', () => {
   test('maps extensions case-insensitively', () => {
@@ -23,5 +23,14 @@ describe('previewKind', () => {
     expect(previewKind('req.http')).toBe('code');
     expect(previewKind('logo.SVG')).toBe('image');
     expect(previewKind('a.txt')).toBe('text');
+  });
+});
+
+describe('parserOf', () => {
+  test('gives parsers for highlighted languages only', () => {
+    expect(parserOf('sql')).not.toBeNull();
+    expect(parserOf('json')).not.toBeNull();
+    expect(parserOf('shell')).not.toBeNull();
+    expect(parserOf('text')).toBeNull();
   });
 });

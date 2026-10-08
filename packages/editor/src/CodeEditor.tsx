@@ -46,7 +46,12 @@ export function CodeEditor({
       state: EditorState.create({
         doc: value,
         extensions: [
-          Prec.highest(keymap.of([{ key: 'Mod-Enter', run: (ed) => { handlers.current.onRun?.(ed.state.doc.toString()); return true; } }])),
+          Prec.highest(keymap.of([{ key: 'Mod-Enter', run: (ed) => {
+            const onRun = handlers.current.onRun;
+            if (!onRun) return false;
+            onRun(ed.state.doc.toString());
+            return true;
+          } }])),
           lineNumbers(),
           highlightActiveLineGutter(),
           history(),

@@ -1,22 +1,8 @@
-import { jsonLanguage } from '@codemirror/lang-json';
-import { StandardSQL } from '@codemirror/lang-sql';
-import { type Language, StreamLanguage } from '@codemirror/language';
-import { shell } from '@codemirror/legacy-modes/mode/shell';
 import { t } from '@deckbuilder/ui';
 import { classHighlighter, highlightTree } from '@lezer/highlight';
 import { useLayoutEffect, useMemo, useRef } from 'react';
+import { langOfFile, type Parser, parserOf } from './languages';
 import { renderMarkdown } from './markdown';
-
-type Parser = Language['parser'];
-
-const shellParser = StreamLanguage.define(shell).parser;
-const PARSERS: Record<string, Parser> = {
-  sql: StandardSQL.language.parser,
-  json: jsonLanguage.parser,
-  sh: shellParser,
-  bash: shellParser,
-  shell: shellParser,
-};
 
 /** Replaces a code element's text with `tok-*` spans (classHighlighter); styled by `.markdown .tok-*`. */
 function highlightCode(code: HTMLElement, parser: Parser) {
@@ -35,7 +21,7 @@ function highlightCode(code: HTMLElement, parser: Parser) {
   code.replaceChildren(out);
 }
 
-/** Rendered, sanitized markdown; sql/json/shell code blocks highlighted. */
+/** Rendered, sanitized markdown; code blocks highlighted when their fence names a file extension with a parser. */
 export function MarkdownView({ markdown, resolveImage }: { markdown: string; resolveImage?(src: string): string | null }) {
   const host = useRef<HTMLDivElement>(null);
   const html = useMemo(
@@ -45,8 +31,8 @@ export function MarkdownView({ markdown, resolveImage }: { markdown: string; res
 
   useLayoutEffect(() => {
     for (const code of host.current?.querySelectorAll<HTMLElement>('pre > code[class*="language-"]') ?? []) {
-      const lang = /language-(\w+)/.exec(code.className)?.[1]?.toLowerCase();
-      const parser = lang ? PARSERS[lang] : undefined;
+      const fence = /language-(\w+)/.exec(code.className)?.[1];
+      const parser = fence ? parserOf(fence.toLowerCase() === 'shell' ? 'shell' : langOfFile('x.' + fence)) : null;
       if (parser) highlightCode(code, parser);
     }
   }, [html]);

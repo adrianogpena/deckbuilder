@@ -145,6 +145,7 @@ test('delete hands the real paths to the trash in one call', async () => {
   expect(trashed).toEqual([[join(realRoot, 'top.txt'), join(realRoot, 'a')]]);
   expect(await fail('POST /api/fs/delete', { root: 'r', paths: [''] })).toMatchObject({ code: 'badPath' });
   expect(await fail('POST /api/fs/delete', { root: 'r', paths: [] })).toMatchObject({ code: 'badRequest' });
+  expect(await fail('POST /api/fs/delete', { root: 'r', paths: Array(1001).fill('top.txt') })).toMatchObject({ code: 'tooManyItems' });
 });
 
 test('a trash failure reaches the client as its PlatformError code', async () => {

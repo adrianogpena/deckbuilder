@@ -1,7 +1,7 @@
-import { json } from '@codemirror/lang-json';
+import { json, jsonLanguage } from '@codemirror/lang-json';
 import { markdown } from '@codemirror/lang-markdown';
 import { MSSQL, MySQL, PostgreSQL, sql, SQLite, StandardSQL } from '@codemirror/lang-sql';
-import { StreamLanguage } from '@codemirror/language';
+import { type Language, StreamLanguage } from '@codemirror/language';
 import { shell } from '@codemirror/legacy-modes/mode/shell';
 import type { Extension } from '@codemirror/state';
 
@@ -21,6 +21,18 @@ export function languageFor(lang: Lang, opts: { sqlDialect?: SqlDialect; sqlSche
     case 'shell': return shellLanguage;
     case 'markdown': return markdown();
     default: return [];
+  }
+}
+
+export type Parser = Language['parser'];
+
+/** The parser behind a language, for highlighting text outside an editor; null when there is none. */
+export function parserOf(lang: Lang): Parser | null {
+  switch (lang) {
+    case 'sql': return StandardSQL.language.parser;
+    case 'json': return jsonLanguage.parser;
+    case 'shell': return shellLanguage.parser;
+    default: return null;
   }
 }
 

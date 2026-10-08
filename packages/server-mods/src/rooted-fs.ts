@@ -60,6 +60,7 @@ export interface RootedFs {
 
 const badPath = () => invalid('badPath', 'Invalid path.');
 const badRequest = () => invalid('badRequest', 'Invalid request.');
+const MAX_DELETE_PATHS = 1000;
 const outsideRoot = () => forbidden('outsideRoot', 'This path leads outside the project folder.');
 const fileNotFound = () => notFound('fileNotFound', 'File or folder not found.');
 const exists = () => invalid('exists', 'A file or folder with this name already exists.');
@@ -438,6 +439,8 @@ export function rootedFs(opts: RootedFsOptions): RootedFs {
     'POST /api/fs/delete': async ({ json }) => {
       const b = await body(json);
       if (!Array.isArray(b.paths) || !b.paths.length) throw badRequest();
+      // outermost() compares all pairs.
+      if (b.paths.length > MAX_DELETE_PATHS) throw invalid('tooManyItems', 'Too many items at once.');
       const located = await Promise.all(b.paths.map((p) => locate(b.root, p, true)));
       writable(located[0]!.root);
       const paths = await Promise.all(located.map(entryPath));

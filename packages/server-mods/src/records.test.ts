@@ -161,6 +161,19 @@ test('update: absent or hasSecret keeps the secret, a string replaces it, empty 
   expect(secrets.values.size).toBe(0);
 });
 
+test('a secret over 65 536 characters is refused before anything is stored', async () => {
+  const { secrets, store } = await secretSetup();
+  const sets: string[] = [];
+  const set = secrets.set;
+  secrets.set = async (ref, value) => {
+    sets.push(ref);
+    await set(ref, value);
+  };
+  expect(await store.create({ title: 'a', password: 'x'.repeat(65_537) }).catch((e) => e)).toMatchObject({ kind: 'invalid', code: 'secretTooLong' });
+  expect(sets).toEqual([]);
+  expect(await store.list()).toEqual([]);
+});
+
 test('remove deletes the secrets of the record', async () => {
   const { secrets, store } = await secretSetup();
   const a = await store.create({ title: 'a', password: 'x' });
