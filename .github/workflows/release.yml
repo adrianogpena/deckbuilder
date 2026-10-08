@@ -13,20 +13,24 @@ jobs:
   release:
     # Windows, because the exe icon and version info are only verified when building on Windows.
     runs-on: windows-latest
+    env:
+      TAG: ${{ github.ref_name }}
     defaults:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           fetch-depth: 0 # the release notes read the previous tags
-      - uses: oven-sh/setup-bun@v2
+          persist-credentials: false # gh uses GH_TOKEN
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
       - run: bun install --frozen-lockfile
       - name: Resolve app and version from the tag
         run: |
-          tag='${{ github.ref_name }}'
-          app="${tag%-v*}"
-          version="${tag##*-v}"
+          app="${TAG%-v*}"
+          version="${TAG##*-v}"
           actual=$(bun -p "require('./apps/$app/package.json').version")
           if [ "$actual" != "$version" ]; then
             echo "tag says $version but apps/$app/package.json says $actual" >&2
@@ -40,6 +44,6 @@ jobs:
           # PEM private key from `deckbuilder keygen`; the manifest step fails without it.
           DECKBUILDER_SIGNING_KEY: ${{ secrets.DECKBUILDER_SIGNING_KEY }}
       - name: Upload to a draft release
-        run: gh release create '${{ github.ref_name }}' --draft --title '${{ github.ref_name }}' apps/$APP/release/*
+        run: gh release create "$TAG" --draft --title "$TAG" apps/$APP/release/*
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

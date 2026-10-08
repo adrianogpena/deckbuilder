@@ -11,9 +11,9 @@ describe('markdown without a DOM', () => {
     expect(html).toContain('<code class="language-sql">');
   });
 
-  test('linkPolicy keeps http(s), mailto and anchors, drops other schemes', () => {
+  test('linkPolicy keeps http(s) and anchors, drops other schemes', () => {
     expect(linkPolicy('https://example.com')).toEqual({ href: 'https://example.com', external: true });
-    expect(linkPolicy('mailto:a@b.c')).toEqual({ href: 'mailto:a@b.c', external: true });
+    expect(linkPolicy('mailto:a@b.c')).toBeNull();
     expect(linkPolicy('#usage')).toEqual({ href: '#usage', external: false });
     expect(linkPolicy('javascript:alert(1)')).toBeNull();
     expect(linkPolicy(' JavaScript:alert(1)')).toBeNull();

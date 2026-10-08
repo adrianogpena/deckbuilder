@@ -8,11 +8,11 @@ export interface MarkdownOptions {
   blockedLabel?: string;
 }
 
-/** Links that stay: http(s)/mailto open outside the app, `#anchors` jump within the page; anything else loses its href. */
+/** Links that stay: http(s) open outside the app, `#anchors` jump within the page; anything else loses its href. */
 export function linkPolicy(href: string): { href: string; external: boolean } | null {
   const h = href.trim();
   if (h.startsWith('#')) return { href: h, external: false };
-  if (/^(https?:|mailto:)/i.test(h)) return { href: h, external: true };
+  if (/^https?:/i.test(h)) return { href: h, external: true };
   return null;
 }
 
@@ -53,7 +53,10 @@ export function renderMarkdown(md: string, opts: MarkdownOptions = {}): string {
   let fragment: DocumentFragment;
   try {
     fragment = DOMPurify.sanitize(raw, {
-      FORBID_TAGS: ['style', 'iframe', 'form', 'object', 'embed'],
+      // HTML only: SVG/MathML links and images escape the A/IMG policies above.
+      USE_PROFILES: { html: true },
+      // Media and <picture> sources would load remote URLs past imagePolicy.
+      FORBID_TAGS: ['style', 'iframe', 'form', 'object', 'embed', 'video', 'audio', 'source', 'track', 'picture'],
       FORBID_ATTR: ['style'],
       RETURN_DOM_FRAGMENT: true,
     });

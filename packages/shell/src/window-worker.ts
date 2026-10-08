@@ -14,10 +14,12 @@ window.__DECKBUILDER_SHELL__ = 'window';
     try { return new URL(href, location.href).origin !== location.origin; } catch { return false; }
   };
   document.addEventListener('click', (e) => {
-    const a = e.target instanceof Element ? e.target.closest('a[href]') : null;
-    if (!a || e.defaultPrevented || !external(a.href)) return;
+    // getAttribute, not a.href: an SVG link's href is an SVGAnimatedString, not a URL.
+    const a = e.target instanceof Element ? e.target.closest('a') : null;
+    const href = a && (a.getAttribute('href') ?? a.getAttribute('xlink:href'));
+    if (href == null || e.defaultPrevented || !external(href)) return;
     e.preventDefault();
-    window.__deckbuilderOpenExternal(a.href);
+    window.__deckbuilderOpenExternal(new URL(href, location.href).href);
   });
   const open = window.open;
   window.open = (url, ...rest) => {
