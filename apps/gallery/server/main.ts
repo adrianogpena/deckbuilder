@@ -1,5 +1,6 @@
 import { join } from 'node:path';
 import { appHome, createAutostart } from '@deckbuilder/platform';
+import { updatePublicKey } from '@deckbuilder/server-core';
 import {
   createUpdater,
   folderSource,
@@ -56,6 +57,7 @@ const settings = settingsStore<Settings>({
 });
 const updater = createUpdater({
   version: pkg.version,
+  publicKey: updatePublicKey(join(import.meta.dir, '..', 'update-key.pub')),
   source: async () => {
     const { updateFolder } = await settings.load();
     if (updateFolder) return folderSource(updateFolder, { subfolder: APP.name });

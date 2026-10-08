@@ -1,8 +1,40 @@
 // Release manifest and version helpers, shared by the updater and `deckbuilder release`.
+import { createPublicKey, verify } from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
 
 const SEMVER = /^(\d+)\.(\d+)\.(\d+)$/;
 
 export const MANIFEST = 'latest.json';
+/** Base64 Ed25519 signature of the exact bytes of latest.json, next to it. */
+export const MANIFEST_SIG = `${MANIFEST}.sig`;
+
+/** DER SPKI header of an Ed25519 public key; the 32 raw key bytes follow it. */
+const ED25519_SPKI_PREFIX = Buffer.from('302a300506032b6570032100', 'hex');
+
+/** True when `signatureB64` is a valid Ed25519 signature of `bytes` by `publicKeyB64` (32 raw bytes, base64); false on any error. */
+export function verifyManifest(bytes: Uint8Array, signatureB64: string, publicKeyB64: string): boolean {
+  try {
+    const raw = Buffer.from(publicKeyB64.trim(), 'base64');
+    if (raw.length !== 32) return false;
+    const key = createPublicKey({ key: Buffer.concat([ED25519_SPKI_PREFIX, raw]), format: 'der', type: 'spki' });
+    return verify(null, bytes, key, Buffer.from(signatureB64.trim(), 'base64'));
+  } catch {
+    return false;
+  }
+}
+
+let embeddedUpdateKey: string | null = null;
+
+/** Called by the exe's generated assets.ts with the app's update-key.pub. */
+export function setEmbeddedUpdateKey(key: string): void {
+  embeddedUpdateKey = key.trim();
+}
+
+/** The update public key: embedded in the exe, else `sourceFile` (from source), else null. */
+export function updatePublicKey(sourceFile: string): string | null {
+  if (embeddedUpdateKey) return embeddedUpdateKey;
+  return existsSync(sourceFile) ? readFileSync(sourceFile, 'utf8').trim() || null : null;
+}
 
 export interface ReleaseFile {
   /** File name next to latest.json; never a path. */

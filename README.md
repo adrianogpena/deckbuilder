@@ -49,7 +49,8 @@ Run at the root (they act on `apps/gallery`) or inside any app folder:
 | `bun test` | (root) Unit tests of the packages. |
 | `bun scripts/screenshot.ts --out <png>` | (root) Screenshot of the gallery UI in headless Edge/Chrome, with its own `--dev` server on port 7799 and a temp home. Flags: `--hash <route>`, `--settings '<json>'` (seeds `settings.json`), `--eval '<js>'`, `--size WxH`, `--wait <ms>`, `--no-build`. |
 | `bun run deckbuilder release --to <folder>` | (in the app folder) Publish a release for the self-updater, see [Releases](#releases). |
-| `bun run deckbuilder manifest` | (in the app folder) Write `release/latest.json` for the built exes, see [Releases](#releases). |
+| `bun run deckbuilder manifest` | (in the app folder) Write `release/latest.json` and its signature for the built exes, see [Releases](#releases). |
+| `bun run deckbuilder keygen` | (in the app folder) Create the app's update signing key, see [Releases](#releases). |
 
 The executable takes the same flags as the source: `--app` (Edge/Chrome app window),
 `--browser` (the Settings screen then has a Quit button that stops the app; wins over `--app`),
@@ -71,7 +72,7 @@ packages/
   server-core/   Bun.serve server: host, Origin and token checks, launch codes, static files
                  with CSP, AppError, routes type; protocol.ts (token header, launch code
                  parameter, dev ports, error body) is shared with the UI
-                 release.ts: latest.json manifest and version helpers
+                 release.ts: latest.json manifest, signature check and version helpers
   server-mods/   Opt-in route modules: settings (GET/PUT /api/settings), info (GET /api/info),
                  update (self-updater + GET /api/update, POST /api/update/check|apply)
   shell/         runApp(): parses flags, single instance, starts the server, opens a window
@@ -176,6 +177,18 @@ The version comes from the app's `package.json`. Executables are named
 
 **Locally**: bump `version`, then `bun run build --target all` in the app folder.
 
+**Signing key** (once per app): in the app folder, `bun run deckbuilder keygen` creates an
+Ed25519 key pair. The private key goes to `~/.deckbuilder-keys/<app id>.pem`, outside the repo:
+back it up, because losing it means a new key and every user reinstalling by hand
+(`--force` replaces it). The public key goes to `update-key.pub` in the app folder: commit it;
+`build` embeds it in the exe (from source the server reads the file). `release` and `manifest`
+sign the exact bytes of `latest.json` into `latest.json.sig` and refuse to run without a key
+(`--unsigned` skips the signature with a warning). The updater checks the signature before it
+reads the manifest: a missing or wrong one is an error and offers nothing, and a build without
+`update-key.pub` never updates. Exes built before signing ignore the `.sig`, so they accept the
+first signed release. CI reads the key from the `DECKBUILDER_SIGNING_KEY` secret (the PEM
+content).
+
 **For the self-updater** (a shared folder, e.g. a UNC share): in the app folder,
 
 ```sh
@@ -191,7 +204,9 @@ the `<app name>` subfolder) under Settings › Updates. The app checks at start 
 SHA-256, renames the running exe to `<name>.old.exe` (Windows allows renaming a running exe,
 not replacing it), moves the new one in place, starts it with `--after-update` plus the same
 flags, and quits. The new exe deletes the old one once that has exited. The exe keeps its file
-name, so the WebView2 profile survives updates.
+name, so the WebView2 profile survives updates. A UNC update folder still makes an SMB
+connection to that server at every check (and Windows may offer it your NTLM credentials); the
+signature protects the update, not that connection.
 
 **Through GitHub Actions**: push a tag `<app folder>-v<version>`, e.g.
 
@@ -200,16 +215,18 @@ git tag gallery-v0.1.1 && git push origin gallery-v0.1.1
 ```
 
 `.github/workflows/release.yml` checks the tag against `package.json`, builds every target on
-a Windows runner, writes `latest.json` with `deckbuilder manifest` (SHA-256 per exe, notes from
-the commits since the previous tag) and uploads everything to a **draft** release; check the
+a Windows runner, writes `latest.json` and `latest.json.sig` with `deckbuilder manifest`
+(SHA-256 per exe, notes from the commits since the previous tag; needs the
+`DECKBUILDER_SIGNING_KEY` repository secret) and uploads everything to a **draft** release; check the
 files and publish it.
 
 **GitHub releases as update source**: set `repo: 'owner/name'` in the app's `app.ts`
 (`AppIdentity.repo`) and build the app's server with `githubSource({ repo, tagPrefix })` from
 `@deckbuilder/server-mods` (the gallery does this when no update folder is set). The updater
 takes the newest published release whose tag starts with `<app folder>-v`, reads its
-`latest.json` asset and downloads the exe asset; `token` gives access to a private repo.
-`deckbuilder manifest` (in the app folder, after `build`) writes `release/latest.json` by hand.
+`latest.json` and `latest.json.sig` assets and downloads the exe asset; `token` gives access to a private repo.
+`deckbuilder manifest` (in the app folder, after `build`) writes `release/latest.json` and its
+`.sig` by hand.
 `.github/workflows/ci.yml` type-checks, runs the tests and builds a Linux executable for every
 push and pull request.
 

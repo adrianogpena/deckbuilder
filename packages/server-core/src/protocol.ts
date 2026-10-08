@@ -40,6 +40,8 @@ export interface UpdateState {
   /** `offline`: the release folder couldn't be read (off VPN, share down); the last good data is kept. */
   status: 'not-configured' | 'ok' | 'offline' | 'error';
   message?: string;
+  /** Message id (`error.<code>`) when the UI should show a translated text instead of `message`. */
+  code?: string;
   /** The running version. */
   current: string;
   available: boolean;

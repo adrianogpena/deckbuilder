@@ -7,12 +7,14 @@ import {
   AppError,
   isNewerVersion,
   MANIFEST,
+  MANIFEST_SIG,
   parseManifest,
   platformLabel,
   type ReleaseFile,
   type ReleaseManifest,
   type Routes,
   type UpdateState,
+  verifyManifest,
 } from '@deckbuilder/server-core';
 
 export const CHECK_INTERVAL_MS = 6 * 60 * 60_000;
@@ -26,6 +28,7 @@ const QUIT_DELAY_MS = 300;
 /** File operations the updater needs; faked in tests. */
 export interface UpdateFs {
   readText(path: string): Promise<string>;
+  readBytes(path: string): Promise<Uint8Array>;
   copy(from: string, to: string): Promise<void>;
   sha256(path: string): Promise<string>;
   rename(from: string, to: string): Promise<void>;
@@ -38,6 +41,7 @@ const withTimeout = <T>(p: Promise<T>, ms: number): Promise<T> =>
 
 const nodeFs: UpdateFs = {
   readText: (path) => withTimeout(readFile(path, 'utf8'), READ_TIMEOUT_MS),
+  readBytes: async (path) => new Uint8Array(await withTimeout(readFile(path), READ_TIMEOUT_MS)),
   copy: (from, to) => copyFile(from, to),
   sha256: (path) =>
     new Promise((resolve, reject) => {
@@ -77,10 +81,19 @@ export function readManifest(text: string): ReleaseManifest | null {
   }
 }
 
-export interface Release {
-  manifest: ReleaseManifest;
+/** What a source found, not yet trusted: the updater checks the signature, then parses. */
+export interface SignedRelease {
+  /** The exact bytes of latest.json. */
+  bytes: Uint8Array;
+  /** latest.json.sig; null when the source has none. */
+  signature: string | null;
   /** Copies `file` of this release to `to`. */
   download(file: ReleaseFile, to: string): Promise<void>;
+}
+
+export interface Release {
+  manifest: ReleaseManifest;
+  download: SignedRelease['download'];
 }
 
 /** Where releases come from: a folder or GitHub releases. */
@@ -88,7 +101,21 @@ export interface UpdateSource {
   /** Identifies the source: once it changes, what the previous one offered no longer applies. */
   id: string;
   /** Throws SourceError. */
-  latest(): Promise<Release>;
+  latest(): Promise<SignedRelease>;
+}
+
+/**
+ * The release, once its signature checks out against the app's public key. Throws
+ * UpdateError('updateBadSignature') for a missing or wrong signature, SourceError when the signed
+ * manifest isn't a valid release.
+ */
+export function verifiedRelease(signed: SignedRelease, publicKey: string): Release {
+  if (signed.signature === null || !verifyManifest(signed.bytes, signed.signature, publicKey)) {
+    throw new UpdateError('updateBadSignature', `${MANIFEST} isn't signed with this app's update key.`);
+  }
+  const manifest = readManifest(new TextDecoder().decode(signed.bytes));
+  if (!manifest) throw new SourceError(false, `${MANIFEST} is not a valid release`);
+  return { manifest, download: signed.download };
 }
 
 /**
@@ -102,15 +129,17 @@ export function folderSource(path: string, opts: { subfolder?: string; fs?: Upda
     async latest() {
       let unreachable = true;
       for (const dir of opts.subfolder ? [path, join(path, opts.subfolder)] : [path]) {
-        let text: string;
+        let bytes: Uint8Array;
         try {
-          text = await fs.readText(join(dir, MANIFEST));
+          bytes = await fs.readBytes(join(dir, MANIFEST));
         } catch {
           continue;
         }
         unreachable = false;
-        const manifest = readManifest(text);
-        if (manifest) return { manifest, download: (file, to) => fs.copy(join(dir, file.file), to) };
+        // Picks the folder holding a release; the updater trusts it only once the signature checks out.
+        if (!readManifest(new TextDecoder().decode(bytes))) continue;
+        const signature = await fs.readText(join(dir, MANIFEST_SIG)).catch(() => null);
+        return { bytes, signature, download: (file, to) => fs.copy(join(dir, file.file), to) };
       }
       throw new SourceError(unreachable, unreachable ? `Can't read ${MANIFEST} in ${path}` : `${MANIFEST} in ${path} is not a valid release`);
     },
@@ -179,11 +208,12 @@ export function githubSource(opts: { repo: string; tagPrefix: string; token?: st
       const find = (name: string) => release.assets.find((a) => a.name === name);
       const manifestAsset = find(MANIFEST);
       if (!manifestAsset) throw new SourceError(false, `Release ${release.tag_name} has no ${MANIFEST}`);
-      const text = await network(MANIFEST, async () => (await assetRequest(manifestAsset, READ_TIMEOUT_MS)).text());
-      const manifest = readManifest(text);
-      if (!manifest) throw new SourceError(false, `${MANIFEST} of ${release.tag_name} is not a valid release`);
+      const bytes = await network(MANIFEST, async () => new Uint8Array(await (await assetRequest(manifestAsset, READ_TIMEOUT_MS)).arrayBuffer()));
+      const sigAsset = find(MANIFEST_SIG);
+      const signature = sigAsset ? await network(MANIFEST_SIG, async () => (await assetRequest(sigAsset, READ_TIMEOUT_MS)).text()) : null;
       return {
-        manifest,
+        bytes,
+        signature,
         async download(file, to) {
           const asset = find(file.file);
           if (!asset) throw new Error(`Release ${release.tag_name} has no ${file.file}`);
@@ -208,6 +238,8 @@ const systemClock: Clock = {
 
 export interface UpdaterOptions {
   version: string;
+  /** The app's update public key (updatePublicKey); null: this build can't trust any release. */
+  publicKey: string | null;
   /** Read at every check; null means not configured. */
   source(): UpdateSource | null | Promise<UpdateSource | null>;
   execPath?: string;
@@ -276,8 +308,11 @@ export function createUpdater(opts: UpdaterOptions): Updater {
       state = { ...state, ...empty };
     }
     if (!source) return publish({ ...empty, status: 'not-configured', nextAt: schedule(null) });
+    if (opts.publicKey === null) {
+      return publish({ ...empty, canApply: false, status: 'not-configured', code: 'updateNoKey', message: 'No update key in this build', nextAt: schedule(null) });
+    }
     try {
-      const { manifest } = await source.latest();
+      const { manifest } = verifiedRelease(await source.latest(), opts.publicKey);
       const available = isNewerVersion(manifest.version, opts.version) && manifest.files[label] !== undefined;
       return publish({
         ...empty,
@@ -289,9 +324,11 @@ export function createUpdater(opts: UpdaterOptions): Updater {
         nextAt: schedule(CHECK_INTERVAL_MS),
       });
     } catch (e) {
+      // A tampered manifest must not keep advertising an update.
+      if (e instanceof UpdateError) return publish({ ...empty, status: 'error', code: e.code, message: e.message, nextAt: schedule(RETRY_MS) });
       // The last good result stays: a share that's briefly away shouldn't hide an update.
       const status = e instanceof SourceError && e.unreachable ? 'offline' : 'error';
-      return publish({ ...state, status, message: (e as Error).message, nextAt: schedule(RETRY_MS) });
+      return publish({ ...state, status, code: undefined, message: (e as Error).message, nextAt: schedule(RETRY_MS) });
     }
   };
 
@@ -314,14 +351,15 @@ export function createUpdater(opts: UpdaterOptions): Updater {
     if (!compiled) throw new UpdateError('updateFromSource', 'Running from source: only the built exe can update itself.');
     const source = await opts.source();
     if (!source) throw new UpdateError('updateNotConfigured', 'No update source is configured.');
+    if (opts.publicKey === null) throw new UpdateError('updateNoKey', 'This build has no update key.');
     if (applying) throw new UpdateError('updateBusy', 'An update is already running.');
     applying = true;
     try {
       let release: Release;
       try {
-        release = await source.latest();
+        release = verifiedRelease(await source.latest(), opts.publicKey);
       } catch (e) {
-        throw new UpdateError('updateUnreachable', (e as Error).message);
+        throw e instanceof UpdateError ? e : new UpdateError('updateUnreachable', (e as Error).message);
       }
       const { manifest } = release;
       if (!isNewerVersion(manifest.version, opts.version)) {

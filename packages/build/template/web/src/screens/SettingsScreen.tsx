@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AppearanceFields, type ApiError, detectLanguage, ErrorBanner, errorOf, isDesktop, LANGUAGES, PageHead, Spinner, useAsync, type Language } from '@deckbuilder/ui';
+import { AppearanceFields, type ApiError, detectLanguage, ErrorBanner, errorMessage, errorOf, isDesktop, LANGUAGES, PageHead, Spinner, useAsync, type Language } from '@deckbuilder/ui';
 import { APP } from '../../../app';
 import { api, type Settings } from '../api';
 import { t } from '../i18n';
@@ -127,7 +127,9 @@ function UpdatesCard({ folder, onFolder }: { folder: string; onFolder: (folder: 
   const u = state.data;
   const status = !u
     ? null
-    : u.status === 'not-configured'
+    : u.code
+      ? errorMessage({ kind: 'internal', code: u.code, message: u.message ?? '' })
+      : u.status === 'not-configured'
       ? t('settings.update.notConfigured')
       : u.available
         ? t('settings.update.available', { version: u.version ?? '' })

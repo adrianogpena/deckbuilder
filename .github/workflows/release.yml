@@ -1,7 +1,7 @@
 name: Release
 
 # Tag `<app>-v<version>` (e.g. `gallery-v0.2.0`) builds apps/<app> for every target and
-# uploads the executables and latest.json to a draft GitHub Release. <version> must match the app's package.json.
+# uploads the executables, latest.json and latest.json.sig to a draft GitHub Release. <version> must match the app's package.json.
 on:
   push:
     tags: ['*-v*']
@@ -36,6 +36,9 @@ jobs:
       - run: bun run typecheck
       - run: bun run --cwd "apps/$APP" build --target all
       - run: bun run --cwd "apps/$APP" deckbuilder manifest
+        env:
+          # PEM private key from `deckbuilder keygen`; the manifest step fails without it.
+          DECKBUILDER_SIGNING_KEY: ${{ secrets.DECKBUILDER_SIGNING_KEY }}
       - name: Upload to a draft release
         run: gh release create '${{ github.ref_name }}' --draft --title '${{ github.ref_name }}' apps/$APP/release/*
         env:

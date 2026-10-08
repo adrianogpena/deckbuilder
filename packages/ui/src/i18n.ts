@@ -45,6 +45,8 @@ const baseEn = {
   'error.updateUpToDate': 'Already up to date (v{version}).',
   'error.updateNoBuild': 'Release {version} has no build for {label}.',
   'error.updateChecksum': 'The copied file does not match the release checksum.',
+  'error.updateBadSignature': "The update isn't signed with this app's key.",
+  'error.updateNoKey': 'This build has no update key.',
   'error.updateFailed': 'Update failed: {message}',
 };
 
@@ -96,6 +98,8 @@ const basePtBR: Messages<typeof baseEn> = {
   'error.updateUpToDate': 'Já está atualizado (v{version}).',
   'error.updateNoBuild': 'O release {version} não tem build para {label}.',
   'error.updateChecksum': 'O arquivo copiado não confere com o checksum do release.',
+  'error.updateBadSignature': 'A atualização não está assinada com a chave deste app.',
+  'error.updateNoKey': 'Esta versão não tem chave de atualização.',
   'error.updateFailed': 'Falha na atualização: {message}',
 };
 

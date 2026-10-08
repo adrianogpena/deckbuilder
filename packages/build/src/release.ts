@@ -1,8 +1,9 @@
-import { copyFileSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
-import { bumpVersion, MANIFEST, type ReleaseManifest, type VersionBump } from '@deckbuilder/server-core';
+import { bumpVersion, MANIFEST, MANIFEST_SIG, type ReleaseManifest, type VersionBump } from '@deckbuilder/server-core';
 import { type AppDir, workspaceRoot } from './app.ts';
 import { buildExe, buildWeb, releasePrefix, type Target } from './build.ts';
+import { loadSigningKey, signManifest } from './keys.ts';
 
 export const BUMPS: VersionBump[] = ['patch', 'minor', 'major'];
 
@@ -15,6 +16,37 @@ export interface ReleaseOptions {
   dryRun: boolean;
   /** Runs typecheck and tests first. */
   checks: boolean;
+  /** Publishes without latest.json.sig; builds with an update key then refuse the release. */
+  unsigned: boolean;
+}
+
+/** The app's private signing key; throws without one, unless `unsigned` (then null and a warning). */
+function signingKey(app: AppDir, unsigned: boolean): string | null {
+  if (unsigned) {
+    console.warn(`warning: --unsigned: no ${MANIFEST_SIG}; builds with an update key refuse this release`);
+    return null;
+  }
+  const key = loadSigningKey(app.id);
+  if (!key) throw new Error('No signing key: run `deckbuilder keygen` (or pass --unsigned).');
+  return key;
+}
+
+interface ManifestFiles {
+  /** The exact bytes of latest.json. */
+  bytes: Uint8Array;
+  /** Their signature, or null when unsigned. */
+  sig: string | null;
+}
+
+function manifestFiles(manifest: ReleaseManifest, key: string | null): ManifestFiles {
+  const bytes = new TextEncoder().encode(`${JSON.stringify(manifest, null, 2)}\n`);
+  return { bytes, sig: key ? `${signManifest(bytes, key)}\n` : null };
+}
+
+/** Writes latest.json.sig, or removes a stale one when unsigned. */
+function writeSig(dir: string, sig: string | null): void {
+  if (sig) writeFileSync(join(dir, MANIFEST_SIG), sig);
+  else rmSync(join(dir, MANIFEST_SIG), { force: true });
 }
 
 /** Tags of an app's releases start with its folder name: `gallery-v0.2.0`. */
@@ -50,6 +82,7 @@ export async function release(app: AppDir, opts: ReleaseOptions): Promise<void> 
   const prefix = tagPrefix(app);
   const tag = `${prefix}${version}`;
   if (git(['tag', '--list', tag]) !== '') throw new Error(`Tag ${tag} already exists.`);
+  const key = signingKey(app, opts.unsigned);
   const notes = releaseNotes(git, prefix, version);
 
   const pkgPath = join(app.dir, 'package.json');
@@ -67,7 +100,7 @@ export async function release(app: AppDir, opts: ReleaseOptions): Promise<void> 
     for (const target of opts.targets) exes.push(await buildExe(next, target));
     const manifest = await buildManifest(next, exes, notes);
     const dest = join(opts.to, app.name);
-    await publish(exes, dest, manifest);
+    await publish(exes, dest, manifest, manifestFiles(manifest, key));
     console.log(`published ${tag} to ${dest}`);
   } catch (e) {
     writeFileSync(pkgPath, pkgText);
@@ -100,7 +133,8 @@ export async function buildManifest(app: AppDir, exes: string[], notes: string):
  * `deckbuilder manifest`: writes release/latest.json for the exes of the current version, with
  * notes since the previous release tag (what the release workflow uploads next to the exes).
  */
-export async function writeManifest(app: AppDir): Promise<void> {
+export async function writeManifest(app: AppDir, unsigned: boolean): Promise<void> {
+  const key = signingKey(app, unsigned);
   const dir = join(app.dir, 'release');
   const prefix = releasePrefix(app);
   const exes = readdirSync(dir)
@@ -109,8 +143,10 @@ export async function writeManifest(app: AppDir): Promise<void> {
   if (exes.length === 0) throw new Error(`No ${prefix}* files in ${dir}; run build first.`);
   const git = rootGit(await workspaceRoot(app.dir));
   const manifest = await buildManifest(app, exes, releaseNotes(git, tagPrefix(app), app.version));
-  writeFileSync(join(dir, MANIFEST), `${JSON.stringify(manifest, null, 2)}\n`);
-  console.log(`wrote ${join(dir, MANIFEST)} (${Object.keys(manifest.files).join(', ')})`);
+  const { bytes, sig } = manifestFiles(manifest, key);
+  writeSig(dir, sig);
+  writeFileSync(join(dir, MANIFEST), bytes);
+  console.log(`wrote ${join(dir, MANIFEST)}${sig ? ` and ${MANIFEST_SIG}` : ''} (${Object.keys(manifest.files).join(', ')})`);
 }
 
 /** Commit summaries since the app's last release tag, one `- ` line each. */
@@ -127,8 +163,11 @@ export function releaseNotes(git: (args: string[]) => string, prefix: string, ve
   return lines.length > 0 ? lines.map((s) => `- ${s}`).join('\n') : '- Maintenance release';
 }
 
-/** Copies the exes, then writes latest.json last and atomically, after every copy is verified. */
-async function publish(exes: string[], dest: string, manifest: ReleaseManifest): Promise<void> {
+/**
+ * Copies the exes, then writes latest.json last and atomically, after every copy is verified. Its
+ * signature goes in first, so a reader never sees a new manifest without it.
+ */
+async function publish(exes: string[], dest: string, manifest: ReleaseManifest, { bytes, sig }: ManifestFiles): Promise<void> {
   mkdirSync(dest, { recursive: true });
   for (const exe of exes) {
     const entry = Object.values(manifest.files).find((f) => f.file === basename(exe))!;
@@ -136,7 +175,8 @@ async function publish(exes: string[], dest: string, manifest: ReleaseManifest):
     copyFileSync(exe, target);
     if ((await sha256(target)) !== entry.sha256) throw new Error(`${target} does not match the built exe after copying`);
   }
+  writeSig(dest, sig);
   const tmp = join(dest, `${MANIFEST}.tmp`);
-  writeFileSync(tmp, `${JSON.stringify(manifest, null, 2)}\n`);
+  writeFileSync(tmp, bytes);
   renameSync(tmp, join(dest, MANIFEST));
 }

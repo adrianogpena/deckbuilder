@@ -5,6 +5,7 @@ import type { VersionBump } from '@deckbuilder/server-core';
 import { buildExe, buildWeb, parseTargets } from './build.ts';
 import { dev } from './dev.ts';
 import { loadApp } from './app.ts';
+import { keygen } from './keys.ts';
 import { createApp } from './new.ts';
 import { BUMPS, release, writeManifest } from './release.ts';
 
@@ -54,10 +55,11 @@ Next:
           target: { type: 'string' },
           'dry-run': { type: 'boolean', default: false },
           'no-checks': { type: 'boolean', default: false },
+          unsigned: { type: 'boolean', default: false },
         },
       });
       if (!values.to || !BUMPS.includes(values.bump as VersionBump)) {
-        console.error('Usage: deckbuilder release --to <folder> [--bump patch|minor|major] [--target <list>] [--dry-run] [--no-checks]');
+        console.error('Usage: deckbuilder release --to <folder> [--bump patch|minor|major] [--target <list>] [--dry-run] [--no-checks] [--unsigned]');
         process.exit(1);
       }
       await release(app, {
@@ -66,12 +68,22 @@ Next:
         targets: parseTargets(values.target),
         dryRun: values['dry-run'],
         checks: !values['no-checks'],
+        unsigned: values.unsigned,
       });
       break;
     }
-    case 'manifest':
-      await writeManifest(app);
+    case 'manifest': {
+      const { values } = parseArgs({ args, options: { unsigned: { type: 'boolean', default: false } } });
+      await writeManifest(app, values.unsigned);
       break;
+    }
+    case 'keygen': {
+      const { values } = parseArgs({ args, options: { force: { type: 'boolean', default: false } } });
+      const { privateKey, publicKey } = keygen({ appId: app.id, appDir: app.dir, force: values.force });
+      console.log(`wrote ${privateKey} (private: back it up, never commit it)
+wrote ${publicKey} (public: commit it; the exe embeds it)`);
+      break;
+    }
     default:
       console.log(`Usage: deckbuilder <command>
 
@@ -89,8 +101,12 @@ Next:
                               then commit and tag <app folder>-v<version> locally (never pushes)
         [--bump patch|minor|major] [--target <list>] [--no-checks]
         [--dry-run]           publish only; package.json and git stay as they are
-  manifest                    write release/latest.json for the exes of the current version in
-                              release/ (what GitHub releases need next to the exes)`);
+        [--unsigned]          skip latest.json.sig (signed builds then refuse the update)
+  manifest [--unsigned]       write release/latest.json and its .sig for the exes of the current
+                              version in release/ (what GitHub releases need next to the exes)
+  keygen [--force]            create the update signing key: private ~/.deckbuilder-keys/<id>.pem,
+                              public update-key.pub in the app folder (commit it); release and
+                              manifest sign with it (or env DECKBUILDER_SIGNING_KEY)`);
       process.exit(command ? 1 : 0);
   }
 }

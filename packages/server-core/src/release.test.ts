@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test';
-import { bumpVersion, isNewerVersion, parseManifest, platformLabel } from './release.ts';
+import { generateKeyPairSync, sign } from 'node:crypto';
+import { bumpVersion, isNewerVersion, parseManifest, platformLabel, verifyManifest } from './release.ts';
 
 const SHA = 'a'.repeat(64);
 const valid = { version: '1.2.3', notes: '- x', date: '2026-10-07', files: { 'win-x64': { file: 'App-1.2.3-win-x64.exe', sha256: SHA } } };
@@ -26,4 +27,22 @@ test('platform labels match the release file names', () => {
   expect(platformLabel('windows', 'x64')).toBe('win-x64');
   expect(platformLabel('darwin', 'arm64')).toBe('mac-arm64');
   expect(platformLabel('linux', 'arm64')).toBe('linux-arm64');
+});
+
+const keyPair = () => {
+  const { publicKey, privateKey } = generateKeyPairSync('ed25519');
+  return { privateKey, raw: (publicKey.export({ type: 'spki', format: 'der' }) as Buffer).subarray(-32).toString('base64') };
+};
+
+test('verifyManifest accepts the signed bytes only, with the signing key only', () => {
+  const { privateKey, raw } = keyPair();
+  const bytes = new TextEncoder().encode(JSON.stringify(valid));
+  const sig = sign(null, bytes, privateKey).toString('base64');
+  expect(verifyManifest(bytes, sig, raw)).toBe(true);
+  const changed = bytes.slice();
+  changed[10] = changed[10]! ^ 1;
+  expect(verifyManifest(changed, sig, raw)).toBe(false);
+  expect(verifyManifest(bytes, sig, keyPair().raw)).toBe(false);
+  expect(verifyManifest(bytes, 'not base64!', raw)).toBe(false);
+  expect(verifyManifest(bytes, sig, 'short')).toBe(false);
 });
