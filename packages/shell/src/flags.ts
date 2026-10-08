@@ -14,13 +14,21 @@ export interface Flags {
   window: boolean;
 }
 
-/** Parses the app's arguments (without the executable and script); unknown ones are ignored. */
+/**
+ * Parses the app's arguments (without the executable and script); unknown ones are ignored.
+ * With `--open-url` every other flag is ignored: a link holding a raw `"` can inject arguments.
+ */
 export function parseFlags(argv: string[]): Flags | { error: string } {
   const flag = (name: string) => argv.includes(name);
   const option = (name: string) => {
     const i = argv.indexOf(name);
     return i >= 0 ? argv[i + 1] : undefined;
   };
+
+  const openUrl = option('--open-url');
+  if (openUrl !== undefined) {
+    return { mode: 'window', noOpen: false, dev: false, help: false, openUrl, afterUpdate: false, window: false };
+  }
 
   let port: number | undefined;
   if (flag('--port')) {
@@ -37,9 +45,7 @@ export function parseFlags(argv: string[]): Flags | { error: string } {
   const dev = flag('--dev');
   const noOpen = flag('--no-open');
   const window = flag('--window');
-  const openUrl = option('--open-url');
-  const mode: Flags['mode'] = openUrl !== undefined ? 'window'
-    : flag('--browser') ? (noOpen ? 'none' : 'browser')
+  const mode: Flags['mode'] = flag('--browser') ? (noOpen ? 'none' : 'browser')
     : flag('--app') ? (noOpen ? 'none' : 'app')
     : dev && !window ? 'none' : 'window';
   return {
@@ -49,7 +55,6 @@ export function parseFlags(argv: string[]): Flags | { error: string } {
     idleExitMinutes,
     dev,
     help: flag('--help') || flag('-h'),
-    openUrl,
     afterUpdate: flag('--after-update'),
     window,
   };

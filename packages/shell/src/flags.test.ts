@@ -39,6 +39,13 @@ describe('parseFlags', () => {
     expect(parse('--browser', '--open-url', 'gallery://open/settings')).toMatchObject({ mode: 'window', openUrl: 'gallery://open/settings' });
   });
 
+  test('--open-url ignores every other flag', () => {
+    expect(parse('--open-url', 'gallery://open/x', '--dev', '--browser', '--port', 'abc')).toEqual({
+      ...parse(),
+      openUrl: 'gallery://open/x',
+    });
+  });
+
   test('--port', () => {
     expect(parse('--port', '7791').port).toBe(7791);
     expect(parse('--port', '0').port).toBe(0);

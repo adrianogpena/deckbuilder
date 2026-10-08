@@ -85,6 +85,10 @@ export async function runApp(opts: RunOptions): Promise<void> {
     console.log(helpText(app));
     process.exit(0);
   }
+  if (flags.dev && isCompiledExe()) {
+    console.error('--dev only works from source.');
+    process.exit(1);
+  }
 
   if (opts.urlProtocol && !isUrlScheme(app.id)) {
     throw new Error(`urlProtocol needs an app id that is a valid URL scheme, not "${app.id}".`);

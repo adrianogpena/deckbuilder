@@ -110,13 +110,26 @@ function json(status: number, body: unknown): Response {
   });
 }
 
+/** Reads a JSON object body, counting bytes as they arrive: a chunked body has no Content-Length. */
 async function readJson(req: Request): Promise<any> {
-  if (Number(req.headers.get('content-length') ?? 0) > MAX_BODY) throw invalid('bodyTooLarge', 'Request body too large.');
-  const text = await req.text();
-  if (text.length > MAX_BODY) throw invalid('bodyTooLarge', 'Request body too large.');
+  const tooLarge = () => invalid('bodyTooLarge', 'Request body too large.');
+  if (Number(req.headers.get('content-length') ?? 0) > MAX_BODY) throw tooLarge();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  if (req.body) {
+    for await (const chunk of req.body) {
+      size += chunk.byteLength;
+      if (size > MAX_BODY) throw tooLarge();
+      chunks.push(chunk);
+    }
+  }
+  const text = Buffer.concat(chunks).toString('utf8');
+  let body: unknown;
   try {
-    return JSON.parse(text || '{}');
+    body = JSON.parse(text || '{}');
   } catch {
     throw invalid('invalidJson', 'Invalid JSON.');
   }
+  if (body === null || typeof body !== 'object' || Array.isArray(body)) throw invalid('invalidJson', 'Invalid JSON.');
+  return body;
 }

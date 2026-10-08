@@ -17,7 +17,7 @@ afterEach(() => {
 
 function start(opts: { codes?: ReturnType<typeof launchCodes>; devOrigins?: string[] } = {}) {
   server = startServer({
-    routes: { 'GET /api/ping': () => ({ ok: true }) },
+    routes: { 'GET /api/ping': () => ({ ok: true }), 'POST /api/echo': ({ json }) => json() },
     token: TOKEN,
     codes: opts.codes ?? launchCodes(),
     devOrigins: opts.devOrigins,
@@ -110,4 +110,33 @@ test('index.html gets the CSP, every static file nosniff', async () => {
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+const post = (base: string, body: string | ReadableStream<Uint8Array>) =>
+  fetch(`${base}/api/echo`, { method: 'POST', headers: { [TOKEN_HEADER]: TOKEN }, body })
+    .then(async (r) => ({ status: r.status, body: (await r.json()) as Record<string, unknown> }));
+
+test('a chunked body over the cap is refused while it is read', async () => {
+  const base = start();
+  const chunk = new Uint8Array(64 * 1024).fill(32);
+  let sent = 0;
+  const body = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      if (sent >= 2_000_000) return controller.close();
+      sent += chunk.byteLength;
+      controller.enqueue(chunk);
+    },
+  });
+  const res = await post(base, body);
+  expect(res.status).toBe(400);
+  expect(res.body.code).toBe('bodyTooLarge');
+});
+
+test('only an object body is accepted', async () => {
+  const base = start();
+  expect((await post(base, '[]')).body.code).toBe('invalidJson');
+  expect((await post(base, 'null')).status).toBe(400);
+  expect((await post(base, '1')).body.code).toBe('invalidJson');
+  expect(await post(base, '')).toEqual({ status: 200, body: {} });
+  expect(await post(base, '{"a":1}')).toEqual({ status: 200, body: { a: 1 } });
 });

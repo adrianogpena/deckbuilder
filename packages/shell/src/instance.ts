@@ -1,6 +1,6 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto';
-import { linkSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { linkSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import type { Routes } from '@deckbuilder/server-core';
 import { isSafePath } from './link.ts';
 
@@ -110,11 +110,32 @@ function alive(pid: number): boolean {
   }
 }
 
+/** A lock older than this whose pid isn't the published instance is stale, whatever the pid. */
+const LOCK_MAX_AGE_MS = 60_000;
+
+/**
+ * A lock is stale when its process is gone, or when it is old and no published instance owns it:
+ * pids get reused, so a dead launch's lock can name a live, unrelated process.
+ */
+function staleLock(file: string, pid: number | null, now: number, instanceFile: string): boolean {
+  if (pid === null || pid === process.pid || !alive(pid)) return true;
+  let mtime: number;
+  try {
+    mtime = statSync(file).mtimeMs;
+  } catch {
+    return true;
+  }
+  return now - mtime > LOCK_MAX_AGE_MS && readInfo(instanceFile)?.pid !== pid;
+}
+
 /**
  * Takes the start-up lock that keeps two launches from both becoming the instance. 'held' means
- * another live launch has it; a lock left by a dead process is taken over. Released on exit.
+ * another live launch has it; a stale lock (see `staleLock`) is taken over. Released on exit.
+ * `instanceFile` defaults to instance.json next to the lock.
  */
-export function acquireLock(file: string): 'acquired' | 'held' {
+export function acquireLock(file: string, opts: { now?: () => number; instanceFile?: string } = {}): 'acquired' | 'held' {
+  const now = opts.now ?? Date.now;
+  const instanceFile = opts.instanceFile ?? join(dirname(file), 'instance.json');
   mkdirSync(dirname(file), { recursive: true });
   // Link a complete temp file into place: the lock never exists without its pid.
   const tmp = `${file}.${process.pid}.tmp`;
@@ -123,16 +144,20 @@ export function acquireLock(file: string): 'acquired' | 'held' {
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         linkSync(tmp, file);
-        process.on('exit', () => {
-          if (lockPid(file) === process.pid) rmSync(file, { force: true });
-        });
-        return 'acquired';
       } catch (err) {
         if ((err as { code?: string }).code !== 'EEXIST') throw err;
+        if (!staleLock(file, lockPid(file), now(), instanceFile)) return 'held';
+        rmSync(file, { force: true });
+        continue;
       }
-      const pid = lockPid(file);
-      if (pid !== null && pid !== process.pid && alive(pid)) return 'held';
-      rmSync(file, { force: true });
+      // Two launches that both found the same stale lock: the later one removed ours. Wait for
+      // such a launch to finish its link, then trust only what is on disk.
+      Bun.sleepSync(100);
+      if (lockPid(file) !== process.pid) return 'held';
+      process.on('exit', () => {
+        if (lockPid(file) === process.pid) rmSync(file, { force: true });
+      });
+      return 'acquired';
     }
     return 'held';
   } finally {

@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from 'bun:test';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { launchCodes, startServer } from '@deckbuilder/server-core';
 import { acquireLock, createInstance, handOff, type OpenMode } from './instance.ts';
 import { launchUrl } from './urls.ts';
@@ -117,4 +117,25 @@ test('a lock with garbage content is taken over', () => {
   const file = lockFile();
   writeFileSync(file, 'not a pid');
   expect(acquireLock(file)).toBe('acquired');
+});
+
+test('an old lock of a live process without a published instance is taken over', () => {
+  const file = lockFile();
+  writeFileSync(file, String(process.ppid));
+  const old = new Date(Date.now() - 120_000);
+  utimesSync(file, old, old);
+  expect(acquireLock(file)).toBe('acquired');
+});
+
+test('an old lock of the published instance is held', () => {
+  const file = lockFile();
+  writeFileSync(file, String(process.ppid));
+  writeFileSync(join(dirname(file), 'instance.json'), JSON.stringify({ pid: process.ppid, port: 1, secret: 'x' }));
+  expect(acquireLock(file, { now: () => Date.now() + 120_000 })).toBe('held');
+});
+
+test('a fresh lock of a live process without a published instance is held', () => {
+  const file = lockFile();
+  writeFileSync(file, String(process.ppid));
+  expect(acquireLock(file, { instanceFile: join(dirname(file), 'none.json') })).toBe('held');
 });
