@@ -50,12 +50,15 @@ export function langOfFile(name: string): Lang {
   return LANG_BY_EXT[extOf(name)] ?? 'text';
 }
 
-export type PreviewKind = 'markdown' | 'json' | 'code' | 'image' | 'text';
+export type PreviewKind = 'markdown' | 'json' | 'code' | 'image' | 'log' | 'text';
 
 const IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'ico']);
+// app.log, and rotated ones: server.log.1, server.log.2026-10-08.
+const LOG_NAME = /\.log(\.[0-9][\w-]*)?$/i;
 
 /** How FilePreview shows a file: images need its bytes (`/api/fs/raw`), the rest its text. */
 export function previewKind(name: string): PreviewKind {
+  if (LOG_NAME.test(name)) return 'log';
   const ext = extOf(name);
   if (IMAGE_EXTS.has(ext)) return 'image';
   const lang = LANG_BY_EXT[ext];

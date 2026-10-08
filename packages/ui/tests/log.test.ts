@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import {
+  addBookmark,
+  addHighlight,
   emptyTail,
   filterLines,
   firstLineAtOrAfter,
@@ -9,9 +11,12 @@ import {
   matcher,
   matcherError,
   matchIndexes,
+  MAX_BOOKMARKS,
+  MAX_HIGHLIGHTS,
   nextHighlightColor,
   segments,
   tailReducer,
+  withMarkers,
   wordAt,
 } from '../src/log.ts';
 
@@ -158,5 +163,46 @@ describe('wordAt and nextHighlightColor', () => {
     expect(nextHighlightColor([{ text: 'a', color: 'accent' }, { text: 'b', color: 'warn' }])).toBe('ok');
     const all = (['accent', 'ok', 'warn', 'err', 'info', 'debug'] as const).map((color) => ({ text: color, color }));
     expect(nextHighlightColor(all)).toBe('accent');
+  });
+});
+
+describe('addHighlight', () => {
+  test('adds trimmed terms in the next free color and ignores duplicates', () => {
+    const one = addHighlight([], ' Foo ');
+    expect(one).toEqual([{ text: 'Foo', color: 'accent' }]);
+    expect(addHighlight(one, 'foo')).toBe(one);
+    expect(addHighlight(one, '  ')).toBe(one);
+    expect(addHighlight(one, 'bar')[1]).toEqual({ text: 'bar', color: 'ok' });
+  });
+
+  test('stops at the maximum', () => {
+    const full = Array.from({ length: MAX_HIGHLIGHTS }, (_, i) => ({ text: `t${i}`, color: 'accent' as const }));
+    expect(addHighlight(full, 'new')).toBe(full);
+  });
+});
+
+describe('addBookmark', () => {
+  test('drops the oldest beyond the maximum', () => {
+    const list = Array.from({ length: MAX_BOOKMARKS }, (_, i) => ({ offset: i, label: `b${i}`, at: 100 + i, preview: '' }));
+    list[3] = { ...list[3]!, at: 1 };
+    const next = addBookmark(list, { offset: 999, label: 'new', at: 1000, preview: '' });
+    expect(next).toHaveLength(MAX_BOOKMARKS);
+    expect(next.some((b) => b.label === 'b3')).toBe(false);
+    expect(next.at(-1)!.label).toBe('new');
+  });
+});
+
+describe('withMarkers', () => {
+  const lines = linesOf({ from: 100, to: 112, text: 'aaa\nbbb\nccc\n' }, 0, null);
+  const bm = (offset: number, at = 0) => ({ offset, label: String(offset), at, preview: '' });
+
+  test('returns the lines when no bookmark shows', () => {
+    expect(withMarkers(lines, [], 100, 112)).toBe(lines);
+    expect(withMarkers(lines, [bm(50), bm(200)], 100, 112)).toBe(lines);
+  });
+
+  test('puts markers above the first line at or after the offset, and at the end', () => {
+    const rows = withMarkers(lines, [bm(112), bm(106), bm(102), bm(104)], 100, 112);
+    expect(rows.map((r) => ('n' in r ? r.text : `#${r.offset}`))).toEqual(['aaa', '#102', '#104', 'bbb', '#106', 'ccc', '#112']);
   });
 });

@@ -1,4 +1,4 @@
-import { Icon, JsonTree, PanelBanner, PanelNotice, t } from '@deckbuilder/ui';
+import { type HighlightTerm, Icon, JsonTree, linesOf, LogView, PanelBanner, PanelNotice, t } from '@deckbuilder/ui';
 import { useMemo, useState } from 'react';
 import { CodeView } from './CodeView';
 import { langOfFile, previewKind } from './languages';
@@ -7,7 +7,7 @@ import { MarkdownView } from './MarkdownView';
 /** `/api/fs/read` gives text or `{ binary }`; images come as a URL (a blob URL of `/api/fs/raw`). */
 export type PreviewContent = { text: string; truncated?: boolean } | { binary: true } | { url: string };
 
-/** Shows a file by its extension: rendered markdown, a JSON tree, highlighted code, an image or plain text. */
+/** Shows a file by its extension: rendered markdown, a JSON tree, highlighted code, a log, an image or plain text. */
 export function FilePreview({ name, content, resolveImage }: { name: string; content: PreviewContent; resolveImage?(src: string): string | null }) {
   const kind = previewKind(name);
 
@@ -25,6 +25,7 @@ export function FilePreview({ name, content, resolveImage }: { name: string; con
       {content.truncated && <PanelBanner tone="warn" icon="alert">{t('preview.truncated')}</PanelBanner>}
       {kind === 'markdown' ? <MarkdownPreview text={content.text} resolveImage={resolveImage} />
         : kind === 'json' ? <JsonPreview text={content.text} />
+          : kind === 'log' ? <LogPreview text={content.text} />
           : <div className="file-preview-body"><CodeView value={content.text} lang={kind === 'code' ? langOfFile(name) : 'text'} lineNumbers /></div>}
     </div>
   );
@@ -44,6 +45,13 @@ function MarkdownPreview({ text, resolveImage }: { text: string; resolveImage?(s
       </div>
     </>
   );
+}
+
+/** A read-only LogView of the text: no follow, no bookmarks. */
+function LogPreview({ text }: { text: string }) {
+  const lines = useMemo(() => linesOf({ from: 0, to: 0, text }, 0, null), [text]);
+  const [highlights, setHighlights] = useState<HighlightTerm[]>([]);
+  return <div className="file-preview-body file-preview-log"><LogView lines={lines} highlights={highlights} onHighlightsChange={setHighlights} /></div>;
 }
 
 function JsonPreview({ text }: { text: string }) {

@@ -24,6 +24,15 @@ describe('previewKind', () => {
     expect(previewKind('logo.SVG')).toBe('image');
     expect(previewKind('a.txt')).toBe('text');
   });
+
+  test('sees log files, rotated ones included', () => {
+    expect(previewKind('app.log')).toBe('log');
+    expect(previewKind('server.log.1')).toBe('log');
+    expect(previewKind('server.log.2026-10-08')).toBe('log');
+    expect(previewKind('catalog.txt')).toBe('text');
+    expect(previewKind('logo.png')).toBe('image');
+    expect(previewKind('blog.md')).toBe('markdown');
+  });
 });
 
 describe('parserOf', () => {

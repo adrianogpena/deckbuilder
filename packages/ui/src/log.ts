@@ -242,3 +242,54 @@ export function nextHighlightColor(terms: readonly HighlightTerm[]): HighlightCo
   const used = new Set(terms.map((t) => t.color));
   return HIGHLIGHT_COLORS.find((c) => !used.has(c)) ?? HIGHLIGHT_COLORS[terms.length % HIGHLIGHT_COLORS.length]!;
 }
+
+export const MAX_HIGHLIGHTS = 50;
+export const MAX_BOOKMARKS = 50;
+
+/** `terms` plus `text` in the next free color; unchanged for blank text, a duplicate (case-insensitive) or a full list. */
+export function addHighlight(terms: HighlightTerm[], text: string): HighlightTerm[] {
+  const term = text.trim();
+  const lower = term.toLowerCase();
+  if (!term || terms.length >= MAX_HIGHLIGHTS || terms.some((t) => t.text.toLowerCase() === lower)) return terms;
+  return [...terms, { text: term, color: nextHighlightColor(terms) }];
+}
+
+export function nextColor(color: HighlightColor): HighlightColor {
+  return HIGHLIGHT_COLORS[(HIGHLIGHT_COLORS.indexOf(color) + 1) % HIGHLIGHT_COLORS.length]!;
+}
+
+/** `list` plus `bookmark`; beyond `MAX_BOOKMARKS` the oldest (by `at`) are dropped. */
+export function addBookmark(list: LogBookmark[], bookmark: LogBookmark): LogBookmark[] {
+  const all = [...list, bookmark];
+  if (all.length <= MAX_BOOKMARKS) return all;
+  const kept = new Set([...all].sort((a, b) => b.at - a.at).slice(0, MAX_BOOKMARKS));
+  return all.filter((b) => kept.has(b));
+}
+
+/** The file shrank below the bookmark. */
+export const isStale = (b: LogBookmark, endOffset: number | undefined) => endOffset !== undefined && b.offset > endOffset;
+
+/**
+ * `lines` with a marker before the first line at or after each bookmark's offset (at the end when
+ * there is none). Bookmarks before `windowStart` (the first loaded byte) or stale ones get no marker.
+ */
+export function withMarkers(
+  lines: LogLine[],
+  bookmarks: readonly LogBookmark[],
+  windowStart: number,
+  endOffset: number | undefined,
+): Array<LogLine | LogBookmark> {
+  const shown = bookmarks
+    .filter((b) => b.offset >= windowStart && !isStale(b, endOffset))
+    .map((b) => ({ b, at: firstLineAtOrAfter(lines, b.offset) }))
+    .map((m) => ({ ...m, at: m.at < 0 ? lines.length : m.at }))
+    .sort((x, y) => x.at - y.at || x.b.offset - y.b.offset || x.b.at - y.b.at);
+  if (!shown.length) return lines;
+  const out: Array<LogLine | LogBookmark> = [];
+  let m = 0;
+  for (let i = 0; i <= lines.length; i++) {
+    while (m < shown.length && shown[m]!.at === i) out.push(shown[m++]!.b);
+    if (i < lines.length) out.push(lines[i]!);
+  }
+  return out;
+}
