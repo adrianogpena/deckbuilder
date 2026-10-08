@@ -14,6 +14,25 @@ export interface Settings extends ThemeSettings {
   gridLayout?: unknown;
   /** State of the Explorer screen; the server validates it. */
   explorer?: ExplorerSettings;
+  /** State of the Workbench screen; the server validates it. */
+  workbench?: WorkbenchSettings;
+}
+
+export interface WorkbenchSettings {
+  sizes?: { main: [number, number]; results: [number, number] };
+  widths?: Record<string, number>;
+}
+
+export interface DemoRow {
+  id: number;
+  name: string;
+  amount: number;
+  date: string;
+}
+
+export interface DemoSecret {
+  id: string;
+  token?: { hasSecret: true };
 }
 
 export interface ExplorerSettings {
@@ -84,5 +103,10 @@ export const api = {
   fsDelete: (root: string, paths: string[]) => request<{ ok: true }>('POST', '/api/fs/delete', {}, { root, paths }),
   fsReveal: (root: string, path: string) => request<{ ok: true }>('POST', '/api/fs/reveal', {}, { root, path }),
   fsOpen: (root: string, path: string) => request<{ ok: true }>('POST', '/api/fs/open', {}, { root, path }),
+  saveTarget: () => request<{ path: string | null }>('POST', '/api/demo/save-target'),
+  saveDemo: (path: string, text: string) => request<{ ok: true }>('POST', '/api/demo/save', {}, { path, text }),
+  demoSecrets: () => request<DemoSecret[]>('GET', '/api/demo/secrets'),
+  createDemoSecret: (input: Record<string, unknown>) => request<DemoSecret>('POST', '/api/demo/secrets', {}, input),
+  updateDemoSecret: (id: string, input: Record<string, unknown>) => request<DemoSecret>('PUT', '/api/demo/secrets', { id }, input),
   echo: (text: string) => request<{ text: string; length: number; at: string }>('POST', '/api/echo', {}, { text }),
 };

@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { PALETTES } from '@deckbuilder/server-core/palettes';
-import { CommandPalette, detectLanguage, ErrorBanner, Icon, type IconName, isDesktop, isTyping, type PaletteItem, setLanguage, Sidebar, Spinner, useAsync, useCommandPalette, useHashRoute, useHeartbeat, useKey, useTheme } from '@deckbuilder/ui';
+import { CommandPalette, detectLanguage, ErrorBanner, Icon, type IconName, isDesktop, isTyping, type PaletteItem, PanelLoading, setLanguage, Sidebar, Spinner, useAsync, useCommandPalette, useHashRoute, useHeartbeat, useKey, useTheme } from '@deckbuilder/ui';
 import { APP } from '../../app';
 import { api, type Settings } from './api';
 import { type MessageKey, t } from './i18n';
@@ -10,7 +10,10 @@ import { Home } from './screens/Home';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { TabsScreen } from './screens/TabsScreen';
 
-const SCREENS = ['home', 'tabs', 'grid', 'explorer', 'settings'] as const;
+// The editor and its language parsers are a separate chunk, loaded on first visit.
+const WorkbenchScreen = lazy(() => import('./screens/WorkbenchScreen').then((m) => ({ default: m.WorkbenchScreen })));
+
+const SCREENS = ['home', 'tabs', 'grid', 'explorer', 'workbench', 'settings'] as const;
 type ScreenId = (typeof SCREENS)[number];
 
 const NAV: Array<{ title: MessageKey; items: Array<{ id: ScreenId; label: MessageKey; icon: IconName; hint?: string }> }> = [
@@ -21,7 +24,8 @@ const NAV: Array<{ title: MessageKey; items: Array<{ id: ScreenId; label: Messag
       { id: 'tabs', label: 'nav.tabs', icon: 'split', hint: '2' },
       { id: 'grid', label: 'nav.grid', icon: 'cube', hint: '3' },
       { id: 'explorer', label: 'nav.explorer', icon: 'folder', hint: '4' },
-      { id: 'settings', label: 'nav.settings', icon: 'settings', hint: '5' },
+      { id: 'workbench', label: 'nav.workbench', icon: 'play', hint: '5' },
+      { id: 'settings', label: 'nav.settings', icon: 'settings', hint: '6' },
     ],
   },
 ];
@@ -126,6 +130,8 @@ function renderScreen(screen: ScreenId, settings: Settings, save: (patch: Partia
       return <GridScreen settings={settings} onSave={save} />;
     case 'explorer':
       return <ExplorerScreen settings={settings} onSave={save} />;
+    case 'workbench':
+      return <Suspense fallback={<PanelLoading />}><WorkbenchScreen settings={settings} onSave={save} /></Suspense>;
     case 'settings':
       return <SettingsScreen settings={settings} onChange={save} onQuit={onQuit} />;
     default:

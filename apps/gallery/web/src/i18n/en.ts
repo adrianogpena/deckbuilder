@@ -5,6 +5,7 @@ export const en = {
   'nav.tabs': 'Tabs',
   'nav.grid': 'Grid',
   'nav.explorer': 'Explorer',
+  'nav.workbench': 'Workbench',
   'nav.settings': 'Settings',
   'nav.theme.dark': 'Dark theme',
   'nav.theme.light': 'Light theme',
@@ -124,6 +125,19 @@ export const en = {
   'settings.update.check': 'Check now',
   'settings.update.apply': 'Update and restart',
   'settings.update.restarting': 'Restarting with v{version}…',
+
+  'workbench.crumb': 'Streaming, table and editor',
+  'workbench.run': 'Run',
+  'workbench.cancel': 'Cancel',
+  'workbench.export': 'Export CSV',
+  'workbench.exportHint': 'Exports the first {count} rows.',
+  'workbench.log.start': 'Running: {query}',
+  'workbench.log.progress': '{count} rows received',
+  'workbench.log.done': 'Done: {count} rows',
+  'workbench.log.cancelled': 'Cancelled after {count} rows',
+  'workbench.log.exported': 'Exported {count} rows to {path}',
+  'workbench.tokenTitle': 'Demo secret',
+  'workbench.token': 'Token',
 
   'app.stopped': '{name} stopped. You can close this tab.',
 

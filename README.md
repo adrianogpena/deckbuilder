@@ -20,6 +20,8 @@ library inside), and Windows, Linux and macOS executables can all be built from 
 ![Home, dark](docs/home-dark.png)
 ![Home, light](docs/home-light.png)
 ![Settings](docs/settings.png)
+![Explorer](docs/explorer.png)
+![Workbench](docs/workbench.png)
 
 The Electron version of this project is in the git history (commit `559a1a5`); see
 `docs/shell-decision.md` for why webview-bun replaced it.
@@ -73,20 +75,25 @@ packages/
                  with CSP, AppError, routes type; protocol.ts (token header, launch code
                  parameter, dev ports, error body) is shared with the UI
                  release.ts: latest.json manifest, signature check and version helpers
+                 stream.ts: `ndjson` streaming responses
   server-mods/   Opt-in route modules: settings (GET/PUT /api/settings), info (GET /api/info),
-                 update (self-updater + GET /api/update, POST /api/update/check|apply)
+                 update (self-updater + GET /api/update, POST /api/update/check|apply),
+                 records (JSON-file record store + CRUD routes), rooted-fs (/api/fs/*),
+                 dialogs (/api/dialog/*)
   shell/         runApp(): parses flags, single instance, starts the server, opens a window
                  (one Worker per window, Webview.run() blocks its thread), an app window or
                  the browser
   platform/      OS-specific code: open URL, find Edge/Chrome for app windows, app data folder, error message box, processes
-                 (run with timeout, kill tree, start detached), exe swap for updates;
+                 (run with timeout, kill tree, start detached), exe swap for updates; json-file (atomic writes),
+                 secrets (DPAPI), dialogs (native pickers), files (reveal, open), trash (recycle bin);
                  win/: toasts, tray, autostart (HKCU Run key), URL protocol, PowerShell helpers; theme.ts: osThemeKind
   ui/            React components (Sidebar, Badge, ErrorBanner, Modal, Icon, ...), hooks,
                  API client, i18n engine with the base messages, hash routing, styles.css
+  editor/        CodeMirror 6 editor and content viewers (CodeEditor, CodeView, MarkdownView, FilePreview)
   build/         The `deckbuilder` CLI used by app scripts: dev, build:web, build, release; new
                  template/ is the app that `deckbuilder new` copies
 apps/
-  gallery/       Example app (Home, Tabs, Grid and Settings screens, echo and toast endpoints)
+  gallery/       Example app (Home, Tabs, Grid, Explorer, Workbench and Settings screens, echo and toast endpoints)
     app.ts         Name and id
     server/        main.ts (composes routes, calls runApp) and routes.ts (the app's own API)
     web/           Vite root: index.html, public/favicon.svg (also the exe icon), src/
@@ -134,6 +141,36 @@ source directly; there is no package build step.
   `@deckbuilder/ui/grid` (no React; the gallery's `gridLayout`), and bring a removed panel back
   with `addItem(items, def)`. Inside a panel, `PanelLoading`, `PanelNotice` and `PanelBanner`
   show loading, empty/error and offline states. `PanelFrame` also works on its own.
+- **Explorer layout**: `<SplitView direction sizes onResize>` (resizable panes, persist `sizes` with
+  `useDebouncedSave`), `<TreeView>` (lazy tree with keyboard, drag and rename), `<ContextMenu>` and
+  `<Explorer>` (sidebar plus tab workspace). The gallery's Explorer screen puts them together.
+- **Dialogs**: `useDialogs()` (from `@deckbuilder/ui`) gives `confirm` and `prompt` modals.
+  Native pickers: `dialogRoutes()` on the server and the `dialogs` client in the UI (`pickFolder`,
+  `pickFile`, `saveFileAs`). Tested on Windows; other systems are best-effort.
+- **DataTable**: `<DataTable columns rows rowKey />` windows its rows (fixed row height), sorts,
+  resizes columns (`widths` + `onWidthsChange` to persist), selects and copies. `toCsv` and `toTsv`
+  build exports.
+- **Editor and viewers**: add `@deckbuilder/editor` to the app. `CodeEditor` (Ctrl+Enter runs
+  `onRun`), `CodeView`, `MarkdownView`, `JsonTree` (from `@deckbuilder/ui`) and `FilePreview`
+  (picks a viewer by file name). It brings the CodeMirror language parsers (~700 kB): load the
+  screen with `React.lazy` and set `chunkSizeWarningLimit: 800` in `vite.config.ts`, as the gallery does.
+- **Streaming**: `ndjson(req, async (emit, signal) => ...)` in a route streams items without
+  buffering; `useStream().start(path, params)` reads them into state (`cancel()` aborts) and
+  `<OutputPanel lines />` shows log lines. See `GET /api/demo/rows` and the Workbench screen.
+- **Records**: `recordStore({ dir, name, validate })` keeps items in a JSON file, and
+  `recordRoutes(store, '/api/things')` exposes list/get/create/update/delete. In the UI,
+  `ResourceList` and `ResourceForm` edit them. `secretFields: ['token']` with `secrets: secretStore(APP.id)`
+  moves those fields into the secret store; the UI only sees `{ hasSecret: true }` and server code reads the
+  value with `store.secret(id, 'token')`.
+- **Rooted file system**: `rootedFs({ roots })` serves `/api/fs/*` (list, read, write, create,
+  rename, move, delete, search). Requests carry a root id and a relative path, never an absolute
+  path; deletes go to the recycle bin and a root can be `readOnly`. A link is never followed out
+  of its root, but a path swapped between the check and the use (TOCTOU) is not guarded against.
+- **Secrets**: `secretStore(appId)` (from `@deckbuilder/platform`) encrypts values with the Windows
+  user's DPAPI key; pass it as `secrets` to a `recordStore`. Routes must return `hasSecret`, never the value.
+  Tested on Windows only.
+- **Opening files**: `revealInFolder` and `openWithDefault` (from `@deckbuilder/platform`); the
+  latter refuses executables.
 - **Startup work** (timers, update checks): put it in `runApp`'s `onStart`, which a launch that
   hands off to a running instance never reaches.
 - **Notifications** (Windows): `createToaster()` from `@deckbuilder/platform`, then

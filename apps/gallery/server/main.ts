@@ -31,6 +31,13 @@ export interface Settings extends BaseSettings {
   gridLayout?: GridItem[];
   /** Explorer screen: sidebar fractions, collapsed state, expanded tree ids per project and the tab layout. */
   explorer?: ExplorerSettings;
+  /** Workbench screen: split fractions and column widths. */
+  workbench?: WorkbenchSettings;
+}
+
+export interface WorkbenchSettings {
+  sizes?: { main: [number, number]; results: [number, number] };
+  widths?: Record<string, number>;
 }
 
 export interface ExplorerSettings {
@@ -65,6 +72,36 @@ function validExplorer(raw: unknown): ExplorerSettings | null {
   return { sizes: [sizes[0], sizes[1]], collapsed, expanded: out, ...(tabs !== undefined && { tabs }) };
 }
 
+const WORKBENCH_COLUMNS = ['id', 'name', 'amount', 'date'];
+
+const validPair = (v: unknown): [number, number] | null =>
+  Array.isArray(v) && v.length === 2 && v.every((n) => typeof n === 'number' && n >= 0 && n <= 1) && Math.abs(v[0] + v[1] - 1) <= 0.01
+    ? [v[0], v[1]]
+    : null;
+
+/** A copy of `raw` when it is a well-formed workbench state, else null. */
+function validWorkbench(raw: unknown): WorkbenchSettings | null {
+  const r = raw as Partial<WorkbenchSettings> | null;
+  if (typeof r !== 'object' || r === null) return null;
+  const out: WorkbenchSettings = {};
+  if (r.sizes !== undefined) {
+    const main = validPair(r.sizes?.main);
+    const results = validPair(r.sizes?.results);
+    if (!main || !results) return null;
+    out.sizes = { main, results };
+  }
+  if (r.widths !== undefined) {
+    if (typeof r.widths !== 'object' || r.widths === null || Array.isArray(r.widths)) return null;
+    const widths: Record<string, number> = {};
+    for (const [id, w] of Object.entries(r.widths)) {
+      if (!WORKBENCH_COLUMNS.includes(id) || !Number.isInteger(w) || w < 40 || w > 2000) return null;
+      widths[id] = w;
+    }
+    out.widths = widths;
+  }
+  return out;
+}
+
 const dataDir = appHome(APP.id);
 const autostart = createAutostart({ name: APP.name });
 const settings = settingsStore<Settings>({
@@ -81,6 +118,8 @@ const settings = settingsStore<Settings>({
     if (gridLayout) next.gridLayout = gridLayout;
     const explorer = validExplorer(patch.explorer);
     if (explorer) next.explorer = explorer;
+    const workbench = validWorkbench(patch.workbench);
+    if (workbench) next.workbench = workbench;
   },
   onChange(next, prev) {
     if (next.autostart !== prev.autostart) void autostart.set(next.autostart);

@@ -1,7 +1,7 @@
 import { statSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
-import { appHome, createToaster, openWithDefault, revealInFolder } from '@deckbuilder/platform';
-import { invalid, type Routes } from '@deckbuilder/server-core';
+import { appHome, createToaster, openWithDefault, revealInFolder, saveFileAs, secretStore, writeFileAtomic } from '@deckbuilder/platform';
+import { forbidden, invalid, ndjson, type Routes } from '@deckbuilder/server-core';
 import { dialogRoutes, fromPlatform, recordRoutes, recordStore, rootedFs } from '@deckbuilder/server-mods';
 import type { StartContext } from '@deckbuilder/shell';
 import { APP } from '../app.ts';
@@ -30,6 +30,21 @@ const projects = recordStore<{ name: string; path: string }>({
 });
 const fs = rootedFs({ roots: async () => (await projects.list()).map((p) => ({ id: p.id, path: p.path })) });
 
+/** Demo: a record with a secret field, the shape a DB app uses for connections. */
+const demoSecrets = recordStore<{ token?: unknown }>({
+  dir: appHome(APP.id),
+  name: 'demoSecrets',
+  secretFields: ['token'],
+  secrets: secretStore(APP.id),
+  validate: () => ({}),
+});
+
+const MAX_DEMO_ROWS = 100_000;
+const DEMO_BATCH = 500;
+const DEMO_PAUSE_MS = 20;
+/** Paths the save dialog returned and `/api/demo/save` may still write once. */
+const saveTargets = new Set<string>();
+
 const target = async (json: <T>() => Promise<T>) => {
   const { root, path } = await json<{ root?: unknown; path?: unknown }>();
   return (await fs.resolve(String(root), typeof path === 'string' ? path : '', { mustExist: true })).real;
@@ -51,6 +66,28 @@ export const routes = (ctx: StartContext): Routes => ({
     await openWithDefault(await target(json)).catch(fromPlatform);
     return { ok: true };
   },
+  'GET /api/demo/rows': ({ req, query }) => {
+    const asked = Number(query.get('count') ?? 50_000);
+    const count = Number.isInteger(asked) ? Math.min(Math.max(asked, 1), MAX_DEMO_ROWS) : 50_000;
+    return ndjson(req, async (emit, signal) => {
+      for (let id = 1; id <= count && !signal.aborted; id++) {
+        await emit({ id, name: `Item ${id}`, amount: Math.round(((id * 7919) % 100_000) / 10) / 10, date: new Date(Date.UTC(2024, 0, 1) + (id % 730) * 86_400_000).toISOString().slice(0, 10) });
+        if (id % DEMO_BATCH === 0) await Bun.sleep(DEMO_PAUSE_MS);
+      }
+    });
+  },
+  'POST /api/demo/save-target': async () => {
+    const path = await saveFileAs({ suggestedName: 'rows.csv', filters: [{ name: 'CSV', patterns: ['*.csv'] }] }).catch(fromPlatform);
+    if (path) saveTargets.add(path);
+    return { path };
+  },
+  'POST /api/demo/save': async ({ json }) => {
+    const { path, text } = await json<{ path?: unknown; text?: unknown }>();
+    if (typeof path !== 'string' || typeof text !== 'string' || !saveTargets.delete(path)) throw forbidden('notASaveTarget', 'Choose where to save first.');
+    await writeFileAtomic(path, text).catch(fromPlatform);
+    return { ok: true };
+  },
+  ...recordRoutes(demoSecrets, '/api/demo/secrets'),
   // Example endpoint; delete it once real ones exist.
   'POST /api/echo': async ({ json }) => {
     const body = await json<{ text?: unknown }>();

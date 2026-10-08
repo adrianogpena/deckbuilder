@@ -7,6 +7,7 @@ export const ptBR: Messages<typeof en> = {
   'nav.tabs': 'Abas',
   'nav.grid': 'Grade',
   'nav.explorer': 'Explorador',
+  'nav.workbench': 'Bancada',
   'nav.settings': 'Configurações',
   'nav.theme.dark': 'Tema escuro',
   'nav.theme.light': 'Tema claro',
@@ -126,6 +127,19 @@ export const ptBR: Messages<typeof en> = {
   'settings.update.check': 'Verificar agora',
   'settings.update.apply': 'Atualizar e reiniciar',
   'settings.update.restarting': 'Reiniciando com a v{version}…',
+
+  'workbench.crumb': 'Streaming, tabela e editor',
+  'workbench.run': 'Executar',
+  'workbench.cancel': 'Cancelar',
+  'workbench.export': 'Exportar CSV',
+  'workbench.exportHint': 'Exporta as primeiras {count} linhas.',
+  'workbench.log.start': 'Executando: {query}',
+  'workbench.log.progress': '{count} linhas recebidas',
+  'workbench.log.done': 'Concluído: {count} linhas',
+  'workbench.log.cancelled': 'Cancelado após {count} linhas',
+  'workbench.log.exported': '{count} linhas exportadas para {path}',
+  'workbench.tokenTitle': 'Segredo de demonstração',
+  'workbench.token': 'Token',
 
   'app.stopped': '{name} foi encerrado. Você pode fechar esta aba.',
 

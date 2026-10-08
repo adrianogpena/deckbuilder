@@ -21,3 +21,6 @@
 .xp-path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--text-3); }
 .xp-body { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .xp-body > .code-editor { height: 100%; }
+
+.wb-pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; height: 100%; overflow: hidden; }
+.wb-token { margin: 8px 14px 14px; }
