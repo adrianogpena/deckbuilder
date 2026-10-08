@@ -4,12 +4,13 @@ import { CommandPalette, detectLanguage, ErrorBanner, Icon, type IconName, isDes
 import { APP } from '../../app';
 import { api, type Settings } from './api';
 import { type MessageKey, t } from './i18n';
+import { ExplorerScreen } from './screens/ExplorerScreen';
 import { GridScreen } from './screens/GridScreen';
 import { Home } from './screens/Home';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { TabsScreen } from './screens/TabsScreen';
 
-const SCREENS = ['home', 'tabs', 'grid', 'settings'] as const;
+const SCREENS = ['home', 'tabs', 'grid', 'explorer', 'settings'] as const;
 type ScreenId = (typeof SCREENS)[number];
 
 const NAV: Array<{ title: MessageKey; items: Array<{ id: ScreenId; label: MessageKey; icon: IconName; hint?: string }> }> = [
@@ -19,7 +20,8 @@ const NAV: Array<{ title: MessageKey; items: Array<{ id: ScreenId; label: Messag
       { id: 'home', label: 'nav.home', icon: 'home', hint: '1' },
       { id: 'tabs', label: 'nav.tabs', icon: 'split', hint: '2' },
       { id: 'grid', label: 'nav.grid', icon: 'cube', hint: '3' },
-      { id: 'settings', label: 'nav.settings', icon: 'settings', hint: '4' },
+      { id: 'explorer', label: 'nav.explorer', icon: 'folder', hint: '4' },
+      { id: 'settings', label: 'nav.settings', icon: 'settings', hint: '5' },
     ],
   },
 ];
@@ -122,6 +124,8 @@ function renderScreen(screen: ScreenId, settings: Settings, save: (patch: Partia
       return <TabsScreen settings={settings} onSave={save} />;
     case 'grid':
       return <GridScreen settings={settings} onSave={save} />;
+    case 'explorer':
+      return <ExplorerScreen settings={settings} onSave={save} />;
     case 'settings':
       return <SettingsScreen settings={settings} onChange={save} onQuit={onQuit} />;
     default:

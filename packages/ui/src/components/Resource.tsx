@@ -14,16 +14,18 @@ export interface ResourceListProps<T extends { id: string }> {
   onDelete(item: T): void;
   onAdd(): void;
   emptyTitle: string;
+  /** Text of the delete confirmation; defaults to "Delete {name}?". */
+  deleteBodyOf?(item: T): string;
 }
 
 /** Rows of saved items with edit and delete buttons and an Add button. Delete asks in a dialog first. */
-export function ResourceList<T extends { id: string }>({ items, titleOf, subtitleOf, iconOf, onOpen, onEdit, onDelete, onAdd, emptyTitle }: ResourceListProps<T>) {
+export function ResourceList<T extends { id: string }>({ items, titleOf, subtitleOf, iconOf, onOpen, onEdit, onDelete, onAdd, emptyTitle, deleteBodyOf }: ResourceListProps<T>) {
   const { confirm, element } = useDialogs();
 
   const askDelete = async (item: T) => {
     const ok = await confirm({
       title: t('resource.deleteTitle'),
-      body: t('dialog.confirmDelete', { name: titleOf(item) }),
+      body: deleteBodyOf?.(item) ?? t('dialog.confirmDelete', { name: titleOf(item) }),
       okLabel: t('resource.delete'),
       danger: true,
     });

@@ -29,11 +29,41 @@ export interface Settings extends BaseSettings {
   tabsLayout?: unknown;
   /** Layout of the Grid screen, checked by `validGridItems`. */
   gridLayout?: GridItem[];
+  /** Explorer screen: sidebar fractions, collapsed state, expanded tree ids per project and the tab layout. */
+  explorer?: ExplorerSettings;
+}
+
+export interface ExplorerSettings {
+  sizes: [number, number];
+  collapsed: boolean;
+  expanded: Record<string, string[]>;
+  tabs?: unknown;
 }
 
 const GRID_PANELS = ['clock', 'info', 'update', 'list'];
 
 const MAX_TABS_LAYOUT_BYTES = 64 * 1024;
+const MAX_EXPANDED_IDS = 2000;
+const MAX_ID_LENGTH = 64;
+
+const isStringArray = (v: unknown): v is string[] => Array.isArray(v) && v.every((x) => typeof x === 'string');
+
+/** A copy of `raw` when it is a well-formed explorer state within the size limits, else null. */
+function validExplorer(raw: unknown): ExplorerSettings | null {
+  const r = raw as Partial<ExplorerSettings> | null;
+  if (typeof r !== 'object' || r === null) return null;
+  const { sizes, collapsed, expanded, tabs } = r;
+  if (!Array.isArray(sizes) || sizes.length !== 2 || !sizes.every((n) => typeof n === 'number' && n >= 0 && n <= 1)) return null;
+  if (Math.abs(sizes[0] + sizes[1] - 1) > 0.01) return null;
+  if (typeof collapsed !== 'boolean' || typeof expanded !== 'object' || expanded === null || Array.isArray(expanded)) return null;
+  const out: Record<string, string[]> = {};
+  for (const [project, ids] of Object.entries(expanded)) {
+    if (project.length > MAX_ID_LENGTH || !isStringArray(ids) || ids.length > MAX_EXPANDED_IDS) return null;
+    out[project] = ids;
+  }
+  if (tabs !== undefined && (typeof tabs !== 'object' || tabs === null || JSON.stringify(tabs).length >= MAX_TABS_LAYOUT_BYTES)) return null;
+  return { sizes: [sizes[0], sizes[1]], collapsed, expanded: out, ...(tabs !== undefined && { tabs }) };
+}
 
 const dataDir = appHome(APP.id);
 const autostart = createAutostart({ name: APP.name });
@@ -49,6 +79,8 @@ const settings = settingsStore<Settings>({
     }
     const gridLayout = validGridItems(patch.gridLayout, GRID_PANELS);
     if (gridLayout) next.gridLayout = gridLayout;
+    const explorer = validExplorer(patch.explorer);
+    if (explorer) next.explorer = explorer;
   },
   onChange(next, prev) {
     if (next.autostart !== prev.autostart) void autostart.set(next.autostart);

@@ -12,6 +12,41 @@ export interface Settings extends ThemeSettings {
   tabsLayout?: unknown;
   /** Layout of the Grid screen (`GridItem[]`); the server validates it. */
   gridLayout?: unknown;
+  /** State of the Explorer screen; the server validates it. */
+  explorer?: ExplorerSettings;
+}
+
+export interface ExplorerSettings {
+  /** Fractions of the sidebar and the workspace. */
+  sizes: [number, number];
+  collapsed: boolean;
+  /** Expanded tree node ids per project id; a project with an entry is open in the sidebar. */
+  expanded: Record<string, string[]>;
+  tabs?: unknown;
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  path: string;
+}
+
+export interface FsEntry {
+  name: string;
+  kind: 'file' | 'dir' | 'link';
+  size: number;
+  mtime: number;
+  /** A link that leads out of the project folder. */
+  outside?: boolean;
+}
+
+export type FsRead = { text: string; size: number; mtime: number; truncated: boolean } | { binary: true; size: number; mtime: number };
+
+export interface SearchHit {
+  path: string;
+  kind: 'file' | 'dir' | 'link';
+  line?: number;
+  text?: string;
 }
 
 /** GET /api/info (infoRoutes in @deckbuilder/server-mods). */
@@ -35,5 +70,19 @@ export const api = {
   applyUpdate: () => request<{ version: string }>('POST', '/api/update/apply'),
   quit: () => request<{ ok: true }>('POST', '/api/quit'),
   testToast: () => request<{ ok: true }>('POST', '/api/toast/test'),
+  projects: () => request<Project[]>('GET', '/api/projects'),
+  createProject: (input: Record<string, unknown>) => request<Project>('POST', '/api/projects', {}, input),
+  updateProject: (id: string, input: Record<string, unknown>) => request<Project>('PUT', '/api/projects', { id }, input),
+  deleteProject: (id: string) => request<{ ok: true }>('DELETE', '/api/projects', { id }),
+  fsList: (root: string, path: string) => request<{ entries: FsEntry[] }>('GET', '/api/fs/list', { root, path }).then((r) => r.entries),
+  fsRead: (root: string, path: string) => request<FsRead>('GET', '/api/fs/read', { root, path }),
+  fsCreate: (root: string, path: string, kind: 'file' | 'dir') => request<FsEntry>('POST', '/api/fs/create', {}, { root, path, kind }),
+  fsWrite: (root: string, path: string, text: string, expectedMtime: number) =>
+    request<FsEntry>('POST', '/api/fs/write', {}, { root, path, text, expectedMtime }),
+  fsRename: (root: string, path: string, name: string) => request<FsEntry>('POST', '/api/fs/rename', {}, { root, path, name }),
+  fsMove: (root: string, from: string, to: string) => request<FsEntry>('POST', '/api/fs/move', {}, { root, from, to }),
+  fsDelete: (root: string, paths: string[]) => request<{ ok: true }>('POST', '/api/fs/delete', {}, { root, paths }),
+  fsReveal: (root: string, path: string) => request<{ ok: true }>('POST', '/api/fs/reveal', {}, { root, path }),
+  fsOpen: (root: string, path: string) => request<{ ok: true }>('POST', '/api/fs/open', {}, { root, path }),
   echo: (text: string) => request<{ text: string; length: number; at: string }>('POST', '/api/echo', {}, { text }),
 };

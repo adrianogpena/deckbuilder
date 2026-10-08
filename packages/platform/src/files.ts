@@ -14,8 +14,9 @@ export function isRunnable(path: string): boolean {
   return (process.env.PATHEXT ?? '').toLowerCase().split(';').includes(ext);
 }
 
+// Not hidden: windowsHide starts explorer.exe with SW_HIDE and its window never appears.
 function launch(argv: string[], windowsVerbatimArguments = false): void {
-  Bun.spawn(argv, { stdio: ['ignore', 'ignore', 'ignore'], windowsHide: true, windowsVerbatimArguments }).unref();
+  Bun.spawn(argv, { stdio: ['ignore', 'ignore', 'ignore'], windowsHide: false, windowsVerbatimArguments }).unref();
 }
 
 /** Shows the absolute `path` selected in the OS file manager (Linux: opens its folder). */
