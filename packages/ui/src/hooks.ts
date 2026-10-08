@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { errorOf, request, type ApiError } from './api';
+import { errorOf, type QueryParams, request, type ApiError } from './api';
+import { stream } from './stream';
 
 export interface AsyncState<T> {
   data: T | undefined;
@@ -63,6 +64,99 @@ export function useAsync<T>(fn: () => Promise<T>, deps: unknown[], intervalMs = 
 
   const reload = useCallback(() => run(false), [run]);
   return { data, error, loading, reload };
+}
+
+export interface StreamState<T> {
+  items: T[];
+  running: boolean;
+  error: ApiError | undefined;
+  /** More than `maxItems` arrived: the request was aborted and `items` holds the first `maxItems`. */
+  truncated: boolean;
+  /** Clears the state and streams `path`; aborts the previous stream. */
+  start: (path: string, params?: QueryParams) => void;
+  /** Aborts the stream; keeps the items received so far, sets no error. */
+  cancel: () => void;
+}
+
+/**
+ * Reads an NDJSON route (see `stream`) into state. Items are batched into one update per animation
+ * frame; a stream started earlier is aborted and anything it still delivers is dropped.
+ */
+export function useStream<T>(opts: { maxItems?: number } = {}): StreamState<T> {
+  const [items, setItems] = useState<T[]>([]);
+  const [running, setRunning] = useState(false);
+  const [error, setError] = useState<ApiError>();
+  const [truncated, setTruncated] = useState(false);
+  const maxItems = useRef(10_000);
+  maxItems.current = opts.maxItems ?? 10_000;
+  const generation = useRef(0);
+  const controller = useRef<AbortController>();
+  const pending = useRef<T[]>([]);
+  const frame = useRef<number>();
+
+  const flush = useCallback(() => {
+    if (frame.current !== undefined) window.cancelAnimationFrame(frame.current);
+    frame.current = undefined;
+    const batch = pending.current;
+    pending.current = [];
+    if (batch.length) setItems((prev) => prev.concat(batch));
+  }, []);
+
+  // Ends the current stream: later callbacks from it see a newer generation and do nothing.
+  const stop = useCallback(() => {
+    generation.current++;
+    controller.current?.abort();
+    controller.current = undefined;
+    flush();
+  }, [flush]);
+
+  const start = useCallback((path: string, params: QueryParams = {}) => {
+    stop();
+    const gen = generation.current;
+    const ac = new AbortController();
+    controller.current = ac;
+    let count = 0;
+    setItems([]);
+    setError(undefined);
+    setTruncated(false);
+    setRunning(true);
+    stream(path, params, (item) => {
+      if (gen !== generation.current || ac.signal.aborted) return;
+      if (count >= maxItems.current) {
+        setTruncated(true);
+        ac.abort();
+        return;
+      }
+      count++;
+      pending.current.push(item as T);
+      if (frame.current === undefined) frame.current = window.requestAnimationFrame(flush);
+    }, ac.signal).then(
+      () => {
+        if (gen !== generation.current) return;
+        flush();
+        setRunning(false);
+      },
+      (err) => {
+        if (gen !== generation.current) return;
+        flush();
+        if (!ac.signal.aborted) setError(errorOf(err));
+        setRunning(false);
+      },
+    );
+  }, [stop, flush]);
+
+  const cancel = useCallback(() => {
+    stop();
+    setRunning(false);
+  }, [stop]);
+
+  useEffect(() => () => {
+    generation.current++;
+    controller.current?.abort();
+    if (frame.current !== undefined) window.cancelAnimationFrame(frame.current);
+  }, []);
+
+  return { items, running, error, truncated, start, cancel };
 }
 
 /**

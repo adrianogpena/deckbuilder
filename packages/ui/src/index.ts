@@ -1,6 +1,7 @@
 export * from './api';
 export * from './components/AppearanceFields';
 export * from './components/CommandPalette';
+export * from './components/OutputPanel';
 export * from './components/Panel';
 export * from './components/PanelGrid';
 export * from './components/Sidebar';
@@ -11,5 +12,6 @@ export * from './hooks';
 export * from './i18n';
 export * from './palette';
 export * from './route';
+export * from './stream';
 export * from './theme';
 export * from './tabs';

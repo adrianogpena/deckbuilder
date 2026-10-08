@@ -402,6 +402,18 @@ kbd {
 .panel-banner.tone-err { background: var(--err-soft); }
 .panel-banner-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* ---- output panel */
+.output { position: relative; display: flex; flex-direction: column; gap: 8px; height: 100%; min-height: 0; }
+.output-bar { display: flex; align-items: center; gap: 6px; }
+.output-filter { flex: 1; min-width: 0; height: 28px; font-size: 12px; }
+.output-lines {
+  flex: 1; min-height: 0; overflow: auto; padding: 8px 10px; border: 1px solid var(--border-soft); border-radius: 8px;
+  background: var(--bg-sunken); color: var(--text); font-family: var(--font-mono); font-size: 12px; line-height: 1.5;
+}
+.output-line { white-space: pre-wrap; overflow-wrap: anywhere; }
+.output-time { margin-right: 8px; color: var(--text-3); }
+.output-jump { position: absolute; right: 16px; bottom: 12px; }
+
 /* ---- menu */
 .menu-wrap { position: relative; }
 .menu {

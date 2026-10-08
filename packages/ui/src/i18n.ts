@@ -26,6 +26,11 @@ const baseEn = {
   'panel.expand': 'Expand',
   'panel.remove': 'Remove panel',
 
+  'output.filter': 'Filter output',
+  'output.copyAll': 'Copy all',
+  'output.clear': 'Clear',
+  'output.jumpToLatest': 'Jump to latest',
+
   'theme.system': 'System',
   'theme.dark': 'Dark',
   'theme.light': 'Light',
@@ -48,6 +53,8 @@ const baseEn = {
   'error.updateBadSignature': "The update isn't signed with this app's key.",
   'error.updateNoKey': 'This build has no update key.',
   'error.updateFailed': 'Update failed: {message}',
+  'error.streamClosed': 'The stream ended before it was complete.',
+  'error.badStream': 'The server sent an invalid stream.',
 };
 
 export type BaseKey = keyof typeof baseEn;
@@ -79,6 +86,11 @@ const basePtBR: Messages<typeof baseEn> = {
   'panel.expand': 'Expandir',
   'panel.remove': 'Remover painel',
 
+  'output.filter': 'Filtrar saída',
+  'output.copyAll': 'Copiar tudo',
+  'output.clear': 'Limpar',
+  'output.jumpToLatest': 'Ir para o fim',
+
   'theme.system': 'Sistema',
   'theme.dark': 'Escuro',
   'theme.light': 'Claro',
@@ -101,6 +113,8 @@ const basePtBR: Messages<typeof baseEn> = {
   'error.updateBadSignature': 'A atualização não está assinada com a chave deste app.',
   'error.updateNoKey': 'Esta versão não tem chave de atualização.',
   'error.updateFailed': 'Falha na atualização: {message}',
+  'error.streamClosed': 'O fluxo terminou antes de ser concluído.',
+  'error.badStream': 'O servidor enviou um fluxo inválido.',
 };
 
 export const LANGUAGES = [

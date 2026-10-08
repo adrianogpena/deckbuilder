@@ -4,3 +4,4 @@ export * from './release.ts';
 export * from './server.ts';
 export * from './session.ts';
 export * from './static.ts';
+export * from './stream.ts';
