@@ -67,6 +67,25 @@ export async function request<T>(method: string, path: string, params: QueryPara
   return data as T;
 }
 
+/**
+ * GETs non-JSON bytes (e.g. `/api/fs/raw`) with the session token header; throws RequestError
+ * like `request`. For an `<img>`, wrap the blob with `URL.createObjectURL` (and revoke it).
+ */
+export async function requestBlob(path: string, params: QueryParams = {}): Promise<Blob> {
+  const token = await session;
+  let res: Response;
+  try {
+    res = await fetch(path + qs(params), { headers: { [TOKEN_HEADER]: token } });
+  } catch {
+    throw offline();
+  }
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new RequestError(data ?? { kind: 'internal', code: 'http', params: { status: res.status }, message: `HTTP error ${res.status}` });
+  }
+  return res.blob();
+}
+
 export interface DialogFilter {
   name: string;
   /** Globs such as `*.md`. */

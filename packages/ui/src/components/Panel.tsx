@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { t } from '../i18n';
-import { Icon, type Tone } from './ui';
+import { Icon, type IconName, type Tone } from './ui';
 
 /** Class of the panel header, the drag handle for `PanelGrid`. */
 export const PANEL_HANDLE = 'panel-handle';
@@ -79,11 +79,11 @@ export function PanelNotice({ icon, title, message, action, tone = 'muted' }: {
   );
 }
 
-/** Thin bar above last-known data (offline, failed refresh). */
-export function PanelBanner({ tone, children, action }: { tone: 'warn' | 'err'; children: ReactNode; action?: ReactNode }) {
+/** Thin bar above last-known data (offline, failed refresh); `icon` defaults to wifi-off (warn) / alert (err). */
+export function PanelBanner({ tone, children, action, icon }: { tone: 'warn' | 'err'; children: ReactNode; action?: ReactNode; icon?: IconName }) {
   return (
     <div className={`panel-banner tone-${tone}`} role="status">
-      <Icon name={tone === 'warn' ? 'wifi-off' : 'alert'} size={14} />
+      <Icon name={icon ?? (tone === 'warn' ? 'wifi-off' : 'alert')} size={14} />
       <span className="panel-banner-text">{children}</span>
       {action}
     </div>

@@ -543,3 +543,75 @@ kbd {
 .dtable-null { color: var(--text-3); font-style: italic; }
 .dtable-empty { padding: 24px; color: var(--text-3); font-size: 13px; text-align: center; }
 .dtable-status { min-height: 20px; padding: 2px 10px; color: var(--text-3); font-size: 12px; }
+
+/* ---- code editor and viewers (@deckbuilder/editor) */
+.code-editor, .code-view { min-width: 0; min-height: 0; border: 1px solid var(--border-soft); border-radius: 8px; overflow: hidden; }
+.code-editor:focus-within { border-color: var(--accent); }
+.code-view-plain {
+  margin: 0; padding: 8px 10px; overflow: auto; background: var(--bg-sunken); color: var(--text);
+  border: 1px solid var(--border-soft); border-radius: 8px; font-family: var(--font-mono); font-size: 12.5px; line-height: 1.55;
+}
+.code-view-plain.wrap { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* ---- markdown */
+.markdown { color: var(--text); font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
+.markdown > :first-child { margin-top: 0; }
+.markdown h1, .markdown h2, .markdown h3, .markdown h4, .markdown h5, .markdown h6 { margin: 1.4em 0 .5em; font-weight: 600; line-height: 1.25; letter-spacing: -.01em; }
+.markdown h1 { font-size: 24px; padding-bottom: 6px; border-bottom: 1px solid var(--border-soft); }
+.markdown h2 { font-size: 19px; padding-bottom: 4px; border-bottom: 1px solid var(--border-soft); }
+.markdown h3 { font-size: 16px; }
+.markdown h4, .markdown h5, .markdown h6 { font-size: 14px; color: var(--text-2); }
+.markdown p, .markdown ul, .markdown ol, .markdown pre, .markdown table, .markdown blockquote { margin: 0 0 12px; }
+.markdown ul, .markdown ol { padding-left: 24px; }
+.markdown li + li { margin-top: 2px; }
+.markdown a { color: var(--accent); text-decoration: none; }
+.markdown a[href]:hover { text-decoration: underline; }
+.markdown a:not([href]) { color: var(--text-2); }
+.markdown code { padding: 1px 5px; border-radius: 4px; background: var(--bg-sunken); font-family: var(--font-mono); font-size: 12.5px; }
+.markdown pre { padding: 10px 12px; overflow: auto; background: var(--bg-sunken); border: 1px solid var(--border-soft); border-radius: 8px; }
+.markdown pre code { padding: 0; background: none; line-height: 1.55; }
+.markdown blockquote { padding: 2px 12px; border-left: 3px solid var(--border); color: var(--text-2); }
+.markdown table { border-collapse: collapse; display: block; max-width: 100%; overflow: auto; }
+.markdown th, .markdown td { padding: 5px 10px; border: 1px solid var(--border); }
+.markdown th { background: var(--panel-2); font-weight: 600; text-align: left; }
+.markdown hr { border: 0; border-top: 1px solid var(--border); margin: 18px 0; }
+.markdown img { max-width: 100%; }
+.markdown .md-img-blocked {
+  display: inline-block; padding: 2px 8px; border: 1px dashed var(--border); border-radius: 5px;
+  color: var(--text-3); font-size: 12px;
+}
+.markdown .tok-keyword, .markdown .tok-propertyName { color: var(--y-key); }
+.markdown .tok-string, .markdown .tok-string2 { color: var(--y-str); }
+.markdown .tok-number { color: var(--y-num); }
+.markdown .tok-bool, .markdown .tok-atom, .markdown .tok-literal { color: var(--y-bool); }
+.markdown .tok-comment { color: var(--y-comment); font-style: italic; }
+
+/* ---- json tree */
+.json-tree { font-family: var(--font-mono); font-size: 12.5px; line-height: 1.6; color: var(--text); }
+.json-row { display: flex; align-items: center; gap: 4px; min-height: 22px; border-radius: 4px; white-space: nowrap; }
+.json-row:hover { background: var(--hover); }
+.json-toggle {
+  display: grid; place-items: center; flex-shrink: 0; width: 16px; height: 16px; padding: 0; border: 0;
+  background: none; color: var(--text-3); cursor: pointer; transition: transform .12s;
+}
+.json-toggle.open { transform: rotate(90deg); }
+.json-key { color: var(--y-key); }
+.json-index { color: var(--text-3); }
+.json-colon { color: var(--text-3); }
+.json-count { color: var(--text-3); cursor: pointer; }
+.json-str { color: var(--y-str); white-space: pre-wrap; overflow-wrap: anywhere; }
+.json-num { color: var(--y-num); }
+.json-bool { color: var(--y-bool); }
+.json-more { margin-left: 6px; padding: 0; border: 0; background: none; color: var(--accent); font: inherit; cursor: pointer; }
+.json-actions { display: none; gap: 2px; margin-left: auto; padding-left: 8px; }
+.json-row:hover .json-actions { display: flex; }
+.json-actions .btn { height: 20px; padding: 0 5px; font-family: var(--font-mono); font-size: 11px; }
+.json-row > .btn { height: 20px; }
+
+/* ---- file preview */
+.file-preview { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 0; min-height: 0; }
+.file-preview-bar { display: flex; justify-content: flex-end; gap: 4px; }
+.file-preview-body { flex: 1; min-height: 0; overflow: auto; }
+.file-preview-body > .code-view, .file-preview-body > .code-view-plain { height: 100%; }
+.file-preview-image { display: grid; place-items: center; padding: 12px; }
+.file-preview-image img { max-width: 100%; max-height: 100%; object-fit: contain; background: var(--bg-sunken); border-radius: 6px; }
