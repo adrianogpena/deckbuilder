@@ -10,7 +10,7 @@ function clock() {
     setInterval: (fn: () => void, ms: number) => {
       tick = fn;
       interval = ms;
-      return 1;
+      return 1 as unknown as ReturnType<typeof setInterval>;
     },
     clearInterval: () => {
       tick = null;

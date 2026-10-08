@@ -7,6 +7,7 @@
     "deckbuilder": "src/cli.ts"
   },
   "dependencies": {
+    "@deckbuilder/platform": "workspace:*",
     "@deckbuilder/server-core": "workspace:*",
     "sharp": "^0.35.5"
   }

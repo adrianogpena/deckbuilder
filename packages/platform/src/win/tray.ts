@@ -1,6 +1,6 @@
 import { isCompiledExe } from '../exe.ts';
 import { killTree } from '../run.ts';
-import { asciiJson, forEachLine } from './powershell.ts';
+import { asciiJson, forEachLine, spawnPowerShell } from './powershell.ts';
 
 export interface TrayItem {
   id: string;
@@ -106,16 +106,9 @@ function trayScript(spec: TraySpec): string {
   return HOST_SCRIPT.replace('__SPEC__', Buffer.from(JSON.stringify(spec), 'utf8').toString('base64'));
 }
 
-// Windows PowerShell 5.1 like the toast host; -STA for WinForms. The script goes in
-// -EncodedCommand so stdin stays free as the parent's lifeline.
+// -STA for WinForms; stdin is the parent's lifeline.
 const spawnHost: TraySpawn = (script) => {
-  const encoded = Buffer.from(script, 'utf16le').toString('base64');
-  const proc = Bun.spawn(['powershell.exe', '-NoProfile', '-NonInteractive', '-STA', '-EncodedCommand', encoded], {
-    stdin: 'pipe',
-    stdout: 'pipe',
-    stderr: 'pipe',
-    windowsHide: true,
-  });
+  const proc = spawnPowerShell(script, { sta: true, stdin: 'pipe', stdout: 'pipe' });
   return { pid: proc.pid, end: () => proc.stdin.end(), stdout: proc.stdout, stderr: proc.stderr, exited: proc.exited };
 };
 

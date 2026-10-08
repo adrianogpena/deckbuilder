@@ -1,8 +1,10 @@
+type Interval = ReturnType<typeof setInterval>;
+
 export interface IdleWatchOptions {
   timeoutMs: number;
   now?: () => number;
-  setInterval?: (fn: () => void, ms: number) => unknown;
-  clearInterval?: (id: any) => void;
+  setInterval?: (fn: () => void, ms: number) => Interval;
+  clearInterval?: (id: Interval) => void;
   onIdle: () => void;
 }
 
@@ -16,9 +18,9 @@ export interface IdleWatch {
 export function createIdleWatch(opts: IdleWatchOptions): IdleWatch {
   const now = opts.now ?? Date.now;
   const set = opts.setInterval ?? ((fn: () => void, ms: number) => setInterval(fn, ms));
-  const clear = opts.clearInterval ?? ((id: any) => clearInterval(id));
+  const clear = opts.clearInterval ?? ((id: Interval) => clearInterval(id));
   let last = now();
-  let id: unknown = set(() => {
+  let id: Interval | null = set(() => {
     if (now() - last < opts.timeoutMs) return;
     stop();
     opts.onIdle();

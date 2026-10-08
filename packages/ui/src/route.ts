@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 // Hash routing (#/home, #/settings): works with the file-less SPA fallback and survives reloads.
 
@@ -15,5 +15,6 @@ export function useHashRoute<Id extends string>(ids: readonly Id[], fallback: Id
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, [ids, fallback]);
-  return [screen, (id) => { window.location.hash = `/${id}`; }];
+  const navigate = useCallback((id: Id) => { window.location.hash = `/${id}`; }, []);
+  return [screen, navigate];
 }

@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { findAppBrowser } from '../packages/platform/src/browser.ts';
+import { killTree, waitForUrl } from '../packages/platform/src/run.ts';
 
 const USAGE = `Usage: bun scripts/screenshot.ts --out <png> [--hash <route>] [--settings '<json>'] [--eval '<js>']
        [--size 1280x820] [--wait <ms>] [--no-build]
@@ -51,10 +52,8 @@ const settings = JSON.parse(args.settings) as unknown;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** Kills a process and its children; `bun` and the browser both start child processes. */
-function killTree(proc: Bun.Subprocess | undefined): void {
-  if (!proc || proc.exitCode !== null) return;
-  if (process.platform === 'win32') Bun.spawnSync(['taskkill', '/T', '/F', '/PID', String(proc.pid)], { stdio: ['ignore', 'ignore', 'ignore'] });
-  else proc.kill('SIGKILL');
+function stop(proc: Bun.Subprocess | undefined): void {
+  if (proc && proc.exitCode === null) killTree(proc.pid);
 }
 
 async function until<T>(what: string, ms: number, probe: () => Promise<T | undefined>): Promise<T> {
@@ -125,10 +124,10 @@ try {
     stdio: ['ignore', 'ignore', 'inherit'],
   });
   const proc = server;
-  await until('the server', 30_000, async () => {
+  if (!(await waitForUrl(`${APP_URL}/`, { timeoutMs: 30_000, until: () => proc.exitCode !== null }))) {
     if (proc.exitCode !== null) throw new Error(`The server exited with code ${proc.exitCode} (port ${PORT} in use?)`);
-    return fetch(`${APP_URL}/`).then((r) => r.ok || undefined, () => undefined);
-  });
+    throw new Error('Timed out waiting for the server');
+  }
 
   const browser = findAppBrowser();
   if (!browser) throw new Error('No Edge or Chrome found');
@@ -169,8 +168,8 @@ try {
   failed = true;
 } finally {
   cdp?.close();
-  killTree(browserProc);
-  killTree(server);
+  stop(browserProc);
+  stop(server);
   await Promise.all([browserProc?.exited, server?.exited]);
   await rm(temp, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }).catch(() => {});
 }

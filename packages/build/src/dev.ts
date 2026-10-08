@@ -1,3 +1,4 @@
+import { killTreeSync, waitForUrl } from '@deckbuilder/platform';
 import { DEV_PORT, VITE_PORT } from '@deckbuilder/server-core/protocol';
 import { join, relative } from 'node:path';
 import { type AppDir, workspaceRoot } from './app.ts';
@@ -17,13 +18,7 @@ export async function dev(app: AppDir, serverArgs: string[]): Promise<void> {
   function stop(code: number): void {
     if (stopping) return;
     stopping = true;
-    for (const child of children) {
-      if (process.platform === 'win32') {
-        Bun.spawnSync(['taskkill', '/PID', String(child.pid), '/T', '/F'], { stdio: ['ignore', 'ignore', 'ignore'] });
-      } else {
-        child.kill();
-      }
-    }
+    for (const child of children) killTreeSync(child.pid);
     process.exit(code);
   }
 
@@ -40,15 +35,7 @@ export async function dev(app: AppDir, serverArgs: string[]): Promise<void> {
   // server's code is mostly in packages/.
   const root = await workspaceRoot(app.dir);
   start(['bun', '--watch', relative(root, join(app.dir, 'server/main.ts')), '--dev', ...serverArgs], root);
-  const deadline = Date.now() + WAIT_MS;
-  while (!stopping && Date.now() < deadline) {
-    try {
-      await fetch(`http://127.0.0.1:${DEV_PORT}/`);
-      break;
-    } catch {
-      await Bun.sleep(200);
-    }
-  }
+  await waitForUrl(`http://127.0.0.1:${DEV_PORT}/`, { timeoutMs: WAIT_MS, until: () => stopping });
   if (stopping) return;
   start(['bun', 'x', 'vite', '--port', String(VITE_PORT), '--strictPort']);
 }

@@ -1,5 +1,5 @@
 /** Pure helpers for the panel grid (`PanelGrid`); ported from Dashboard's `PageGrid`. */
-import type { IconName } from './components/ui';
+import type { IconName } from './icons';
 
 export interface GridItem {
   id: string;
@@ -38,7 +38,34 @@ export const COLS: Record<Breakpoint, number> = { lg: 12, md: 6, sm: 1 };
 export const ROW_HEIGHT = 24;
 export const COLLAPSED_H = 2;
 
-export const breakpointOf = (width: number): Breakpoint =>
+export const MAX_GRID_ITEMS = 50;
+export const MAX_GRID_Y = 1000;
+export const MAX_GRID_H = 100;
+
+const inRange = (n: unknown, min: number, max: number): n is number => Number.isInteger(n) && (n as number) >= min && (n as number) <= max;
+
+/**
+ * A saved layout (e.g. from settings) as items, or null when it isn't valid: every id among `ids`
+ * and unique, integer positions inside the 12 columns, sizes within the caps. Extra fields are dropped.
+ */
+export function validGridItems(raw: unknown, ids: readonly string[]): GridItem[] | null {
+  if (!Array.isArray(raw) || raw.length > MAX_GRID_ITEMS) return null;
+  const seen = new Set<string>();
+  const items: GridItem[] = [];
+  for (const entry of raw) {
+    if (typeof entry !== 'object' || entry === null) return null;
+    const { id, x, y, w, h, collapsed } = entry as Record<string, unknown>;
+    if (typeof id !== 'string' || !ids.includes(id) || seen.has(id)) return null;
+    if (!inRange(x, 0, COLS.lg - 1) || !inRange(w, 1, COLS.lg) || x + w > COLS.lg) return null;
+    if (!inRange(y, 0, MAX_GRID_Y) || !inRange(h, 1, MAX_GRID_H)) return null;
+    if (collapsed !== undefined && typeof collapsed !== 'boolean') return null;
+    seen.add(id);
+    items.push(collapsed === undefined ? { id, x, y, w, h } : { id, x, y, w, h, collapsed });
+  }
+  return items;
+}
+
+export const breakpointOf =(width: number): Breakpoint =>
   width >= BREAKPOINTS.lg ? 'lg' : width >= BREAKPOINTS.md ? 'md' : 'sm';
 
 /** Items to the grid's layout; unknown ids are dropped, a collapsed panel gets a fixed height. */

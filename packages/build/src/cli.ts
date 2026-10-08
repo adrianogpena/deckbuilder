@@ -9,15 +9,16 @@ import { createApp } from './new.ts';
 import { BUMPS, release, writeManifest } from './release.ts';
 
 const [command, ...args] = process.argv.slice(2);
-// Only `new` runs outside an app folder.
-if (command === 'new') {
-  const { values, positionals } = parseArgs({ args, allowPositionals: true, options: { name: { type: 'string' }, id: { type: 'string' } } });
-  const [dir] = positionals;
-  if (!dir) {
-    console.error('Usage: deckbuilder new <dir> [--name <Name>] [--id <id>]');
-    process.exit(1);
-  }
-  try {
+
+async function main(): Promise<void> {
+  // Only `new` runs outside an app folder.
+  if (command === 'new') {
+    const { values, positionals } = parseArgs({ args, allowPositionals: true, options: { name: { type: 'string' }, id: { type: 'string' } } });
+    const [dir] = positionals;
+    if (!dir) {
+      console.error('Usage: deckbuilder new <dir> [--name <Name>] [--id <id>]');
+      process.exit(1);
+    }
     const target = await createApp({ dir, name: values.name, id: values.id }, process.cwd());
     console.log(`Created ${target}
 
@@ -25,58 +26,54 @@ Next:
   bun install
   cd apps/${dir}
   bun run dev`);
-  } catch (err) {
-    console.error((err as Error).message);
-    process.exit(1);
+    return;
   }
-  process.exit(0);
-}
 
-const app = await loadApp(process.cwd());
+  const app = await loadApp(process.cwd());
 
-switch (command) {
-  case 'dev':
-    await dev(app, args);
-    break;
-  case 'build:web':
-    buildWeb(app);
-    break;
-  case 'build': {
-    const i = args.indexOf('--target');
-    const targets = parseTargets(i >= 0 ? args[i + 1] : undefined);
-    if (!args.includes('--no-web')) buildWeb(app);
-    for (const target of targets) await buildExe(app, target);
-    break;
-  }
-  case 'release': {
-    const { values } = parseArgs({
-      args,
-      options: {
-        to: { type: 'string' },
-        bump: { type: 'string', default: 'patch' },
-        target: { type: 'string' },
-        'dry-run': { type: 'boolean', default: false },
-        'no-checks': { type: 'boolean', default: false },
-      },
-    });
-    if (!values.to || !BUMPS.includes(values.bump as VersionBump)) {
-      console.error('Usage: deckbuilder release --to <folder> [--bump patch|minor|major] [--target <list>] [--dry-run] [--no-checks]');
-      process.exit(1);
+  switch (command) {
+    case 'dev':
+      await dev(app, args);
+      break;
+    case 'build:web':
+      buildWeb(app);
+      break;
+    case 'build': {
+      const { values } = parseArgs({ args, options: { target: { type: 'string' }, 'no-web': { type: 'boolean', default: false } } });
+      const targets = parseTargets(values.target);
+      if (!values['no-web']) buildWeb(app);
+      for (const target of targets) await buildExe(app, target);
+      break;
     }
-    await release(app, {
-      to: values.to,
-      bump: values.bump as VersionBump,
-      targets: parseTargets(values.target),
-      dryRun: values['dry-run'],
-      checks: !values['no-checks'],
-    });
-    break;
-  }
-  case 'manifest':
-    await writeManifest(app);
-    break;
-  default:
-    console.log(`Usage: deckbuilder <command>
+    case 'release': {
+      const { values } = parseArgs({
+        args,
+        options: {
+          to: { type: 'string' },
+          bump: { type: 'string', default: 'patch' },
+          target: { type: 'string' },
+          'dry-run': { type: 'boolean', default: false },
+          'no-checks': { type: 'boolean', default: false },
+        },
+      });
+      if (!values.to || !BUMPS.includes(values.bump as VersionBump)) {
+        console.error('Usage: deckbuilder release --to <folder> [--bump patch|minor|major] [--target <list>] [--dry-run] [--no-checks]');
+        process.exit(1);
+      }
+      await release(app, {
+        to: values.to,
+        bump: values.bump as VersionBump,
+        targets: parseTargets(values.target),
+        dryRun: values['dry-run'],
+        checks: !values['no-checks'],
+      });
+      break;
+    }
+    case 'manifest':
+      await writeManifest(app);
+      break;
+    default:
+      console.log(`Usage: deckbuilder <command>
 
   new <dir> [--name <Name>] [--id <id>]
                               create apps/<dir> from the template (run from the repo root:
@@ -94,5 +91,12 @@ switch (command) {
         [--dry-run]           publish only; package.json and git stay as they are
   manifest                    write release/latest.json for the exes of the current version in
                               release/ (what GitHub releases need next to the exes)`);
-    process.exit(command ? 1 : 0);
+      process.exit(command ? 1 : 0);
+  }
 }
+
+// One error path for every command: the message, no stack.
+main().catch((err: unknown) => {
+  console.error(err instanceof Error ? err.message : String(err));
+  process.exit(1);
+});

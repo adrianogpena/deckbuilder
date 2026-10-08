@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import {
   addItem,
   Badge,
@@ -11,6 +11,8 @@ import {
   PanelLoading,
   PanelNotice,
   useAsync,
+  useDebouncedSave,
+  validGridItems,
   type GridItem,
   type PanelDef,
 } from '@deckbuilder/ui';
@@ -38,39 +40,19 @@ const DEFAULT_ITEMS: GridItem[] = [
   { id: 'list', x: 6, y: 8, w: 6, h: 8 },
 ];
 
-const isItem = (x: unknown): x is GridItem => {
-  const i = x as Partial<GridItem> | null;
-  return !!i && typeof i === 'object' && PANEL_IDS.includes(i.id as PanelId)
-    && [i.x, i.y, i.w, i.h].every((n) => Number.isInteger(n));
-};
-
 /** The saved layout, or the default one when nothing valid was saved. */
 function restoreItems(raw: unknown): GridItem[] {
-  return Array.isArray(raw) && raw.every(isItem) ? raw : DEFAULT_ITEMS;
+  return validGridItems(raw, PANEL_IDS) ?? DEFAULT_ITEMS;
 }
-
-const SAVE_DELAY_MS = 500;
 
 export function GridScreen({ settings, onSave }: { settings: Settings; onSave: (patch: Partial<Settings>) => void }) {
   const [items, setItems] = useState(() => restoreItems(settings.gridLayout));
   const [menu, setMenu] = useState(false);
 
-  const timer = useRef<number>();
-  const pending = useRef<GridItem[]>();
-  const flush = () => {
-    window.clearTimeout(timer.current);
-    if (pending.current) onSave({ gridLayout: pending.current });
-    pending.current = undefined;
-  };
-  const flushRef = useRef(flush);
-  flushRef.current = flush;
-  useEffect(() => () => flushRef.current(), []);
-
+  const save = useDebouncedSave((gridLayout: GridItem[]) => onSave({ gridLayout }));
   const change = (next: GridItem[]) => {
     setItems(next);
-    pending.current = next;
-    window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(flush, SAVE_DELAY_MS);
+    save(next);
   };
 
   const all = defs();

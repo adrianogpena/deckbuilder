@@ -128,14 +128,15 @@ source directly; there is no package build step.
   `{ id, title, icon, defaultSize, minW, minH }`, `items` the `GridItem`s `{ id, x, y, w, h, collapsed? }`;
   `render(id)` returns a panel's content, the grid adds the frame (drag by the header, collapse,
   remove). Only the full-width layout is editable and reported through `onChange`; keep it in a
-  setting, validated on the server (the gallery's `gridLayout`), and bring a removed panel back
+  setting through `useDebouncedSave`, validated on the server with `validGridItems(raw, ids)` from
+  `@deckbuilder/ui/grid` (no React; the gallery's `gridLayout`), and bring a removed panel back
   with `addItem(items, def)`. Inside a panel, `PanelLoading`, `PanelNotice` and `PanelBanner`
   show loading, empty/error and offline states. `PanelFrame` also works on its own.
 - **Startup work** (timers, update checks): put it in `runApp`'s `onStart`, which a launch that
   hands off to a running instance never reaches.
 - **Notifications** (Windows): `createToaster()` from `@deckbuilder/platform`, then
   `toaster.show({ title, body, launch })`; a click opens `launch`. Use `ctx.link(path)` (the
-  context `onStart` gets) as `launch`, so the click opens the app on `#<path>`. Test with
+  context `onStart` and `routes(ctx)` get) as `launch`, so the click opens the app on `#<path>`. Test with
   `bun packages/platform/src/win/toast.ts --selftest`.
 - **Deep links** (Windows): `urlProtocol: true` in `runApp` registers `<id>://` for the exe at
   startup (the app id must be a valid URL scheme); `<id>://open/<path>` then opens a native

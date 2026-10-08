@@ -38,6 +38,36 @@ export function killTree(pid: number): void {
   }
 }
 
+/** `killTree` that returns once the tree is gone, e.g. right before `process.exit`. */
+export function killTreeSync(pid: number): void {
+  if (process.platform === 'win32') {
+    Bun.spawnSync(['taskkill', '/PID', String(pid), '/T', '/F'], { stdio: ['ignore', 'ignore', 'ignore'], windowsHide: true });
+  } else {
+    try {
+      process.kill(pid);
+    } catch {
+      // already gone
+    }
+  }
+}
+
+/**
+ * Polls `url` until it answers with any HTTP status. Resolves true then, false after `timeoutMs`
+ * or once `until` returns true (e.g. the server process exited).
+ */
+export async function waitForUrl(url: string, opts: { timeoutMs: number; until?: () => boolean }): Promise<boolean> {
+  const deadline = Date.now() + opts.timeoutMs;
+  while (Date.now() < deadline && !opts.until?.()) {
+    try {
+      await fetch(url, { signal: AbortSignal.timeout(Math.max(1, deadline - Date.now())) });
+      return true;
+    } catch {
+      await Bun.sleep(200);
+    }
+  }
+  return false;
+}
+
 /**
  * Starts `argv` outside this process's job object, so it outlives this process. Resolves once it
  * started; rejects when it could not (e.g. missing exe).

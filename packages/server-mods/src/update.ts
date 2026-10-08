@@ -68,6 +68,15 @@ export class SourceError extends Error {
   }
 }
 
+/** The release in a manifest's text; null when it isn't JSON or not a valid release. */
+export function readManifest(text: string): ReleaseManifest | null {
+  try {
+    return parseManifest(JSON.parse(text));
+  } catch {
+    return null;
+  }
+}
+
 export interface Release {
   manifest: ReleaseManifest;
   /** Copies `file` of this release to `to`. */
@@ -100,12 +109,7 @@ export function folderSource(path: string, opts: { subfolder?: string; fs?: Upda
           continue;
         }
         unreachable = false;
-        let manifest: ReleaseManifest | null = null;
-        try {
-          manifest = parseManifest(JSON.parse(text));
-        } catch {
-          // not JSON
-        }
+        const manifest = readManifest(text);
         if (manifest) return { manifest, download: (file, to) => fs.copy(join(dir, file.file), to) };
       }
       throw new SourceError(unreachable, unreachable ? `Can't read ${MANIFEST} in ${path}` : `${MANIFEST} in ${path} is not a valid release`);
@@ -176,12 +180,7 @@ export function githubSource(opts: { repo: string; tagPrefix: string; token?: st
       const manifestAsset = find(MANIFEST);
       if (!manifestAsset) throw new SourceError(false, `Release ${release.tag_name} has no ${MANIFEST}`);
       const text = await network(MANIFEST, async () => (await assetRequest(manifestAsset, READ_TIMEOUT_MS)).text());
-      let manifest: ReleaseManifest | null = null;
-      try {
-        manifest = parseManifest(JSON.parse(text));
-      } catch {
-        // not JSON
-      }
+      const manifest = readManifest(text);
       if (!manifest) throw new SourceError(false, `${MANIFEST} of ${release.tag_name} is not a valid release`);
       return {
         manifest,
@@ -382,9 +381,10 @@ async function rollback(s: { fs: UpdateFs; exe: string; fresh: string; old: stri
 
 /**
  * GET /api/update (state), POST /api/update/check (fresh state) and POST /api/update/apply, which
- * swaps in the released exe, answers `{ version }`, then quits (the new exe is already starting).
+ * swaps in the released exe, answers `{ version }`, then calls `quit` (the shell's `ctx.quit`; the
+ * new exe is already starting).
  */
-export function updateRoutes(updater: Updater, quit: () => void = () => process.exit(0)): Routes {
+export function updateRoutes(updater: Updater, quit: () => void): Routes {
   return {
     'GET /api/update': () => updater.state(),
     'POST /api/update/check': () => updater.check(),

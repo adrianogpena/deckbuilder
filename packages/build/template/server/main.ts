@@ -53,12 +53,12 @@ const { closeToTray } = await settings.load();
 
 await runApp({
   app: APP,
-  routes: {
+  routes: (ctx) => ({
     ...infoRoutes({ app: APP, version: pkg.version, dataDir }),
     ...settingsRoutes(settings),
-    ...updateRoutes(updater),
-    ...routes,
-  },
+    ...updateRoutes(updater, ctx.quit),
+    ...routes(ctx),
+  }),
   webDir: join(import.meta.dir, '../dist/web'),
   transformIndex: themeHead(settings),
   urlProtocol: true,

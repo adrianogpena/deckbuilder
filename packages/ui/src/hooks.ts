@@ -61,7 +61,40 @@ export function useAsync<T>(fn: () => Promise<T>, deps: unknown[], intervalMs = 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [intervalMs, ...deps]);
 
-  return { data, error, loading, reload: () => run(false) };
+  const reload = useCallback(() => run(false), [run]);
+  return { data, error, loading, reload };
+}
+
+/**
+ * A stable `(value) => void` that calls `save` with the latest value once no new one came for
+ * `delayMs`. A pending value is saved right away on unmount and when the page goes away (`pagehide`).
+ */
+export function useDebouncedSave<T>(save: (value: T) => void, delayMs = 500): (value: T) => void {
+  const saveRef = useRef(save);
+  saveRef.current = save;
+  const timer = useRef<number>();
+  const pending = useRef<{ value: T }>();
+
+  const flush = useCallback(() => {
+    window.clearTimeout(timer.current);
+    const p = pending.current;
+    pending.current = undefined;
+    if (p) saveRef.current(p.value);
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('pagehide', flush);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      flush();
+    };
+  }, [flush]);
+
+  return useCallback((value: T) => {
+    pending.current = { value };
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(flush, delayMs);
+  }, [flush, delayMs]);
 }
 
 /** Tells the server a UI is still open (it may exit when idle); any other API call counts too. */

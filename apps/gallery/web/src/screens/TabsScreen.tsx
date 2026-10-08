@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   type Layout,
   newTab,
@@ -9,6 +9,7 @@ import {
   type Tab,
   TabWorkspace,
   type TabContext,
+  useDebouncedSave,
 } from '@deckbuilder/ui';
 import type { Settings } from '../api';
 import { t } from '../i18n';
@@ -26,8 +27,6 @@ const isRoute = (x: unknown): x is Route => {
   return !!r && typeof r === 'object' && PAGES.includes(r.page as Page) && Number.isInteger(r.n);
 };
 
-const SAVE_DELAY_MS = 500;
-
 function highestN(layout: Layout<Route>): number {
   return Math.max(0, ...layout.panes.flatMap((p) => p.tabs.map((x) => x.route.n)));
 }
@@ -41,22 +40,10 @@ export function TabsScreen({ settings, onSave }: { settings: Settings; onSave: (
   const latest = useRef(layout);
   latest.current = layout;
 
-  const timer = useRef<number>();
-  const pending = useRef<Layout<Route>>();
-  const flush = () => {
-    window.clearTimeout(timer.current);
-    if (pending.current) onSave({ tabsLayout: serialize(pending.current) });
-    pending.current = undefined;
-  };
-  const flushRef = useRef(flush);
-  flushRef.current = flush;
-  useEffect(() => () => flushRef.current(), []);
-
+  const save = useDebouncedSave((next: Layout<Route>) => onSave({ tabsLayout: serialize(next) }));
   const change = (next: Layout<Route>) => {
     setLayout(next);
-    pending.current = next;
-    window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(flush, SAVE_DELAY_MS);
+    save(next);
   };
 
   return (

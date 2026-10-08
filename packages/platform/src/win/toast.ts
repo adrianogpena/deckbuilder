@@ -1,5 +1,5 @@
 import { killTree } from '../run.ts';
-import { asciiJson, forEachLine } from './powershell.ts';
+import { asciiJson, forEachLine, spawnPowerShell } from './powershell.ts';
 
 export interface Toast {
   title: string;
@@ -71,16 +71,9 @@ export interface ToastProcess {
 
 export type ToastSpawn = () => ToastProcess;
 
-// Windows PowerShell 5.1 (never pwsh: PowerShell 7 dropped WinRT projection). The script goes in
-// -EncodedCommand so stdin stays free for the toast lines.
+// stdin carries the toast lines.
 const spawnHost: ToastSpawn = () => {
-  const encoded = Buffer.from(HOST_SCRIPT, 'utf16le').toString('base64');
-  const proc = Bun.spawn(['powershell.exe', '-NoProfile', '-NonInteractive', '-EncodedCommand', encoded], {
-    stdin: 'pipe',
-    stdout: 'ignore',
-    stderr: 'pipe',
-    windowsHide: true,
-  });
+  const proc = spawnPowerShell(HOST_SCRIPT, { stdin: 'pipe', stdout: 'ignore' });
   return {
     pid: proc.pid,
     write(line) {

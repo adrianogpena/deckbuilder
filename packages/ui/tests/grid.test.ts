@@ -7,6 +7,7 @@ import {
   fromGridLayout,
   sameGeometry,
   toGridLayout,
+  validGridItems,
   type GridItem,
   type PanelDef,
 } from '../src/grid.ts';
@@ -97,5 +98,30 @@ describe('findFreeSpot / addItem', () => {
 
   test('a panel wider than the grid is clamped', () => {
     expect(findFreeSpot([], 20, 4)).toEqual({ x: 0, y: 0 });
+  });
+});
+
+describe('validGridItems', () => {
+  const ids = ['a', 'b', 'c'];
+
+  test('accepts a valid layout', () => {
+    const layout = [item('a', 0, 0), item('b', 6, 0, 6, 8, true)];
+    expect(validGridItems(layout, ids)).toEqual([{ id: 'a', x: 0, y: 0, w: 6, h: 8 }, { id: 'b', x: 6, y: 0, w: 6, h: 8, collapsed: true }]);
+  });
+
+  test('rejects an unknown id', () => {
+    expect(validGridItems([item('z', 0, 0)], ids)).toBeNull();
+  });
+
+  test('rejects x + w beyond 12 columns', () => {
+    expect(validGridItems([item('a', 8, 0, 6)], ids)).toBeNull();
+  });
+
+  test('rejects w = 0', () => {
+    expect(validGridItems([item('a', 0, 0, 0)], ids)).toBeNull();
+  });
+
+  test('rejects a duplicate id', () => {
+    expect(validGridItems([item('a', 0, 0), item('a', 6, 0)], ids)).toBeNull();
   });
 });
