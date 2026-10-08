@@ -41,7 +41,7 @@ export interface LogViewProps {
   /** With `onBookmarksChange`: shows the bookmark controls and markers. */
   bookmarks?: LogBookmark[];
   onBookmarksChange?(bookmarks: LogBookmark[]): void;
-  /** Byte offset the lines were read up to; "Bookmark end" is hidden without it. */
+  /** Byte offset the lines were read up to; "Bookmark EOF" is hidden without it. */
   endOffset?: number;
   onCopyFrom?(bookmark: LogBookmark): void;
   onSaveFrom?(bookmark: LogBookmark): void;

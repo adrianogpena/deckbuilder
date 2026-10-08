@@ -28,7 +28,7 @@ import {
   type Layout,
   relPath,
 } from '@deckbuilder/ui';
-import { api, type ExplorerSettings, type Project, type Settings } from '../api';
+import { api, type ExplorerSettings, type LogSettings, type Project, type Settings } from '../api';
 import { nodeId } from '../explorer-paths';
 import { t } from '../i18n';
 import { ProjectTree } from './explorer/ProjectTree';
@@ -104,6 +104,12 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
   const persist = useDebouncedSave((s: State) =>
     onSave({ explorer: { sizes: s.sizes, collapsed: s.collapsed, expanded: s.expanded, tabs: serialize(s.layout) } }),
   );
+  const [logs, setLogs] = useState<LogSettings | undefined>(settings.logs);
+  const saveLogs = useDebouncedSave((l: LogSettings) => onSave({ logs: l }));
+  const changeLogs = (next: LogSettings) => {
+    setLogs(next);
+    saveLogs(next);
+  };
   const update = (fn: (s: State) => State) => {
     const next = fn(latest.current);
     latest.current = next;
@@ -253,7 +259,7 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
           renderTab={(tab, ctx) =>
             tab.route.kind === 'file' ? (
               <Suspense fallback={<PanelLoading />}>
-                <FileTab project={tab.route.project} projectName={nameOf(tab.route.project)} path={tab.route.path} focused={ctx.focused} />
+                <FileTab project={tab.route.project} projectName={nameOf(tab.route.project)} path={tab.route.path} focused={ctx.focused} logs={logs} onLogsChange={changeLogs} />
               </Suspense>
             ) : (
               <Welcome projects={list} onOpen={openProject} />

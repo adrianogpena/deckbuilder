@@ -1,6 +1,6 @@
 import type { ThemeSettings } from '@deckbuilder/server-core/palettes';
 import type { UpdateState } from '@deckbuilder/server-core/protocol';
-import { type Language, request } from '@deckbuilder/ui';
+import { type HighlightTerm, type Language, type LogBookmark, request, type TailChunkLike } from '@deckbuilder/ui';
 
 export interface Settings extends ThemeSettings {
   language?: Language;
@@ -14,9 +14,18 @@ export interface Settings extends ThemeSettings {
   gridLayout?: unknown;
   /** State of the Explorer screen; the server validates it. */
   explorer?: ExplorerSettings;
+  /** Log viewer: highlight words and bookmarks (keyed `<projectId>:<path>`); the server validates it. */
+  logs?: LogSettings;
   /** State of the Workbench screen; the server validates it. */
   workbench?: WorkbenchSettings;
 }
+
+export interface LogSettings {
+  highlights: HighlightTerm[];
+  bookmarks: Record<string, LogBookmark[]>;
+}
+
+export type TailChunk = TailChunkLike & { size: number; mtime: number };
 
 export interface WorkbenchSettings {
   sizes?: { main: [number, number]; results: [number, number] };
@@ -100,6 +109,10 @@ export const api = {
   fsList: (root: string, path: string) => request<{ entries: FsEntry[] }>('GET', '/api/fs/list', { root, path }).then((r) => r.entries),
   fsRead: (root: string, path: string) => request<FsRead>('GET', '/api/fs/read', { root, path }),
   fsCreate: (root: string, path: string, kind: 'file' | 'dir') => request<FsEntry>('POST', '/api/fs/create', {}, { root, path, kind }),
+  fsTail: (root: string, path: string, from?: number, max?: number) =>
+    request<TailChunk>('GET', '/api/fs/tail', { root, path, from, max }),
+  fsSaveRange: (root: string, path: string, from: number) =>
+    request<{ path: string | null; bytes?: number }>('POST', '/api/fs/save-range', {}, { root, path, from }),
   fsWrite: (root: string, path: string, text: string, expectedMtime: number) =>
     request<FsEntry>('POST', '/api/fs/write', {}, { root, path, text, expectedMtime }),
   fsRename: (root: string, path: string, name: string) => request<FsEntry>('POST', '/api/fs/rename', {}, { root, path, name }),

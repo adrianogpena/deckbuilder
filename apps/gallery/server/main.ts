@@ -16,6 +16,14 @@ import {
 } from '@deckbuilder/server-mods';
 import { runApp } from '@deckbuilder/shell';
 import { type GridItem, validGridItems } from '@deckbuilder/ui/grid';
+import {
+  HIGHLIGHT_COLORS,
+  type HighlightColor,
+  type HighlightTerm,
+  type LogBookmark,
+  MAX_BOOKMARKS,
+  MAX_HIGHLIGHTS,
+} from '@deckbuilder/ui/log';
 import { APP } from '../app.ts';
 import pkg from '../package.json';
 import { routes } from './routes.ts';
@@ -36,6 +44,8 @@ export interface Settings extends BaseSettings {
   gridLayout?: GridItem[];
   /** Explorer screen: sidebar fractions, collapsed state, expanded tree ids per project and the tab layout. */
   explorer?: ExplorerSettings;
+  /** Log viewer: highlight words (global) and bookmarks per `<projectId>:<path>`. */
+  logs?: LogSettings;
   /** Workbench screen: split fractions and column widths. */
   workbench?: WorkbenchSettings;
 }
@@ -43,6 +53,11 @@ export interface Settings extends BaseSettings {
 export interface WorkbenchSettings {
   sizes?: { main: [number, number]; results: [number, number] };
   widths?: Record<string, number>;
+}
+
+export interface LogSettings {
+  highlights: HighlightTerm[];
+  bookmarks: Record<string, LogBookmark[]>;
 }
 
 export interface ExplorerSettings {
@@ -75,6 +90,37 @@ function validExplorer(raw: unknown): ExplorerSettings | null {
   }
   if (tabs !== undefined && (typeof tabs !== 'object' || tabs === null || JSON.stringify(tabs).length >= MAX_TABS_LAYOUT_BYTES)) return null;
   return { sizes: [sizes[0], sizes[1]], collapsed, expanded: out, ...(tabs !== undefined && { tabs }) };
+}
+
+const MAX_LOG_KEYS = 200;
+const MAX_LOG_KEY_LENGTH = 300;
+const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+
+/** A copy of `raw` when it is a well-formed log state within the size limits, else null. */
+function validLogs(raw: unknown): LogSettings | null {
+  if (!isRecord(raw) || !Array.isArray(raw.highlights) || !isRecord(raw.bookmarks)) return null;
+  if (raw.highlights.length > MAX_HIGHLIGHTS) return null;
+  const highlights: HighlightTerm[] = [];
+  for (const h of raw.highlights) {
+    if (!isRecord(h) || typeof h.text !== 'string' || h.text.length < 1 || h.text.length > 200) return null;
+    if (!(HIGHLIGHT_COLORS as readonly unknown[]).includes(h.color)) return null;
+    highlights.push({ text: h.text, color: h.color as HighlightColor });
+  }
+  const entries = Object.entries(raw.bookmarks);
+  if (entries.length > MAX_LOG_KEYS) return null;
+  const bookmarks: Record<string, LogBookmark[]> = {};
+  for (const [key, list] of entries) {
+    if (key.length > MAX_LOG_KEY_LENGTH || !Array.isArray(list) || list.length > MAX_BOOKMARKS) return null;
+    const out: LogBookmark[] = [];
+    for (const b of list) {
+      if (!isRecord(b) || !Number.isSafeInteger(b.offset) || (b.offset as number) < 0) return null;
+      if (typeof b.label !== 'string' || b.label.length > 80 || typeof b.preview !== 'string' || b.preview.length > 200) return null;
+      if (typeof b.at !== 'number' || !Number.isFinite(b.at)) return null;
+      out.push({ offset: b.offset as number, label: b.label, at: b.at, preview: b.preview });
+    }
+    bookmarks[key] = out;
+  }
+  return { highlights, bookmarks };
 }
 
 const WORKBENCH_COLUMNS = ['id', 'name', 'amount', 'date'];
@@ -128,6 +174,8 @@ const settings = settingsStore<Settings>({
     if (gridLayout) next.gridLayout = gridLayout;
     const explorer = validExplorer(patch.explorer);
     if (explorer) next.explorer = explorer;
+    const logs = validLogs(patch.logs);
+    if (logs) next.logs = logs;
     const workbench = validWorkbench(patch.workbench);
     if (workbench) next.workbench = workbench;
   },

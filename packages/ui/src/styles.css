@@ -674,7 +674,7 @@ kbd {
 .log-marker { align-items: center; gap: 8px; background: var(--accent-soft); color: var(--accent-2); font-size: 11.5px; }
 .log-marker .log-gutter { background: var(--accent-soft); color: var(--accent); }
 .log-marker-label { font-weight: 500; }
-.log-bookmarks { width: 360px; max-height: 420px; overflow: auto; }
+.log-bookmarks { left: 0; right: auto; width: 360px; max-width: 80vw; max-height: 420px; overflow: auto; }
 .log-bm-empty, .log-bm-since { padding: 8px 9px; font-size: 12px; color: var(--text-3); }
 .log-bm { display: flex; flex-direction: column; gap: 2px; padding: 6px 4px 4px 9px; border-radius: 6px; }
 .log-bm + .log-bm { border-top: 1px solid var(--border-soft); }

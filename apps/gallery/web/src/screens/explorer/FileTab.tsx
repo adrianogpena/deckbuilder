@@ -1,24 +1,33 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CodeEditor, FilePreview, langOfFile, previewKind, type PreviewContent } from '@deckbuilder/editor';
 import { type ApiError, errorOf, ErrorBanner, Icon, PanelBanner, PanelLoading, relPath, requestBlob, useDialogs, useKey } from '@deckbuilder/ui';
-import { api } from '../../api';
+import { api, type LogSettings } from '../../api';
 import { t } from '../../i18n';
+import { LogTab } from './LogTab';
 
 type State =
   | { status: 'loading' }
   | { status: 'error'; error: ApiError }
   | { status: 'ready'; content: PreviewContent; mtime: number };
 
-interface FileTabProps {
+export interface FileTabProps {
   project: string;
   projectName: string;
   path: string;
   /** The tab is selected and its pane has the focus. */
   focused: boolean;
+  /** Log viewer state (highlights, bookmarks) and its change handler; only log files use them. */
+  logs?: LogSettings;
+  onLogsChange?: (logs: LogSettings) => void;
 }
 
-/** One open file: a preview by extension, and for text files an editor with Save (Ctrl+S). */
-export function FileTab({ project, projectName, path, focused }: FileTabProps) {
+/** One open file: log files get the log viewer, the rest `TextFileTab`. */
+export function FileTab(props: FileTabProps) {
+  return previewKind(relPath.basename(props.path)) === 'log' ? <LogTab {...props} /> : <TextFileTab {...props} />;
+}
+
+/** A preview by extension, and for text files an editor with Save (Ctrl+S). */
+function TextFileTab({ project, projectName, path, focused }: FileTabProps) {
   const name = relPath.basename(path);
   const [state, setState] = useState<State>({ status: 'loading' });
   const [editing, setEditing] = useState(false);

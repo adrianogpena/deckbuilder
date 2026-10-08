@@ -9,12 +9,14 @@ import { parseArgs } from 'node:util';
 import { findAppBrowser } from '../packages/platform/src/browser.ts';
 import { killTree, waitForUrl } from '../packages/platform/src/run.ts';
 
-const USAGE = `Usage: bun scripts/screenshot.ts --out <png> [--hash <route>] [--settings '<json>'] [--eval '<js>']
+const USAGE = `Usage: bun scripts/screenshot.ts --out <png> [--hash <route>] [--settings '<json>'] [--seed '<json>']
+       [--eval '<js>']
        [--size 1280x820] [--wait <ms>] [--no-build]
 
   --out <png>         where to write the screenshot
   --hash <route>      screen to load (#<route>), e.g. settings
   --settings <json>   contents of settings.json in the temp home (default {})
+  --seed <json>       {"<file>.json": <value>} written next to settings.json (e.g. projects.json); not settings.json
   --eval <js>         run in the page after loading (awaited), 500 ms before the capture
   --size WxH          viewport size (default 1280x820)
   --wait <ms>         wait after the load event (default 1500)
@@ -29,6 +31,7 @@ const { values: args } = parseArgs({
     out: { type: 'string' },
     hash: { type: 'string', default: '' },
     settings: { type: 'string', default: '{}' },
+    seed: { type: 'string', default: '{}' },
     eval: { type: 'string' },
     size: { type: 'string', default: '1280x820' },
     wait: { type: 'string', default: '1500' },
@@ -48,6 +51,13 @@ if (!size || !(wait >= 0)) {
 }
 const [width, height] = [Number(size[1]), Number(size[2])];
 const settings = JSON.parse(args.settings) as unknown;
+const seed = JSON.parse(args.seed) as Record<string, unknown>;
+for (const name of Object.keys(seed)) {
+  if (!/^[\w.-]+\.json$/.test(name) || name === 'settings.json') {
+    console.error(`--seed: invalid file name ${name} (settings.json: use --settings)`);
+    process.exit(1);
+  }
+}
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -130,6 +140,9 @@ try {
   const home = join(temp, 'home');
   await mkdir(join(home, '.deckbuilder'), { recursive: true });
   await writeFile(join(home, '.deckbuilder', 'settings.json'), JSON.stringify(settings, null, 2));
+  for (const [name, value] of Object.entries(seed)) {
+    await writeFile(join(home, '.deckbuilder', name), JSON.stringify(value, null, 2));
+  }
   const proc = Bun.spawn(['bun', 'apps/gallery/server/main.ts', '--dev', '--port', String(PORT)], {
     cwd: ROOT,
     env: { ...process.env, USERPROFILE: home, HOME: home },

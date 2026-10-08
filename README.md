@@ -49,7 +49,7 @@ Run at the root (they act on `apps/gallery`) or inside any app folder:
 | `bun run new <dir> [--name] [--id]` | (root) Create an app in `apps/<dir>` from the template, see [New app](#new-app). |
 | `bun run typecheck` | Type-checks every package and app. |
 | `bun test` | (root) Unit tests of the packages. |
-| `bun scripts/screenshot.ts --out <png>` | (root) Screenshot of the gallery UI in headless Edge/Chrome, with its own `--dev` server on port 7799 and a temp home. Flags: `--hash <route>`, `--settings '<json>'` (seeds `settings.json`), `--eval '<js>'`, `--size WxH`, `--wait <ms>`, `--no-build`. |
+| `bun scripts/screenshot.ts --out <png>` | (root) Screenshot of the gallery UI in headless Edge/Chrome, with its own `--dev` server on port 7799 and a temp home. Flags: `--hash <route>`, `--settings '<json>'` (seeds `settings.json`), `--seed '<json>'` (`{"<file>.json": value}` written beside it, e.g. `projects.json`), `--eval '<js>'`, `--size WxH`, `--wait <ms>`, `--no-build`. |
 | `bun run deckbuilder release --to <folder>` | (in the app folder) Publish a release for the self-updater, see [Releases](#releases). |
 | `bun run deckbuilder manifest` | (in the app folder) Write `release/latest.json` and its signature for the built exes, see [Releases](#releases). |
 | `bun run deckbuilder keygen` | (in the app folder) Create the app's update signing key, see [Releases](#releases). |
@@ -191,6 +191,15 @@ source directly; there is no package build step.
   other labels and more entries between those two (ids must not start with `__`). The gallery
   reads it from a setting at startup, so a change takes effect after a restart. Test with
   `bun packages/platform/src/win/tray.ts --selftest`.
+- **Log viewer**: `<LogView lines highlights onHighlightsChange ... />` (from `@deckbuilder/ui`)
+  shows log lines with level colours and counts, search (case, whole word, regex), find-this-word
+  on double-click and highlight chips; with `follow`/`bookmarks` props it also follows the end and
+  keeps bookmarks. `useLogTail(fetchChunk, { key })` polls `GET /api/fs/tail` (from
+  `rootedFs`) into `lines`; `POST /api/fs/save-range` writes everything after a byte offset
+  to a file picked in the save dialog. A bookmark is a byte offset, so it goes stale when the file
+  is rotated or cleared (shown as stale; copy and save answer `rangeStale`) and does not follow a
+  rename. The gallery's `LogTab` (Explorer, `.log` files) persists highlights and bookmarks in
+  the `logs` setting, capped and validated by `validLogs`.
 
 ## New app
 
