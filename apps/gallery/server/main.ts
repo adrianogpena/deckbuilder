@@ -27,7 +27,7 @@ import {
 } from '@deckbuilder/ui/log';
 import { APP } from '../app.ts';
 import pkg from '../package.json';
-import { demoSecrets, projects, routes } from './routes.ts';
+import { demoSecrets, projects, requests, routes } from './routes.ts';
 
 export interface Settings extends BaseSettings {
   /** Start at Windows login (exe only). */
@@ -49,6 +49,12 @@ export interface Settings extends BaseSettings {
   logs?: LogSettings;
   /** Workbench screen: split fractions and column widths. */
   workbench?: WorkbenchSettings;
+  /** REST screen: split fractions of the editor and the response. */
+  rest?: RestSettings;
+}
+
+export interface RestSettings {
+  sizes?: { main: [number, number] };
 }
 
 export interface WorkbenchSettings {
@@ -154,6 +160,19 @@ function validWorkbench(raw: unknown): WorkbenchSettings | null {
   return out;
 }
 
+/** A copy of `raw` when it is a well-formed REST screen state, else null. */
+function validRest(raw: unknown): RestSettings | null {
+  if (!isRecord(raw)) return null;
+  const out: RestSettings = {};
+  if (raw.sizes !== undefined) {
+    if (!isRecord(raw.sizes)) return null;
+    const main = validPair(raw.sizes.main);
+    if (!main) return null;
+    out.sizes = { main };
+  }
+  return out;
+}
+
 const dataDir = appHome(APP.id);
 const autostart = createAutostart({ name: APP.name });
 /** The folder the update-folder dialog returned; `apply` takes it once. */
@@ -179,6 +198,8 @@ const settings = settingsStore<Settings>({
     if (logs) next.logs = logs;
     const workbench = validWorkbench(patch.workbench);
     if (workbench) next.workbench = workbench;
+    const rest = validRest(patch.rest);
+    if (rest) next.rest = rest;
   },
   onChange(next, prev) {
     if (next.autostart !== prev.autostart) void autostart.set(next.autostart);
@@ -211,7 +232,7 @@ await runApp({
     },
     ...updateRoutes(updater, ctx.quit),
     // Machine-specific: autostart writes the Run key, updateFolder is a local or share path.
-    ...backupRoutes({ app: { id: APP.id, version: pkg.version }, settings, stores: { projects, demoSecrets }, excludeSettings: ['autostart', 'updateFolder'] }),
+    ...backupRoutes({ app: { id: APP.id, version: pkg.version }, settings, stores: { projects, demoSecrets, requests }, excludeSettings: ['autostart', 'updateFolder'] }),
     ...routes(ctx),
   }),
   webDir: join(import.meta.dir, '../dist/web'),

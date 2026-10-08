@@ -1,8 +1,9 @@
 import { statSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
 import { appHome, createToaster, openWithDefault, revealInFolder, saveFileAs, secretStore, writeFileAtomic } from '@deckbuilder/platform';
-import { forbidden, invalid, ndjson, type Routes } from '@deckbuilder/server-core';
-import { dialogRoutes, editorRoutes, fromPlatform, pickedPaths, recordRoutes, recordStore, rootedFs } from '@deckbuilder/server-mods';
+import type { HttpRequestDraft } from '@deckbuilder/editor/http';
+import { forbidden, HTTP_METHODS, invalid, ndjson, type Routes } from '@deckbuilder/server-core';
+import { dialogRoutes, editorRoutes, fromPlatform, httpExecutor, httpRoutes, pickedPaths, recordRoutes, recordStore, rootedFs } from '@deckbuilder/server-mods';
 import type { StartContext } from '@deckbuilder/shell';
 import { APP } from '../app.ts';
 
@@ -45,6 +46,84 @@ export const demoSecrets = recordStore<{ token?: unknown }>({
   secrets: secretStore(APP.id),
   validate: () => ({}),
 });
+
+export interface SavedRequest {
+  name: string;
+  request: HttpRequestDraft;
+  /** Value of the Authorization header; kept in the secret store, never returned by a route. */
+  auth?: unknown;
+}
+
+const MAX_HEADERS = 100;
+const MAX_URL = 4096;
+const MAX_BODY = 900_000;
+const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+const badSavedRequest = () => invalid('badSavedRequest', 'The request is not valid.');
+
+function validDraft(raw: unknown): HttpRequestDraft {
+  if (!isObject(raw)) throw badSavedRequest();
+  const { method, url, headers, body, bodyLang, timeoutMs, insecure, followRedirects } = raw;
+  if (!(HTTP_METHODS as readonly unknown[]).includes(method)) throw badSavedRequest();
+  if (typeof url !== 'string' || url.length > MAX_URL) throw badSavedRequest();
+  if (!Array.isArray(headers) || headers.length > MAX_HEADERS) throw badSavedRequest();
+  if (typeof body !== 'string' || body.length > MAX_BODY) throw badSavedRequest();
+  if (bodyLang !== 'json' && bodyLang !== 'text') throw badSavedRequest();
+  const out: HttpRequestDraft = {
+    method: method as HttpRequestDraft['method'],
+    url,
+    headers: headers.map((h) => {
+      if (!isObject(h) || typeof h.name !== 'string' || h.name.length > 200 || typeof h.value !== 'string' || h.value.length > 8192 || typeof h.enabled !== 'boolean') {
+        throw badSavedRequest();
+      }
+      return { name: h.name, value: h.value, enabled: h.enabled };
+    }),
+    body,
+    bodyLang,
+  };
+  if (timeoutMs !== undefined) {
+    if (typeof timeoutMs !== 'number' || !Number.isInteger(timeoutMs) || timeoutMs < 1_000 || timeoutMs > 300_000) throw badSavedRequest();
+    out.timeoutMs = timeoutMs;
+  }
+  if (insecure !== undefined) {
+    if (typeof insecure !== 'boolean') throw badSavedRequest();
+    out.insecure = insecure;
+  }
+  if (followRedirects !== undefined) {
+    if (typeof followRedirects !== 'boolean') throw badSavedRequest();
+    out.followRedirects = followRedirects;
+  }
+  return out;
+}
+
+/** Saved REST requests; the Authorization value is a secret field. */
+export const requests = recordStore<SavedRequest>({
+  dir: appHome(APP.id),
+  name: 'requests',
+  secretFields: ['auth'],
+  secrets: secretStore(APP.id),
+  validate(input) {
+    const { name, request } = isObject(input) ? input : ({} as Record<string, unknown>);
+    const trimmed = typeof name === 'string' ? name.trim() : '';
+    if (trimmed.length < 1 || trimmed.length > 80) throw invalid('badRequestName', 'The name must have 1 to 80 characters.');
+    return { name: trimmed, request: validDraft(request) };
+  },
+});
+
+const sameOrigin = (a: string, b: string) => {
+  try {
+    return new URL(a).origin === new URL(b).origin;
+  } catch {
+    return false;
+  }
+};
+
+/** The saved Authorization value, only for the origin the request was saved with. */
+const secretHeaders = async (ref: string, url: string): Promise<Array<[string, string]>> => {
+  const saved = await requests.get(ref).catch(() => null);
+  if (!saved || !sameOrigin(url, saved.request.url)) return [];
+  const value = await requests.secret(ref, 'auth');
+  return value ? [['Authorization', value]] : [];
+};
 
 const MAX_DEMO_ROWS = 100_000;
 const DEMO_BATCH = 500;
@@ -96,6 +175,8 @@ export const routes = (ctx: StartContext): Routes => ({
     return { ok: true };
   },
   ...recordRoutes(demoSecrets, '/api/demo/secrets'),
+  ...recordRoutes(requests, '/api/requests'),
+  ...httpRoutes(httpExecutor(), { secretHeaders }),
   // Example endpoint; delete it once real ones exist.
   'POST /api/echo': async ({ json }) => {
     const body = await json<{ text?: unknown }>();

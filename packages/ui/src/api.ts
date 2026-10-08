@@ -49,8 +49,11 @@ session.catch(() => {});
 /** True inside the app's native window (set by the shell's init script), false in a browser. */
 export const isDesktop = (window as { __DECKBUILDER_SHELL__?: string }).__DECKBUILDER_SHELL__ === 'window';
 
-/** Calls the app server with the session token; throws RequestError with the server's ApiError. */
-export async function request<T>(method: string, path: string, params: QueryParams = {}, body?: unknown): Promise<T> {
+/**
+ * Calls the app server with the session token; throws RequestError with the server's ApiError.
+ * An aborted `opts.signal` rethrows the `AbortError` (not an offline error), so callers can ignore it.
+ */
+export async function request<T>(method: string, path: string, params: QueryParams = {}, body?: unknown, opts: { signal?: AbortSignal } = {}): Promise<T> {
   const token = await session;
   let res: Response;
   try {
@@ -58,8 +61,10 @@ export async function request<T>(method: string, path: string, params: QueryPara
       method,
       headers: { [TOKEN_HEADER]: token, ...(body ? { 'Content-Type': 'application/json' } : {}) },
       body: body ? JSON.stringify(body) : undefined,
+      signal: opts.signal,
     });
-  } catch {
+  } catch (err) {
+    if (opts.signal?.aborted) throw err;
     throw offline();
   }
   const data = await res.json().catch(() => null);

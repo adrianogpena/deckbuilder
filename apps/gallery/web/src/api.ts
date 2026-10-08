@@ -1,5 +1,6 @@
+import type { HttpRequestDraft } from '@deckbuilder/editor/http';
 import type { ThemeSettings } from '@deckbuilder/server-core/palettes';
-import type { UpdateState } from '@deckbuilder/server-core/protocol';
+import type { HttpRequestSpec, HttpResponseInfo, UpdateState } from '@deckbuilder/server-core/protocol';
 import { type HighlightTerm, type Language, type LogBookmark, request, type TailChunkLike } from '@deckbuilder/ui';
 
 export interface Settings extends ThemeSettings {
@@ -18,6 +19,19 @@ export interface Settings extends ThemeSettings {
   logs?: LogSettings;
   /** State of the Workbench screen; the server validates it. */
   workbench?: WorkbenchSettings;
+  /** State of the REST screen; the server validates it. */
+  rest?: RestSettings;
+}
+
+export interface RestSettings {
+  sizes?: { main: [number, number] };
+}
+
+export interface SavedRequest {
+  id: string;
+  name: string;
+  request: HttpRequestDraft;
+  auth?: { hasSecret: true };
 }
 
 export interface LogSettings {
@@ -155,5 +169,12 @@ export const api = {
   demoSecrets: () => request<DemoSecret[]>('GET', '/api/demo/secrets'),
   createDemoSecret: (input: Record<string, unknown>) => request<DemoSecret>('POST', '/api/demo/secrets', {}, input),
   updateDemoSecret: (id: string, input: Record<string, unknown>) => request<DemoSecret>('PUT', '/api/demo/secrets', { id }, input),
+  requests: () => request<SavedRequest[]>('GET', '/api/requests'),
+  createRequest: (input: Record<string, unknown>) => request<SavedRequest>('POST', '/api/requests', {}, input),
+  updateRequest: (id: string, input: Record<string, unknown>) => request<SavedRequest>('PUT', '/api/requests', { id }, input),
+  deleteRequest: (id: string) => request<{ ok: true }>('DELETE', '/api/requests', { id }),
+  httpSend: (httpRequest: HttpRequestSpec, secretRef: string | undefined, signal: AbortSignal) =>
+    request<HttpResponseInfo>('POST', '/api/http/send', {}, { request: httpRequest, secretRef }, { signal }),
+  httpSave: (id: string) => request<{ path: string | null; bytes?: number }>('POST', '/api/http/save', {}, { id }),
   echo: (text: string) => request<{ text: string; length: number; at: string }>('POST', '/api/echo', {}, { text }),
 };

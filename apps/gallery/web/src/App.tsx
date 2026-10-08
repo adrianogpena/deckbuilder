@@ -12,8 +12,9 @@ import { TabsScreen } from './screens/TabsScreen';
 
 // The editor and its language parsers are a separate chunk, loaded on first visit.
 const WorkbenchScreen = lazy(() => import('./screens/WorkbenchScreen').then((m) => ({ default: m.WorkbenchScreen })));
+const RestScreen = lazy(() => import('./screens/RestScreen').then((m) => ({ default: m.RestScreen })));
 
-const SCREENS = ['home', 'tabs', 'grid', 'explorer', 'workbench', 'settings'] as const;
+const SCREENS = ['home', 'tabs', 'grid', 'explorer', 'workbench', 'rest', 'settings'] as const;
 type ScreenId = (typeof SCREENS)[number];
 
 const NAV: Array<{ title: MessageKey; items: Array<{ id: ScreenId; label: MessageKey; icon: IconName; hint?: string }> }> = [
@@ -25,7 +26,8 @@ const NAV: Array<{ title: MessageKey; items: Array<{ id: ScreenId; label: Messag
       { id: 'grid', label: 'nav.grid', icon: 'cube', hint: '3' },
       { id: 'explorer', label: 'nav.explorer', icon: 'folder', hint: '4' },
       { id: 'workbench', label: 'nav.workbench', icon: 'play', hint: '5' },
-      { id: 'settings', label: 'nav.settings', icon: 'settings', hint: '6' },
+      { id: 'rest', label: 'nav.rest', icon: 'send', hint: '6' },
+      { id: 'settings', label: 'nav.settings', icon: 'settings', hint: '7' },
     ],
   },
 ];
@@ -132,6 +134,8 @@ function renderScreen(screen: ScreenId, settings: Settings, save: (patch: Partia
       return <ExplorerScreen settings={settings} onSave={save} />;
     case 'workbench':
       return <Suspense fallback={<PanelLoading />}><WorkbenchScreen settings={settings} onSave={save} /></Suspense>;
+    case 'rest':
+      return <Suspense fallback={<PanelLoading />}><RestScreen settings={settings} onSave={save} /></Suspense>;
     case 'settings':
       return <SettingsScreen settings={settings} onChange={save} onQuit={onQuit} />;
     default:

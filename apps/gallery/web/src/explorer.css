@@ -30,3 +30,16 @@
 .editors .mono-label { grid-column: 1 / -1; }
 .editors .editor-path { min-width: 0; overflow-wrap: anywhere; }
 .editors .mono-label:not(:first-child) { margin-top: 12px; }
+
+/* REST screen: fixed-width list of saved requests, then the editor and response split. */
+.rest-body { display: flex; flex: 1; min-height: 0; }
+.rest-list { width: 220px; flex-shrink: 0; display: flex; flex-direction: column; gap: 4px; padding: 8px; overflow-y: auto; border-right: 1px solid var(--border-soft); }
+.rest-list-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.rest-item { display: flex; align-items: center; border-radius: 6px; }
+.rest-item:hover, .rest-item.active { background: var(--hover); }
+.rest-item-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 6px; border: 0; background: transparent; color: var(--text); text-align: left; cursor: pointer; }
+.rest-item-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rest-method { flex-shrink: 0; width: 44px; font-family: var(--font-mono); font-size: 11px; font-weight: 600; color: var(--text-3); }
+.rest-pane { display: flex; flex-direction: column; gap: 10px; min-width: 0; min-height: 0; height: 100%; padding: 10px 14px; overflow: auto; }
+.rest-auth { max-width: 420px; }
+.rest-body > :last-child { flex: 1; min-width: 0; }

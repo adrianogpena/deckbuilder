@@ -22,6 +22,7 @@ library inside), and Windows, Linux and macOS executables can all be built from 
 ![Settings](docs/settings.png)
 ![Explorer](docs/explorer.png)
 ![Workbench](docs/workbench.png)
+![REST](docs/rest.png)
 
 The Electron version of this project is in the git history (commit `559a1a5`); see
 `docs/shell-decision.md` for why webview-bun replaced it.
@@ -93,7 +94,7 @@ packages/
   build/         The `deckbuilder` CLI used by app scripts: dev, build:web, build, release; new
                  template/ is the app that `deckbuilder new` copies
 apps/
-  gallery/       Example app (Home, Tabs, Grid, Explorer, Workbench and Settings screens, echo and toast endpoints)
+  gallery/       Example app (Home, Tabs, Grid, Explorer, Workbench, REST and Settings screens, echo and toast endpoints)
     app.ts         Name and id
     server/        main.ts (composes routes, calls runApp) and routes.ts (the app's own API)
     web/           Vite root: index.html, public/favicon.svg (also the exe icon), src/
@@ -164,6 +165,12 @@ source directly; there is no package build step.
   `ResourceList` and `ResourceForm` edit them. `secretFields: ['token']` with `secrets: secretStore(APP.id)`
   moves those fields into the secret store; the UI only sees `{ hasSecret: true }` and server code reads the
   value with `store.secret(id, 'token')`.
+- **REST client**: `httpExecutor()` and `httpRoutes(executor, { secretHeaders })` (from
+  `@deckbuilder/server-mods`) serve `POST /api/http/send` and `/api/http/save`; the UI is
+  `RequestEditor` and `ResponseView` from `@deckbuilder/editor` (pure helpers in
+  `@deckbuilder/editor/http`). `secretHeaders(ref, url)` returns headers to add from a stored
+  secret (the gallery sends a saved Authorization only to the origin it was saved with). Limits:
+  10 MB response body, 60 s default timeout, http/https URLs only. See the REST screen.
 - **Rooted file system**: `rootedFs({ roots })` serves `/api/fs/*` (list, read, write, create,
   rename, move, delete, search). Requests carry a root id and a relative path, never an absolute
   path; deletes go to the recycle bin and a root can be `readOnly`. A link is never followed out
@@ -329,6 +336,8 @@ never appears in a URL, because URLs land in browser history, command lines and 
 - **CSP**: `index.html` is served with a Content-Security-Policy that allows scripts, fonts and
   API calls from the app only, inline styles, and images from the app or `data:`/`blob:` URLs.
   Every static file gets `X-Content-Type-Options: nosniff` and `Referrer-Policy: no-referrer`.
+- **HTTP executor**: sends only the headers the user set, never the session token, and accepts
+  only http/https URLs.
 - In the native window, links to other origins open in the default browser, never inside the
   app window.
 

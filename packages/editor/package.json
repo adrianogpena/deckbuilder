@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./http": "./src/http.ts"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",
