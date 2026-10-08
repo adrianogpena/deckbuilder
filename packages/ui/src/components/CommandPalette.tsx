@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { t } from '../i18n';
 import { filterPalette, type PaletteItem } from '../palette';
+import { useModalOpen } from './ui';
 
 const PAGE = 8;
 
@@ -9,6 +10,7 @@ export function CommandPalette({ items, onClose }: { items: PaletteItem[]; onClo
   const [index, setIndex] = useState(0);
   const input = useRef<HTMLInputElement>(null);
   const list = useRef<HTMLDivElement>(null);
+  useModalOpen();
 
   useEffect(() => input.current?.focus(), []);
 
@@ -41,7 +43,11 @@ export function CommandPalette({ items, onClose }: { items: PaletteItem[]; onClo
             placeholder={t('palette.placeholder')}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Escape') onClose();
+              if (e.key === 'Escape') {
+                // Keeps a Modal under the palette open.
+                e.preventDefault();
+                onClose();
+              }
               else if (e.key === 'ArrowDown') move(e, (i) => i + 1);
               else if (e.key === 'ArrowUp') move(e, (i) => i - 1);
               else if (e.key === 'PageDown') move(e, (i) => i + PAGE);

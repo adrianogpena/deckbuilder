@@ -1,10 +1,8 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import type { ApiError } from '../api';
 import { t } from '../i18n';
 import type { IconName } from '../icons';
-import { Empty, ErrorBanner, Icon } from './ui';
-
-const CONFIRM_MS = 3000;
+import { Empty, ErrorBanner, Icon, useDialogs } from './ui';
 
 export interface ResourceListProps<T extends { id: string }> {
   items: T[];
@@ -18,25 +16,23 @@ export interface ResourceListProps<T extends { id: string }> {
   emptyTitle: string;
 }
 
-/** Rows of saved items with edit and delete buttons and an Add button. Delete asks "Confirm?" once, for 3 seconds. */
+/** Rows of saved items with edit and delete buttons and an Add button. Delete asks in a dialog first. */
 export function ResourceList<T extends { id: string }>({ items, titleOf, subtitleOf, iconOf, onOpen, onEdit, onDelete, onAdd, emptyTitle }: ResourceListProps<T>) {
-  const [confirming, setConfirming] = useState<string | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout>>();
-  useEffect(() => () => clearTimeout(timer.current), []);
+  const { confirm, element } = useDialogs();
 
-  const askDelete = (item: T) => {
-    clearTimeout(timer.current);
-    if (confirming === item.id) {
-      setConfirming(null);
-      onDelete(item);
-      return;
-    }
-    setConfirming(item.id);
-    timer.current = setTimeout(() => setConfirming(null), CONFIRM_MS);
+  const askDelete = async (item: T) => {
+    const ok = await confirm({
+      title: t('resource.deleteTitle'),
+      body: t('dialog.confirmDelete', { name: titleOf(item) }),
+      okLabel: t('resource.delete'),
+      danger: true,
+    });
+    if (ok) onDelete(item);
   };
 
   return (
     <div className="resource-list">
+      {element}
       <div className="resource-head">
         <button className="btn btn-primary btn-sm" onClick={onAdd}>
           <Icon name="plus" /> {t('resource.add')}
@@ -61,15 +57,9 @@ export function ResourceList<T extends { id: string }>({ items, titleOf, subtitl
                 <button className="btn btn-ghost btn-sm resource-btn" onClick={() => onEdit(item)} title={t('resource.edit')} aria-label={t('resource.edit')}>
                   <Icon name="edit" />
                 </button>
-                {confirming === item.id ? (
-                  <button className="btn btn-danger btn-sm" onClick={() => askDelete(item)}>
-                    {t('resource.confirm')}
-                  </button>
-                ) : (
-                  <button className="btn btn-ghost btn-sm resource-btn" onClick={() => askDelete(item)} title={t('resource.delete')} aria-label={t('resource.delete')}>
-                    <Icon name="trash" />
-                  </button>
-                )}
+                <button className="btn btn-ghost btn-sm resource-btn" onClick={() => askDelete(item)} title={t('resource.delete')} aria-label={t('resource.delete')}>
+                  <Icon name="trash" />
+                </button>
               </li>
             );
           })}

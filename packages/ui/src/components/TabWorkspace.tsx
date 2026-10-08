@@ -21,7 +21,7 @@ import {
   type Pane,
   type Tab,
 } from '../tabs';
-import { Icon } from './ui';
+import { Icon, isModalOpen } from './ui';
 
 const DRAG_TYPE = 'application/x-deckbuilder-tab';
 
@@ -148,7 +148,7 @@ function TabBar<R>(props: TabBarProps<R>) {
  */
 export function useTabKeys<R>(layout: Layout<R>, onChange: (next: Layout<R>) => void, newRoute: () => R) {
   useKey((e) => {
-    if (e.defaultPrevented || document.querySelector('.modal-backdrop')) return;
+    if (e.defaultPrevented || isModalOpen()) return;
     if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
       const digit = /^Digit([1-9])$/.exec(e.code);
       if (digit) {

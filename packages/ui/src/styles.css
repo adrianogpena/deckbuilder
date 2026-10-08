@@ -444,7 +444,66 @@ kbd {
   display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 9px; border: 0; border-radius: 6px;
   background: transparent; color: var(--text-2); cursor: pointer; text-align: left;
 }
-.menu-item:hover { background: var(--hover); color: var(--text); }
+.menu-item:hover, .menu-item:focus-visible { background: var(--hover); color: var(--text); outline: none; }
+.menu-item:disabled { opacity: .45; cursor: default; background: transparent; }
+.menu-item.danger { color: var(--err); }
+.menu-item.danger:hover:not(:disabled), .menu-item.danger:focus-visible { background: var(--err-soft); color: var(--err); }
+.menu-icon { display: grid; place-items: center; width: 16px; flex-shrink: 0; }
+.menu-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.menu-hint { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); }
+.menu-sep { height: 1px; margin: 4px 6px; background: var(--border-soft); }
+.context-menu {
+  position: fixed; z-index: 70; min-width: 180px; max-width: 320px; padding: 4px;
+  background: var(--bg-elev); border: 1px solid var(--border); border-radius: 9px; box-shadow: var(--shadow);
+}
+
+/* ---- dialogs */
+.modal:focus { outline: none; }
+.field-error { font-size: 12px; color: var(--err); }
+
+/* ---- split view */
+.split { display: flex; flex: 1; width: 100%; height: 100%; min-width: 0; min-height: 0; }
+.split-row { flex-direction: row; }
+.split-column { flex-direction: column; }
+.split-pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
+.split-divider { position: relative; flex: 0 0 5px; background: transparent; outline: none; touch-action: none; }
+.split-row > .split-divider { cursor: col-resize; }
+.split-column > .split-divider { cursor: row-resize; }
+.split-divider::after { content: ""; position: absolute; background: var(--border-soft); transition: background .12s; }
+.split-row > .split-divider::after { top: 0; bottom: 0; left: 2px; width: 1px; }
+.split-column > .split-divider::after { left: 0; right: 0; top: 2px; height: 1px; }
+.split-divider:hover::after, .split-divider:focus-visible::after, .split-divider:active::after { background: var(--accent); }
+.split-row > .split-divider:hover::after, .split-row > .split-divider:focus-visible::after, .split-row > .split-divider:active::after { left: 1px; width: 3px; }
+.split-column > .split-divider:hover::after, .split-column > .split-divider:focus-visible::after, .split-column > .split-divider:active::after { top: 1px; height: 3px; }
+
+/* ---- tree view */
+.tree { display: flex; flex-direction: column; padding: 4px; outline: none; user-select: none; }
+.tree-row, .tree-status {
+  display: flex; align-items: center; gap: 6px; min-height: 26px; padding-right: 8px; border-radius: 6px;
+  color: var(--text-2); font-size: 13px;
+}
+.tree-row { cursor: pointer; outline: none; }
+.tree-row:hover { background: var(--hover); color: var(--text); }
+.tree-row.selected { background: var(--selected); color: var(--text); }
+.tree-row:focus-visible { box-shadow: inset 0 0 0 1px var(--accent); }
+.tree-row.drop-target { background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+.tree-chevron { display: grid; place-items: center; width: 16px; flex-shrink: 0; color: var(--text-3); transition: transform .12s; }
+.tree-chevron.open { transform: rotate(90deg); }
+.tree-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tree-rename { flex: 1; min-width: 0; height: 22px; padding: 0 6px; border-radius: 5px; font-size: 13px; }
+.tree-status { color: var(--text-3); font-size: 12px; cursor: default; }
+.tree-error { color: var(--err); }
+.tree-error .btn { height: 22px; }
+
+/* ---- explorer */
+.explorer { display: flex; flex: 1; width: 100%; height: 100%; min-width: 0; min-height: 0; }
+.explorer-side { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: auto; background: var(--bg-elev); }
+.explorer-main { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
+.explorer-rail {
+  display: flex; flex-direction: column; align-items: center; flex-shrink: 0; width: 40px; padding-top: 6px;
+  background: var(--bg-elev); border-right: 1px solid var(--border-soft);
+}
+.explorer-rail .btn { width: 30px; padding: 0; justify-content: center; }
 
 @media (max-width: 800px) {
   .app { grid-template-columns: 1fr; }
