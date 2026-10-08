@@ -1,6 +1,5 @@
 import { join } from 'node:path';
-import { appHome, createAutostart, osThemeKind } from '@deckbuilder/platform';
-import { paletteFor } from '@deckbuilder/server-core/palettes';
+import { appHome, createAutostart } from '@deckbuilder/platform';
 import {
   createUpdater,
   folderSource,
@@ -100,11 +99,6 @@ await runApp({
   },
   webDir: join(import.meta.dir, '../dist/web'),
   transformIndex: themeHead(settings),
-  async windowBackground() {
-    const saved = await settings.load();
-    const systemKind = saved.theme === 'system' ? ((await osThemeKind()) ?? 'dark') : 'dark';
-    return paletteFor(saved, systemKind).tokens['--bg'];
-  },
   urlProtocol: true,
   tray: closeToTray,
   async onStart(ctx) {

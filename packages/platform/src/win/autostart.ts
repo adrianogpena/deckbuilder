@@ -25,7 +25,7 @@ export interface Autostart {
   fixUp(): Promise<void>;
 }
 
-export const runCommand = (execPath: string, args: string[] = []): string => [`"${execPath}"`, ...args].join(' ');
+const runCommand = (execPath: string, args: string[] = []): string => [`"${execPath}"`, ...args].join(' ');
 
 export function autostartArgv(name: string, on: boolean, command: string): string[] {
   return on

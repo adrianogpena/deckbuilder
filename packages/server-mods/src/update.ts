@@ -36,7 +36,7 @@ export interface UpdateFs {
 const withTimeout = <T>(p: Promise<T>, ms: number): Promise<T> =>
   Promise.race([p, new Promise<T>((_, reject) => setTimeout(() => reject(new Error('timed out')), ms).unref())]);
 
-export const nodeFs: UpdateFs = {
+const nodeFs: UpdateFs = {
   readText: (path) => withTimeout(readFile(path, 'utf8'), READ_TIMEOUT_MS),
   copy: (from, to) => copyFile(from, to),
   sha256: (path) =>

@@ -33,7 +33,6 @@ export const en = {
   'settings.quit.hint': 'Stops {name}. Closing the tab leaves it running.',
   'settings.quit.hintTray': 'Stops {name}. Closing the window leaves it running in the tray.',
   'settings.language': 'Language',
-  'settings.saved': 'Saved',
   'settings.on': 'On',
   'settings.off': 'Off',
   'settings.autostart': 'Start at login',

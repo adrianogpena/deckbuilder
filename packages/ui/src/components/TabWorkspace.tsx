@@ -46,7 +46,7 @@ interface TabBarProps<R> {
   onDropTab: (tabId: string, index: number) => void;
 }
 
-export function TabBar<R>(props: TabBarProps<R>) {
+function TabBar<R>(props: TabBarProps<R>) {
   const { pane, focused, titleOf } = props;
   const [dropAt, setDropAt] = useState<number | null>(null);
   const active = pane.tabs.find((x) => x.id === pane.active) ?? pane.tabs[0];

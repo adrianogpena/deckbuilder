@@ -14,13 +14,13 @@ export interface Toaster {
   close(): Promise<number | null>;
 }
 
-export const noopToaster: Toaster = { show() {}, close: async () => null };
+const noopToaster: Toaster = { show() {}, close: async () => null };
 
 // Windows PowerShell's own AppUserModelID: toasts need a registered app id, and a custom one
 // would need a Start-menu shortcut.
 const APP_ID = '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShell\\v1.0\\powershell.exe';
 
-export function xmlEscape(text: string): string {
+function xmlEscape(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 }
 

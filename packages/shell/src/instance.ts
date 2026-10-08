@@ -9,7 +9,8 @@ import { isSafePath } from './link.ts';
 // unlocks this one route, not the API.
 
 export const INSTANCE_HEADER = 'x-deckbuilder-instance';
-export const INSTANCE_ROUTE = 'POST /api/instance/open';
+export const INSTANCE_PATH = '/api/instance/open';
+export const INSTANCE_ROUTE = `POST ${INSTANCE_PATH}`;
 
 /** What a launch asks for: a native window, an Edge/Chrome app window, a browser tab, or nothing (`--no-open`). */
 export type OpenMode = 'window' | 'app' | 'browser' | 'none';
@@ -37,7 +38,7 @@ export async function handOff(file: string, mode: OpenMode, path?: string, fetch
   const info = readInfo(file);
   if (!info) return null;
   try {
-    const res = await fetchFn(`http://127.0.0.1:${info.port}/api/instance/open`, {
+    const res = await fetchFn(`http://127.0.0.1:${info.port}${INSTANCE_PATH}`, {
       method: 'POST',
       headers: { [INSTANCE_HEADER]: info.secret, 'Content-Type': 'application/json' },
       body: JSON.stringify({ mode, path }),

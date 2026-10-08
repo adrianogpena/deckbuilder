@@ -51,8 +51,6 @@ export interface RunOptions {
   /** Rewrites `index.html` before it is served, e.g. `themeHead(settings)` for the saved colours. */
   transformIndex?: IndexTransform;
   window?: WindowOptions;
-  /** `#rrggbb` a native window shows before the page paints; asked on every native window. */
-  windowBackground?: () => Promise<string | undefined>;
   /**
    * Registers `<app.id>://` on Windows (exe only), so `<id>://open/<path>` links open the app;
    * `app.id` must then be a valid URL scheme.
@@ -194,13 +192,12 @@ the running instance instead.
   };
   // WebView2 keeps its profile in %APPDATA%\<exe name>\: the webview library passes that
   // folder explicitly, so WEBVIEW2_USER_DATA_FOLDER has no effect.
-  const openNative = async (url: string) => {
-    const background = await opts.windowBackground?.().catch((err) => void console.error(err));
-    openWindow(url, { title: app.name, debug: dev, ...opts.window, ...(background && { background }) }, onAllClosed);
+  const openNative = (url: string) => {
+    openWindow(url, { title: app.name, debug: dev, ...opts.window }, onAllClosed);
   };
   const show = (m: OpenMode, path?: string): string => {
     const url = path ? `${baseUrl}#${path}` : baseUrl;
-    if (m === 'window') void openNative(url);
+    if (m === 'window') openNative(url);
     else if (m === 'app') {
       const exe = browser ?? findAppBrowser();
       if (!exe) openExternal(url);

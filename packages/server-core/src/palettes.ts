@@ -138,7 +138,7 @@ const alpha = (c: Rgb, a: number) => `rgba(${c.join(', ')}, ${a})`;
 const BLACK: Rgb = [0, 0, 0];
 
 /** Tokens of a session-deck palette, derived from its role colours. */
-export function fromRoles(kind: ThemeKind, roles: Roles): Record<Token, string> {
+function fromRoles(kind: ThemeKind, roles: Roles): Record<Token, string> {
   const [bg, surface, border, text, textDim, accent, purple, cyan, green, yellow, orange, red] = roles.map(rgb);
   const base = kind === 'dark' ? DECKBUILDER_DARK : DECKBUILDER_LIGHT;
   return {

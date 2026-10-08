@@ -26,7 +26,7 @@ export const MAX_PANES = 3;
 const MAX_HISTORY = 50;
 
 let counter = 0;
-export function uid(prefix: string): string {
+function uid(prefix: string): string {
   counter += 1;
   return `${prefix}${Date.now().toString(36)}${counter.toString(36)}`;
 }

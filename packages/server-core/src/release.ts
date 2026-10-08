@@ -47,7 +47,7 @@ export function platformLabel(os: string = process.platform, arch: string = proc
 export type VersionBump = 'patch' | 'minor' | 'major';
 
 /** `[major, minor, patch]`, or null for anything else (e.g. `dev`). */
-export function parseVersion(version: string): [number, number, number] | null {
+function parseVersion(version: string): [number, number, number] | null {
   const m = SEMVER.exec(version);
   return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : null;
 }

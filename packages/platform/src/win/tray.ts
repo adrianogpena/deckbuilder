@@ -16,7 +16,7 @@ export interface Tray {
   close(): Promise<void>;
 }
 
-export const noopTray: Tray = { supported: false, ready: Promise.resolve(), close: async () => {} };
+const noopTray: Tray = { supported: false, ready: Promise.resolve(), close: async () => {} };
 
 export interface TrayProcess {
   pid: number;
@@ -102,7 +102,7 @@ $icon.Visible = $false
 $icon.Dispose()
 `;
 
-export function trayScript(spec: TraySpec): string {
+function trayScript(spec: TraySpec): string {
   return HOST_SCRIPT.replace('__SPEC__', Buffer.from(JSON.stringify(spec), 'utf8').toString('base64'));
 }
 

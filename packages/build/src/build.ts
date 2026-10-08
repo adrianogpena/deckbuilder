@@ -4,7 +4,7 @@ import { platformLabel } from '@deckbuilder/server-core';
 import { type AppDir, run } from './app.ts';
 import { writeIco } from './icon.ts';
 
-export const TARGETS = ['windows-x64', 'linux-x64', 'linux-arm64', 'darwin-x64', 'darwin-arm64'] as const;
+const TARGETS = ['windows-x64', 'linux-x64', 'linux-arm64', 'darwin-x64', 'darwin-arm64'] as const;
 export type Target = (typeof TARGETS)[number];
 
 /** `--target` value → targets; none means this machine. */

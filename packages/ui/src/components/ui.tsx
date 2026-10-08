@@ -109,7 +109,7 @@ export function Modal({ title, onClose, children, footer }: { title: string; onC
 }
 
 // 24x24 stroke icons (Feather/Lucide style). Add paths here as needed.
-const PATHS: Record<string, string> = {
+const PATHS = {
   alert: 'M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z',
   refresh: 'M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6',
   copy: 'M9 9h11v11H9zM5 15H4V4h11v1',
@@ -128,9 +128,10 @@ const PATHS: Record<string, string> = {
   forward: 'M5 12h14m-7-7 7 7-7 7',
   'chevron-down': 'M6 9l6 6 6-6',
   'wifi-off': 'M1 1l22 22M16.7 11.1A11 11 0 0 1 19 12.5M5 12.5a11 11 0 0 1 5.2-2.9M8.5 16.1a6 6 0 0 1 7 0M12 20h.01M10.7 5.1A16 16 0 0 1 22.6 9M1.4 9a16 16 0 0 1 4.7-2.9',
-  inbox: 'M22 12h-6l-2 3h-4l-2-3H2M5.5 5.1 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.7 1.1z',
   cube: 'M12 2 3 7v10l9 5 9-5V7zM3 7l9 5 9-5M12 12v10',
-};
+} as const satisfies Record<string, string>;
+
+export type IconName = keyof typeof PATHS;
 
 export function BrandMark({ size = 30 }: { size?: number }) {
   return (
@@ -144,11 +145,11 @@ export function BrandMark({ size = 30 }: { size?: number }) {
   );
 }
 
-export function Icon({ name, size = 16 }: { name: string; size?: number }) {
+export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
   return (
     <svg className="icon" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d={PATHS[name] ?? PATHS.cube} />
+      <path d={PATHS[name]} />
     </svg>
   );
 }

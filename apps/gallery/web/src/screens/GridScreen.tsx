@@ -4,6 +4,7 @@ import {
   Badge,
   errorMessage,
   Icon,
+  type IconName,
   PageHead,
   PanelBanner,
   PanelGrid,
@@ -19,7 +20,7 @@ import { t } from '../i18n';
 const PANEL_IDS = ['clock', 'info', 'update', 'list'] as const;
 type PanelId = (typeof PANEL_IDS)[number];
 
-const def = (id: PanelId, icon: string): PanelDef => ({
+const def = (id: PanelId, icon: IconName): PanelDef => ({
   id,
   title: t(`grid.panel.${id}`),
   icon,

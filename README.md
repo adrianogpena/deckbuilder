@@ -22,7 +22,7 @@ library inside), and Windows, Linux and macOS executables can all be built from 
 ![Settings](docs/settings.png)
 
 The Electron version of this project is in the git history (commit `559a1a5`); see
-`spikes/RESULTS.md` for why webview-bun replaced it.
+`docs/shell-decision.md` for why webview-bun replaced it.
 
 ## Requirements
 
@@ -53,7 +53,7 @@ Run at the root (they act on `apps/gallery`) or inside any app folder:
 
 The executable takes the same flags as the source: `--app` (Edge/Chrome app window),
 `--browser` (the Settings screen then has a Quit button that stops the app; wins over `--app`),
-`--no-open`, `--port <n>`, `--idle-exit <min>` (exit after that
+`--no-open`, `--port <n>`, `--open-url <uri>` (open a native window on a `<id>://open/<path>` link), `--dev` with `--window`, `--idle-exit <min>` (exit after that
 many minutes without a request from an open UI; the UI sends a heartbeat every minute through
 `useHeartbeat()`; never with `--dev`), `--help`.
 
@@ -78,18 +78,17 @@ packages/
                  the browser
   platform/      OS-specific code: open URL, find Edge/Chrome for app windows, app data folder, error message box, processes
                  (run with timeout, kill tree, start detached), exe swap for updates;
-                 win/: toasts, autostart (HKCU Run key), PowerShell runner
+                 win/: toasts, tray, autostart (HKCU Run key), URL protocol, PowerShell helpers; theme.ts: osThemeKind
   ui/            React components (Sidebar, Badge, ErrorBanner, Modal, Icon, ...), hooks,
                  API client, i18n engine with the base messages, hash routing, styles.css
   build/         The `deckbuilder` CLI used by app scripts: dev, build:web, build, release; new
                  template/ is the app that `deckbuilder new` copies
 apps/
-  gallery/       Example app (Home + Settings screens; settings show autostart and updates)
+  gallery/       Example app (Home, Tabs, Grid and Settings screens, echo and toast endpoints)
     app.ts         Name and id
     server/        main.ts (composes routes, calls runApp) and routes.ts (the app's own API)
     web/           Vite root: index.html, public/favicon.svg (also the exe icon), src/
-spikes/          Shell spike: webview-bun vs Electrobun
-scripts/         Root scripts (typecheck)
+scripts/         Root scripts (typecheck, screenshot)
 ```
 
 The base imposes no layout: an app picks the components it needs. Packages export TypeScript
@@ -219,8 +218,8 @@ push and pull request.
   itself 10 minutes after the last tab closes (idle exit; not when the app has a tray icon,
   whose menu has Quit).
   WebView2 keeps its profile in `%APPDATA%\<exe file name>\`. The webview library passes that
-  folder itself, so `WEBVIEW2_USER_DATA_FOLDER` has no effect, and each version (new file
-  name) starts with a fresh profile. App state belongs on the server (`~/.<id>`), not in
+  folder itself, so `WEBVIEW2_USER_DATA_FOLDER` has no effect, and a renamed exe
+  starts with a fresh profile. App state belongs on the server (`~/.<id>`), not in
   `localStorage`. Unsigned executables trigger SmartScreen on first run ("More info" → "Run
   anyway").
 - **Linux**: `chmod +x` the file. Window mode needs WebKitGTK (see Requirements).

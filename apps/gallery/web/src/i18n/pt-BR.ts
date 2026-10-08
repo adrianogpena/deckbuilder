@@ -67,7 +67,6 @@ export const ptBR: Messages<typeof en> = {
   'settings.quit.hint': 'Encerra o {name}. Fechar a aba o deixa rodando.',
   'settings.quit.hintTray': 'Encerra o {name}. Fechar a janela o deixa rodando na bandeja.',
   'settings.language': 'Idioma',
-  'settings.saved': 'Salvo',
   'settings.on': 'Ligado',
   'settings.off': 'Desligado',
   'settings.autostart': 'Iniciar com o Windows',

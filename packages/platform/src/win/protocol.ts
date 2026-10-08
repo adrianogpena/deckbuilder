@@ -24,9 +24,9 @@ export interface UrlProtocol {
   fixUp(): Promise<void>;
 }
 
-export const protocolKey = (scheme: string): string => `HKCU\\Software\\Classes\\${scheme}`;
+const protocolKey = (scheme: string): string => `HKCU\\Software\\Classes\\${scheme}`;
 
-export const openCommand = (execPath: string): string => `"${execPath}" --open-url "%1"`;
+const openCommand = (execPath: string): string => `"${execPath}" --open-url "%1"`;
 
 /** One `reg.exe add` per value the protocol needs. */
 export function protocolArgv(scheme: string, name: string, execPath: string): string[][] {

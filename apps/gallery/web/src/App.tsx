@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PALETTES } from '@deckbuilder/server-core/palettes';
-import { CommandPalette, detectLanguage, ErrorBanner, Icon, isDesktop, isTyping, type PaletteItem, setLanguage, Sidebar, Spinner, useAsync, useCommandPalette, useHashRoute, useHeartbeat, useKey, useTheme } from '@deckbuilder/ui';
+import { CommandPalette, detectLanguage, ErrorBanner, Icon, type IconName, isDesktop, isTyping, type PaletteItem, setLanguage, Sidebar, Spinner, useAsync, useCommandPalette, useHashRoute, useHeartbeat, useKey, useTheme } from '@deckbuilder/ui';
 import { APP } from '../../app';
 import { api, type Settings } from './api';
 import { type MessageKey, t } from './i18n';
@@ -12,7 +12,7 @@ import { TabsScreen } from './screens/TabsScreen';
 const SCREENS = ['home', 'tabs', 'grid', 'settings'] as const;
 type ScreenId = (typeof SCREENS)[number];
 
-const NAV: Array<{ title: MessageKey; items: Array<{ id: ScreenId; label: MessageKey; icon: string; hint?: string }> }> = [
+const NAV: Array<{ title: MessageKey; items: Array<{ id: ScreenId; label: MessageKey; icon: IconName; hint?: string }> }> = [
   {
     title: 'nav.section.main',
     items: [

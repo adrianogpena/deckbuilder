@@ -1,4 +1,5 @@
 /** Pure helpers for the panel grid (`PanelGrid`); ported from Dashboard's `PageGrid`. */
+import type { IconName } from './components/ui';
 
 export interface GridItem {
   id: string;
@@ -12,7 +13,7 @@ export interface GridItem {
 export interface PanelDef {
   id: string;
   title: string;
-  icon: string;
+  icon: IconName;
   defaultSize: { w: number; h: number };
   minW: number;
   minH: number;

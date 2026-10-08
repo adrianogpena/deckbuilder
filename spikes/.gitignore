@@ -1,7 +1,0 @@
-node_modules/
-dist/
-build/
-.hutch/
-.cottontail-tmp/
-spike.log
-spike-result.json

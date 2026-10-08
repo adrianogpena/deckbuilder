@@ -36,3 +36,5 @@ installing the VS Build Tools to verify the Windows installer. Its v2 toolchain 
 
 - webview-bun: `cd spikes/webview-bun && bun install && bun build index.ts window.ts --compile --minify --windows-hide-console --outfile dist/spike.exe && dist/spike.exe --selftest` → `dist/spike-result.json`.
 - Electrobun (PowerShell, Hutch installed): `cd spikes/electrobun/app; $env:SPIKE_SELFTEST=1; hutch run start` → `~/electrobun-spike/spike-result.json`.
+
+Update: the tray gap is closed (`packages/platform/src/win/tray.ts`).

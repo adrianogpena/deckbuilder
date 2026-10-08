@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react';
-import { BrandMark, Icon } from './ui';
+import { BrandMark, Icon, type IconName } from './ui';
 
 export interface NavItem<Id extends string = string> {
   id: Id;
   /** Display text (already translated). */
   label: string;
-  icon: string;
+  icon: IconName;
   /** Short hint on the right, e.g. the keyboard shortcut. */
   hint?: string;
 }
