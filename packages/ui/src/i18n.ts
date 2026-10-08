@@ -69,6 +69,11 @@ const baseEn = {
   'error.missingId': 'No item was specified.',
   'error.streamClosed': 'The stream ended before it was complete.',
   'error.badStream': 'The server sent an invalid stream.',
+  'error.secretsUnavailable': 'No secure store is available on this system to save passwords.',
+  'error.secretUnreadable': 'A saved password could not be read on this account. Enter it again.',
+  'error.dialogBusy': 'Another dialog is already open.',
+  'error.dialogFailed': "The dialog couldn't be opened.",
+  'error.openRefused': 'Programs and scripts are not opened from the app.',
 };
 
 export type BaseKey = keyof typeof baseEn;
@@ -143,6 +148,11 @@ const basePtBR: Messages<typeof baseEn> = {
   'error.missingId': 'Nenhum item foi informado.',
   'error.streamClosed': 'O fluxo terminou antes de ser concluído.',
   'error.badStream': 'O servidor enviou um fluxo inválido.',
+  'error.secretsUnavailable': 'Não há um armazenamento seguro neste sistema para salvar senhas.',
+  'error.secretUnreadable': 'Uma senha salva não pôde ser lida nesta conta. Digite-a de novo.',
+  'error.dialogBusy': 'Outra janela de diálogo já está aberta.',
+  'error.dialogFailed': 'Não foi possível abrir a janela de diálogo.',
+  'error.openRefused': 'Programas e scripts não são abertos pelo app.',
 };
 
 export const LANGUAGES = [

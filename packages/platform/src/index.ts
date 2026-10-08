@@ -1,22 +1,19 @@
-import { join } from 'node:path';
-import { homedir } from 'node:os';
-
 // OS-specific code lives here, so apps and the other packages stay portable.
 export * from './browser.ts';
+export * from './dialogs.ts';
+export * from './errors.ts';
 export * from './exe.ts';
+export * from './files.ts';
+export * from './home.ts';
 export * from './json-file.ts';
 export * from './run.ts';
+export * from './secrets.ts';
 export * from './theme.ts';
 export * from './win/autostart.ts';
 export * from './win/powershell.ts';
 export * from './win/protocol.ts';
 export * from './win/toast.ts';
 export * from './win/tray.ts';
-
-/** App data folder `~/.<id>`: outside the install folder, so data survives reinstalls and updates. */
-export function appHome(id: string): string {
-  return join(homedir(), `.${id}`);
-}
 
 /**
  * Reports a fatal error: on stderr, and on Windows also in a message box, because the exe is

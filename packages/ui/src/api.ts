@@ -66,3 +66,21 @@ export async function request<T>(method: string, path: string, params: QueryPara
   if (!res.ok) throw new RequestError(data ?? { kind: 'internal', code: 'http', params: { status: res.status }, message: `HTTP error ${res.status}` });
   return data as T;
 }
+
+export interface DialogFilter {
+  name: string;
+  /** Globs such as `*.md`. */
+  patterns: string[];
+}
+
+const dialog = (kind: string, opts: object) => request<{ path: string | null }>('POST', `/api/dialog/${kind}`, {}, opts).then((r) => r.path);
+
+/**
+ * Native dialogs through the app server's `dialogRoutes`; each resolves an absolute path, or null
+ * when cancelled. Only one dialog is open at a time (`error.dialogBusy`).
+ */
+export const dialogs = {
+  pickFolder: (opts: { title?: string; start?: string } = {}) => dialog('folder', opts),
+  pickFile: (opts: { title?: string; start?: string; filters?: DialogFilter[] } = {}) => dialog('file', opts),
+  saveFileAs: (opts: { title?: string; suggestedName?: string; filters?: DialogFilter[] } = {}) => dialog('save', opts),
+};

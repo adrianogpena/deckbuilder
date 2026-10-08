@@ -2,6 +2,7 @@ import { afterEach, expect, test } from 'bun:test';
 import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { PlatformError } from '@deckbuilder/platform';
 import { AppError, invalid } from '@deckbuilder/server-core';
 import { type Rec, recordRoutes, recordStore } from './records.ts';
 
@@ -104,9 +105,82 @@ test('concurrent creates are all persisted', async () => {
   expect((await readdir(dir)).filter((name) => name.endsWith('.tmp'))).toEqual([]);
 });
 
-test('secretFields throw until batch 09', async () => {
+test('secretFields need the secrets option', async () => {
   const { dir } = await setup();
-  expect(() => recordStore<Item>({ dir, name: 'items', validate, secretFields: ['password'] })).toThrow('batch 09');
+  expect(() => recordStore<Item>({ dir, name: 'items', validate, secretFields: ['password'] })).toThrow('secrets option');
+});
+
+function fakeSecrets() {
+  const values = new Map<string, string>();
+  return {
+    values,
+    set: async (ref: string, value: string) => void values.set(ref, value),
+    get: async (ref: string) => values.get(ref) ?? null,
+    remove: async (ref: string) => void values.delete(ref),
+  };
+}
+
+async function secretSetup() {
+  const { dir } = await setup();
+  const secrets = fakeSecrets();
+  const store = recordStore<Item>({ dir, name: 'conns', validate, secretFields: ['password'], secrets });
+  return { dir, secrets, store };
+}
+
+test('secret fields never leave the store, secret() reads them', async () => {
+  const { dir, secrets, store } = await secretSetup();
+  const a = await store.create({ title: 'a', password: 'hunter2' });
+  const b = await store.create({ title: 'b' });
+  expect(a).toMatchObject({ password: { hasSecret: true } });
+  expect(b).not.toHaveProperty('password');
+  const shown = JSON.stringify([await store.list(), await store.get(a.id)]);
+  expect(shown).not.toContain('hunter2');
+  expect(shown).not.toContain('"ref"');
+  expect(await readFile(join(dir, 'conns.json'), 'utf8')).not.toContain('hunter2');
+  expect(await store.secret(a.id, 'password')).toBe('hunter2');
+  expect(await store.secret(b.id, 'password')).toBeNull();
+  expect(secrets.values.size).toBe(1);
+
+  const routes = recordRoutes(store, '/api/conns');
+  const ctx = { query: new URLSearchParams(`id=${a.id}`), json: async () => ({}) } as unknown as Parameters<(typeof routes)[string]>[0];
+  expect(JSON.stringify([await routes['GET /api/conns']!(ctx), await routes['GET /api/conns/item']!(ctx)])).not.toContain('hunter2');
+});
+
+test('update: absent or hasSecret keeps the secret, a string replaces it, empty clears it', async () => {
+  const { secrets, store } = await secretSetup();
+  const a = await store.create({ title: 'a', password: 'one' });
+  await store.update(a.id, { title: 'b' });
+  expect(await store.secret(a.id, 'password')).toBe('one');
+  await store.update(a.id, { title: 'c', password: { hasSecret: true } });
+  expect(await store.secret(a.id, 'password')).toBe('one');
+  await store.update(a.id, { title: 'd', password: 'two' });
+  expect(await store.secret(a.id, 'password')).toBe('two');
+  const cleared = await store.update(a.id, { title: 'e', password: '' });
+  expect(cleared).not.toHaveProperty('password');
+  expect(await store.secret(a.id, 'password')).toBeNull();
+  expect(secrets.values.size).toBe(0);
+});
+
+test('remove deletes the secrets of the record', async () => {
+  const { secrets, store } = await secretSetup();
+  const a = await store.create({ title: 'a', password: 'x' });
+  await store.remove(a.id);
+  expect(secrets.values.size).toBe(0);
+});
+
+test('a PlatformError from the secret backend becomes an invalid AppError', async () => {
+  const { dir } = await setup();
+  const failing = {
+    ...fakeSecrets(),
+    set: async () => {
+      throw new PlatformError('secretsUnavailable', 'The secret store is not available.', 'no tool');
+    },
+  };
+  const store = recordStore<Item>({ dir, name: 'conns', validate, secretFields: ['password'], secrets: failing });
+  const err = await store.create({ title: 'a', password: 'x' }).catch((e) => e);
+  expect(err).toBeInstanceOf(AppError);
+  expect(err.toJSON()).toMatchObject({ kind: 'invalid', code: 'secretsUnavailable', detail: 'no tool' });
+  expect(await store.list()).toEqual([]);
 });
 
 test('routes map the store, ids come from the query', async () => {
