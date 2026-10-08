@@ -1,4 +1,4 @@
-import { type ApiErrorBody, TOKEN_HEADER, TOKEN_PARAM } from '@deckbuilder/server-core/protocol';
+import { type ApiErrorBody, CODE_PARAM, SESSION_PATH, TOKEN_HEADER } from '@deckbuilder/server-core/protocol';
 import { t, tryT } from './i18n';
 
 export type ApiError = ApiErrorBody;
@@ -21,20 +21,45 @@ export function errorOf(err: unknown): ApiError {
 
 const TOKEN_KEY = 'deckbuilder.token';
 
-// The server hands the token over in the URL (?t=...). Keep it for this window and hide it from the address bar.
-function readToken(): string {
+const offline = () => new RequestError({ kind: 'offline', code: 'offline', message: t('error.offline') });
+
+// Launch URLs carry a one-time code (?c=...); it is hidden from the address bar at once, then
+// traded for the session token, which stays in this window's sessionStorage.
+function takeCode(): string | null {
   const url = new URL(window.location.href);
-  const fromUrl = url.searchParams.get(TOKEN_PARAM);
-  if (fromUrl) {
-    try { sessionStorage.setItem(TOKEN_KEY, fromUrl); } catch { /* storage may be blocked */ }
-    url.searchParams.delete(TOKEN_PARAM);
-    window.history.replaceState(null, '', url.pathname + url.search + url.hash);
-    return fromUrl;
-  }
-  try { return sessionStorage.getItem(TOKEN_KEY) ?? ''; } catch { return ''; }
+  const code = url.searchParams.get(CODE_PARAM);
+  if (code === null) return null;
+  url.searchParams.delete(CODE_PARAM);
+  window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+  return code;
 }
 
-const token = readToken();
+async function openSession(code: string | null): Promise<string> {
+  if (code === null) {
+    try { return sessionStorage.getItem(TOKEN_KEY) ?? ''; } catch { return ''; }
+  }
+  let res: Response;
+  try {
+    res = await fetch(SESSION_PATH, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code }) });
+  } catch {
+    throw offline();
+  }
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new RequestError(data ?? { kind: 'forbidden', code: 'invalidCode', message: 'This link was already used or has expired. Open the app again.' });
+  }
+  const token = String(data?.token ?? '');
+  try { sessionStorage.setItem(TOKEN_KEY, token); } catch { /* storage may be blocked */ }
+  return token;
+}
+
+/**
+ * The session token: '' when the URL had no code and none was stored. Rejects with RequestError
+ * `invalidCode` when the code was used or expired, `offline` when the server can't be reached.
+ */
+export const session: Promise<string> = openSession(takeCode());
+// request() rethrows the rejection; this keeps an unused session from logging an unhandled one.
+session.catch(() => {});
 
 /** True inside the app's native window (set by the shell's init script), false in a browser. */
 export const isDesktop = (window as { __DECKBUILDER_SHELL__?: string }).__DECKBUILDER_SHELL__ === 'window';
@@ -53,6 +78,7 @@ function qs(params: QueryParams): string {
 
 /** Calls the app server with the session token; throws RequestError with the server's ApiError. */
 export async function request<T>(method: string, path: string, params: QueryParams = {}, body?: unknown): Promise<T> {
+  const token = await session;
   let res: Response;
   try {
     res = await fetch(path + qs(params), {
@@ -61,7 +87,7 @@ export async function request<T>(method: string, path: string, params: QueryPara
       body: body ? JSON.stringify(body) : undefined,
     });
   } catch {
-    throw new RequestError({ kind: 'offline', code: 'offline', message: t('error.offline') });
+    throw offline();
   }
   const data = await res.json().catch(() => null);
   if (!res.ok) throw new RequestError(data ?? { kind: 'internal', code: 'http', params: { status: res.status }, message: `HTTP error ${res.status}` });

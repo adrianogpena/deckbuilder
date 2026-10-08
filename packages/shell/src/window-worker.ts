@@ -1,5 +1,5 @@
 // One native window per Worker: Webview.run() blocks this thread until the window closes.
-import { openExternal } from '@deckbuilder/platform';
+import { openExternal, showWindow } from '@deckbuilder/platform';
 import { SizeHint, Webview } from 'webview-bun';
 import type { WindowRequest } from './window.ts';
 
@@ -38,6 +38,8 @@ self.onmessage = (e: MessageEvent<WindowRequest>) => {
     self.postMessage({ error: 'Could not create the window (WebView2 failed to start).' });
     process.exit(1);
   }
+  // Started through `bun run`, the process starts hidden and the library's own show is swallowed.
+  showWindow(webview.unsafeWindowHandle);
   webview.title = title;
   webview.bind('__deckbuilderOpenExternal', (href: string) => openExternal(href));
   webview.init(INIT);

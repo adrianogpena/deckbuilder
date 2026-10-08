@@ -37,7 +37,7 @@ Run at the root (they act on `apps/gallery`) or inside any app folder:
 
 | Command | What it does |
 |---|---|
-| `bun run dev` | Hot reload: the server in watch mode on port 7420 (token `dev`) plus Vite. Open `http://localhost:5173/?t=dev`. |
+| `bun run dev` | Hot reload: the server in watch mode on port 7420 plus Vite. Open the URL the server prints (`http://localhost:5173/?c=<code>`); it survives reloads, and a server restart prints a new one. |
 | `bun run dev:window` | (in the app folder) The same, with a native window on the Vite URL (`bun run dev -- --app` for an app window). |
 | `bun run start` | Run from source in a native window. Needs `build:web` first. `bun run start -- --app` for an app window. |
 | `bun run start:browser` | Run from source in browser mode. Flags: `--port <n>`, `--no-open`. |
@@ -68,8 +68,9 @@ starts the instance).
 
 ```
 packages/
-  server-core/   Bun.serve server: host and token checks, static files, AppError, routes type;
-                 protocol.ts (token header, dev ports, error body) is shared with the UI
+  server-core/   Bun.serve server: host, Origin and token checks, launch codes, static files
+                 with CSP, AppError, routes type; protocol.ts (token header, launch code
+                 parameter, dev ports, error body) is shared with the UI
                  release.ts: latest.json manifest and version helpers
   server-mods/   Opt-in route modules: settings (GET/PUT /api/settings), info (GET /api/info),
                  update (self-updater + GET /api/update, POST /api/update/check|apply)
@@ -229,8 +230,24 @@ push and pull request.
 
 ## Security model
 
-The server binds to `127.0.0.1` only. API calls require the random token generated at start
-(passed to the UI in the URL, then kept in `sessionStorage` and sent as the
-`x-deckbuilder-token` header). Requests whose `Host` header is not a loopback name are rejected,
-which blocks DNS rebinding. In the native window, links to other origins open in the default
-browser, never inside the app window.
+The server binds to `127.0.0.1` only. Every `/api` call needs the random token generated at
+start, sent in the `x-deckbuilder-token` header only; a token in the URL is ignored. The token
+never appears in a URL, because URLs land in browser history, command lines and terminal output.
+
+- **Launch codes**: every URL the app opens or prints carries a one-time code (`?c=<code>`)
+  instead. The UI removes it from the address bar at once and trades it for the token at
+  `POST /api/session`, then keeps the token in `sessionStorage`. A code works once and expires
+  after 60 s, so a leaked URL is useless ("This link was already used"). In `--dev` the code is
+  reusable for the server's lifetime, so the printed URL survives reloads.
+- **Origin check**: a request with an `Origin` header must come from the app's own address
+  (`127.0.0.1`, `localhost` or `[::1]` on its port; in `--dev` also Vite's), else 403. Requests
+  whose `Host` header is not a loopback name are rejected, which blocks DNS rebinding.
+- **CSP**: `index.html` is served with a Content-Security-Policy that allows scripts, fonts and
+  API calls from the app only, inline styles, and images from the app or `data:`/`blob:` URLs.
+  Every static file gets `X-Content-Type-Options: nosniff` and `Referrer-Policy: no-referrer`.
+- In the native window, links to other origins open in the default browser, never inside the
+  app window.
+
+To drive the API with curl, trade a printed code first:
+`curl -X POST http://127.0.0.1:<port>/api/session -d '{"code":"<code>"}'`, then send the returned
+token as `x-deckbuilder-token`.

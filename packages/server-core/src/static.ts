@@ -21,6 +21,14 @@ const MIME: Record<string, string> = {
   '.txt': 'text/plain; charset=utf-8',
 };
 
+// Inline styles are allowed (React style props, themeHead's <style>, CodeMirror); inline and
+// remote scripts are not, and images only come from the app or data:/blob: URLs.
+export const CSP =
+  "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; " +
+  "font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
+
+const COMMON_HEADERS = { 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' };
+
 // Vite puts content-hashed files under `assets/`; their URL changes whenever their content does.
 const IMMUTABLE = 'public, max-age=31536000, immutable';
 
@@ -60,19 +68,23 @@ export function staticHandler(source: WebSource, transformIndex?: IndexTransform
     try {
       path = decodeURIComponent(pathname).replace(/^\/+/, '');
     } catch {
-      return new Response('Not found', { status: 404 });
+      return notFound('Not found');
     }
-    if (path.split(/[\\/]/).includes('..')) return new Response('Not found', { status: 404 });
+    if (path.split(/[\\/]/).includes('..')) return notFound('Not found');
     const hit = path === '' ? null : lookup(path);
     const name = hit ? path : 'index.html';
     const file = hit ?? lookup('index.html');
-    if (!file) return new Response('UI not found. Run "bun run build:web" first.', { status: 404 });
+    if (!file) return notFound('UI not found. Run "bun run build:web" first.');
     const body = transformIndex && name === 'index.html' ? await transformIndex(await Bun.file(file).text()) : Bun.file(file);
     return new Response(body, {
       headers: {
+        ...COMMON_HEADERS,
         'Content-Type': MIME[extname(name).toLowerCase()] ?? 'application/octet-stream',
         'Cache-Control': name.startsWith('assets/') ? IMMUTABLE : 'no-cache',
+        ...(name === 'index.html' ? { 'Content-Security-Policy': CSP } : {}),
       },
     });
   };
 }
+
+const notFound = (text: string) => new Response(text, { status: 404, headers: COMMON_HEADERS });

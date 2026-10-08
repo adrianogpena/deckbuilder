@@ -20,13 +20,16 @@ const NAV: Array<{ title: MessageKey; items: Array<{ id: ScreenId; label: Messag
   },
 ];
 
+// Retrying can't revive a used launch code or a stale token; the user has to open the app again.
+const SESSION_ERRORS = ['invalidCode', 'invalidToken'];
+
 /** Loads the settings first, so the first paint already has the right theme and language. */
 export function App() {
   const boot = useAsync(() => api.settings(), []);
   if (boot.data?.language) setLanguage(boot.data.language);
 
   if (boot.error) {
-    return <div className="boot"><ErrorBanner error={boot.error} onRetry={boot.reload} /></div>;
+    return <div className="boot"><ErrorBanner error={boot.error} onRetry={SESSION_ERRORS.includes(boot.error.code ?? '') ? undefined : boot.reload} /></div>;
   }
   if (!boot.data) {
     return <div className="boot"><Spinner /> <span className="muted">{t('common.loading')}</span></div>;

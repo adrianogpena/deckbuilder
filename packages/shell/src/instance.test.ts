@@ -2,8 +2,9 @@ import { afterEach, expect, test } from 'bun:test';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { startServer } from '@deckbuilder/server-core';
+import { launchCodes, startServer } from '@deckbuilder/server-core';
 import { acquireLock, createInstance, handOff, type OpenMode } from './instance.ts';
+import { launchUrl } from './urls.ts';
 
 const dirs: string[] = [];
 const servers: Array<ReturnType<typeof startServer>> = [];
@@ -18,12 +19,13 @@ function running() {
   const file = join(dir, 'instance.json');
   const opened: OpenMode[] = [];
   const paths: Array<string | undefined> = [];
+  const codes = launchCodes();
   const instance = createInstance(file, (mode, path) => {
     opened.push(mode);
     paths.push(path);
-    return 'http://127.0.0.1/ui';
+    return launchUrl('http://127.0.0.1:1', codes, path);
   });
-  const server = startServer({ routes: {}, unauthenticated: instance.routes, token: 'session', web: { files: {} } });
+  const server = startServer({ routes: {}, unauthenticated: instance.routes, token: 'session', codes, web: { files: {} } });
   servers.push(server);
   instance.publish(server.port!);
   return { file, opened, paths, server };
@@ -31,9 +33,26 @@ function running() {
 
 test('a second launch hands its mode to the running instance', async () => {
   const { file, opened } = running();
-  expect(await handOff(file, 'window')).toBe('http://127.0.0.1/ui');
-  expect(await handOff(file, 'none')).toBe('http://127.0.0.1/ui');
+  expect(await handOff(file, 'window')).toBe(true);
+  const url = await handOff(file, 'none');
+  expect(url).toContain('?c=');
+  expect(url).not.toContain('session');
   expect(opened).toEqual(['window', 'none']);
+});
+
+test('the route sends a launch URL only for mode none', async () => {
+  const { file, server } = running();
+  const { secret } = JSON.parse(readFileSync(file, 'utf8')) as { secret: string };
+  const open = (mode: OpenMode) =>
+    fetch(`http://127.0.0.1:${server.port}/api/instance/open`, {
+      method: 'POST',
+      headers: { 'x-deckbuilder-instance': secret },
+      body: JSON.stringify({ mode }),
+    }).then((r) => r.json() as Promise<Record<string, unknown>>);
+  expect(await open('window')).toEqual({ ok: true });
+  const none = await open('none');
+  expect(String(none.url)).toContain('?c=');
+  expect(String(none.url)).not.toContain('session');
 });
 
 test('the handoff carries the path and the route drops an unsafe one', async () => {

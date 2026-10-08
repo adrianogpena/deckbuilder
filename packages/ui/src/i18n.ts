@@ -33,6 +33,7 @@ const baseEn = {
 
   'error.offline': 'The app server is not responding.',
   'error.invalidToken': 'Invalid session. Open the address printed in the terminal.',
+  'error.invalidCode': 'This link was already used or has expired. Open the app again.',
   'error.routeNotFound': 'Route not found.',
   'error.invalidJson': 'Invalid JSON.',
   'error.bodyTooLarge': 'Request body too large.',
@@ -83,6 +84,7 @@ const basePtBR: Messages<typeof baseEn> = {
 
   'error.offline': 'O servidor do app não está respondendo.',
   'error.invalidToken': 'Sessão inválida. Abra o endereço mostrado no terminal.',
+  'error.invalidCode': 'Este link já foi usado ou expirou. Abra o app de novo.',
   'error.routeNotFound': 'Rota não encontrada.',
   'error.invalidJson': 'JSON inválido.',
   'error.bodyTooLarge': 'Corpo da requisição grande demais.',

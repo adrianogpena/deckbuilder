@@ -18,6 +18,8 @@ export class Webview {
   constructor(debug?: boolean, size?: Size);
   /** Null when the native webview could not be created. */
   get unsafeHandle(): unknown;
+  /** The native window: an HWND on Windows. */
+  get unsafeWindowHandle(): import('bun:ffi').Pointer | null;
   set title(title: string);
   set size(size: Size);
   navigate(url: string): void;

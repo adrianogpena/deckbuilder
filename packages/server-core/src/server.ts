@@ -1,6 +1,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import { AppError, invalid } from './errors.ts';
-import { TOKEN_HEADER, TOKEN_PARAM } from './protocol.ts';
+import { SESSION_PATH, TOKEN_HEADER } from './protocol.ts';
+import type { LaunchCodes } from './session.ts';
 import { type IndexTransform, staticHandler, type WebSource } from './static.ts';
 
 export interface RouteContext {
@@ -22,6 +23,10 @@ export interface ServerOptions {
   /** Routes outside the session token check; each handler checks its own credentials. */
   unauthenticated?: Routes;
   token: string;
+  /** Launch codes that `POST /api/session` trades for the token. */
+  codes: LaunchCodes;
+  /** Extra origins allowed to call /api, e.g. the Vite dev server. */
+  devOrigins?: string[];
   web: WebSource & { transformIndex?: IndexTransform };
   /** 0 picks any free port. */
   port?: number;
@@ -34,21 +39,37 @@ const MAX_BODY = 1_000_000;
 
 /**
  * Local HTTP server on 127.0.0.1: serves the built UI and the JSON API.
- * Every /api call needs the session token, so other local programs and web pages can't use it.
+ * Every /api call needs the session token in the TOKEN_HEADER, so other local programs and web
+ * pages can't use it; launch URLs carry a one-time code that the UI trades for it at SESSION_PATH.
+ * Browser requests from a foreign Origin are refused before anything else.
  */
 export function startServer(opts: ServerOptions) {
   const tokenBuf = Buffer.from(opts.token);
   const serveStatic = staticHandler(opts.web, opts.web.transformIndex);
 
-  function authorized(req: Request, url: URL): boolean {
-    const given = Buffer.from(req.headers.get(TOKEN_HEADER) ?? url.searchParams.get(TOKEN_PARAM) ?? '');
+  function authorized(req: Request): boolean {
+    const given = Buffer.from(req.headers.get(TOKEN_HEADER) ?? '');
     return given.length === tokenBuf.length && timingSafeEqual(given, tokenBuf);
+  }
+
+  // Requests without Origin (curl, same-origin GET) pass on to the token check.
+  function originAllowed(req: Request, port: number): boolean {
+    const origin = req.headers.get('origin');
+    if (origin === null) return true;
+    const own = [`http://127.0.0.1:${port}`, `http://localhost:${port}`, `http://[::1]:${port}`];
+    return own.includes(origin) || (opts.devOrigins ?? []).includes(origin);
+  }
+
+  async function session(req: Request): Promise<Response> {
+    const body = await readJson(req).catch(() => ({}));
+    if (typeof body?.code === 'string' && opts.codes.redeem(body.code)) return json(200, { token: opts.token });
+    return json(401, { kind: 'forbidden', code: 'invalidCode', message: 'This link was already used or has expired. Open the app again.' });
   }
 
   return Bun.serve({
     hostname: '127.0.0.1',
     port: opts.port ?? 0,
-    async fetch(req) {
+    async fetch(req, server) {
       const url = new URL(req.url);
 
       // Blocks DNS rebinding: only loopback host names may reach the server.
@@ -56,9 +77,13 @@ export function startServer(opts: ServerOptions) {
 
       if (!url.pathname.startsWith('/api/')) return serveStatic(url.pathname);
 
+      if (!originAllowed(req, server.port!)) return json(403, { kind: 'forbidden', code: 'badOrigin', message: 'Request from a foreign origin.' });
+
       const key = `${req.method} ${url.pathname}`;
+      if (key === `POST ${SESSION_PATH}`) return session(req);
+
       const open = opts.unauthenticated?.[key];
-      if (!open && !authorized(req, url)) {
+      if (!open && !authorized(req)) {
         return json(401, { kind: 'forbidden', code: 'invalidToken', message: 'Invalid session. Open the address printed in the terminal.' });
       }
       if (!open) opts.onActivity?.();
@@ -70,6 +95,7 @@ export function startServer(opts: ServerOptions) {
         const result = await handler({ req, url, query: url.searchParams, json: () => readJson(req) });
         return result instanceof Response ? result : json(200, result);
       } catch (err) {
+        if (!(err instanceof AppError)) console.error(err);
         const e = err instanceof AppError ? err : new AppError('internal', 'raw', String((err as Error)?.message ?? err));
         return json(e.status, e.toJSON());
       }

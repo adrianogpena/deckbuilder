@@ -3,13 +3,12 @@ import { join } from 'node:path';
 import {
   type AppIdentity,
   DEV_PORT,
-  DEV_TOKEN,
   embeddedWebAssets,
   type IndexTransform,
   isUrlScheme,
+  launchCodes,
   type Routes,
   startServer,
-  TOKEN_PARAM,
   VITE_PORT,
 } from '@deckbuilder/server-core';
 import { appHome, createTray, createUrlProtocol, findAppBrowser, isCompiledExe, openExternal, removeOldExe, type Tray, waitForUrl } from '@deckbuilder/platform';
@@ -18,6 +17,7 @@ import { helpText, parseFlags } from './flags.ts';
 import { createIdleWatch, type IdleWatch } from './idle.ts';
 import { acquireLock, createInstance, handOff, type OpenMode } from './instance.ts';
 import { parseAppLink } from './link.ts';
+import { launchUrl } from './urls.ts';
 import { openWindow, openWindows, type WindowOptions } from './window.ts';
 
 export type { OpenMode } from './instance.ts';
@@ -27,7 +27,9 @@ export { DEFAULT_WINDOW, type WindowOptions } from './window.ts';
 export interface StartContext {
   /**
    * A link that opens the app on `#<path>`, e.g. for a toast's `launch`: `<id>://open/<path>` when
-   * `urlProtocol` is on in the Windows exe, else the local address without the session token.
+   * `urlProtocol` is on in the Windows exe, else the local address with no secret in it (toast XML
+   * is stored on disk), which opens on the invalid-session message. Links that must work need
+   * `urlProtocol: true`.
    */
   link(path: string): string;
   /** Opens a window (or browser tab) like a new launch would, on `#<path>` when given. */
@@ -100,12 +102,15 @@ export async function runApp(opts: RunOptions): Promise<void> {
     mode = 'browser';
   }
   const port = flags.port ?? (dev ? DEV_PORT : 0);
-  const token = dev ? DEV_TOKEN : randomBytes(24).toString('hex');
+  const token = randomBytes(24).toString('hex');
+  // Launch URLs carry one-time codes, never the token; the dev code stays valid so reloads work.
+  const codes = launchCodes({ reusable: dev });
   const embedded = embeddedWebAssets();
   const instanceFile = join(appHome(app.id), 'instance.json');
 
-  const alreadyRunning = (running: string) => {
-    console.log(`${app.name} is already running at ${running}`);
+  const alreadyRunning = (running: true | string) => {
+    if (running === true) console.log(`${app.name} is already running; opened a new ${mode === 'browser' ? 'browser tab' : 'window'}.`);
+    else console.log(`${app.name} is already running at ${running}`);
     process.exit(0);
   };
   // Another launch holds the start-up lock: wait until it answers as the instance.
@@ -130,7 +135,8 @@ export async function runApp(opts: RunOptions): Promise<void> {
     if (acquireLock(lockFile) === 'held') await waitForOther();
   }
 
-  let baseUrl = '';
+  // Where the UI is served: Vite in --dev, else this server. Set once the server listens.
+  let origin = '';
   let idle: IdleWatch | null = null;
   // Set while the tray icon starts or shows; `trayShown` once it does.
   let tray: Tray | null = null;
@@ -165,7 +171,7 @@ export async function runApp(opts: RunOptions): Promise<void> {
     openWindow(url, { title: app.name, debug: dev, ...opts.window }, onAllClosed);
   };
   const show = (m: OpenMode, path?: string): string => {
-    const url = path ? `${baseUrl}#${path}` : baseUrl;
+    const url = launchUrl(origin, codes, path);
     if (m === 'window') openNative(url);
     else if (m === 'app') {
       const exe = browser ?? findAppBrowser();
@@ -195,7 +201,6 @@ export async function runApp(opts: RunOptions): Promise<void> {
   // Filled in once the server listens; routes only run after that.
   let serverPort = 0;
   const ctx: StartContext = {
-    // Toast XML is stored on disk, so the http fallback leaves the token out.
     link: (path) => (linkViaProtocol ? `${app.id}://open/${path}` : `http://127.0.0.1:${serverPort}/#${path}`),
     show: (m, path) => void show(m, path),
     quit,
@@ -216,6 +221,8 @@ export async function runApp(opts: RunOptions): Promise<void> {
       routes,
       unauthenticated: instance?.routes,
       token,
+      codes,
+      devOrigins: dev ? [`http://localhost:${VITE_PORT}`, `http://127.0.0.1:${VITE_PORT}`] : undefined,
       port,
       web: { ...(embedded ? { files: embedded } : { dir: opts.webDir }), transformIndex: opts.transformIndex },
       onActivity: () => idle?.touch(),
@@ -227,8 +234,7 @@ export async function runApp(opts: RunOptions): Promise<void> {
   }
 
   serverPort = server.port!;
-  const origin = dev ? `http://localhost:${VITE_PORT}` : `http://127.0.0.1:${serverPort}`;
-  baseUrl = `${origin}/?${TOKEN_PARAM}=${token}`;
+  origin = dev ? `http://localhost:${VITE_PORT}` : `http://127.0.0.1:${serverPort}`;
   instance?.publish(serverPort);
 
   for (const signal of ['SIGINT', 'SIGTERM'] as const) process.on(signal, () => void quit());
@@ -258,10 +264,13 @@ export async function runApp(opts: RunOptions): Promise<void> {
   }
   void Promise.resolve(opts.onStart?.(ctx)).catch((err) => console.error(err));
 
-  if (mode !== 'window') console.log(`\n  ${app.name} running at ${baseUrl}\n  Press Ctrl+C to stop.\n`);
+  // Prints the URL the first open used: one-time outside --dev, so with --no-open it is still unused.
+  const announce = (url: string) => {
+    if (mode !== 'window') console.log(`\n  ${app.name} running at ${url}\n  Press Ctrl+C to stop.\n`);
+  };
   // `deckbuilder dev` starts Vite only once this server answers; don't load the page before Vite does.
-  if (dev && (mode === 'window' || mode === 'app')) void waitForUrl(origin, { timeoutMs: 30_000 }).then(() => show(mode, startPath));
-  else show(mode, startPath);
+  if (dev && (mode === 'window' || mode === 'app')) void waitForUrl(origin, { timeoutMs: 30_000 }).then(() => announce(show(mode, startPath)));
+  else announce(show(mode, startPath));
 }
 
 /** Shows the tray icon with Open, the app's entries and Quit; null where there is no tray. */

@@ -3,12 +3,14 @@
 /** Header the web UI sends with the session token. */
 export const TOKEN_HEADER = 'x-deckbuilder-token';
 
-/** URL parameter that hands the token to a new window; the UI moves it into sessionStorage. */
-export const TOKEN_PARAM = 't';
+/** URL parameter with a one-time launch code; the UI trades it for the session token at SESSION_PATH. */
+export const CODE_PARAM = 'c';
 
-/** Fixed port and token of `--dev` runs; Vite (port 5173) proxies /api to this port. */
+/** POST `{ code }` → `{ token }`; the only /api route that takes no token. */
+export const SESSION_PATH = '/api/session';
+
+/** Fixed port of `--dev` runs; Vite (port 5173) proxies /api to this port. */
 export const DEV_PORT = 7420;
-export const DEV_TOKEN = 'dev';
 export const VITE_PORT = 5173;
 
 /** JSON body of every failed API call. */

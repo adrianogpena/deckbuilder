@@ -1,4 +1,4 @@
-import { type AppIdentity, DEV_PORT, DEV_TOKEN } from '@deckbuilder/server-core';
+import { type AppIdentity, DEV_PORT } from '@deckbuilder/server-core';
 
 /** The command line of an app, as `runApp` reads it. */
 export interface Flags {
@@ -72,8 +72,9 @@ Usage: ${app.id} [--app | --browser [--no-open]] [--port <n>] [--idle-exit <min>
                      the flag)
   --open-url <uri>   open a native window on <path> of a ${app.id}://open/<path> link
                      (Windows passes deep links this way)
-  --dev              port ${DEV_PORT} and token "${DEV_TOKEN}" for the Vite dev server (opens nothing
-                     unless --window, --app or --browser is given; never exits when idle)
+  --dev              port ${DEV_PORT} for the Vite dev server (opens nothing unless --window, --app
+                     or --browser is given; never exits when idle). The printed URL survives
+                     reloads; after a watch restart open the newly printed one
 
 When ${app.name} already runs (outside --dev), a new launch opens a window or browser tab of
 the running instance instead.

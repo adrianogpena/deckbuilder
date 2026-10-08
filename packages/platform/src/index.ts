@@ -38,6 +38,26 @@ export function showError(title: string, text: string): void {
   }
 }
 
+/**
+ * Shows a native window (an HWND) on Windows; elsewhere a no-op. A process started hidden
+ * (`bun run` passes SW_HIDE in its STARTUPINFO) gets that value instead of its first ShowWindow
+ * call, so the window a library showed once stays hidden; this second call is honoured.
+ */
+export function showWindow(hwnd: import('bun:ffi').Pointer | null): void {
+  if (process.platform !== 'win32' || !hwnd) return;
+  try {
+    const { dlopen, FFIType } = require('bun:ffi') as typeof import('bun:ffi');
+    const user32 = dlopen('user32.dll', {
+      ShowWindow: { args: [FFIType.ptr, FFIType.i32], returns: FFIType.i32 },
+    });
+    const SW_SHOW = 5;
+    user32.symbols.ShowWindow(hwnd, SW_SHOW);
+    user32.close();
+  } catch {
+    // the window stays as the library left it
+  }
+}
+
 /** Opens a URL in the default browser; best-effort, failures are ignored. */
 export function openExternal(url: string): void {
   if (!/^https?:\/\//.test(url)) return;

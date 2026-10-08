@@ -6,7 +6,8 @@ import { isSafePath } from './link.ts';
 
 // Single instance: the running app publishes its port and a secret in instance.json (in the app
 // data folder). A second launch asks it to open what was requested and exits. The secret only
-// unlocks this one route, not the API.
+// unlocks this one route, not the API: its response carries no session token, at most a launch URL
+// with a one-time code.
 
 export const INSTANCE_HEADER = 'x-deckbuilder-instance';
 export const INSTANCE_PATH = '/api/instance/open';
@@ -31,10 +32,11 @@ function readInfo(file: string): InstanceInfo | null {
 }
 
 /**
- * Asks the instance published in `file` to open `mode`, on `path` when given. Resolves with its UI
- * address, or null when none answers (no file, or a stale one left by a killed process).
+ * Asks the instance published in `file` to open `mode`, on `path` when given. Resolves true once it
+ * opened it, a fresh launch URL for mode 'none', or null when none answers (no file, or a stale one
+ * left by a killed process).
  */
-export async function handOff(file: string, mode: OpenMode, path?: string, fetchFn: typeof fetch = fetch): Promise<string | null> {
+export async function handOff(file: string, mode: OpenMode, path?: string, fetchFn: typeof fetch = fetch): Promise<true | string | null> {
   const info = readInfo(file);
   if (!info) return null;
   try {
@@ -45,8 +47,9 @@ export async function handOff(file: string, mode: OpenMode, path?: string, fetch
       signal: AbortSignal.timeout(3000),
     });
     if (!res.ok) return null;
-    const body = (await res.json()) as { url?: unknown };
-    return typeof body.url === 'string' ? body.url : null;
+    const body = (await res.json()) as { url?: unknown; ok?: unknown };
+    if (typeof body.url === 'string') return body.url;
+    return body.ok === true ? true : null;
   } catch {
     return null;
   }
@@ -59,8 +62,11 @@ export interface Instance {
   publish(port: number): void;
 }
 
-/** `open` opens what a later launch asked for and returns the UI address. */
-export function createInstance(file: string, open: (mode: OpenMode, path?: string) => string): Instance {
+/**
+ * `open` opens what a later launch asked for and returns the launch URL it used, if any. Only mode
+ * 'none' sends it back: that launch wants an address to print.
+ */
+export function createInstance(file: string, open: (mode: OpenMode, path?: string) => string | null): Instance {
   const secret = Buffer.from(randomBytes(24).toString('hex'));
   return {
     routes: {
@@ -69,7 +75,9 @@ export function createInstance(file: string, open: (mode: OpenMode, path?: strin
         if (given.length !== secret.length || !timingSafeEqual(given, secret)) return new Response('Forbidden', { status: 403 });
         const { mode, path } = await json<{ mode?: unknown; path?: unknown }>();
         const safe = typeof path === 'string' && isSafePath(path) ? path : undefined;
-        return { url: open(mode === 'app' || mode === 'browser' || mode === 'none' ? mode : 'window', safe) };
+        const m = mode === 'app' || mode === 'browser' || mode === 'none' ? mode : 'window';
+        const url = open(m, safe);
+        return m === 'none' && url !== null ? { url } : { ok: true };
       },
     },
     publish(port) {

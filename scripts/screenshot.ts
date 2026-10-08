@@ -56,6 +56,18 @@ function stop(proc: Bun.Subprocess | undefined): void {
   if (proc && proc.exitCode === null) killTree(proc.pid);
 }
 
+/** Reads the server's output until the startup line with the launch URL (`?c=<code>`). */
+async function launchCode(stdout: ReadableStream<Uint8Array>): Promise<string> {
+  const decoder = new TextDecoder();
+  let text = '';
+  for await (const chunk of stdout) {
+    text += decoder.decode(chunk, { stream: true });
+    const m = /[?&]c=([0-9a-f]+)/.exec(text);
+    if (m) return m[1]!;
+  }
+  throw new Error('The server printed no launch URL');
+}
+
 async function until<T>(what: string, ms: number, probe: () => Promise<T | undefined>): Promise<T> {
   const end = Date.now() + ms;
   while (Date.now() < end) {
@@ -118,16 +130,17 @@ try {
   const home = join(temp, 'home');
   await mkdir(join(home, '.deckbuilder'), { recursive: true });
   await writeFile(join(home, '.deckbuilder', 'settings.json'), JSON.stringify(settings, null, 2));
-  server = Bun.spawn(['bun', 'apps/gallery/server/main.ts', '--dev', '--port', String(PORT)], {
+  const proc = Bun.spawn(['bun', 'apps/gallery/server/main.ts', '--dev', '--port', String(PORT)], {
     cwd: ROOT,
     env: { ...process.env, USERPROFILE: home, HOME: home },
-    stdio: ['ignore', 'ignore', 'inherit'],
+    stdio: ['ignore', 'pipe', 'inherit'],
   });
-  const proc = server;
+  server = proc;
   if (!(await waitForUrl(`${APP_URL}/`, { timeoutMs: 30_000, until: () => proc.exitCode !== null }))) {
     if (proc.exitCode !== null) throw new Error(`The server exited with code ${proc.exitCode} (port ${PORT} in use?)`);
     throw new Error('Timed out waiting for the server');
   }
+  const code = await launchCode(proc.stdout);
 
   const browser = findAppBrowser();
   if (!browser) throw new Error('No Edge or Chrome found');
@@ -150,7 +163,8 @@ try {
   await cdp.send('Page.enable');
   await cdp.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
   const loaded = cdp.once('Page.loadEventFired', 30_000);
-  await cdp.send('Page.navigate', { url: `${APP_URL}/?t=dev#${args.hash}` });
+  // The dev launch code is reusable, so the printed one still works.
+  await cdp.send('Page.navigate', { url: `${APP_URL}/?c=${code}#${args.hash}` });
   await loaded;
   await sleep(wait);
   if (args.eval) {
