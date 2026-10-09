@@ -16,6 +16,9 @@ import {
   selectIndex,
   serialize,
   singlePane,
+  layoutTree,
+  resizeSplit,
+  splitPane,
   splitRight,
   type Layout,
 } from '../src/tabs.ts';
@@ -103,7 +106,7 @@ describe('closing tabs and panes', () => {
 });
 
 describe('splitting and moving', () => {
-  test('split is capped at three panes', () => {
+  test('split is capped at MAX_PANES', () => {
     const { layout, id } = start();
     let l = layout;
     for (let i = 0; i < 5; i++) l = splitRight(l, focusedPane(l).tabs[0].id);
@@ -204,9 +207,151 @@ describe('serialize and restore', () => {
 
   test('falls back to the first tab when active is unknown and caps panes', () => {
     const pane = (id: string) => ({ id, active: 'zzz', tabs: [{ id: `${id}t`, route: route('notes') }] });
-    const l = restore({ focused: 'nope', panes: [pane('a'), pane('b'), pane('c'), pane('d')] }, isRoute);
+    const l = restore({ focused: 'nope', panes: [pane('a'), pane('b'), pane('c'), pane('d'), pane('e')] }, isRoute);
     expect(l?.panes.length).toBe(MAX_PANES);
     expect(l?.panes[0].active).toBe('at');
     expect(l?.focused).toBe('a');
+  });
+});
+
+describe('split tree', () => {
+  const ids = (l: Layout<Route>) => l.panes.map((p) => p.id);
+
+  test('a layout without a tree is one row of its panes', () => {
+    const { layout, id } = start();
+    expect(layoutTree(layout)).toEqual({ pane: layout.panes[0].id });
+    const l = splitRight(layout, id);
+    const { tree: _, ...old } = l;
+    expect(layoutTree(old)).toEqual({ dir: 'row', children: ids(l).map((pane) => ({ pane })), sizes: [0.5, 0.5] });
+  });
+
+  test('split down of a single pane stacks two panes', () => {
+    const { layout, id } = start();
+    const l = splitPane(layout, id, 'down');
+    const [a, b] = ids(l);
+    expect(l.tree).toEqual({ dir: 'column', children: [{ pane: a }, { pane: b }], sizes: [0.5, 0.5] });
+    expect(l.focused).toBe(b);
+  });
+
+  test('split right inside a column nests a row', () => {
+    const { layout, id } = start();
+    let l = splitPane(layout, id, 'down');
+    const [a, b] = ids(l);
+    l = splitPane(l, l.panes[1].tabs[0].id, 'right');
+    const c = l.focused;
+    expect(l.tree).toEqual({
+      dir: 'column',
+      children: [{ pane: a }, { dir: 'row', children: [{ pane: b }, { pane: c }], sizes: [0.5, 0.5] }],
+      sizes: [0.5, 0.5],
+    });
+  });
+
+  test('a split in the parent direction inserts a sibling and halves the pane', () => {
+    const { layout, id } = start();
+    let l = splitPane(layout, id, 'right');
+    l = resizeSplit(l, [], [0.6, 0.4]);
+    l = splitPane(l, id, 'right');
+    const [a, c, b] = ids(l);
+    expect(l.tree).toEqual({ dir: 'row', children: [{ pane: a }, { pane: c }, { pane: b }], sizes: [0.3, 0.3, 0.4] });
+  });
+
+  test('closing a pane collapses a one-child split and gives its size to the neighbours', () => {
+    const { layout, id } = start();
+    let l = splitPane(layout, id, 'right');
+    const [a, b] = ids(l);
+    l = splitPane(l, l.panes[1].tabs[0].id, 'down');
+    const c = l.focused;
+    l = resizeSplit(l, [], [0.4, 0.6]);
+    const collapsed = closeTab(l, l.panes.find((p) => p.id === c)!.tabs[0].id, fallback);
+    expect(collapsed.tree).toEqual({ dir: 'row', children: [{ pane: a }, { pane: b }], sizes: [0.4, 0.6] });
+
+    let three = splitPane(splitPane(layout, id, 'right'), id, 'right');
+    three = resizeSplit(three, [], [0.2, 0.3, 0.5]);
+    const middle = three.panes[1];
+    const closed = closeTab(three, middle.tabs[0].id, fallback);
+    expect(closed.tree).toEqual({ dir: 'row', children: closed.panes.map((p) => ({ pane: p.id })), sizes: [0.2 / 0.7, 0.5 / 0.7] });
+  });
+
+  test('a collapsed split in the parent direction merges into it', () => {
+    const { layout, id } = start();
+    let l = splitPane(layout, id, 'right');
+    l = splitPane(l, l.panes[1].tabs[0].id, 'down');
+    l = splitPane(l, l.panes[1].tabs[0].id, 'right');
+    const [a, b, d, c] = ids(l);
+    expect(l.tree).toEqual({
+      dir: 'row',
+      children: [{ pane: a }, { dir: 'column', children: [{ dir: 'row', children: [{ pane: b }, { pane: d }], sizes: [0.5, 0.5] }, { pane: c }], sizes: [0.5, 0.5] }],
+      sizes: [0.5, 0.5],
+    });
+    const cTab = l.panes.find((p) => p.id === c)!.tabs[0].id;
+    l = moveTab(l, cTab, a);
+    expect(l.tree).toEqual({ dir: 'row', children: [{ pane: a }, { pane: b }, { pane: d }], sizes: [0.5, 0.25, 0.25] });
+  });
+
+  test('resizeSplit ignores a wrong path or size count', () => {
+    const { layout, id } = start();
+    const l = splitPane(layout, id, 'down');
+    expect(resizeSplit(l, [0], [0.5, 0.5])).toBe(l);
+    expect(resizeSplit(l, [], [1])).toBe(l);
+  });
+
+  test('at MAX_PANES a split adds the copy to the next pane', () => {
+    const { layout, id } = start();
+    let l = layout;
+    for (let i = 1; i < MAX_PANES; i++) l = splitPane(l, id, 'down');
+    const before = l.tree;
+    const next = splitPane(l, id, 'down');
+    expect(next.panes.length).toBe(MAX_PANES);
+    expect(next.tree).toEqual(before);
+    expect(next.panes[1].tabs.length).toBe(2);
+  });
+
+  test('restore keeps a valid tree and reads an old layout as a row', () => {
+    const { layout, id } = start();
+    const l = splitPane(splitPane(layout, id, 'right'), id, 'down');
+    const back = restore(JSON.parse(JSON.stringify(serialize(l))), isRoute);
+    expect(back?.tree).toEqual(l.tree);
+    const { tree: _, ...old } = serialize(l) as Record<string, unknown>;
+    const restoredOld = restore(old, isRoute)!;
+    expect(restoredOld.tree).toBeUndefined();
+    expect(layoutTree(restoredOld)).toEqual({ dir: 'row', children: ids(l).map((pane) => ({ pane })), sizes: [1 / 3, 1 / 3, 1 / 3] });
+  });
+
+  test('restore drops a tree with a missing, duplicated or malformed node', () => {
+    const tab = (id: string) => ({ id, active: `${id}t`, tabs: [{ id: `${id}t`, route: route('notes') }] });
+    const panes = [tab('a'), tab('b')];
+    const bad = [
+      { dir: 'row', children: [{ pane: 'a' }, { pane: 'a' }], sizes: [0.5, 0.5] },
+      { dir: 'row', children: [{ pane: 'a' }, { pane: 'c' }], sizes: [0.5, 0.5] },
+      { dir: 'row', children: [{ pane: 'a' }], sizes: [1] },
+      { dir: 'row', children: [{ pane: 'a' }, { pane: 'b' }], sizes: [0.5, 0.3] },
+      { dir: 'diag', children: [{ pane: 'a' }, { pane: 'b' }], sizes: [0.5, 0.5] },
+    ];
+    for (const tree of bad) {
+      const l = restore({ focused: 'a', panes, tree }, isRoute);
+      expect(l?.tree).toBeUndefined();
+      expect(l?.panes.length).toBe(2);
+    }
+  });
+
+  test('restore prunes panes dropped for invalid routes from the tree', () => {
+    const raw = {
+      focused: 'a',
+      panes: [
+        { id: 'a', active: 'x', tabs: [{ id: 'x', route: route('notes') }] },
+        { id: 'b', active: 'y', tabs: [{ id: 'y', route: 'nope' }] },
+        { id: 'c', active: 'z', tabs: [{ id: 'z', route: route('info') }] },
+      ],
+      tree: { dir: 'column', children: [{ pane: 'a' }, { dir: 'row', children: [{ pane: 'b' }, { pane: 'c' }], sizes: [0.5, 0.5] }], sizes: [0.5, 0.5] },
+    };
+    expect(restore(raw, isRoute)?.tree).toEqual({ dir: 'column', children: [{ pane: 'a' }, { pane: 'c' }], sizes: [0.5, 0.5] });
+  });
+
+  test('tab changes keep the tree', () => {
+    const { layout, id } = start();
+    let l = splitPane(layout, id, 'down');
+    const tree = l.tree;
+    l = activate(addTab(l, newTab(route('x'))), l.panes[0].id, id);
+    expect(l.tree).toEqual(tree);
   });
 });

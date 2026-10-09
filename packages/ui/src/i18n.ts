@@ -18,7 +18,8 @@ const baseEn = {
 
   'tabs.new': 'New tab',
   'tabs.close': 'Close tab',
-  'tabs.split': 'Split to the right',
+  'tabs.splitRight': 'Split to the right',
+  'tabs.splitDown': 'Split down',
   'tabs.closePane': 'Close pane',
   'tabs.back': 'Back',
   'tabs.forward': 'Forward',
@@ -250,7 +251,8 @@ const basePtBR: Messages<typeof baseEn> = {
 
   'tabs.new': 'Nova aba',
   'tabs.close': 'Fechar aba',
-  'tabs.split': 'Dividir à direita',
+  'tabs.splitRight': 'Dividir à direita',
+  'tabs.splitDown': 'Dividir para baixo',
   'tabs.closePane': 'Fechar painel',
   'tabs.back': 'Voltar',
   'tabs.forward': 'Avançar',

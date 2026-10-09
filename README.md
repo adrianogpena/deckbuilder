@@ -151,10 +151,15 @@ source directly; there is no package build step.
   `{ id, group, label, hint?, keywords?, run }`. `keywords[0]` doubles as a prefix that narrows
   to its group (`theme nord`). The gallery's `App.tsx` lists screens, themes and Quit.
 - **Tab workspace**: `<TabWorkspace layout onChange renderTab titleOf newRoute scope />` (from
-  `@deckbuilder/ui`) shows tabs in up to 3 split panes: open, close (also middle-click), reorder,
-  drag between panes, Back/Forward per tab. `layout` is a `Layout<R>` for your route type `R`
-  (`singlePane(newTab(route))` to start); every tab stays mounted, so hidden ones keep their
-  state, and `renderTab` gets `navigate(route)` to change what the tab shows. Alt+1..9 select a
+  `@deckbuilder/ui`) shows tabs in up to 4 panes: open, close (also middle-click), reorder,
+  drag between panes, Back/Forward per tab. Each tab bar has Split right and Split down
+  (`splitPane(layout, tabId, 'right' | 'down')`), so panes nest (a pane beside a column of two)
+  with draggable dividers (`resizeSplit`); closing a pane gives its space to its neighbours.
+  `layout` is a `Layout<R>` for your route type `R` (`singlePane(newTab(route))` to start); its
+  optional `tree` holds the arrangement (`layoutTree(layout)`; without it, one row of panes).
+  Every tab stays mounted, so hidden ones keep their state, except when its pane moves under
+  another split (splitting a pane of a split in the other direction): that pane remounts.
+  `renderTab` gets `navigate(route)` to change what the tab shows. Alt+1..9 select a
   tab; Ctrl+T, Ctrl+W and Ctrl+Tab only in the native window (browsers keep them); these are
   `tabCommands(scope)`, `scope` being the screen id. Persist with
   `serialize(layout)` and read back with `restore(raw, isRoute)`; the gallery's Tabs screen keeps

@@ -15,12 +15,16 @@ import {
   navigate,
   newTab,
   selectIndex,
-  splitRight,
+  layoutTree,
+  resizeSplit,
+  splitPane,
   type Layout,
   type Pane,
+  type SplitNode,
   type Tab,
 } from '../tabs';
 import { useCommand } from './Keybindings';
+import { SplitView } from './SplitView';
 import { Icon, type IconName, type Tone } from './ui';
 
 const DRAG_TYPE = 'application/x-deckbuilder-tab';
@@ -41,7 +45,7 @@ interface TabBarProps<R> {
   onActivate: (tabId: string) => void;
   onClose: (tabId: string) => void;
   onNew: () => void;
-  onSplit: () => void;
+  onSplit: (side: 'right' | 'down') => void;
   onClosePane: () => void;
   onBack: () => void;
   onForward: () => void;
@@ -135,8 +139,11 @@ function TabBar<R>(props: TabBarProps<R>) {
         </button>
       </div>
       <div className="tabbar-tools">
-        <button className="btn btn-ghost btn-sm" onClick={props.onSplit} disabled={!props.canSplit} title={t('tabs.split')}>
+        <button className="btn btn-ghost btn-sm" onClick={() => props.onSplit('right')} disabled={!props.canSplit} title={t('tabs.splitRight')} data-split-right>
           <Icon name="split" size={15} />
+        </button>
+        <button className="btn btn-ghost btn-sm" onClick={() => props.onSplit('down')} disabled={!props.canSplit} title={t('tabs.splitDown')} data-split-down>
+          <Icon name="split-down" size={15} />
         </button>
         {props.canClosePane && (
           <button className="btn btn-ghost btn-sm" onClick={props.onClosePane} title={t('tabs.closePane')}>
@@ -213,57 +220,90 @@ export function TabWorkspace<R>({ layout, onChange, renderTab, titleOf, newRoute
   const fresh = () => newTab(newRoute());
   const closeById = (tabId: string) => update((l) => closeTab(l, tabId, fresh));
 
+  const renderPane = (pane: Pane<R>) => {
+    const paneFocused = pane.id === layout.focused;
+    const activeId = pane.tabs.some((x) => x.id === pane.active) ? pane.active : pane.tabs[0]?.id;
+    return (
+      <section
+        key={pane.id}
+        className={`pane${paneFocused && layout.panes.length > 1 ? ' focused' : ''}`}
+        onMouseDownCapture={() => !paneFocused && update((l) => ({ ...l, focused: pane.id }))}
+      >
+        <TabBar
+          pane={pane}
+          focused={paneFocused}
+          canSplit={layout.panes.length < MAX_PANES}
+          canClosePane={layout.panes.length > 1}
+          titleOf={titleOf}
+          onActivate={(tabId) => update((l) => activate(l, pane.id, tabId))}
+          onClose={closeById}
+          onNew={() => update((l) => addTab(l, fresh(), pane.id))}
+          onSplit={(side) => update((l) => splitPane(l, activeId, side))}
+          onClosePane={() =>
+            update((l) => pane.tabs.reduce((next, tab) => closeTab(next, tab.id, fresh), l))
+          }
+          onBack={() => update((l) => goBack(l, activeId))}
+          onForward={() => update((l) => goForward(l, activeId))}
+          onDropTab={(tabId, index) =>
+            update((l) => {
+              // Dropping later in the same pane: the index counts the tab being moved.
+              const from = pane.tabs.findIndex((x) => x.id === tabId);
+              return moveTab(l, tabId, pane.id, from >= 0 && from < index ? index - 1 : index);
+            })
+          }
+        />
+        <div className="pane-body">
+          {pane.tabs.map((tab) => {
+            const visible = tab.id === activeId;
+            return (
+              <div key={tab.id} className={`tab-view${visible ? '' : ' hidden'}`} role="tabpanel">
+                {renderTab(tab, {
+                  visible,
+                  focused: visible && paneFocused,
+                  navigate: (route) => update((l) => (findTab(l, tab.id) ? navigate(l, tab.id, route) : l)),
+                })}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+    );
+  };
+
+  const paneById = new Map(layout.panes.map((p) => [p.id, p]));
+  const renderNode = (node: SplitNode, path: number[]): ReactNode => {
+    if ('pane' in node) {
+      const pane = paneById.get(node.pane);
+      return pane ? renderPane(pane) : null;
+    }
+    return (
+      <SplitView
+        key={path.length ? `split:${firstPane(node)}` : 'root'}
+        direction={node.dir}
+        sizes={node.sizes}
+        min={node.children.map(() => PANE_MIN_PX)}
+        onResize={(sizes) => update((l) => resizeSplit(l, path, sizes))}
+      >
+        {node.children.map((child, i) => renderNode(child, [...path, i]))}
+      </SplitView>
+    );
+  };
+
+  // A single pane still sits in the root SplitView, so splitting it keeps it mounted.
+  const tree = layoutTree(layout);
   return (
-    <div className="panes" style={{ gridTemplateColumns: `repeat(${layout.panes.length}, minmax(0, 1fr))` }}>
-      {layout.panes.map((pane) => {
-        const paneFocused = pane.id === layout.focused;
-        const activeId = pane.tabs.some((x) => x.id === pane.active) ? pane.active : pane.tabs[0]?.id;
-        return (
-          <section
-            key={pane.id}
-            className={`pane${paneFocused && layout.panes.length > 1 ? ' focused' : ''}`}
-            onMouseDownCapture={() => !paneFocused && update((l) => ({ ...l, focused: pane.id }))}
-          >
-            <TabBar
-              pane={pane}
-              focused={paneFocused}
-              canSplit={layout.panes.length < MAX_PANES}
-              canClosePane={layout.panes.length > 1}
-              titleOf={titleOf}
-              onActivate={(tabId) => update((l) => activate(l, pane.id, tabId))}
-              onClose={closeById}
-              onNew={() => update((l) => addTab(l, fresh(), pane.id))}
-              onSplit={() => update((l) => splitRight(l, activeId))}
-              onClosePane={() =>
-                update((l) => pane.tabs.reduce((next, tab) => closeTab(next, tab.id, fresh), l))
-              }
-              onBack={() => update((l) => goBack(l, activeId))}
-              onForward={() => update((l) => goForward(l, activeId))}
-              onDropTab={(tabId, index) =>
-                update((l) => {
-                  // Dropping later in the same pane: the index counts the tab being moved.
-                  const from = pane.tabs.findIndex((x) => x.id === tabId);
-                  return moveTab(l, tabId, pane.id, from >= 0 && from < index ? index - 1 : index);
-                })
-              }
-            />
-            <div className="pane-body">
-              {pane.tabs.map((tab) => {
-                const visible = tab.id === activeId;
-                return (
-                  <div key={tab.id} className={`tab-view${visible ? '' : ' hidden'}`} role="tabpanel">
-                    {renderTab(tab, {
-                      visible,
-                      focused: visible && paneFocused,
-                      navigate: (route) => update((l) => (findTab(l, tab.id) ? navigate(l, tab.id, route) : l)),
-                    })}
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        );
-      })}
+    <div className="panes">
+      {'pane' in tree ? (
+        <SplitView key="root" direction="row" sizes={[1]} onResize={() => {}}>
+          {renderNode(tree, [])}
+        </SplitView>
+      ) : (
+        renderNode(tree, [])
+      )}
     </div>
   );
 }
+
+const PANE_MIN_PX = 160;
+
+const firstPane = (node: SplitNode): string => ('pane' in node ? node.pane : firstPane(node.children[0]));
