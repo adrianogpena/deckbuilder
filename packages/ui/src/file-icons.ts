@@ -1,4 +1,5 @@
 import type { Tone } from './components/ui';
+import { effectiveName, LOG_NAME } from './file-associations';
 import type { IconName } from './icons';
 
 export interface FileIcon {
@@ -13,22 +14,33 @@ const add = (extensions: string, icon: IconName, tone?: Tone) => {
 add('sql pls pkb pks', 'database', 'info');
 add('json jsonc', 'braces', 'warn');
 add('md markdown', 'markdown', 'info');
-add('log', 'log', 'muted');
+add('log', 'log-file', 'ok');
 add('curl http rest', 'curl', 'ok');
-add('png jpg jpeg gif webp bmp ico svg', 'image');
-add('csv tsv xlsx xls', 'table', 'ok');
+add('png jpg jpeg gif webp bmp ico avif tif tiff', 'image', 'info');
+add('svg', 'vector', 'warn');
+add('pdf', 'pdf', 'err');
+add('mp4 mkv mov avi webm wmv m4v', 'video', 'info');
+add('mp3 wav flac ogg m4a aac opus', 'audio', 'info');
+add('doc docx odt rtf', 'document', 'info');
+add('ppt pptx odp', 'slides', 'warn');
+add('ttf otf woff woff2', 'font', 'muted');
+add('exe dll msi so dylib bin', 'app', 'muted');
+add('lock', 'lock', 'muted');
+add('csv tsv xlsx xls ods', 'table', 'ok');
 add('js ts tsx jsx java kt py go rs cs c cpp h html css scss', 'code');
 add('sh bash ps1 bat cmd', 'terminal');
 add('zip jar war gz tgz 7z rar', 'archive');
 add('pem key crt p12 jks', 'key', 'err');
 add('yaml yml toml ini properties conf cfg xml', 'settings-file');
-add('txt pdf', 'file-text');
+add('txt', 'file-text');
 
 const CONFIG_FILE: FileIcon = { icon: 'settings-file' };
+const LOG_FILE: FileIcon = { icon: 'log-file', tone: 'ok' };
 
-/** Icon and tone of a file by its (lower-cased) extension or whole name. */
+/** Icon and tone of a file by its (lower-cased) extension or whole name, after the user's file associations. */
 export function fileIconOf(name: string): FileIcon {
-  const lower = name.toLowerCase();
+  const lower = effectiveName(name).toLowerCase();
+  if (LOG_NAME.test(lower)) return LOG_FILE;
   if (lower === '.env' || lower.startsWith('.env.') || lower === 'dockerfile' || lower === '.gitignore') return CONFIG_FILE;
   const dot = lower.lastIndexOf('.');
   return (dot >= 0 && BY_EXTENSION[lower.slice(dot + 1)]) || { icon: 'file' };
@@ -53,7 +65,7 @@ addFolders('node_modules target dist build out', 'folder-build');
 const BY_CONTENT: Partial<Record<IconName, IconName>> = {
   database: 'folder-database',
   curl: 'folder-send',
-  log: 'folder-log',
+  'log-file': 'folder-log',
   markdown: 'folder-docs',
   image: 'folder-image',
   code: 'folder-code',

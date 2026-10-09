@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { CodeEditor, FilePreview, langOfFile, MarkdownEditor, type MarkdownMode, previewKind, type PreviewContent } from '@deckbuilder/editor';
+import { CodeEditor, FilePreview, HEX_LIMIT, langOfFile, MarkdownEditor, type MarkdownMode, previewKind, type PreviewContent } from '@deckbuilder/editor';
 import { type ApiError, errorOf, ErrorBanner, Icon, PanelBanner, PanelLoading, relPath, requestBlob, useCommand, useDialogs } from '@deckbuilder/ui';
 import { api, type LogSettings } from '../../api';
 import { commandById } from '../../commands';
@@ -28,6 +28,12 @@ export interface FileTabProps {
   onWrapLinesChange?: (wrap: boolean) => void;
 }
 
+/** Text kinds whose tab opens in the preview (the toggle switches to the editor). */
+const PREVIEW_FIRST = new Set(['table', 'notebook', 'har']);
+/** Text kinds with a preview the toggle can switch to. */
+const TOGGLES = new Set(['json', 'env', 'table', 'notebook', 'har']);
+const BLOB_KINDS = new Set(['image', 'svg', 'audio', 'video']);
+
 /** One open file: log files get the log viewer, the rest `TextFileTab`. */
 export function FileTab(props: FileTabProps) {
   return previewKind(relPath.basename(props.path)) === 'log' ? <LogTab {...props} /> : <TextFileTab {...props} />;
@@ -55,11 +61,11 @@ function TextFileTab({ project, projectName, path, focused, markdownMode = 'live
   const load = useCallback(async () => {
     const gen = ++generation.current;
     setState({ status: 'loading' });
-    setPreviewing(false);
+    setPreviewing(PREVIEW_FIRST.has(previewKind(name)));
     setSaveError(undefined);
     try {
       const kind = previewKind(name);
-      if (kind === 'image' || kind === 'svg') {
+      if (BLOB_KINDS.has(kind)) {
         const blob = await requestBlob('/api/fs/raw', { root: project, path });
         const source = kind === 'svg' ? await blob.text() : undefined;
         const url = URL.createObjectURL(blob);
@@ -76,11 +82,28 @@ function TextFileTab({ project, projectName, path, focused, markdownMode = 'live
       } else if (kind === 'pdf') {
         const pdf = new Uint8Array(await (await requestBlob('/api/fs/raw', { root: project, path })).arrayBuffer());
         if (gen === generation.current) setState({ status: 'ready', content: { pdf }, mtime: 0 });
+      } else if (kind === 'font' || kind === 'hex') {
+        const limit = kind === 'hex' ? HEX_LIMIT : undefined;
+        const bytes = new Uint8Array(await (await requestBlob('/api/fs/raw', { root: project, path, limit })).arrayBuffer());
+        if (gen === generation.current) setState({ status: 'ready', content: { bytes }, mtime: 0 });
+      } else if (kind === 'sqlite') {
+        const sqlite = await api.fsSqlite(project, path);
+        const load = (table: string, offset: number) => api.fsSqlite(project, path, table, offset);
+        if (gen === generation.current) setState({ status: 'ready', content: { sqlite, load }, mtime: 0 });
       } else {
         const read = await api.fsRead(project, path);
+        let content: PreviewContent = read;
+        if ('binary' in read) {
+          try {
+            const bytes = new Uint8Array(await (await requestBlob('/api/fs/raw', { root: project, path, limit: HEX_LIMIT })).arrayBuffer());
+            content = { bytes };
+          } catch {
+            content = read;
+          }
+        }
         if (gen === generation.current) {
           if ('text' in read) setDraft(read.text);
-          setState({ status: 'ready', content: read, mtime: read.mtime });
+          setState({ status: 'ready', content, mtime: read.mtime });
         }
       }
     } catch (err) {
@@ -145,7 +168,7 @@ function TextFileTab({ project, projectName, path, focused, markdownMode = 'live
       {element}
       <div className="xp-bar">
         <span className="xp-path mono" title={`${projectName}/${path}`}>{projectName}/{path}</span>
-        {editable && previewKind(name) === 'json' && (
+        {editable && TOGGLES.has(previewKind(name)) && (
           <button className="btn btn-sm" onClick={toggleEdit}>
             <Icon name={previewing ? 'edit' : 'search'} /> {previewing ? t('explorer.edit') : t('explorer.preview')}
           </button>

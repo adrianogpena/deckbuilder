@@ -1,10 +1,10 @@
-import type { ArchiveContent } from '@deckbuilder/editor';
+import type { ArchiveContent, SqliteContent } from '@deckbuilder/editor';
 import type { HttpRequestDraft } from '@deckbuilder/editor/http';
 import type { ThemeSettings } from '@deckbuilder/server-core/palettes';
 import type { BackupInspect, EditorInfo, HttpRequestSpec, HttpResponseInfo, ImportResult, TailChunk, UpdateState } from '@deckbuilder/server-core/protocol';
 
 export type { EditorInfo, ImportResult, TailChunk };
-import { type Keymap, type Language, type LogSettings, request } from '@deckbuilder/ui';
+import { type FileAssociation, type Keymap, type Language, type LogSettings, request } from '@deckbuilder/ui';
 
 export interface Settings extends ThemeSettings {
   language?: Language;
@@ -24,6 +24,8 @@ export interface Settings extends ThemeSettings {
   explorer?: ExplorerSettings;
   /** Log viewer: highlight words and bookmarks (keyed `<projectId>:<path>`); the server validates it. */
   logs?: LogSettings;
+  /** Files opened as another type; the server validates it. */
+  fileAssociations?: FileAssociation[];
   /** State of the Workbench screen; the server validates it. */
   workbench?: WorkbenchSettings;
   /** State of the REST screen; the server validates it. */
@@ -171,6 +173,8 @@ export const api = {
   deleteProject: (id: string) => request<{ ok: true }>('DELETE', '/api/projects', { id }),
   fsList: (root: string, path: string) => request<{ entries: FsEntry[] }>('GET', '/api/fs/list', { root, path }).then((r) => r.entries),
   fsArchive: (root: string, path: string) => request<ArchiveContent>('GET', '/api/fs/archive', { root, path }),
+  fsSqlite: (root: string, path: string, table?: string, offset?: number) =>
+    request<SqliteContent>('GET', '/api/fs/sqlite', { root, path, table, offset }),
   fsRead: (root: string, path: string) => request<FsRead>('GET', '/api/fs/read', { root, path }),
   fsCreate: (root: string, path: string, kind: 'file' | 'dir') => request<FsEntry>('POST', '/api/fs/create', {}, { root, path, kind }),
   fsTail: (root: string, path: string, from?: number, max?: number) =>

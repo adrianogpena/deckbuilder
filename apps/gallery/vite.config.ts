@@ -11,7 +11,7 @@ export default defineConfig({
     outDir: '../dist/web',
     emptyOutDir: true,
     // The editor chunk (CodeMirror and its language parsers, ~700 kB) loads lazily with the first file tab.
-    chunkSizeWarningLimit: 800,
+    chunkSizeWarningLimit: 900,
   },
   server: {
     proxy: {

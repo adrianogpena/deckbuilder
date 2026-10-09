@@ -8,6 +8,7 @@ export type { TailChunk };
 import { listArchive } from './archive.ts';
 import { isBinary } from './bytes.ts';
 import { fromPlatform } from './platform-errors.ts';
+import { readSqlite } from './sqlite.ts';
 
 /** A folder the app registered; every file route is confined to one. */
 export interface FsRoot {
@@ -185,6 +186,19 @@ const RAW_TYPES: Record<string, string> = {
   '.ico': 'image/x-icon',
   '.svg': 'image/svg+xml',
   '.pdf': 'application/pdf',
+  '.mp4': 'video/mp4',
+  '.m4v': 'video/mp4',
+  '.webm': 'video/webm',
+  '.mov': 'video/quicktime',
+  '.mkv': 'video/x-matroska',
+  '.avi': 'video/x-msvideo',
+  '.mp3': 'audio/mpeg',
+  '.wav': 'audio/wav',
+  '.flac': 'audio/flac',
+  '.ogg': 'audio/ogg',
+  '.opus': 'audio/ogg',
+  '.m4a': 'audio/mp4',
+  '.aac': 'audio/aac',
   '.txt': TEXT,
   '.md': TEXT,
   '.log': TEXT,
@@ -426,13 +440,28 @@ export function rootedFs(opts: RootedFsOptions): RootedFs {
       return listArchive(loc.real);
     },
 
+    'GET /api/fs/sqlite': async ({ query }) => {
+      const { root, path } = fromQuery(query);
+      const loc = await locate(root, path, true);
+      if ((await stat(loc.real)).isDirectory()) throw notAFile();
+      const offset = Number(query.get('offset') ?? 0);
+      try {
+        return readSqlite(loc.real, query.get('table'), Number.isFinite(offset) ? offset : 0);
+      } catch {
+        throw invalid('notSqlite', 'The file is not a readable SQLite database.');
+      }
+    },
+
     'GET /api/fs/raw': async ({ query }) => {
       const { root, path } = fromQuery(query);
       const loc = await locate(root, path, true);
       const st = await stat(loc.real);
       if (st.isDirectory()) throw notAFile();
-      if (st.size > MAX_RAW_BYTES) throw invalid('fileTooLarge', 'The file is too large to show.');
-      return new Response(Bun.file(loc.real), {
+      // `limit` returns only the first bytes (the hex view), however large the file.
+      const limit = Number(query.get('limit'));
+      const head = Number.isSafeInteger(limit) && limit > 0 ? limit : 0;
+      if (!head && st.size > MAX_RAW_BYTES) throw invalid('fileTooLarge', 'The file is too large to show.');
+      return new Response(head ? Bun.file(loc.real).slice(0, head) : Bun.file(loc.real), {
         headers: {
           'Content-Type': RAW_TYPES[extname(loc.real).toLowerCase()] ?? 'application/octet-stream',
           'Content-Disposition': 'inline',

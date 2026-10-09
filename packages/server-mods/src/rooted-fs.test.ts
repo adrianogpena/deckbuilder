@@ -162,6 +162,32 @@ test('a trash failure reaches the client as its PlatformError code', async () =>
   expect(await Promise.resolve(fs.routes['POST /api/fs/delete']!(ctx)).catch((e) => e)).toMatchObject({ code: 'trashFailed', opts: { detail: 'detail' } });
 });
 
+test('sqlite lists tables and pages rows, refusing a file that is no database', async () => {
+  const { call, fail, root } = await setup();
+  const { Database } = await import('bun:sqlite');
+  const db = new Database(join(root, 'app.db'));
+  db.run('CREATE TABLE people (id INTEGER PRIMARY KEY, name TEXT, photo BLOB)');
+  db.run('CREATE TABLE "my table"(x)');
+  for (let i = 0; i < 250; i++) db.run('INSERT INTO people (name, photo) VALUES (?, ?)', [`n${i}`, i === 0 ? new Uint8Array(3) : null]);
+  db.close();
+  const first = (await call('GET /api/fs/sqlite', 'root=r&path=app.db')) as { tables: { name: string }[]; table: string; columns: string[]; rows: unknown[][]; total: number };
+  expect(first.tables.map((t) => t.name)).toEqual(['my table', 'people']);
+  expect(first.table).toBe('my table');
+  const people = (await call('GET /api/fs/sqlite', 'root=r&path=app.db&table=people&offset=200')) as typeof first;
+  expect(people).toMatchObject({ table: 'people', columns: ['id', 'name', 'photo'], total: 250, offset: 200 });
+  expect(people.rows).toHaveLength(50);
+  const head = (await call('GET /api/fs/sqlite', 'root=r&path=app.db&table=people')) as typeof first;
+  expect(head.rows[0]).toEqual([1, 'n0', '<blob 3 bytes>']);
+  expect(await fail('GET /api/fs/sqlite', 'root=r&path=top.txt')).toMatchObject({ code: 'notSqlite' });
+  expect(await fail('GET /api/fs/sqlite', 'root=r&path=../x')).toMatchObject({ code: 'badPath' });
+});
+
+test('raw with limit returns only the first bytes', async () => {
+  const { call } = await setup();
+  const res = (await call('GET /api/fs/raw', 'root=r&path=top.txt&limit=2')) as Response;
+  expect(await res.text()).toBe('to');
+});
+
 test('every route refuses escapes', async () => {
   const { fail, trashed } = await setup();
   for (const [rel, code] of [

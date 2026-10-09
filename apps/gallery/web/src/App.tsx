@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { PALETTES } from '@deckbuilder/server-core/palettes';
-import { CommandPalette, detectLanguage, effectiveKeys, ErrorBanner, Icon, isDesktop, KeybindingProvider, type PaletteItem, PanelLoading, setLanguage, Sidebar, Spinner, useAsync, useCommand, useCommandPalette, useHashRoute, useHeartbeat, useKeybindings, useTheme } from '@deckbuilder/ui';
+import { CommandPalette, detectLanguage, effectiveKeys, ErrorBanner, Icon, isDesktop, KeybindingProvider, type PaletteItem, PanelLoading, setFileAssociations, setLanguage, Sidebar, Spinner, useAsync, useCommand, useCommandPalette, useHashRoute, useHeartbeat, useKeybindings, useTheme } from '@deckbuilder/ui';
 import { APP } from '../../app';
 import { api, type Settings } from './api';
 import { commandById, commands, navCommandId, TOGGLE_NAV } from './commands';
@@ -37,6 +37,7 @@ function Shell({ initialSettings }: { initialSettings: Settings }) {
   const [settings, setSettings] = useState(initialSettings);
   const [screen, go] = useHashRoute(SCREENS, 'home');
   setLanguage(settings.language ?? detectLanguage());
+  setFileAssociations(settings.fileAssociations);
   return (
     <KeybindingProvider defs={commands()} keymap={settings.keybindings ?? {}} scope={screen}>
       <Main settings={settings} setSettings={setSettings} screen={screen} go={go} />

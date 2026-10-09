@@ -1,5 +1,5 @@
 import { Fragment, useState } from 'react';
-import { AppearanceFields, type ApiError, detectLanguage, ErrorBanner, errorMessage, errorOf, GLOBAL, isDesktop, KeybindingsEditor, LANGUAGES, Modal, PageHead, Spinner, useAsync, useKeybindings, type Language } from '@deckbuilder/ui';
+import { AppearanceFields, type ApiError, detectLanguage, type FileAssociation, validFileAssociations, ErrorBanner, errorMessage, errorOf, GLOBAL, isDesktop, KeybindingsEditor, LANGUAGES, Modal, PageHead, Spinner, useAsync, useKeybindings, type Language } from '@deckbuilder/ui';
 import { APP } from '../../../app';
 import { api, type BackupInfo, type EditorInfo, type ImportResult, type Settings } from '../api';
 import { type MessageKey, t } from '../i18n';
@@ -15,6 +15,7 @@ interface Props {
 const SECTIONS = [
   { id: 'general', label: 'settings.general' },
   { id: 'keys', label: 'settings.keys' },
+  { id: 'files', label: 'settings.files' },
   { id: 'editors', label: 'settings.editors' },
   { id: 'updates', label: 'settings.updates' },
   { id: 'backup', label: 'settings.backup' },
@@ -37,6 +38,7 @@ export function SettingsScreen({ settings, onChange, onQuit }: Props) {
         <div className="scroll">
           {section === 'general' && <GeneralSection settings={settings} onChange={onChange} onQuit={onQuit} />}
           {section === 'keys' && <KeysCard settings={settings} onChange={onChange} />}
+          {section === 'files' && <FileTypesCard value={settings.fileAssociations ?? []} onChange={(fileAssociations) => onChange({ fileAssociations })} />}
           {section === 'editors' && <EditorsCard />}
           {section === 'updates' && <UpdatesCard folder={settings.updateFolder} onFolder={(updateFolder) => onChange({ updateFolder })} />}
           {section === 'backup' && <BackupCard onSettings={onChange} />}
@@ -145,6 +147,47 @@ function GeneralCard({ onQuit }: { onQuit: () => void }) {
           <span className="muted">{t(isDesktop ? 'settings.quit.hintTray' : 'settings.quit.hint', { name: APP.name })}</span>
         </div>
         {error && <ErrorBanner error={error} compact />}
+      </div>
+    </section>
+  );
+}
+
+const ASSOCIATION_TARGETS = ['log', 'txt', 'json', 'md', 'sql', 'xml', 'yaml', 'properties', 'csv', 'html', 'js', 'java', 'sh', 'env', 'zip'] as const;
+
+/** Name patterns opened as another file type; a row applies once its pattern is valid. */
+function FileTypesCard({ value, onChange }: { value: FileAssociation[]; onChange: (next: FileAssociation[]) => void }) {
+  const [rows, setRows] = useState<FileAssociation[]>(value);
+  const update = (next: FileAssociation[]) => {
+    setRows(next);
+    const valid = validFileAssociations(next.filter((r) => r.pattern.trim()));
+    if (valid) onChange(valid);
+  };
+  const targetLabel = (as: string) => (ASSOCIATION_TARGETS.includes(as as never) ? t(`settings.files.as.${as}` as MessageKey) : `.${as}`);
+  return (
+    <section className="section">
+      <h4 className="mono-label">{t('settings.files')}</h4>
+      <div className="card form">
+        <span className="muted">{t('settings.files.hint')}</span>
+        {rows.length === 0 && <span className="muted">{t('settings.files.empty')}</span>}
+        {rows.map((row, i) => (
+          <div key={i} className="row">
+            <input
+              value={row.pattern}
+              placeholder="*.log.*"
+              aria-label={t('settings.files.pattern')}
+              spellCheck={false}
+              onChange={(e) => update(rows.map((r, j) => (j === i ? { ...r, pattern: e.target.value } : r)))}
+            />
+            <select value={row.as} aria-label={t('settings.files.as')} onChange={(e) => update(rows.map((r, j) => (j === i ? { ...r, as: e.target.value } : r)))}>
+              {!ASSOCIATION_TARGETS.includes(row.as as never) && <option value={row.as}>{targetLabel(row.as)}</option>}
+              {ASSOCIATION_TARGETS.map((as) => <option key={as} value={as}>{targetLabel(as)}</option>)}
+            </select>
+            <button className="btn btn-sm" onClick={() => update(rows.filter((_, j) => j !== i))}>{t('settings.files.remove')}</button>
+          </div>
+        ))}
+        <div className="row">
+          <button className="btn btn-sm" onClick={() => setRows([...rows, { pattern: '', as: 'log' }])}>{t('settings.files.add')}</button>
+        </div>
       </div>
     </section>
   );

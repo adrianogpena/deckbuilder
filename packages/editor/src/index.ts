@@ -3,6 +3,8 @@ export * from './CodeEditor';
 export * from './CodeView';
 export * from './FilePreview';
 export * from './http';
+export { HEX_LIMIT } from './HexView';
+export type { SqliteContent } from './SqliteView';
 export * from './http-import';
 export * from './RequestEditor';
 export * from './ResponseView';

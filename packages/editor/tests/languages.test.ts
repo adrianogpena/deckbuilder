@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { CompletionContext, type CompletionResult } from '@codemirror/autocomplete';
 import { EditorState } from '@codemirror/state';
+import { setFileAssociations } from '@deckbuilder/ui/file-associations';
 import { columnCompletion, langOfFile, languageFor, parserOf, previewKind } from '../src/languages.ts';
 
 describe('langOfFile', () => {
@@ -27,6 +28,36 @@ describe('previewKind', () => {
     expect(previewKind('a.txt')).toBe('text');
   });
 
+  test('sorts the viewer kinds', () => {
+    expect(previewKind('a.csv')).toBe('table');
+    expect(previewKind('a.TSV')).toBe('table');
+    expect(previewKind('a.ipynb')).toBe('notebook');
+    expect(previewKind('a.har')).toBe('har');
+    expect(previewKind('a.mp3')).toBe('audio');
+    expect(previewKind('a.mp4')).toBe('video');
+    expect(previewKind('a.woff2')).toBe('font');
+    expect(previewKind('Foo.class')).toBe('hex');
+    expect(previewKind('app.sqlite')).toBe('sqlite');
+    expect(previewKind('.env.local')).toBe('env');
+    expect(previewKind('a.docx')).toBe('archive');
+    expect(previewKind('a.ts')).toBe('code');
+    expect(previewKind('a.diff')).toBe('code');
+    expect(previewKind('Dockerfile')).toBe('code');
+    expect(previewKind('pom.xml')).toBe('code');
+  });
+
+  test('applies the file associations', () => {
+    setFileAssociations([{ pattern: 'log.*', as: 'log' }, { pattern: '*.conf.d', as: 'yaml' }]);
+    try {
+      expect(previewKind('log.7')).toBe('log');
+      expect(previewKind('x.conf.d')).toBe('code');
+      expect(langOfFile('x.conf.d')).toBe('yaml');
+    } finally {
+      setFileAssociations([]);
+    }
+    expect(previewKind('log.7')).toBe('text');
+  });
+
   test('sees log files, rotated ones included', () => {
     expect(previewKind('app.log')).toBe('log');
     expect(previewKind('server.log.1')).toBe('log');
@@ -43,6 +74,7 @@ describe('parserOf', () => {
     expect(parserOf('json')).not.toBeNull();
     expect(parserOf('shell')).not.toBeNull();
     expect(parserOf('text')).toBeNull();
+    for (const lang of ['typescript', 'python', 'yaml', 'css', 'html', 'diff', 'rust'] as const) expect(parserOf(lang)).not.toBeNull();
   });
 });
 
