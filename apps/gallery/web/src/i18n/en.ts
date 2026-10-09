@@ -50,13 +50,16 @@ export const en = {
 
   'grid.crumb': 'Panel grid',
   'grid.add': 'Add panel',
+  'grid.save': 'Save',
+  'grid.reset': 'Reset',
+  'grid.restoreDefault': 'Restore default',
   'grid.loadFailed': 'Could not load',
   'grid.panel.clock': 'Clock',
   'grid.panel.info': 'App info',
   'grid.panel.update': 'Updates',
   'grid.panel.list': 'How it works',
   'grid.list.drag': 'Drag a panel by its header.',
-  'grid.list.resize': 'Resize it from the bottom-right corner.',
+  'grid.list.resize': 'Resize it from either bottom corner.',
   'grid.list.collapse': 'Collapse it to its header with the chevron.',
   'grid.list.remove': 'Remove it with the cross; Add panel brings it back.',
 

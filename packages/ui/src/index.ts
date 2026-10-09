@@ -10,6 +10,7 @@ export * from './components/LogView';
 export * from './components/OutputPanel';
 export * from './components/Panel';
 export * from './components/PanelGrid';
+export * from './components/IconPicker';
 export * from './components/Resource';
 export * from './components/Sidebar';
 export * from './components/SplitView';

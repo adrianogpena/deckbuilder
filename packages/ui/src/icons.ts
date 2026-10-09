@@ -1,6 +1,7 @@
 // 24x24 stroke icons (Feather/Lucide style) for `Icon`. Add paths here as needed; plain data, so
 // non-React modules (grid.ts) can use `IconName`.
 export const PATHS = {
+  more: 'M5 12h.01M12 12h.01M19 12h.01',
   alert: 'M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z',
   refresh: 'M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6',
   copy: 'M9 9h11v11H9zM5 15H4V4h11v1',

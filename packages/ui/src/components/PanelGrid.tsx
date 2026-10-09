@@ -1,4 +1,4 @@
-import { useMemo, useRef, type ReactNode, type RefObject } from 'react';
+import { useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { ResponsiveGridLayout, useContainerWidth, verticalCompactor, type Layout } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import {
@@ -9,10 +9,13 @@ import {
   fromGridLayout,
   sameGeometry,
   toGridLayout,
+  MAX_TITLE,
   type GridItem,
   type PanelDef,
 } from '../grid';
-import { Icon } from './ui';
+import { t } from '../i18n';
+import { IconPicker } from './IconPicker';
+import { Icon, useDialogs } from './ui';
 import { PANEL_HANDLE, PANEL_NO_DRAG, PanelFrame } from './Panel';
 
 const MARGIN = [12, 12] as const;
@@ -35,6 +38,8 @@ export function PanelGrid({ items, defs, render, onChange }: PanelGridProps) {
   const editable = breakpointOf(width) === 'lg';
   const known = useMemo(() => items.filter((i) => defs.some((d) => d.id === i.id)), [items, defs]);
   const layout = useMemo(() => toGridLayout(known, defs), [known, defs]);
+  const dialogs = useDialogs();
+  const [picking, setPicking] = useState<string | null>(null);
   const latest = useRef(items);
   latest.current = items;
 
@@ -48,6 +53,20 @@ export function PanelGrid({ items, defs, render, onChange }: PanelGridProps) {
   const patch = (id: string, change: Partial<GridItem>) =>
     onChange(items.map((i) => (i.id === id ? { ...i, ...change } : i)));
 
+  const rename = async (item: GridItem, def: PanelDef) => {
+    const value = await dialogs.prompt({
+      title: t('panel.rename'),
+      label: t('panel.name'),
+      value: item.title ?? def.title,
+      validate: (v) => (v.trim().length > MAX_TITLE ? t('panel.nameTooLong', { max: MAX_TITLE }) : null),
+    });
+    if (value === null) return;
+    patch(item.id, { title: value.trim() || undefined });
+  };
+
+  const pickingItem = picking ? items.find((i) => i.id === picking) : undefined;
+  const pickingDef = pickingItem && defs.find((d) => d.id === pickingItem.id);
+
   return (
     <div ref={containerRef as RefObject<HTMLDivElement>} className="panel-grid">
       <ResponsiveGridLayout
@@ -59,7 +78,7 @@ export function PanelGrid({ items, defs, render, onChange }: PanelGridProps) {
         margin={MARGIN}
         compactor={verticalCompactor}
         dragConfig={{ enabled: editable, handle: `.${PANEL_HANDLE}`, cancel: `.${PANEL_NO_DRAG}` }}
-        resizeConfig={{ enabled: editable }}
+        resizeConfig={{ enabled: editable, handles: ['se', 'sw'] }}
         onDragStop={commitLayout}
         onResizeStop={commitLayout}
       >
@@ -68,8 +87,13 @@ export function PanelGrid({ items, defs, render, onChange }: PanelGridProps) {
           return (
             <div key={item.id}>
               <PanelFrame
-                title={def.title}
-                icon={<Icon name={def.icon} />}
+                title={item.title ?? def.title}
+                icon={<Icon name={item.icon ?? def.icon} />}
+                menu={[
+                  { id: 'rename', label: t('panel.rename'), icon: 'edit', run: () => void rename(item, def) },
+                  { id: 'icon', label: t('panel.changeIcon'), icon: 'cube', run: () => setPicking(item.id) },
+                  { id: 'reset', label: t('panel.resetLook'), icon: 'refresh', disabled: !item.title && !item.icon, run: () => patch(item.id, { title: undefined, icon: undefined }) },
+                ]}
                 collapsed={!!item.collapsed}
                 onCollapsedChange={(collapsed) => patch(item.id, { collapsed })}
                 onRemove={() => onChange(items.filter((i) => i.id !== item.id))}
@@ -80,6 +104,14 @@ export function PanelGrid({ items, defs, render, onChange }: PanelGridProps) {
           );
         })}
       </ResponsiveGridLayout>
+      {pickingItem && pickingDef && (
+        <IconPicker
+          value={pickingItem.icon ?? pickingDef.icon}
+          onPick={(icon) => { patch(pickingItem.id, { icon }); setPicking(null); }}
+          onClose={() => setPicking(null)}
+        />
+      )}
+      {dialogs.element}
     </div>
   );
 }

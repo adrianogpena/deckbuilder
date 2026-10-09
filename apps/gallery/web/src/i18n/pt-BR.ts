@@ -51,6 +51,9 @@ export const ptBR: Messages<typeof en> = {
   'tabs.info.hint': 'Rota desta aba',
 
   'grid.crumb': 'Grade de painéis',
+  'grid.save': 'Salvar',
+  'grid.reset': 'Desfazer',
+  'grid.restoreDefault': 'Restaurar padrão',
   'grid.add': 'Adicionar painel',
   'grid.loadFailed': 'Não foi possível carregar',
   'grid.panel.clock': 'Relógio',
@@ -58,7 +61,7 @@ export const ptBR: Messages<typeof en> = {
   'grid.panel.update': 'Atualizações',
   'grid.panel.list': 'Como funciona',
   'grid.list.drag': 'Arraste um painel pelo cabeçalho.',
-  'grid.list.resize': 'Redimensione pelo canto inferior direito.',
+  'grid.list.resize': 'Redimensione por qualquer canto inferior.',
   'grid.list.collapse': 'Recolha até o cabeçalho com a seta.',
   'grid.list.remove': 'Remova com o X; Adicionar painel o traz de volta.',
 

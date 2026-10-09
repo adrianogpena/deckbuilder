@@ -6,6 +6,7 @@ import {
   findFreeSpot,
   fromGridLayout,
   sameGeometry,
+  sameItems,
   toGridLayout,
   validGridItems,
   type GridItem,
@@ -123,5 +124,34 @@ describe('validGridItems', () => {
 
   test('rejects a duplicate id', () => {
     expect(validGridItems([item('a', 0, 0), item('a', 6, 0)], ids)).toBeNull();
+  });
+});
+
+describe('title and icon', () => {
+  const ids = ['a'];
+  const base = { id: 'a', x: 0, y: 0, w: 6, h: 8 };
+
+  test('a valid title is trimmed and kept with the icon', () => {
+    expect(validGridItems([{ ...base, title: '  Mine ', icon: 'cube' }], ids)).toEqual([{ ...base, title: 'Mine', icon: 'cube' }]);
+  });
+
+  test('an empty title is dropped, a title over 40 characters is invalid', () => {
+    expect(validGridItems([{ ...base, title: '   ' }], ids)).toEqual([base]);
+    expect(validGridItems([{ ...base, title: 'x'.repeat(41) }], ids)).toBeNull();
+    expect(validGridItems([{ ...base, title: 5 }], ids)).toBeNull();
+  });
+
+  test('an unknown icon invalidates the layout', () => {
+    expect(validGridItems([{ ...base, icon: 'nope' }], ids)).toBeNull();
+    expect(validGridItems([{ ...base, icon: 3 }], ids)).toBeNull();
+  });
+
+  test('sameItems sees a rename, an icon change and a collapse; sameGeometry does not', () => {
+    const a = [base as GridItem];
+    expect(sameItems(a, [{ ...base }])).toBe(true);
+    expect(sameItems(a, [{ ...base, title: 'X' }])).toBe(false);
+    expect(sameItems(a, [{ ...base, icon: 'cube' }])).toBe(false);
+    expect(sameItems(a, [{ ...base, collapsed: true }])).toBe(false);
+    expect(sameGeometry(a, [{ ...base, title: 'X' }])).toBe(true);
   });
 });

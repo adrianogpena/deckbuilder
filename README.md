@@ -172,7 +172,14 @@ source directly; there is no package build step.
   setting through `useDebouncedSave`, validated on the server with `validGridItems(raw, ids)` from
   `@deckbuilder/ui/grid` (no React; the gallery's `gridLayout`), and bring a removed panel back
   with `addItem(items, def)`. Inside a panel, `PanelLoading`, `PanelNotice` and `PanelBanner`
-  show loading, empty/error and offline states. `PanelFrame` also works on its own.
+  show loading, empty/error and offline states. `PanelFrame` also works on its own (its `menu`
+  prop adds a "…" button with `ContextMenuItem`s). Panels resize from both bottom corners. Each
+  panel's menu offers Rename (1–40 characters) and Change icon, stored as `title` and `icon` on
+  the `GridItem` (`icon` must be a built-in icon name); `IconPicker({ value, onPick, onClose })`
+  is the searchable picker over the built-in set and works on its own. Instead of autosaving, the
+  gallery's Grid screen keeps a working layout next to the saved one: Save writes the setting,
+  Reset returns to the saved layout, Restore default loads the factory one (`sameItems(a, b)`
+  drives the unsaved dot); unsaved changes survive switching screens, not a restart.
 - **Explorer layout**: `<SplitView direction sizes onResize>` (resizable panes, persist `sizes` with
   `useDebouncedSave`), `<TreeView>` (lazy tree with keyboard, drag and rename), `<ContextMenu>` and
   `<Explorer scope>` (sidebar plus tab workspace; Ctrl+B, `explorerCommands(scope)`, folds the

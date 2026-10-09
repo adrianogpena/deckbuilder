@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { t } from '../i18n';
+import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { Icon, type IconName, type Tone } from './ui';
 
 /** Class of the panel header, the drag handle for `PanelGrid`. */
@@ -15,13 +16,16 @@ export interface PanelFrameProps {
   /** Controlled collapse state (`PanelGrid` owns and persists it); local state when omitted. */
   collapsed?: boolean;
   onCollapsedChange?: (collapsed: boolean) => void;
+  /** Shows a "…" button in the header that opens these items. */
+  menu?: ContextMenuItem[];
   /** Shows the remove button. */
   onRemove?: () => void;
   children: ReactNode;
 }
 
-export function PanelFrame({ title, icon, actions, collapsed: controlled, onCollapsedChange, onRemove, children }: PanelFrameProps) {
+export function PanelFrame({ title, icon, actions, collapsed: controlled, onCollapsedChange, menu, onRemove, children }: PanelFrameProps) {
   const [local, setLocal] = useState(false);
+  const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
   const collapsed = controlled ?? local;
   const toggle = () => {
     setLocal(!collapsed);
@@ -36,6 +40,21 @@ export function PanelFrame({ title, icon, actions, collapsed: controlled, onColl
         <h2 className="panel-title">{title}</h2>
         <div className={`panel-tools ${PANEL_NO_DRAG}`}>
           {actions}
+          {menu && menu.length > 0 && (
+            <button
+              className="btn btn-ghost btn-sm panel-btn"
+              data-panel-menu
+              title={t('panel.menu')}
+              aria-label={t('panel.menu')}
+              aria-haspopup="menu"
+              onClick={(e) => {
+                const r = e.currentTarget.getBoundingClientRect();
+                setMenuAt({ x: r.left, y: r.bottom + 4 });
+              }}
+            >
+              <Icon name="more" />
+            </button>
+          )}
           <button className="btn btn-ghost btn-sm panel-btn" onClick={toggle} title={label} aria-label={label} aria-expanded={!collapsed}>
             <span className={`panel-chevron${collapsed ? ' collapsed' : ''}`}><Icon name="chevron-down" /></span>
           </button>
@@ -46,6 +65,7 @@ export function PanelFrame({ title, icon, actions, collapsed: controlled, onColl
           )}
         </div>
       </header>
+      {menuAt && menu && <ContextMenu at={menuAt} items={menu} onClose={() => setMenuAt(null)} />}
       {!collapsed && <div className="panel-body">{children}</div>}
     </section>
   );

@@ -163,6 +163,7 @@ kbd {
 .btn-ghost.active { color: var(--accent); background: var(--accent-soft); }
 .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--ink-on-accent); font-weight: 600; }
 .btn-primary:hover:not(:disabled) { background: var(--accent-2); border-color: var(--accent-2); color: var(--ink-on-accent); }
+.dirty-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: currentColor; vertical-align: middle; }
 .btn-danger { background: var(--err-soft); border-color: transparent; color: var(--err); font-weight: 600; }
 .btn-danger:hover:not(:disabled) { background: var(--err); border-color: var(--err); color: var(--ink-on-err); }
 .chips { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -383,6 +384,15 @@ kbd {
 /* ---- panel grid */
 .panel-grid .react-grid-item.react-grid-placeholder { background: var(--accent-soft); border: 1px dashed var(--accent); border-radius: 12px; opacity: 1; }
 .panel-grid .react-grid-item > .react-resizable-handle::after { border-right-color: var(--text-3); border-bottom-color: var(--text-3); }
+.panel-grid .react-grid-item > .react-resizable-handle-sw { left: 0; bottom: 0; right: auto; cursor: sw-resize; transform: rotate(90deg); }
+.icon-picker { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; max-height: 320px; overflow-y: auto; }
+.icon-picker-item {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 4px; min-width: 0;
+  border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--text-2); cursor: pointer;
+}
+.icon-picker-item span { font-size: 10px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.icon-picker-item:hover { background: var(--hover); color: var(--text); }
+.icon-picker-item.active { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
 .panel {
   display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden;
   background: var(--panel); border: 1px solid var(--border-soft); border-radius: 12px;

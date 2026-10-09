@@ -10,8 +10,8 @@ import {
   PanelGrid,
   PanelLoading,
   PanelNotice,
+  sameItems,
   useAsync,
-  useDebouncedSave,
   validGridItems,
   type GridItem,
   type PanelDef,
@@ -45,15 +45,25 @@ function restoreItems(raw: unknown): GridItem[] {
   return validGridItems(raw, PANEL_IDS) ?? DEFAULT_ITEMS;
 }
 
-export function GridScreen({ settings, onSave }: { settings: Settings; onSave: (patch: Partial<Settings>) => void }) {
-  const [items, setItems] = useState(() => restoreItems(settings.gridLayout));
-  const [menu, setMenu] = useState(false);
+/** Unsaved layout, kept while another screen is shown; a restart drops it. */
+let unsaved: GridItem[] | null = null;
 
-  const save = useDebouncedSave((gridLayout: GridItem[]) => onSave({ gridLayout }));
+export function GridScreen({ settings, onSave }: { settings: Settings; onSave: (patch: Partial<Settings>) => void }) {
+  const [saved, setSaved] = useState(() => restoreItems(settings.gridLayout));
+  const [items, setItems] = useState(() => unsaved ?? saved);
+  const [menu, setMenu] = useState(false);
+  const dirty = !sameItems(items, saved);
+
   const change = (next: GridItem[]) => {
+    unsaved = sameItems(next, saved) ? null : next;
     setItems(next);
-    save(next);
   };
+  const save = () => {
+    onSave({ gridLayout: items });
+    setSaved(items);
+    unsaved = null;
+  };
+  const reset = () => change(saved);
 
   const all = defs();
   const removed = all.filter((d) => !items.some((i) => i.id === d.id));
@@ -61,6 +71,13 @@ export function GridScreen({ settings, onSave }: { settings: Settings; onSave: (
   return (
     <div className="content">
       <PageHead crumb={t('grid.crumb')} title={t('nav.grid')}>
+        <button className={`btn btn-sm${dirty ? ' btn-primary' : ''}`} onClick={save} disabled={!dirty}>
+          {dirty && <span className="dirty-dot" aria-hidden="true" />} {t('grid.save')}
+        </button>
+        <button className="btn btn-sm" onClick={reset} disabled={!dirty}>{t('grid.reset')}</button>
+        <button className="btn btn-sm" onClick={() => change(DEFAULT_ITEMS)} disabled={sameItems(items, DEFAULT_ITEMS)}>
+          {t('grid.restoreDefault')}
+        </button>
         {removed.length > 0 && (
           <div className="menu-wrap">
             <button className="btn btn-sm" onClick={() => setMenu(!menu)} aria-expanded={menu}>
