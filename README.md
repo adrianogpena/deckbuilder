@@ -131,6 +131,10 @@ source directly; there is no package build step.
   `@deckbuilder/ui/keybindings`. Package commands come from `paletteCommand()`,
   `tabCommands(scope)` and `explorerCommands(scope)`; list them in `defs`. Keys a focused widget
   handles itself (editor, tree and table navigation, dialogs) aren't commands.
+- **Collapsible main menu**: `<Sidebar collapsed onCollapsedChange toggleLabel>` shows only the icons
+  (items keep their label and `hint` as tooltip) and puts a toggle button in the footer; the app
+  keeps `collapsed` in its settings, adds `nav-collapsed` to the `.app` element (narrow first column)
+  and binds a global command (Ctrl+Shift+B) to it. See the gallery's `App.tsx`.
 - **Command palette**: `useCommandPalette()` (Ctrl+K, Ctrl+Shift+P) gives `{ open, setOpen }`; render
   `<CommandPalette items onClose />` (both from `@deckbuilder/ui`) with `PaletteItem`s
   `{ id, group, label, hint?, keywords?, run }`. `keywords[0]` doubles as a prefix that narrows

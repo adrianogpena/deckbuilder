@@ -17,6 +17,7 @@ import {
 } from '@deckbuilder/server-mods';
 import { runApp } from '@deckbuilder/shell';
 import { type GridItem, validGridItems } from '@deckbuilder/ui/grid';
+import { validKeymap, type Keymap } from '@deckbuilder/ui/keybindings';
 import { type LogSettings, validLogSettings } from '@deckbuilder/ui/log';
 import { APP } from '../app.ts';
 import pkg from '../package.json';
@@ -32,6 +33,10 @@ export interface Settings extends BaseSettings {
    * else no update checks. Set only through the folder dialog of `POST /api/settings/update-folder`.
    */
   updateFolder: string;
+  /** The main menu shows only its icons. */
+  navCollapsed?: boolean;
+  /** Keybinding overrides by command id, checked by `validKeymap`. */
+  keybindings?: Keymap;
   /** Layout of the Tabs screen (`serialize` of `@deckbuilder/ui`'s tabs); the UI validates it on restore. */
   tabsLayout?: unknown;
   /** Layout of the Grid screen, checked by `validGridItems`. */
@@ -158,6 +163,9 @@ const settings = settingsStore<Settings>({
     if (workbench) next.workbench = workbench;
     const rest = validRest(patch.rest);
     if (rest) next.rest = rest;
+    if (typeof patch.navCollapsed === 'boolean') next.navCollapsed = patch.navCollapsed;
+    const keybindings = validKeymap(patch.keybindings);
+    if (keybindings) next.keybindings = keybindings;
   },
   onChange(next, prev) {
     if (next.autostart !== prev.autostart) void autostart.set(next.autostart);

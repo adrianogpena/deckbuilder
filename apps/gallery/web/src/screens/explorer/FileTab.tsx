@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CodeEditor, FilePreview, langOfFile, previewKind, type PreviewContent } from '@deckbuilder/editor';
-import { type ApiError, errorOf, ErrorBanner, Icon, PanelBanner, PanelLoading, relPath, requestBlob, useDialogs, useKey } from '@deckbuilder/ui';
+import { type ApiError, errorOf, ErrorBanner, Icon, PanelBanner, PanelLoading, relPath, requestBlob, useCommand, useDialogs } from '@deckbuilder/ui';
 import { api, type LogSettings } from '../../api';
+import { commandById } from '../../commands';
 import { t } from '../../i18n';
 import { LogTab } from './LogTab';
 
@@ -116,11 +117,7 @@ function TextFileTab({ project, projectName, path, focused }: FileTabProps) {
     }
   };
 
-  useKey((e) => {
-    if (!focused || !editing || !e.ctrlKey || e.altKey || e.metaKey || e.shiftKey || e.key.toLowerCase() !== 's') return;
-    e.preventDefault();
-    void save();
-  });
+  useCommand(commandById('explorer.file.save'), () => void save(), { enabled: focused && editing });
 
   return (
     <div className="xp-file">

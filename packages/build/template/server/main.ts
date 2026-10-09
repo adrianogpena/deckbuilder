@@ -15,11 +15,16 @@ import {
   type BaseSettings,
 } from '@deckbuilder/server-mods';
 import { runApp } from '@deckbuilder/shell';
+import { type Keymap, validKeymap } from '@deckbuilder/ui/keybindings';
 import { APP } from '../app.ts';
 import pkg from '../package.json';
 import { routes } from './routes.ts';
 
 export interface Settings extends BaseSettings {
+  /** The main menu shows only its icons. */
+  navCollapsed?: boolean;
+  /** Keybinding overrides by command id, checked by `validKeymap`. */
+  keybindings?: Keymap;
   /** Start at Windows login (exe only). */
   autostart: boolean;
   /** Tray icon, so closing the window keeps the app running; read at startup. */
@@ -45,6 +50,9 @@ const settings = settingsStore<Settings>({
     if (patch.updateFolder === '' || (typeof patch.updateFolder === 'string' && pickedUpdateFolder.take(patch.updateFolder))) {
       next.updateFolder = patch.updateFolder;
     }
+    if (typeof patch.navCollapsed === 'boolean') next.navCollapsed = patch.navCollapsed;
+    const keybindings = validKeymap(patch.keybindings);
+    if (keybindings) next.keybindings = keybindings;
   },
   onChange(next, prev) {
     if (next.autostart !== prev.autostart) void autostart.set(next.autostart);

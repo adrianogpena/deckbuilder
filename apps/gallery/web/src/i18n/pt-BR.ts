@@ -204,5 +204,7 @@ export const ptBR: Messages<typeof en> = {
   'error.badProjectName': 'O nome deve ter de 1 a 80 caracteres.',
   'error.badRequestName': 'O nome deve ter de 1 a 80 caracteres.',
   'error.pickFolderFirst': 'Escolha a pasta com Procurar.',
+  'keys.toggleNav': 'Recolher ou expandir o menu principal',
+  'keys.file.save': 'Salvar arquivo',
   'error.notASaveTarget': 'Escolha onde salvar primeiro.',
 };

@@ -23,30 +23,53 @@ interface Props<Id extends string> {
   onSelect: (id: Id) => void;
   /** Global controls pinned to the bottom. */
   footer?: ReactNode;
+  /** Shows only the icons; the app owns the state. */
+  collapsed?: boolean;
+  /** With this, a toggle button sits in the footer. */
+  onCollapsedChange?: (collapsed: boolean) => void;
+  /** Title of the toggle button (already translated, with its shortcut). */
+  toggleLabel?: string;
 }
 
-export function Sidebar<Id extends string>({ name, sections, current, onSelect, footer }: Props<Id>) {
+export function Sidebar<Id extends string>({ name, sections, current, onSelect, footer, collapsed = false, onCollapsedChange, toggleLabel }: Props<Id>) {
   return (
-    <nav className="sidebar">
+    <nav className={`sidebar${collapsed ? ' collapsed' : ''}`}>
       <div className="brand">
         <BrandMark />
-        <span>{name}</span>
+        {!collapsed && <span>{name}</span>}
       </div>
       <div className="side-scroll">
         {sections.map((section) => (
           <div key={section.title} className="side-section">
-            <div className="side-title">{section.title}</div>
-            {section.items.map((item) => (
-              <button key={item.id} className={`side-item${current === item.id ? ' active' : ''}`} onClick={() => onSelect(item.id)}>
-                <Icon name={item.icon} size={14} />
-                <span className="side-label">{item.label}</span>
-                {item.hint && <span className="side-short">{item.hint}</span>}
-              </button>
-            ))}
+            {!collapsed && <div className="side-title">{section.title}</div>}
+            {section.items.map((item) => {
+              const title = item.hint ? `${item.label} (${item.hint})` : item.label;
+              return (
+                <button
+                  key={item.id}
+                  className={`side-item${current === item.id ? ' active' : ''}`}
+                  onClick={() => onSelect(item.id)}
+                  {...(collapsed ? { title, 'aria-label': title } : {})}
+                >
+                  <Icon name={item.icon} size={14} />
+                  {!collapsed && <span className="side-label">{item.label}</span>}
+                  {!collapsed && item.hint && <span className="side-short">{item.hint}</span>}
+                </button>
+              );
+            })}
           </div>
         ))}
       </div>
-      {footer && <div className="side-footer">{footer}</div>}
+      {(footer || onCollapsedChange) && (
+        <div className="side-footer">
+          {footer}
+          {onCollapsedChange && (
+            <button className="btn btn-ghost btn-sm side-toggle" onClick={() => onCollapsedChange(!collapsed)} title={toggleLabel} aria-label={toggleLabel} aria-pressed={collapsed}>
+              <Icon name="sidebar" />
+            </button>
+          )}
+        </div>
+      )}
     </nav>
   );
 }

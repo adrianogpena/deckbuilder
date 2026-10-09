@@ -1,9 +1,11 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { PALETTES } from '@deckbuilder/server-core/palettes';
-import { CommandPalette, detectLanguage, ErrorBanner, Icon, type IconName, isDesktop, isTyping, type PaletteItem, PanelLoading, setLanguage, Sidebar, Spinner, useAsync, useCommandPalette, useHashRoute, useHeartbeat, useKey, useTheme } from '@deckbuilder/ui';
+import { CommandPalette, detectLanguage, effectiveKeys, ErrorBanner, Icon, isDesktop, KeybindingProvider, type PaletteItem, PanelLoading, setLanguage, Sidebar, Spinner, useAsync, useCommand, useCommandPalette, useHashRoute, useHeartbeat, useKeybindings, useTheme } from '@deckbuilder/ui';
 import { APP } from '../../app';
 import { api, type Settings } from './api';
-import { type MessageKey, t } from './i18n';
+import { commandById, commands, navCommandId, TOGGLE_NAV } from './commands';
+import { t } from './i18n';
+import { NAV, SCREENS, type ScreenId } from './nav';
 import { ExplorerScreen } from './screens/ExplorerScreen';
 import { GridScreen } from './screens/GridScreen';
 import { Home } from './screens/Home';
@@ -13,24 +15,6 @@ import { TabsScreen } from './screens/TabsScreen';
 // The editor and its language parsers are a separate chunk, loaded on first visit.
 const WorkbenchScreen = lazy(() => import('./screens/WorkbenchScreen').then((m) => ({ default: m.WorkbenchScreen })));
 const RestScreen = lazy(() => import('./screens/RestScreen').then((m) => ({ default: m.RestScreen })));
-
-const SCREENS = ['home', 'tabs', 'grid', 'explorer', 'workbench', 'rest', 'settings'] as const;
-type ScreenId = (typeof SCREENS)[number];
-
-const NAV: Array<{ title: MessageKey; items: Array<{ id: ScreenId; label: MessageKey; icon: IconName; hint?: string }> }> = [
-  {
-    title: 'nav.section.main',
-    items: [
-      { id: 'home', label: 'nav.home', icon: 'home', hint: '1' },
-      { id: 'tabs', label: 'nav.tabs', icon: 'split', hint: '2' },
-      { id: 'grid', label: 'nav.grid', icon: 'cube', hint: '3' },
-      { id: 'explorer', label: 'nav.explorer', icon: 'folder', hint: '4' },
-      { id: 'workbench', label: 'nav.workbench', icon: 'play', hint: '5' },
-      { id: 'rest', label: 'nav.rest', icon: 'send', hint: '6' },
-      { id: 'settings', label: 'nav.settings', icon: 'settings', hint: '7' },
-    ],
-  },
-];
 
 // Retrying can't revive a used launch code or a stale token; the user has to open the app again.
 const SESSION_ERRORS = ['invalidCode', 'invalidToken'];
@@ -52,8 +36,23 @@ export function App() {
 function Shell({ initialSettings }: { initialSettings: Settings }) {
   const [settings, setSettings] = useState(initialSettings);
   const [screen, go] = useHashRoute(SCREENS, 'home');
-  const [stopped, setStopped] = useState(false);
   setLanguage(settings.language ?? detectLanguage());
+  return (
+    <KeybindingProvider defs={commands()} keymap={settings.keybindings ?? {}} scope={screen}>
+      <Main settings={settings} setSettings={setSettings} screen={screen} go={go} />
+    </KeybindingProvider>
+  );
+}
+
+interface MainProps {
+  settings: Settings;
+  setSettings: React.Dispatch<React.SetStateAction<Settings>>;
+  screen: ScreenId;
+  go: (screen: ScreenId) => void;
+}
+
+function Main({ settings, setSettings, screen, go }: MainProps) {
+  const [stopped, setStopped] = useState(false);
   useHeartbeat();
   const palette = useCommandPalette();
 
@@ -69,18 +68,19 @@ function Shell({ initialSettings }: { initialSettings: Settings }) {
     api.saveSettings(patch).catch(() => { /* preferences are best-effort */ });
   }, []);
 
-  // Number keys jump to the matching sidebar entry.
-  useKey((e) => {
-    if (isTyping(e) || e.ctrlKey || e.metaKey || e.altKey) return;
-    const item = NAV.flatMap((s) => s.items).find((i) => i.hint === e.key);
-    if (item) go(item.id);
-  });
+  const navItems = NAV.flatMap((s) => s.items);
+  // The nav list is a constant, so the hooks run in the same order every render.
+  for (const item of navItems) useCommand(commandById(navCommandId(item.id)), () => go(item.id));
+  const collapsed = settings.navCollapsed ?? false;
+  useCommand(commandById(TOGGLE_NAV), () => save({ navCollapsed: !collapsed }));
+  const keys = useKeybindings();
+  const chordOf = (id: string) => (keys ? effectiveKeys(keys.defs, keys.keymap).get(id)?.[0] : undefined);
 
   const quit = useCallback(() => { api.quit().then(() => setStopped(true)).catch(() => { /* already gone */ }); }, []);
   const nextTheme = kind === 'dark' ? 'light' : 'dark';
   const items = useMemo<PaletteItem[]>(() => {
-    const goTo = NAV.flatMap((s) => s.items).map((i): PaletteItem => ({
-      id: `go:${i.id}`, group: t('palette.group.go'), label: t(i.label), keywords: [i.id], run: () => go(i.id),
+    const goTo = navItems.map((i): PaletteItem => ({
+      id: `go:${i.id}`, group: t('palette.group.go'), label: t(i.label), hint: chordOf(navCommandId(i.id)), keywords: [i.id], run: () => go(i.id),
     }));
     const toggle: PaletteItem = {
       id: 'theme:toggle', group: t('palette.group.theme'), label: t(`nav.theme.${nextTheme}`), keywords: ['theme', 'dark', 'light'],
@@ -94,23 +94,27 @@ function Shell({ initialSettings }: { initialSettings: Settings }) {
       id: 'app:quit', group: t('palette.group.app'), label: t('palette.quit', { name: APP.name }), keywords: ['quit', 'exit', 'stop'], run: quit,
     }];
     return [...goTo, toggle, ...palettes, ...quitItem];
-  }, [go, save, quit, nextTheme, settings.language]);
+  }, [go, save, quit, nextTheme, settings.language, keys]);
 
   if (stopped) return <div className="boot"><span>{t('app.stopped', { name: APP.name })}</span></div>;
 
-  const sections = NAV.map((s) => ({ title: t(s.title), items: s.items.map((i) => ({ ...i, label: t(i.label) })) }));
+  const sections = NAV.map((s) => ({ title: t(s.title), items: s.items.map((i) => ({ ...i, label: t(i.label), hint: chordOf(navCommandId(i.id)) })) }));
+  const toggleChord = chordOf(TOGGLE_NAV);
 
   return (
-    <div className="app">
+    <div className={`app${collapsed ? ' nav-collapsed' : ''}`}>
       <Sidebar
         name={APP.name}
         sections={sections}
         current={screen}
         onSelect={go}
+        collapsed={collapsed}
+        onCollapsedChange={(next) => save({ navCollapsed: next })}
+        toggleLabel={toggleChord ? `${t('keys.toggleNav')} (${toggleChord})` : t('keys.toggleNav')}
         footer={
           <>
             <button className="btn btn-ghost btn-sm" onClick={() => save({ theme: nextTheme })} title={t(`nav.theme.${nextTheme}`)}>
-              <Icon name={kind === 'dark' ? 'sun' : 'moon'} /> {t(`nav.theme.${nextTheme}`)}
+              <Icon name={kind === 'dark' ? 'sun' : 'moon'} />{!collapsed && ` ${t(`nav.theme.${nextTheme}`)}`}
             </button>
             <button className="btn btn-ghost btn-sm" onClick={() => palette.setOpen(true)} title={t('nav.palette')} aria-label={t('nav.palette')}>
               <Icon name="search" />

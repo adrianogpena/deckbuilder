@@ -202,5 +202,7 @@ export const en = {
   'error.badProjectName': 'The name must have 1 to 80 characters.',
   'error.badRequestName': 'The name must have 1 to 80 characters.',
   'error.pickFolderFirst': 'Choose the folder with Browse.',
+  'keys.toggleNav': 'Collapse or expand the main menu',
+  'keys.file.save': 'Save file',
   'error.notASaveTarget': 'Choose where to save first.',
 };

@@ -3,10 +3,14 @@ import type { ThemeSettings } from '@deckbuilder/server-core/palettes';
 import type { BackupInspect, EditorInfo, HttpRequestSpec, HttpResponseInfo, ImportResult, TailChunk, UpdateState } from '@deckbuilder/server-core/protocol';
 
 export type { EditorInfo, ImportResult, TailChunk };
-import { type Language, type LogSettings, request } from '@deckbuilder/ui';
+import { type Keymap, type Language, type LogSettings, request } from '@deckbuilder/ui';
 
 export interface Settings extends ThemeSettings {
   language?: Language;
+  /** The main menu shows only its icons. */
+  navCollapsed?: boolean;
+  /** Keybinding overrides by command id; the server validates it. */
+  keybindings?: Keymap;
   autostart: boolean;
   /** Tray icon; read at startup. */
   closeToTray: boolean;
