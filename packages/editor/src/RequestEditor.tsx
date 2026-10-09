@@ -1,6 +1,6 @@
 import { HTTP_METHODS, HTTP_TIMEOUT_MAX_MS, HTTP_TIMEOUT_MIN_MS, type HttpMethod } from '@deckbuilder/server-core/protocol';
 import { Icon, Spinner, t } from '@deckbuilder/ui';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { CodeEditor } from './CodeEditor';
 import { type HttpHeaderDraft, type HttpRequestDraft, headersFromText, formatXml, headersToText, sendsBody, timeoutFromSeconds } from './http';
 
@@ -13,10 +13,12 @@ export interface RequestEditorProps {
   onSend(): void;
   onCancel?(): void;
   sending: boolean;
+  /** Extra content under the headers list (the Headers tab only). */
+  headersFooter?: ReactNode;
 }
 
 /** Method, URL, headers, body and options of one HTTP request; sending is up to the app. */
-export function RequestEditor({ value, onChange, onSend, onCancel, sending }: RequestEditorProps) {
+export function RequestEditor({ value, onChange, onSend, onCancel, sending, headersFooter }: RequestEditorProps) {
   const [tab, setTab] = useState<Tab>('headers');
   const set = (patch: Partial<HttpRequestDraft>) => onChange({ ...value, ...patch });
   const enabledHeaders = value.headers.filter((h) => h.enabled && h.name.trim() !== '').length;
@@ -60,7 +62,12 @@ export function RequestEditor({ value, onChange, onSend, onCancel, sending }: Re
         ))}
       </div>
       <div className="req-panel">
-        {tab === 'headers' && <HeadersTab headers={value.headers} onChange={(headers) => set({ headers })} />}
+        {tab === 'headers' && (
+          <>
+            <HeadersTab headers={value.headers} onChange={(headers) => set({ headers })} />
+            {headersFooter}
+          </>
+        )}
         {tab === 'body' && <BodyTab value={value} onChange={set} onSend={send} />}
         {tab === 'options' && <OptionsTab value={value} onChange={set} />}
       </div>

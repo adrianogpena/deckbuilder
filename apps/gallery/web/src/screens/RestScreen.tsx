@@ -260,21 +260,29 @@ export function RestScreen({ settings, onSave }: { settings: Settings; onSave: (
           }}
         >
           <div key="request" className="rest-pane">
-            <RequestEditor value={draft} onChange={setDraft} onSend={send} onCancel={cancel} sending={sending} />
-            <label className="field rest-auth">
-              <span className="mono-label">{t('rest.auth')}</span>
-              <input
-                type="password"
-                value={auth}
-                disabled={!loaded && !imported?.auth}
-                placeholder={loaded?.auth?.hasSecret ? t('rest.authSaved') : ''}
-                onChange={(e) => setAuth(e.target.value)}
-                autoComplete="off"
-              />
-              <span className="muted">
-                {loaded ? t('rest.authHint') : imported?.auth ? t('rest.authImported') : t('rest.authNeedsSave')}
-              </span>
-            </label>
+            <RequestEditor
+              value={draft}
+              onChange={setDraft}
+              onSend={send}
+              onCancel={cancel}
+              sending={sending}
+              headersFooter={(
+                <label className="field rest-auth">
+                  <span className="mono-label">{t('rest.auth')}</span>
+                  <input
+                    type="password"
+                    value={auth}
+                    disabled={!loaded && !imported?.auth}
+                    placeholder={loaded?.auth?.hasSecret ? t('rest.authSaved') : ''}
+                    onChange={(e) => setAuth(e.target.value)}
+                    autoComplete="off"
+                  />
+                  <span className="muted">
+                    {loaded ? t('rest.authHint') : imported?.auth ? t('rest.authImported') : t('rest.authNeedsSave')}
+                  </span>
+                </label>
+              )}
+            />
           </div>
           <div key="response" className="rest-pane">
             {savedPath && <p className="muted">{t('rest.responseSaved', { path: savedPath })}</p>}

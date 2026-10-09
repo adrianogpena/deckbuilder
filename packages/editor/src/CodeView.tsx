@@ -1,4 +1,4 @@
-import { searchKeymap } from '@codemirror/search';
+import { openSearchPanel, searchKeymap } from '@codemirror/search';
 import { Compartment, EditorState } from '@codemirror/state';
 import { drawSelection, EditorView, keymap, lineNumbers as lineNumbersExt } from '@codemirror/view';
 import { useEffect, useRef } from 'react';
@@ -55,5 +55,13 @@ function HighlightedView({ value, lang, wrap, lineNumbers }: { value: string; la
     if (v && v.state.doc.toString() !== value) v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: value } });
   }, [value]);
 
-  return <div ref={host} className="code-view" />;
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    const v = view.current;
+    if (!v || !(e.ctrlKey || e.metaKey) || e.altKey || e.key.toLowerCase() !== 'f') return;
+    e.preventDefault();
+    v.focus();
+    openSearchPanel(v);
+  };
+
+  return <div ref={host} className="code-view" tabIndex={-1} onKeyDown={onKeyDown} onMouseDown={(e) => { if (e.target === host.current) view.current?.focus(); }} />;
 }

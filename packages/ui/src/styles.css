@@ -621,6 +621,19 @@ kbd {
 .json-tree { font-family: var(--font-mono); font-size: 12.5px; line-height: 1.6; color: var(--text); }
 .json-row { display: flex; align-items: center; gap: 4px; min-height: 22px; border-radius: 4px; white-space: nowrap; }
 .json-row:hover { background: var(--hover); }
+.json-row.current { background: var(--accent-soft); }
+.json-tree:focus { outline: none; }
+.json-bar {
+  position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 4px; padding: 2px 0 4px;
+  background: var(--bg); color: var(--text-3); font-family: var(--font-sans, inherit);
+}
+.json-search {
+  width: 160px; height: 22px; padding: 0 6px; font: inherit; font-size: 12px; color: var(--text);
+  background: var(--bg-sunken); border: 1px solid var(--border); border-radius: 4px;
+}
+.json-search:focus { outline: none; border-color: var(--accent); }
+.json-hits { min-width: 36px; font-size: 11px; text-align: right; white-space: nowrap; }
+.json-mark { background: var(--mark); color: inherit; border-radius: 2px; }
 .json-toggle {
   display: grid; place-items: center; flex-shrink: 0; width: 16px; height: 16px; padding: 0; border: 0;
   background: none; color: var(--text-3); cursor: pointer; transition: transform .12s;
