@@ -1,11 +1,13 @@
 import { json, jsonLanguage } from '@codemirror/lang-json';
 import { markdown } from '@codemirror/lang-markdown';
+import { GFM } from '@lezer/markdown';
 import { MSSQL, MySQL, PostgreSQL, sql, SQLite, StandardSQL } from '@codemirror/lang-sql';
 import { type Language, StreamLanguage } from '@codemirror/language';
+import { java } from '@codemirror/legacy-modes/mode/clike';
 import { shell } from '@codemirror/legacy-modes/mode/shell';
 import type { Extension } from '@codemirror/state';
 
-export type Lang = 'sql' | 'json' | 'shell' | 'markdown' | 'text';
+export type Lang = 'sql' | 'json' | 'shell' | 'java' | 'markdown' | 'text';
 export type SqlDialect = 'postgres' | 'mysql' | 'sqlite' | 'mssql' | 'standard';
 /** Table name → column names, for SQL completion. */
 export type SqlSchema = Record<string, string[]>;
@@ -13,13 +15,15 @@ export type SqlSchema = Record<string, string[]>;
 const DIALECTS = { postgres: PostgreSQL, mysql: MySQL, sqlite: SQLite, mssql: MSSQL, standard: StandardSQL };
 
 const shellLanguage = StreamLanguage.define(shell);
+const javaLanguage = StreamLanguage.define(java);
 
 export function languageFor(lang: Lang, opts: { sqlDialect?: SqlDialect; sqlSchema?: SqlSchema } = {}): Extension {
   switch (lang) {
     case 'sql': return sql({ dialect: DIALECTS[opts.sqlDialect ?? 'standard'], schema: opts.sqlSchema });
     case 'json': return json();
     case 'shell': return shellLanguage;
-    case 'markdown': return markdown();
+    case 'java': return javaLanguage;
+    case 'markdown': return markdown({ extensions: GFM });
     default: return [];
   }
 }
@@ -32,6 +36,7 @@ export function parserOf(lang: Lang): Parser | null {
     case 'sql': return StandardSQL.language.parser;
     case 'json': return jsonLanguage.parser;
     case 'shell': return shellLanguage.parser;
+    case 'java': return javaLanguage.parser;
     default: return null;
   }
 }
@@ -42,7 +47,7 @@ const extOf = (name: string) => {
 };
 
 const LANG_BY_EXT: Record<string, Lang> = {
-  sql: 'sql', json: 'json', sh: 'shell', bash: 'shell', curl: 'shell', http: 'shell', md: 'markdown', markdown: 'markdown',
+  sql: 'sql', json: 'json', java: 'java', sh: 'shell', bash: 'shell', curl: 'shell', http: 'shell', md: 'markdown', markdown: 'markdown',
 };
 
 /** The editor language for a file name, by extension. */

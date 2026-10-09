@@ -6,5 +6,6 @@ export * from './RequestEditor';
 export * from './ResponseView';
 export * from './languages';
 export * from './markdown';
+export * from './MarkdownEditor';
 export * from './MarkdownView';
 export * from './theme';

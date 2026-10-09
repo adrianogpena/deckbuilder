@@ -2,7 +2,7 @@ import { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap } 
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { bracketMatching, indentOnInput } from '@codemirror/language';
 import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
-import { Annotation, Compartment, EditorState, Prec } from '@codemirror/state';
+import { Annotation, Compartment, EditorState, type Extension, Prec } from '@codemirror/state';
 import {
   drawSelection, EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers, placeholder as placeholderExt,
 } from '@codemirror/view';
@@ -24,6 +24,12 @@ export interface CodeEditorProps {
   /** CSS length; a number is px. Without it the editor grows with its content. */
   height?: number | string;
   autoFocus?: boolean;
+  /** Scroll position as a fraction (0..1) of the scroll range. */
+  onScroll?(fraction: number): void;
+  /** Extra extensions, swapped in place when the value changes. */
+  extensions?: Extension;
+  /** Wrap long lines; default off. */
+  wrap?: boolean;
 }
 
 /** Marks the transaction that loads an outside `value`, so it doesn't echo back through onChange. */
@@ -31,14 +37,14 @@ const external = Annotation.define<boolean>();
 
 /** A CodeMirror 6 editor; one view for the component's lifetime, options swapped in place. */
 export function CodeEditor({
-  value, lang, onChange, onRun, readOnly = false, placeholder, sqlDialect, sqlSchema, height, autoFocus,
+  value, lang, onChange, onRun, readOnly = false, placeholder, sqlDialect, sqlSchema, height, autoFocus, onScroll, extensions, wrap = false,
 }: CodeEditorProps) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
-  const compartments = useRef({ lang: new Compartment(), readOnly: new Compartment(), placeholder: new Compartment() }).current;
+  const compartments = useRef({ lang: new Compartment(), readOnly: new Compartment(), placeholder: new Compartment(), extra: new Compartment(), wrap: new Compartment() }).current;
   // The callbacks change every render; the view's extensions read them through this ref.
-  const handlers = useRef({ onChange, onRun });
-  handlers.current = { onChange, onRun };
+  const handlers = useRef({ onChange, onRun, onScroll });
+  handlers.current = { onChange, onRun, onScroll };
 
   useEffect(() => {
     const v = new EditorView({
@@ -67,6 +73,15 @@ export function CodeEditor({
           compartments.readOnly.of(readOnlyExt(readOnly)),
           compartments.placeholder.of(placeholder ? placeholderExt(placeholder) : []),
           themeExtension,
+          compartments.extra.of(extensions ?? []),
+          compartments.wrap.of(wrap ? EditorView.lineWrapping : []),
+          EditorView.domEventHandlers({
+            scroll: (_e, ed) => {
+              const { scrollTop, scrollHeight, clientHeight } = ed.scrollDOM;
+              const range = scrollHeight - clientHeight;
+              handlers.current.onScroll?.(range > 0 ? scrollTop / range : 0);
+            },
+          }),
           EditorView.updateListener.of((u) => {
             if (!u.docChanged || u.transactions.some((tr) => tr.annotation(external))) return;
             handlers.current.onChange?.(u.state.doc.toString());
@@ -86,6 +101,14 @@ export function CodeEditor({
   useEffect(() => {
     view.current?.dispatch({ effects: compartments.lang.reconfigure(languageFor(lang, { sqlDialect, sqlSchema })) });
   }, [lang, sqlDialect, sqlSchema]);
+
+  useEffect(() => {
+    view.current?.dispatch({ effects: compartments.wrap.reconfigure(wrap ? EditorView.lineWrapping : []) });
+  }, [wrap]);
+
+  useEffect(() => {
+    view.current?.dispatch({ effects: compartments.extra.reconfigure(extensions ?? []) });
+  }, [extensions]);
 
   useEffect(() => {
     view.current?.dispatch({ effects: compartments.readOnly.reconfigure(readOnlyExt(readOnly)) });

@@ -193,7 +193,12 @@ source directly; there is no package build step.
   build exports.
 - **Editor and viewers**: add `@deckbuilder/editor` to the app. `CodeEditor` (Ctrl+Enter runs
   `onRun`), `CodeView`, `MarkdownView`, `JsonTree` (from `@deckbuilder/ui`) and `FilePreview`
-  (picks a viewer by file name). It brings the CodeMirror language parsers (~700 kB): load the
+  (picks a viewer by file name). `MarkdownEditor` (`value`, `onChange`, `mode`: `'live' | 'edit' | 'split' |
+  'preview'`, `onModeChange`, `resolveImage?`) edits markdown in place (`live`: formatted inline, raw syntax
+  only on the cursor's lines) or as source (`edit`), source + preview (`split`) or preview only,
+  with a mode switch; in `split` the preview follows the editor's scroll proportionally and
+  renders a deferred copy of the text, so typing stays smooth; `wrap` (default on) wraps long lines,
+  like `CodeEditor`'s `wrap` (default off). Keep the mode in a setting. It brings the CodeMirror language parsers (~700 kB): load the
   screen with `React.lazy` and set `chunkSizeWarningLimit: 800` in `vite.config.ts`, as the gallery does.
 - **Streaming**: `ndjson(req, async (emit, signal) => ...)` in a route streams items without
   buffering; `useStream().start(path, params)` reads them into state (`cancel()` aborts) and

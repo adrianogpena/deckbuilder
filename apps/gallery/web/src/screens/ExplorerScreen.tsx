@@ -50,6 +50,9 @@ const isRoute = (x: unknown): x is Route => {
   return r.kind === 'welcome' || (r.kind === 'file' && typeof r.project === 'string' && typeof r.path === 'string');
 };
 
+type MarkdownMode = NonNullable<ExplorerSettings['markdownMode']>;
+const MARKDOWN_MODES: readonly string[] = ['live', 'edit', 'split', 'preview'];
+
 interface State {
   sizes: [number, number];
   collapsed: boolean;
@@ -57,6 +60,8 @@ interface State {
   /** Saved project ids shown in the sidebar; `shownIds` resolves them against the project list. */
   trees: string[];
   treeSizes?: [number, number];
+  markdownMode: MarkdownMode;
+  wrapLines: boolean;
   layout: Layout<Route>;
 }
 
@@ -72,6 +77,8 @@ function initialState(saved: ExplorerSettings | undefined): State {
     expanded,
     trees: Array.isArray(saved?.trees) ? saved.trees.filter((x): x is string => typeof x === 'string').slice(0, 2) : [],
     treeSizes: saved?.treeSizes,
+    markdownMode: MARKDOWN_MODES.includes(saved?.markdownMode as MarkdownMode) ? saved!.markdownMode! : 'live',
+    wrapLines: saved?.wrapLines !== false,
     layout: restore(saved?.tabs, isRoute) ?? singlePane(newTab<Route>(WELCOME)),
   };
 }
@@ -132,6 +139,8 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
         expanded: s.expanded,
         ...(s.trees.length > 0 && { trees: s.trees }),
         ...(s.treeSizes && { treeSizes: s.treeSizes }),
+        markdownMode: s.markdownMode,
+        wrapLines: s.wrapLines,
         tabs: serialize(s.layout),
       },
     }),
@@ -343,7 +352,7 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
           renderTab={(tab, ctx) =>
             tab.route.kind === 'file' ? (
               <Suspense fallback={<PanelLoading />}>
-                <FileTab project={tab.route.project} projectName={nameOf(tab.route.project)} path={tab.route.path} focused={ctx.focused} logs={logs} onLogsChange={changeLogs} />
+                <FileTab project={tab.route.project} projectName={nameOf(tab.route.project)} path={tab.route.path} focused={ctx.focused} logs={logs} onLogsChange={changeLogs} markdownMode={state.markdownMode} onMarkdownModeChange={(markdownMode) => update((s) => ({ ...s, markdownMode }))} wrapLines={state.wrapLines} onWrapLinesChange={(wrapLines) => update((s) => ({ ...s, wrapLines }))} />
               </Suspense>
             ) : (
               <Welcome projects={list} onOpen={pickProject} />

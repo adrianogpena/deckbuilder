@@ -561,6 +561,18 @@ kbd {
 }
 .code-view-plain.wrap { white-space: pre-wrap; overflow-wrap: anywhere; }
 
+/* ---- markdown editor */
+.md-editor { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; gap: 8px; }
+.md-editor-bar { display: flex; justify-content: flex-end; }
+.md-editor-modes { display: inline-flex; border: 1px solid var(--border-soft); border-radius: 8px; overflow: hidden; }
+.md-editor-modes button { padding: 3px 10px; border: 0; background: transparent; color: var(--text-2); font: inherit; font-size: 12px; cursor: pointer; }
+.md-editor-modes button + button { border-left: 1px solid var(--border-soft); }
+.md-editor-modes button[aria-pressed="true"] { background: var(--accent); color: var(--ink-on-accent); }
+.md-editor-body { display: flex; flex: 1; min-height: 0; }
+.md-editor-body > .split, .md-editor-body > .code-editor { flex: 1; min-width: 0; }
+.md-editor-body > .code-editor { height: 100%; }
+.md-editor-preview { height: 100%; overflow: auto; padding: 4px 12px; border: 1px solid var(--border-soft); border-radius: 8px; }
+
 /* ---- markdown */
 .markdown { color: var(--text); font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
 .markdown > :first-child { margin-top: 0; }

@@ -70,6 +70,10 @@ export interface ExplorerSettings {
   trees?: string[];
   /** Fractions of the two trees when `trees` has 2. */
   treeSizes?: [number, number];
+  /** Edit / split / preview of markdown files; live when omitted. */
+  markdownMode?: 'live' | 'edit' | 'split' | 'preview';
+  /** Wrap long lines in the file editors; on when omitted. */
+  wrapLines?: boolean;
   tabs?: unknown;
 }
 

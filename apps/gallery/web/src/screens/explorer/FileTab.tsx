@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { CodeEditor, FilePreview, langOfFile, previewKind, type PreviewContent } from '@deckbuilder/editor';
+import { CodeEditor, FilePreview, langOfFile, MarkdownEditor, type MarkdownMode, previewKind, type PreviewContent } from '@deckbuilder/editor';
 import { type ApiError, errorOf, ErrorBanner, Icon, PanelBanner, PanelLoading, relPath, requestBlob, useCommand, useDialogs } from '@deckbuilder/ui';
 import { api, type LogSettings } from '../../api';
 import { commandById } from '../../commands';
@@ -20,6 +20,12 @@ export interface FileTabProps {
   /** Log viewer state (highlights, bookmarks) and its change handler; only log files use them. */
   logs?: LogSettings;
   onLogsChange?: (logs: LogSettings) => void;
+  /** Mode of the markdown editor and its change handler. */
+  markdownMode?: MarkdownMode;
+  onMarkdownModeChange?: (mode: MarkdownMode) => void;
+  /** Wrap long lines in the editors (default on) and its change handler. */
+  wrapLines?: boolean;
+  onWrapLinesChange?: (wrap: boolean) => void;
 }
 
 /** One open file: log files get the log viewer, the rest `TextFileTab`. */
@@ -28,15 +34,16 @@ export function FileTab(props: FileTabProps) {
 }
 
 /** A preview by extension, and for text files an editor with Save (Ctrl+S). */
-function TextFileTab({ project, projectName, path, focused }: FileTabProps) {
+function TextFileTab({ project, projectName, path, focused, markdownMode = 'live', onMarkdownModeChange, wrapLines = true, onWrapLinesChange }: FileTabProps) {
   const name = relPath.basename(path);
+  const markdown = previewKind(name) === 'markdown';
   const [state, setState] = useState<State>({ status: 'loading' });
-  const [editing, setEditing] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<ApiError>();
   const generation = useRef(0);
-  const editingRef = useRef(false);
+  const dirtyRef = useRef(false);
   const blobUrl = useRef<string>();
   const { confirm, element } = useDialogs();
 
@@ -45,12 +52,10 @@ function TextFileTab({ project, projectName, path, focused }: FileTabProps) {
     blobUrl.current = undefined;
   };
 
-  editingRef.current = editing;
-
   const load = useCallback(async () => {
     const gen = ++generation.current;
     setState({ status: 'loading' });
-    setEditing(false);
+    setPreviewing(false);
     setSaveError(undefined);
     try {
       if (previewKind(name) === 'image') {
@@ -64,7 +69,10 @@ function TextFileTab({ project, projectName, path, focused }: FileTabProps) {
         setState({ status: 'ready', content: { url }, mtime: 0 });
       } else {
         const read = await api.fsRead(project, path);
-        if (gen === generation.current) setState({ status: 'ready', content: read, mtime: read.mtime });
+        if (gen === generation.current) {
+          if ('text' in read) setDraft(read.text);
+          setState({ status: 'ready', content: read, mtime: read.mtime });
+        }
       }
     } catch (err) {
       if (gen === generation.current) setState({ status: 'error', error: errorOf(err) });
@@ -72,7 +80,7 @@ function TextFileTab({ project, projectName, path, focused }: FileTabProps) {
   }, [project, path, name]);
 
   useEffect(() => {
-    if (!editingRef.current) void load();
+    if (!dirtyRef.current) void load();
   }, [load]);
   useEffect(() => () => {
     generation.current++;
@@ -82,21 +90,25 @@ function TextFileTab({ project, projectName, path, focused }: FileTabProps) {
   const content = state.status === 'ready' ? state.content : undefined;
   const text = content && 'text' in content ? content.text : undefined;
   const editable = text !== undefined && !(content && 'truncated' in content && content.truncated);
-  const dirty = editing && text !== undefined && draft !== text;
+  // Editable files open straight in the editor; only JSON can switch to its tree preview.
+  const active = editable && !previewing;
+  const mdEditor = markdown && active;
+  const dirty = active && text !== undefined && draft !== text;
+  dirtyRef.current = dirty;
 
   const confirmDiscard = async () =>
     !dirty || confirm({ title: t('explorer.discardTitle'), body: t('explorer.discardBody', { name }), okLabel: t('explorer.discard'), danger: true });
 
   const toggleEdit = async () => {
-    if (!editing) {
+    if (previewing) {
       setDraft(text ?? '');
       setSaveError(undefined);
-      setEditing(true);
+      setPreviewing(false);
       return;
     }
     if (!(await confirmDiscard())) return;
     setSaveError(undefined);
-    setEditing(false);
+    setPreviewing(true);
   };
 
   const reload = async () => {
@@ -117,19 +129,24 @@ function TextFileTab({ project, projectName, path, focused }: FileTabProps) {
     }
   };
 
-  useCommand(commandById('explorer.file.save'), () => void save(), { enabled: focused && editing });
+  useCommand(commandById('explorer.file.save'), () => void save(), { enabled: focused && active });
 
   return (
     <div className="xp-file">
       {element}
       <div className="xp-bar">
         <span className="xp-path mono" title={`${projectName}/${path}`}>{projectName}/{path}</span>
-        {editable && (
+        {editable && previewKind(name) === 'json' && (
           <button className="btn btn-sm" onClick={toggleEdit}>
-            <Icon name={editing ? 'search' : 'edit'} /> {editing ? t('explorer.preview') : t('explorer.edit')}
+            <Icon name={previewing ? 'edit' : 'search'} /> {previewing ? t('explorer.edit') : t('explorer.preview')}
           </button>
         )}
-        {editing && (
+        {active && onWrapLinesChange && (
+          <button className="btn btn-ghost btn-sm" onClick={() => onWrapLinesChange(!wrapLines)} aria-pressed={wrapLines}>
+            {t('explorer.wrap')}
+          </button>
+        )}
+        {active && (
           <button className="btn btn-primary btn-sm" onClick={save} disabled={!dirty || saving}>
             {t('explorer.save')}
           </button>
@@ -146,8 +163,10 @@ function TextFileTab({ project, projectName, path, focused }: FileTabProps) {
       <div className="xp-body">
         {state.status === 'loading' && <PanelLoading />}
         {state.status === 'error' && <ErrorBanner error={state.error} onRetry={() => void load()} />}
-        {content && (editing
-          ? <CodeEditor value={draft} lang={langOfFile(name)} onChange={setDraft} height="100%" autoFocus />
+        {content && (mdEditor
+          ? <MarkdownEditor value={draft} onChange={setDraft} mode={markdownMode} onModeChange={(m) => onMarkdownModeChange?.(m)} wrap={wrapLines} autoFocus />
+          : active
+          ? <CodeEditor value={draft} lang={langOfFile(name)} onChange={setDraft} height="100%" wrap={wrapLines} autoFocus />
           : <FilePreview name={name} content={content} />)}
       </div>
     </div>

@@ -68,8 +68,14 @@ export interface ExplorerSettings {
   trees?: string[];
   /** Fractions of the two trees when `trees` has 2. */
   treeSizes?: [number, number];
+  /** Edit / split / preview of markdown files; live when omitted. */
+  markdownMode?: 'live' | 'edit' | 'split' | 'preview';
+  /** Wrap long lines in the file editors; on when omitted. */
+  wrapLines?: boolean;
   tabs?: unknown;
 }
+
+const MARKDOWN_MODES: unknown[] = ['live', 'edit', 'split', 'preview'];
 
 const GRID_PANELS = ['clock', 'info', 'update', 'list'];
 
@@ -83,7 +89,7 @@ const isStringArray = (v: unknown): v is string[] => Array.isArray(v) && v.every
 function validExplorer(raw: unknown): ExplorerSettings | null {
   const r = raw as Partial<ExplorerSettings> | null;
   if (typeof r !== 'object' || r === null) return null;
-  const { sizes, collapsed, expanded, tabs, trees, treeSizes } = r;
+  const { sizes, collapsed, expanded, tabs, trees, treeSizes, markdownMode, wrapLines } = r;
   if (!Array.isArray(sizes) || sizes.length !== 2 || !sizes.every((n) => typeof n === 'number' && n >= 0 && n <= 1)) return null;
   if (Math.abs(sizes[0] + sizes[1] - 1) > 0.01) return null;
   if (typeof collapsed !== 'boolean' || typeof expanded !== 'object' || expanded === null || Array.isArray(expanded)) return null;
@@ -96,12 +102,16 @@ function validExplorer(raw: unknown): ExplorerSettings | null {
   if (trees !== undefined && (!isStringArray(trees) || trees.length < 1 || trees.length > 2 || trees.some((id) => id.length > MAX_ID_LENGTH))) return null;
   const pair = treeSizes === undefined ? undefined : validPair(treeSizes);
   if (treeSizes !== undefined && !pair) return null;
+  if (markdownMode !== undefined && !MARKDOWN_MODES.includes(markdownMode)) return null;
+  if (wrapLines !== undefined && typeof wrapLines !== 'boolean') return null;
   return {
     sizes: [sizes[0], sizes[1]],
     collapsed,
     expanded: out,
     ...(trees !== undefined && { trees }),
     ...(pair && { treeSizes: pair }),
+    ...(markdownMode !== undefined && { markdownMode }),
+    ...(wrapLines !== undefined && { wrapLines }),
     ...(tabs !== undefined && { tabs }),
   };
 }

@@ -101,6 +101,7 @@ export const en = {
   'explorer.split': 'Show a second project below',
   'explorer.closeTree': 'Close this tree',
   'explorer.edit': 'Edit',
+  'explorer.wrap': 'Wrap lines',
   'explorer.preview': 'Preview',
   'explorer.save': 'Save',
   'explorer.reload': 'Reload from disk',

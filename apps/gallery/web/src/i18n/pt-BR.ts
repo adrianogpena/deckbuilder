@@ -103,6 +103,7 @@ export const ptBR: Messages<typeof en> = {
   'explorer.split': 'Mostrar um segundo projeto abaixo',
   'explorer.closeTree': 'Fechar esta árvore',
   'explorer.edit': 'Editar',
+  'explorer.wrap': 'Quebrar linhas',
   'explorer.preview': 'Visualizar',
   'explorer.save': 'Salvar',
   'explorer.reload': 'Recarregar do disco',
