@@ -98,6 +98,10 @@ export const ptBR: Messages<typeof en> = {
   'explorer.search.count': '{count} resultados',
   'explorer.search.truncated': 'mostrando os primeiros {count}',
   'explorer.search.running': 'Buscando…',
+  'explorer.search.open': 'Buscar neste projeto',
+  'explorer.search.close': 'Fechar a busca',
+  'explorer.split': 'Mostrar um segundo projeto abaixo',
+  'explorer.closeTree': 'Fechar esta árvore',
   'explorer.edit': 'Editar',
   'explorer.preview': 'Visualizar',
   'explorer.save': 'Salvar',
@@ -212,5 +216,6 @@ export const ptBR: Messages<typeof en> = {
   'error.pickFolderFirst': 'Escolha a pasta com Procurar.',
   'keys.toggleNav': 'Recolher ou expandir o menu principal',
   'keys.file.save': 'Salvar arquivo',
+  'keys.explorer.search': 'Buscar no projeto',
   'error.notASaveTarget': 'Escolha onde salvar primeiro.',
 };

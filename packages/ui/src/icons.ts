@@ -15,6 +15,7 @@ export const PATHS = {
   plus: 'M12 5v14M5 12h14',
   chevron: 'M9 6l6 6-6 6',
   split: 'M3 4h18v16H3zM12 4v16',
+  'split-down': 'M3 4h18v16H3zM3 12h18',
   sidebar: 'M3 4h18v16H3zM9 4v16',
   back: 'M19 12H5m7-7-7 7 7 7',
   forward: 'M5 12h14m-7-7 7 7-7 7',

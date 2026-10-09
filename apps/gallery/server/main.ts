@@ -93,7 +93,7 @@ function validExplorer(raw: unknown): ExplorerSettings | null {
     out[project] = ids;
   }
   if (tabs !== undefined && (typeof tabs !== 'object' || tabs === null || JSON.stringify(tabs).length >= MAX_TABS_LAYOUT_BYTES)) return null;
-  if (trees !== undefined && (!isStringArray(trees) || trees.length < 1 || trees.length > 2 || new Set(trees).size !== trees.length || trees.some((id) => id.length > MAX_ID_LENGTH))) return null;
+  if (trees !== undefined && (!isStringArray(trees) || trees.length < 1 || trees.length > 2 || trees.some((id) => id.length > MAX_ID_LENGTH))) return null;
   const pair = treeSizes === undefined ? undefined : validPair(treeSizes);
   if (treeSizes !== undefined && !pair) return null;
   return {

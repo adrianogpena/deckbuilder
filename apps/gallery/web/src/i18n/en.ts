@@ -96,6 +96,10 @@ export const en = {
   'explorer.search.count': '{count} results',
   'explorer.search.truncated': 'showing the first {count}',
   'explorer.search.running': 'Searching…',
+  'explorer.search.open': 'Search in this project',
+  'explorer.search.close': 'Close the search',
+  'explorer.split': 'Show a second project below',
+  'explorer.closeTree': 'Close this tree',
   'explorer.edit': 'Edit',
   'explorer.preview': 'Preview',
   'explorer.save': 'Save',
@@ -210,5 +214,6 @@ export const en = {
   'error.pickFolderFirst': 'Choose the folder with Browse.',
   'keys.toggleNav': 'Collapse or expand the main menu',
   'keys.file.save': 'Save file',
+  'keys.explorer.search': 'Search in the project',
   'error.notASaveTarget': 'Choose where to save first.',
 };

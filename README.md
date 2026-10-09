@@ -171,7 +171,13 @@ source directly; there is no package build step.
 - **Explorer layout**: `<SplitView direction sizes onResize>` (resizable panes, persist `sizes` with
   `useDebouncedSave`), `<TreeView>` (lazy tree with keyboard, drag and rename), `<ContextMenu>` and
   `<Explorer scope>` (sidebar plus tab workspace; Ctrl+B, `explorerCommands(scope)`, folds the
-  sidebar). The gallery's Explorer screen puts them together.
+  sidebar). The gallery's Explorer screen puts them together: the sidebar shows one project tree
+  at a time (`TreePane`: a `ProjectPicker` header to switch, add, edit and remove projects, then
+  the tree), a split-down button adds a second tree below with its own picker and a resizable
+  divider (`trees` and `treeSizes` in the `explorer` setting), and Ctrl+Shift+F
+  (`explorer.search`) replaces the body of the tree you last clicked with a `ProjectSearch`
+  panel (names, or names and content, over `/api/fs/search`); Escape cancels a running search,
+  then closes the panel.
 - **Dialogs**: `useDialogs()` (from `@deckbuilder/ui`) gives `confirm` and `prompt` modals.
   Native pickers: `dialogRoutes()` on the server and the `dialogs` client in the UI (`pickFolder`,
   `pickFile`, `saveFileAs`). A route that takes back a path the client got from a dialog must

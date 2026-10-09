@@ -17,6 +17,7 @@ export function commands(): CommandDef[] {
     ...tabCommands('tabs'),
     ...tabCommands('explorer'),
     ...explorerCommands('explorer'),
+    { id: 'explorer.search', scope: 'explorer', label: t('keys.explorer.search'), keys: ['Ctrl+Shift+F'], inInput: true },
     { id: 'explorer.file.save', scope: 'explorer', label: t('keys.file.save'), keys: ['Ctrl+S'], inInput: true },
   ];
 }

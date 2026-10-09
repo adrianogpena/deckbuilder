@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type FormEvent } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   type ApiError,
   ContextMenu,
@@ -7,20 +7,15 @@ import {
   ErrorBanner,
   fileIconOf,
   folderIconOf,
-  Icon,
   relPath,
-  Spinner,
   TreeView,
   type TreeViewHandle,
   useAsync,
   useDialogs,
-  useStream,
 } from '@deckbuilder/ui';
-import { api, type FsEntry, type Project, type SearchHit } from '../../api';
+import { api, type FsEntry, type Project } from '../../api';
 import { nodeId } from '../../explorer-paths';
 import { t } from '../../i18n';
-
-const MAX_HITS = 500;
 
 interface Node {
   project: string;
@@ -44,16 +39,12 @@ export interface ProjectTreeProps {
   onDeleted(project: string, path: string): void;
 }
 
-/** The project shown in the sidebar: a search box and the lazy tree of its folder, with the file actions. */
+/** The lazy tree of a project's folder, with the file actions. */
 export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, onMoved, onDeleted }: ProjectTreeProps) {
   const tree = useRef<TreeViewHandle>(null);
   const { confirm, prompt, element } = useDialogs();
   const [error, setError] = useState<ApiError>();
   const [menu, setMenu] = useState<{ at: { x: number; y: number }; node: Node }>();
-  const [query, setQuery] = useState('');
-  const [content, setContent] = useState(false);
-  const [searched, setSearched] = useState(false);
-  const search = useStream<SearchHit>({ maxItems: MAX_HITS });
   const editors = useAsync(() => api.editors(), []);
 
   const folderFiles = useRef(new Map<string, string[]>());
@@ -194,114 +185,32 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
     ];
   };
 
-  const startSearch = (q: string, withContent: boolean) => {
-    if (!q.trim()) return;
-    setSearched(true);
-    search.start('/api/fs/search', { root: project.id, path: '', q: q.trim(), content: withContent ? '1' : undefined });
-  };
-
-  const clearSearch = () => {
-    search.cancel();
-    setSearched(false);
-    setQuery('');
-  };
-
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
-    if (query.trim()) startSearch(query, content);
-    else clearSearch();
-  };
-
-  const toggleContent = () => {
-    setContent(!content);
-    if (searched) startSearch(query, !content);
-  };
-
   return (
     <section className="xp-project">
       {element}
-      <div className="xp-head">
-        <form className="xp-search" onSubmit={submit}>
-          <input
-            type="search"
-            value={query}
-            placeholder={t('explorer.search.placeholder', { name: project.name })}
-            aria-label={t('explorer.search.placeholder', { name: project.name })}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key !== 'Escape') return;
-              e.preventDefault();
-              if (search.running) search.cancel();
-              else clearSearch();
-            }}
-          />
-        </form>
-        <button type="button" className={`chip${content ? ' chip-on' : ''}`} onClick={toggleContent} aria-pressed={content}>
-          {t('explorer.search.content')}
-        </button>
-      </div>
       {error && (
         <div className="xp-error">
           <ErrorBanner error={error} compact />
         </div>
       )}
-      {searched && (
-        <div className="xp-results">
-          <div className="xp-status muted">
-            {search.running ? (
-              <>
-                <Spinner small /> {t('explorer.search.running')}
-              </>
-            ) : search.items.length === 0 && !search.error ? (
-              t('explorer.search.none')
-            ) : (
-              t('explorer.search.count', { count: search.items.length })
-            )}
-            {search.truncated && ` · ${t('explorer.search.truncated', { count: MAX_HITS })}`}
-          </div>
-          {search.error && <ErrorBanner error={search.error} compact />}
-          {search.items.map((hit, i) => (
-            <button
-              key={`${hit.path}:${hit.line ?? ''}:${i}`}
-              className="xp-hit"
-              disabled={hit.kind === 'dir'}
-              onClick={() => onOpenFile(project.id, hit.path)}
-              title={hit.path}
-            >
-              <span className={`tree-icon${fileIconOf(hit.path).tone ? ` tone-${fileIconOf(hit.path).tone}` : ''}`}>
-                <Icon name={hit.kind === 'dir' ? 'folder' : fileIconOf(hit.path).icon} size={14} />
-              </span>
-              <span className="xp-hit-text">
-                <span className="xp-hit-path">
-                  {hit.path}
-                  {hit.line ? `:${hit.line}` : ''}
-                </span>
-                {hit.text && <span className="xp-hit-line mono">{hit.text}</span>}
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
-      <div hidden={searched}>
-        <TreeView
-          ref={tree}
-          roots={roots}
-          idOf={(n) => nodeId(n.project, n.path)}
-          labelOf={(n) => (n.outside ? `${n.name} (${t('explorer.outside')})` : n.name)}
-          iconOf={iconOf}
-          iconToneOf={(n) => (isDir(n) ? undefined : fileIconOf(n.name).tone)}
-          hasChildren={(n) => isDir(n)}
-          loadChildren={loadChildren}
-          expanded={expanded}
-          onExpandedChange={onExpandedChange}
-          onOpen={open}
-          onContextMenu={(node, e) => setMenu({ at: { x: e.clientX, y: e.clientY }, node })}
-          onRename={(node, name) => void rename(node, name)}
-          onDelete={(node) => void remove(node)}
-          draggable
-          onDrop={(dragged, target) => void move(dragged, target)}
-        />
-      </div>
+      <TreeView
+        ref={tree}
+        roots={roots}
+        idOf={(n) => nodeId(n.project, n.path)}
+        labelOf={(n) => (n.outside ? `${n.name} (${t('explorer.outside')})` : n.name)}
+        iconOf={iconOf}
+        iconToneOf={(n) => (isDir(n) ? undefined : fileIconOf(n.name).tone)}
+        hasChildren={(n) => isDir(n)}
+        loadChildren={loadChildren}
+        expanded={expanded}
+        onExpandedChange={onExpandedChange}
+        onOpen={open}
+        onContextMenu={(node, e) => setMenu({ at: { x: e.clientX, y: e.clientY }, node })}
+        onRename={(node, name) => void rename(node, name)}
+        onDelete={(node) => void remove(node)}
+        draggable
+        onDrop={(dragged, target) => void move(dragged, target)}
+      />
       {menu && <ContextMenu at={menu.at} items={menuItems(menu.node)} onClose={() => setMenu(undefined)} />}
     </section>
   );

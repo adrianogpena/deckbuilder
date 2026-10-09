@@ -9,6 +9,7 @@ import {
   errorOf,
   ErrorBanner,
   Explorer,
+  Icon,
   type ApiError,
   type FieldSpec,
   Modal,
@@ -21,6 +22,7 @@ import {
   serialize,
   singlePane,
   Spinner,
+  SplitView,
   TabWorkspace,
   useAsync,
   useDebouncedSave,
@@ -32,7 +34,7 @@ import { api, type ExplorerSettings, type LogSettings, type Project, type Settin
 import { nodeId } from '../explorer-paths';
 import { t } from '../i18n';
 import { ProjectPicker } from './explorer/ProjectPicker';
-import { ProjectTree } from './explorer/ProjectTree';
+import { TreePane } from './explorer/TreePane';
 
 // The editor and viewers are large; they load when the first file opens.
 const FileTab = lazy(() => import('./explorer/FileTab').then((m) => ({ default: m.FileTab })));
@@ -80,6 +82,14 @@ function shownId(state: State, list: Project[]): string | undefined {
   return (saved ?? list.find((p) => state.expanded[p.id]) ?? list[0])?.id;
 }
 
+/** Projects shown in the sidebar, 1 or 2: the first as `shownId`, the second when saved and still listed. */
+function shownIds(state: State, list: Project[]): string[] {
+  const first = shownId(state, list);
+  if (!first) return [];
+  const second = list.find((p) => p.id === state.trees[1]);
+  return second ? [first, second.id] : [first];
+}
+
 const fresh = () => newTab<Route>(WELCOME);
 
 /** `fn` applied to the route of every tab and to its history. */
@@ -112,6 +122,7 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
   const [form, setForm] = useState<{ project?: Project }>();
   const [formError, setFormError] = useState<ApiError>();
   const [actionError, setActionError] = useState<ApiError>();
+  const [focusedTree, setFocusedTree] = useState<0 | 1>(0);
 
   const persist = useDebouncedSave((s: State) =>
     onSave({
@@ -140,13 +151,30 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
   const setExpanded = (project: string, ids: string[]) =>
     update((s) => ({ ...s, expanded: { ...s.expanded, [project]: ids.slice(-MAX_EXPANDED) } }));
 
-  /** Shows `id` in the first tree, expanding its root the first time. */
-  const pickProject = (id: string) =>
-    update((s) => ({
-      ...s,
-      trees: [id, ...s.trees.slice(1).filter((x) => x !== id)],
-      expanded: s.expanded[id] ? s.expanded : { ...s.expanded, [id]: [nodeId(id, '')] },
-    }));
+  /** Shows `id` in tree `at`, expanding its root the first time. */
+  const pickProject = (id: string, at = 0) =>
+    update((s) => {
+      const shown = shownIds(s, list);
+      return {
+        ...s,
+        trees: at === 0 ? [id, ...shown.slice(1)] : [shown[0] ?? id, id],
+        expanded: s.expanded[id] ? s.expanded : { ...s.expanded, [id]: [nodeId(id, '')] },
+      };
+    });
+
+  /** Shows a second tree below, on the project after the first (the same one when it is the only one). */
+  const splitTree = () =>
+    update((s) => {
+      const shown = shownIds(s, list);
+      if (shown.length !== 1) return s;
+      const next = list[(list.findIndex((p) => p.id === shown[0]) + 1) % list.length];
+      return { ...s, trees: [shown[0], next.id], expanded: s.expanded[next.id] ? s.expanded : { ...s.expanded, [next.id]: [nodeId(next.id, '')] } };
+    });
+
+  const closeSecondTree = () => {
+    setFocusedTree(0);
+    update((s) => ({ ...s, trees: shownIds(s, list).slice(0, 1) }));
+  };
 
   const openFile = (project: string, path: string) =>
     update((s) => {
@@ -194,7 +222,7 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
       const { [project.id]: _removed, ...expanded } = s.expanded;
       const rest = s.trees.filter((x) => x !== project.id);
       const shownRemoved = s.trees[0] === project.id || (s.trees.length === 0 && shownId(s, list) === project.id);
-      const trees = shownRemoved && next ? [next.id, ...rest.filter((x) => x !== next.id)] : rest;
+      const trees = shownRemoved && next ? [next.id, ...rest] : rest;
       if (shownRemoved && next && !expanded[next.id]) expanded[next.id] = [nodeId(next.id, '')];
       return { ...s, expanded, trees, layout: closeTabsWhere(s.layout, (r) => r.kind === 'file' && r.project === project.id) };
     });
@@ -208,7 +236,7 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
       const saved = form.project ? await api.updateProject(form.project.id, values) : await api.createProject(values);
       setForm(undefined);
       projects.reload();
-      if (!form.project) pickProject(saved.id);
+      if (!form.project) pickProject(saved.id, focus);
     } catch (err) {
       setFormError(errorOf(err));
     }
@@ -229,8 +257,20 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
           ...fileIconOf(relPath.basename(route.path)),
         };
 
-  const currentId = shownId(state, list);
-  const current = list.find((p) => p.id === currentId);
+  const shown = shownIds(state, list).flatMap((id) => list.find((p) => p.id === id) ?? []);
+  const focus = shown.length > 1 ? focusedTree : 0;
+
+  const pickerHandlers = {
+    onAdd: () => {
+      setFormError(undefined);
+      setForm({});
+    },
+    onEdit: (p: Project) => {
+      setFormError(undefined);
+      setForm({ project: p });
+    },
+    onRemove: (p: Project) => void removeProject(p),
+  };
 
   const sidebar = (
     <>
@@ -240,30 +280,44 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
         <div className="xp-loading"><Spinner small /></div>
       ) : (
         <>
-          <ProjectPicker
-            projects={list}
-            current={current}
-            onPick={(p) => pickProject(p.id)}
-            onAdd={() => {
-              setFormError(undefined);
-              setForm({});
-            }}
-            onEdit={(p) => {
-              setFormError(undefined);
-              setForm({ project: p });
-            }}
-            onRemove={(p) => void removeProject(p)}
-          />
-          {current && (
-            <ProjectTree
-              key={current.id}
-              project={current}
-              expanded={state.expanded[current.id] ?? [nodeId(current.id, '')]}
-              onExpandedChange={(ids) => setExpanded(current.id, ids)}
-              onOpenFile={openFile}
-              onMoved={moved}
-              onDeleted={deleted}
-            />
+          {shown.length === 0 ? (
+            <ProjectPicker projects={list} current={undefined} {...pickerHandlers} onPick={(p) => pickProject(p.id)} />
+          ) : (
+            <SplitView
+              direction="column"
+              sizes={shown.length > 1 ? (state.treeSizes ?? [0.5, 0.5]) : [1]}
+              defaultSizes={[0.5, 0.5]}
+              min={[120, 120]}
+              onResize={(sizes) => shown.length > 1 && update((s) => ({ ...s, treeSizes: [sizes[0], sizes[1]] }))}
+            >
+              {shown.map((project, i) => (
+                <TreePane
+                  key={`${i}:${project.id}`}
+                  project={project}
+                  projects={list}
+                  focused={focus === i}
+                  onFocus={() => setFocusedTree(i as 0 | 1)}
+                  onPick={(p) => pickProject(p.id, i)}
+                  {...pickerHandlers}
+                  expanded={state.expanded[project.id] ?? [nodeId(project.id, '')]}
+                  onExpandedChange={(ids) => setExpanded(project.id, ids)}
+                  onOpenFile={openFile}
+                  onMoved={moved}
+                  onDeleted={deleted}
+                  actions={
+                    i === 0 && shown.length === 1 ? (
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={splitTree} title={t('explorer.split')} aria-label={t('explorer.split')}>
+                        <Icon name="split-down" />
+                      </button>
+                    ) : i === 1 ? (
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={closeSecondTree} title={t('explorer.closeTree')} aria-label={t('explorer.closeTree')}>
+                        <Icon name="close" />
+                      </button>
+                    ) : undefined
+                  }
+                />
+              ))}
+            </SplitView>
           )}
         </>
       )}
