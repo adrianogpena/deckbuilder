@@ -1,0 +1,13 @@
+{
+  "name": "@deckbuilder/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@deckbuilder/server-core": "workspace:*",
+    "oracledb": "6.10.0"
+  }
+}

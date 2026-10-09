@@ -91,6 +91,8 @@ packages/
   ui/            React components (Sidebar, Badge, ErrorBanner, Modal, Icon, ...), hooks,
                  API client, i18n engine with the base messages, hash routing, styles.css
   editor/        CodeMirror 6 editor and content viewers (CodeEditor, CodeView, MarkdownView, FilePreview)
+  db/            Opt-in Oracle access (oracledb thin mode): URL parser, sessions with explicit
+                 transactions, /api/db/* routes
   build/         The `deckbuilder` CLI used by app scripts: dev, build:web, build, release; new
                  template/ is the app that `deckbuilder new` copies
 apps/
@@ -288,6 +290,29 @@ source directly; there is no package build step.
   Secret fields are never exported and imports never change them: the user enters them again.
   Leave machine-specific settings out with `excludeSettings` (the gallery excludes `autostart`
   and `updateFolder`). The gallery's Settings screen has a Backup section.
+- **Oracle database**: `@deckbuilder/db` (opt-in; add `"@deckbuilder/db": "workspace:*"` to the
+  app, since it bundles the `oracledb` driver in thin mode: pure JS, no Instant Client). The app
+  keeps the connections in a `recordStore` with `validate: validConnection` and
+  `secretFields: ['password']`, and wires `dbRoutes({ sessions: dbSessions(), credentials })`,
+  where `credentials(id)` reads the record, turns its `url` into a connect string with
+  `parseOracleUrl(url).connectString` and adds `secret(id, 'password')` (null for an unknown id).
+  Accepted URLs: `jdbc:oracle:thin:@host:port/service`, `oracle:thin:@host:port/service`,
+  `@//host:port/service`, `host:port/service` (port 1521 when left out in the last two) and the
+  SID form `oracle:thin:@host:port:SID`; descriptors and TNS aliases are refused (`badDbUrl`).
+  Routes: `POST /api/db/connect {id}` → `{ connected, pending, busy }`; `POST /api/db/run
+  {id, sql}` runs one statement (a trailing `;` and a `/` line are dropped, PL/SQL keeps its `;`)
+  and returns `{ kind: 'rows', run, columns: [{ name, type }] }` for a query, then
+  `GET /api/db/rows?run=` streams the rows as NDJSON arrays (`useStream`; at most 100 000, then
+  `{ $truncated: true }`); other statements return `{ kind: 'done', rowsAffected? }`.
+  `POST /api/db/commit|rollback|disconnect {id}` and `GET /api/db/status?id=` report the status.
+  Transactions are explicit: nothing autocommits, DML and PL/SQL blocks set `pending`, DDL
+  clears it (Oracle commits it), and disconnecting or 15 minutes without a call rolls back. One
+  session per connection, one statement at a time (`dbBusy`); changing a connection's URL, user
+  or password reconnects, refused with `dbPendingChanges` while changes are pending. Numbers
+  arrive as strings (precision), dates as ISO text, binary values as `<binary n bytes>`. Driver
+  errors become `dbLogin`, `dbUnreachable` or `dbError` (the first line, full text in `detail`),
+  with the password replaced by `***`. Call `sessions.closeAll()` on shutdown and
+  `sessions.close(id)` when a connection record is deleted. The Workbench is the example.
 
 ## New app
 
