@@ -24,7 +24,7 @@ library inside), and Windows, Linux and macOS executables can all be built from 
 ![Workbench](docs/workbench.png)
 ![REST](docs/rest.png)
 
-The Electron version of this project is in the git history (commit `559a1a5`); see
+The Electron version of this project is in the git history (commit `585c282`); see
 `docs/shell-decision.md` for why webview-bun replaced it.
 
 ## Requirements
@@ -202,13 +202,21 @@ source directly; there is no package build step.
   build exports.
 - **Editor and viewers**: add `@deckbuilder/editor` to the app. `CodeEditor` (Ctrl+Enter runs
   `onRun`), `CodeView`, `MarkdownView`, `JsonTree` (from `@deckbuilder/ui`) and `FilePreview`
-  (picks a viewer by file name). `MarkdownEditor` (`value`, `onChange`, `mode`: `'live' | 'edit' | 'split' |
+  (picks a viewer by file name: markdown, JSON tree, log, highlighted code, CSV/TSV table,
+  Jupyter notebook, HAR, `.env`, image, SVG, audio/video, PDF, archive, SQLite, font, else hex
+  for binaries; PDF, SVG and font viewers load lazily). The gallery's `FileTab.tsx` shows how
+  each kind gets its content from `/api/fs/*`. `MarkdownEditor` (`value`, `onChange`, `mode`: `'live' | 'edit' | 'split' |
   'preview'`, `onModeChange`, `resolveImage?`) edits markdown in place (`live`: formatted inline, raw syntax
   only on the cursor's lines) or as source (`edit`), source + preview (`split`) or preview only,
   with a mode switch; in `split` the preview follows the editor's scroll proportionally and
   renders a deferred copy of the text, so typing stays smooth; `wrap` (default on) wraps long lines,
   like `CodeEditor`'s `wrap` (default off). Keep the mode in a setting. It brings the CodeMirror language parsers (~700 kB): load the
-  screen with `React.lazy` and set `chunkSizeWarningLimit: 800` in `vite.config.ts`, as the gallery does.
+  screen with `React.lazy` and set `chunkSizeWarningLimit: 900` in `vite.config.ts`, as the gallery does.
+- **File associations**: `setFileAssociations(list)` (from `@deckbuilder/ui`) makes files whose
+  name matches a glob (`*`, `?`, case-insensitive) open and get icons as another extension, e.g.
+  `{ pattern: '*.out', as: 'log' }`; `effectiveName(name)` applies it. Keep the list in a setting
+  validated with `validFileAssociations` (`@deckbuilder/ui/file-associations`). The gallery's
+  Settings screen has a File types section.
 - **Streaming**: `ndjson(req, async (emit, signal) => ...)` in a route streams items without
   buffering; `useStream().start(path, params)` reads them into state (`cancel()` aborts) and
   `<OutputPanel lines />` shows log lines. See `GET /api/demo/rows` and the Workbench screen.
@@ -234,7 +242,8 @@ source directly; there is no package build step.
   import is a route that shows `pickFile` on the server and returns only `{ name, text }`, never
   the path (`POST /api/requests/import-file`, 1 MB at most); the client parses and saves.
 - **Rooted file system**: `rootedFs({ roots })` serves `/api/fs/*` (list, read, write, create,
-  rename, move, delete, search). Requests carry a root id and a relative path, never an absolute
+  rename, move, delete, search; `raw` for binary content, with `limit=<bytes>` for the first
+  bytes only; `sqlite` for a read-only page of 200 rows of a table). Requests carry a root id and a relative path, never an absolute
   path; deletes go to the recycle bin and a root can be `readOnly`. A link is never followed out
   of its root, but a path swapped between the check and the use (TOCTOU) is not guarded against.
 - **Secrets**: `secretStore(appId)` (from `@deckbuilder/platform`) encrypts values with the Windows
@@ -432,7 +441,8 @@ never appears in a URL, because URLs land in browser history, command lines and 
   (`127.0.0.1`, `localhost` or `[::1]` on its port; in `--dev` also Vite's), else 403. Requests
   whose `Host` header is not a loopback name are rejected, which blocks DNS rebinding.
 - **CSP**: `index.html` is served with a Content-Security-Policy that allows scripts, fonts and
-  API calls from the app only, inline styles, and images from the app or `data:`/`blob:` URLs.
+  API calls from the app only, inline styles, images from the app or `data:`/`blob:` URLs, and
+  audio/video from the app or `blob:` URLs.
   Every static file gets `X-Content-Type-Options: nosniff` and `Referrer-Policy: no-referrer`.
 - **HTTP executor**: sends only the headers the user set, never the session token, and accepts
   only http/https URLs.
