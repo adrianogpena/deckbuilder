@@ -138,6 +138,10 @@ source directly; there is no package build step.
   `useKeybindings()`'s `defs` and the settings' `keymap`, and save `onChange`'s result as
   `settings.keybindings` (the settings route validates it with `validKeymap`). The provider re-reads
   the keymap, so changes apply at once. See the gallery's and the template's `SettingsScreen.tsx`.
+- **File icons**: `fileIconOf(name)` → `{ icon, tone? }` and `folderIconOf(name, childFiles?)` (from
+  `@deckbuilder/ui`) pick a built-in icon by extension or folder name (an unnamed folder of two or
+  more files of one kind gets that kind's icon). `TreeView` takes `iconOf` and `iconToneOf`;
+  `TabTitle` takes `icon` and `tone`. See the gallery's `ProjectTree.tsx`.
 - **Collapsible main menu**: `<Sidebar collapsed onCollapsedChange toggleLabel>` shows only the icons
   (items keep their label and `hint` as tooltip) and puts a toggle button in the footer; the app
   keeps `collapsed` in its settings, adds `nav-collapsed` to the `.app` element (narrow first column)

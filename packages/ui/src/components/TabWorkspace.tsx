@@ -21,13 +21,15 @@ import {
   type Tab,
 } from '../tabs';
 import { useCommand } from './Keybindings';
-import { Icon } from './ui';
+import { Icon, type IconName, type Tone } from './ui';
 
 const DRAG_TYPE = 'application/x-deckbuilder-tab';
 
 export interface TabTitle {
   title: string;
   tooltip?: string;
+  icon?: IconName;
+  tone?: Tone;
 }
 
 interface TabBarProps<R> {
@@ -84,7 +86,7 @@ function TabBar<R>(props: TabBarProps<R>) {
       </div>
       <div className="tabs-strip" role="tablist">
         {pane.tabs.map((tab, i) => {
-          const { title, tooltip } = titleOf(tab.route);
+          const { title, tooltip, icon, tone } = titleOf(tab.route);
           return (
             <div
               key={tab.id}
@@ -109,7 +111,12 @@ function TabBar<R>(props: TabBarProps<R>) {
               onMouseDown={(e) => e.button === 1 && e.preventDefault()}
               onAuxClick={(e) => e.button === 1 && props.onClose(tab.id)}
             >
-              <span className="tab-title">{title}</span>
+              {icon && (
+                  <span className={`tab-icon${tone ? ` tone-${tone}` : ''}`}>
+                    <Icon name={icon} size={13} />
+                  </span>
+                )}
+                <span className="tab-title">{title}</span>
               <button
                 className="tab-close"
                 title={t('tabs.close')}

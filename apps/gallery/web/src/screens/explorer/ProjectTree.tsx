@@ -5,6 +5,8 @@ import {
   type ContextMenuItem,
   errorOf,
   ErrorBanner,
+  fileIconOf,
+  folderIconOf,
   Icon,
   relPath,
   Spinner,
@@ -55,6 +57,8 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
   const search = useStream<SearchHit>({ maxItems: MAX_HITS });
   const editors = useAsync(() => api.editors(), []);
 
+  const folderFiles = useRef(new Map<string, string[]>());
+
   const roots = useMemo<Node[]>(() => [{ project: project.id, path: '', name: project.name, kind: 'dir' }], [project.id, project.name]);
 
   const run = async (job: () => Promise<void>) => {
@@ -70,8 +74,13 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
     if (!expanded.includes(id)) onExpandedChange([...expanded, id]);
   };
 
-  const loadChildren = async (node: Node): Promise<Node[]> =>
-    (await api.fsList(project.id, node.path)).map((e) => ({
+  const loadChildren = async (node: Node): Promise<Node[]> => {
+    const entries = await api.fsList(project.id, node.path);
+    folderFiles.current.set(
+      nodeId(project.id, node.path),
+      entries.filter((e) => e.kind !== 'dir' && e.target !== 'dir').map((e) => e.name),
+    );
+    return entries.map((e) => ({
       project: project.id,
       path: relPath.join(node.path, e.name),
       name: e.name,
@@ -79,8 +88,17 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
       outside: e.outside,
       target: e.target,
     }));
+  };
 
-  const reloadDir = (path: string) => tree.current?.reload(nodeId(project.id, path));
+  const iconOf = (n: Node) => {
+    if (!isDir(n)) return fileIconOf(n.name).icon;
+    return n.kind === 'link' ? 'folder-link' : folderIconOf(n.name, folderFiles.current.get(nodeId(project.id, n.path)));
+  };
+
+  const reloadDir = (path: string) => {
+    folderFiles.current.delete(nodeId(project.id, path));
+    tree.current?.reload(nodeId(project.id, path));
+  };
 
   const open = (node: Node) => {
     if (node.outside) return;
@@ -254,7 +272,9 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
               onClick={() => onOpenFile(project.id, hit.path)}
               title={hit.path}
             >
-              <Icon name={hit.kind === 'dir' ? 'folder' : 'file'} size={14} />
+              <span className={`tree-icon${fileIconOf(hit.path).tone ? ` tone-${fileIconOf(hit.path).tone}` : ''}`}>
+                <Icon name={hit.kind === 'dir' ? 'folder' : fileIconOf(hit.path).icon} size={14} />
+              </span>
               <span className="xp-hit-text">
                 <span className="xp-hit-path">
                   {hit.path}
@@ -272,7 +292,8 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
           roots={roots}
           idOf={(n) => nodeId(n.project, n.path)}
           labelOf={(n) => (n.outside ? `${n.name} (${t('explorer.outside')})` : n.name)}
-          iconOf={(n) => (isDir(n) ? (n.kind === 'link' ? 'folder-link' : 'folder') : 'file')}
+          iconOf={iconOf}
+          iconToneOf={(n) => (isDir(n) ? undefined : fileIconOf(n.name).tone)}
           hasChildren={(n) => isDir(n)}
           loadChildren={loadChildren}
           expanded={expanded}

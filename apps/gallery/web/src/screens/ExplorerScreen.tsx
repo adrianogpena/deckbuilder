@@ -26,6 +26,7 @@ import {
   useAsync,
   useDebouncedSave,
   type Layout,
+  fileIconOf,
   relPath,
 } from '@deckbuilder/ui';
 import { api, type ExplorerSettings, type LogSettings, type Project, type Settings } from '../api';
@@ -197,7 +198,11 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
   const titleOf = (route: Route) =>
     route.kind === 'welcome'
       ? { title: t('explorer.welcome') }
-      : { title: relPath.basename(route.path), tooltip: `${nameOf(route.project)}/${route.path}` };
+      : {
+          title: relPath.basename(route.path),
+          tooltip: `${nameOf(route.project)}/${route.path}`,
+          ...fileIconOf(relPath.basename(route.path)),
+        };
 
   const sidebar = (
     <>

@@ -22,6 +22,7 @@ export * from './hooks';
 export * from './i18n';
 export * from './json-path';
 export * from './keybindings';
+export * from './file-icons';
 export * from './log';
 export * from './log-tail';
 export * from './palette';

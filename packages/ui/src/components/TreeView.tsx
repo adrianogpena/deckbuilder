@@ -15,7 +15,7 @@ import { errorMessage, errorOf, type ApiError } from '../api';
 import { t } from '../i18n';
 import type { IconName } from '../icons';
 import { firstChildId, isInside, nextId, parentId, prevId, subtreeIds, visibleRows, type TreeRow } from '../tree';
-import { Icon, Spinner } from './ui';
+import { Icon, Spinner, type Tone } from './ui';
 
 export const TREE_DRAG_TYPE = 'application/x-deckbuilder-tree';
 const TYPEAHEAD_MS = 700;
@@ -29,6 +29,7 @@ export interface TreeViewProps<N> {
   idOf: (node: N) => string;
   labelOf: (node: N) => string;
   iconOf?: (node: N) => IconName;
+  iconToneOf?: (node: N) => Tone | undefined;
   hasChildren: (node: N) => boolean;
   /** Called on the first expand of a node; the result is cached per id until `reload`. */
   loadChildren: (node: N) => Promise<N[]>;
@@ -92,7 +93,7 @@ function RenameInput({ initial, onDone }: { initial: string; onDone: (value: str
 }
 
 function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle>) {
-  const { roots, idOf, labelOf, iconOf, hasChildren, expanded, onExpandedChange, onOpen, onContextMenu, onRename, onDelete, draggable, onDrop } = props;
+  const { roots, idOf, labelOf, iconOf, iconToneOf, hasChildren, expanded, onExpandedChange, onOpen, onContextMenu, onRename, onDelete, draggable, onDrop } = props;
   const cache = useRef(new Map<string, Entry<N>>());
   const generations = useRef(new Map<string, number>());
   const [, bump] = useReducer((x: number) => x + 1, 0);
@@ -276,6 +277,7 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle>) {
         const isOpen = expandable && expandedSet.has(id);
         const entry = isOpen ? cache.current.get(id) : undefined;
         const icon = iconOf?.(node);
+        const iconTone = iconToneOf?.(node);
         const statusIndent = { paddingLeft: (depth + 1) * INDENT + 22 };
         return (
           <Fragment key={id}>
@@ -328,7 +330,11 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle>) {
               }}
             >
               <span className={`tree-chevron${isOpen ? ' open' : ''}`}>{expandable && <Icon name="chevron" size={14} />}</span>
-              {icon && <Icon name={icon} size={15} />}
+              {icon && (
+                <span className={`tree-icon${iconTone ? ` tone-${iconTone}` : ''}`}>
+                  <Icon name={icon} size={15} />
+                </span>
+              )}
               {renaming === id ? (
                 <RenameInput initial={labelOf(node)} onDone={(value) => finishRename(row, value)} />
               ) : (
