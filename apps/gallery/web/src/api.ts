@@ -1,7 +1,9 @@
 import type { HttpRequestDraft } from '@deckbuilder/editor/http';
 import type { ThemeSettings } from '@deckbuilder/server-core/palettes';
-import type { HttpRequestSpec, HttpResponseInfo, UpdateState } from '@deckbuilder/server-core/protocol';
-import { type Language, type LogSettings, request, type TailChunkLike } from '@deckbuilder/ui';
+import type { BackupInspect, EditorInfo, HttpRequestSpec, HttpResponseInfo, ImportResult, TailChunk, UpdateState } from '@deckbuilder/server-core/protocol';
+
+export type { EditorInfo, ImportResult, TailChunk };
+import { type Language, type LogSettings, request } from '@deckbuilder/ui';
 
 export interface Settings extends ThemeSettings {
   language?: Language;
@@ -36,7 +38,6 @@ export interface SavedRequest {
 
 export type { LogSettings };
 
-export type TailChunk = TailChunkLike & { size: number; mtime: number };
 
 export interface WorkbenchSettings {
   sizes?: { main: [number, number]; results: [number, number] };
@@ -64,24 +65,7 @@ export interface ExplorerSettings {
   tabs?: unknown;
 }
 
-export interface EditorInfo {
-  id: 'vscode' | 'intellij';
-  name: string;
-  path: string | null;
-  custom: boolean;
-}
-
-/** POST /api/backup/inspect (backupRoutes in @deckbuilder/server-mods); token null = cancelled. */
-export type BackupInfo =
-  | { token: null }
-  | { token: string; appVersion: string; exportedAt: string; settings: boolean; stores: Array<{ name: string; count: number; known: boolean }> };
-
-export interface ImportResult {
-  added: number;
-  updated: number;
-  removed: number;
-  skipped: Array<{ id?: string; code: string; message: string }>;
-}
+export type BackupInfo = BackupInspect;
 
 export interface Project {
   id: string;

@@ -126,3 +126,43 @@ export interface HttpResponseInfo {
 
 /** True when an app id can serve as a URL scheme (`<id>://open/<path>`). */
 export const isUrlScheme = (id: string): boolean => /^[a-z][a-z0-9+.-]*$/.test(id);
+
+/** True for a plain object (not null, not an array). */
+export const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+
+/** One `GET /api/fs/tail` answer: the whole lines in bytes `[from, to)` of a file `size` bytes long. */
+export interface TailChunk {
+  from: number;
+  to: number;
+  size: number;
+  mtime: number;
+  text: string;
+  /** The unterminated last line being written; `to` stops before it. */
+  partial?: string;
+  /** The file is shorter than the requested `from` (truncated or rotated). */
+  reset?: true;
+}
+
+export type EditorId = 'vscode' | 'intellij';
+
+/** One entry of `GET /api/editors`. */
+export interface EditorInfo {
+  id: EditorId;
+  name: string;
+  /** The program that opens it: the override, else the detected one; null when not found. */
+  path: string | null;
+  custom: boolean;
+}
+
+/** What a record import did, per store. */
+export interface ImportResult {
+  added: number;
+  updated: number;
+  removed: number;
+  skipped: Array<{ id?: string; code: string; message: string }>;
+}
+
+/** `POST /api/backup/inspect`; token null = the file dialog was cancelled. */
+export type BackupInspect =
+  | { token: null }
+  | { token: string; appVersion: string; exportedAt: string; settings: boolean; stores: Array<{ name: string; count: number; known: boolean }> };

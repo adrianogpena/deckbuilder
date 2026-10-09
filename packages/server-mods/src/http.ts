@@ -1,6 +1,6 @@
 import { extname } from 'node:path';
 import { saveFileAs, writeFileAtomic } from '@deckbuilder/platform';
-import { AppError, invalid, type Routes } from '@deckbuilder/server-core';
+import { AppError, invalid, isRecord, type Routes } from '@deckbuilder/server-core';
 import {
   HTTP_MAX_BODY_BYTES,
   HTTP_MAX_BODY_CHARS,
@@ -50,12 +50,11 @@ const HEADER_NAME = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
 const HEADER_VALUE_BAD = /[\r\n\0]/;
 
 const badRequest = () => invalid('badRequest', 'Invalid request.');
-const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const validTimeout = (ms: unknown): ms is number => typeof ms === 'number' && Number.isInteger(ms) && ms >= HTTP_TIMEOUT_MIN_MS && ms <= HTTP_TIMEOUT_MAX_MS;
 
 /** The request as a fresh, fully defaulted spec; throws an `invalid` AppError for anything out of range (never clamps). */
 export function validateRequest(input: unknown): HttpRequestSpec {
-  if (!isObject(input)) throw badRequest();
+  if (!isRecord(input)) throw badRequest();
   const { method, url, headers = [], body, timeoutMs = DEFAULT_TIMEOUT_MS, insecure = false, followRedirects = true } = input;
   if (typeof method !== 'string') throw badRequest();
   if (!(HTTP_METHODS as readonly string[]).includes(method)) throw invalid('badMethod', 'This HTTP method is not supported.');
@@ -91,7 +90,7 @@ const badSavedRequest = () => invalid('badSavedRequest', 'The request is not val
  * Looser than `validateRequest` (an empty or unfinished URL can be saved), but within its limits.
  */
 export function validateDraft(raw: unknown): HttpRequestDraft {
-  if (!isObject(raw)) throw badSavedRequest();
+  if (!isRecord(raw)) throw badSavedRequest();
   const { method, url, headers, body, bodyLang, timeoutMs, insecure, followRedirects } = raw;
   if (!(HTTP_METHODS as readonly unknown[]).includes(method)) throw badSavedRequest();
   if (typeof url !== 'string' || url.length > HTTP_MAX_URL_CHARS) throw badSavedRequest();
@@ -103,7 +102,7 @@ export function validateDraft(raw: unknown): HttpRequestDraft {
     url,
     headers: headers.map((h) => {
       if (
-        !isObject(h) ||
+        !isRecord(h) ||
         typeof h.name !== 'string' ||
         h.name.length > MAX_HEADER_NAME_CHARS ||
         typeof h.value !== 'string' ||
@@ -261,7 +260,7 @@ export function httpRoutes(executor: HttpExecutor, opts: HttpRoutesOptions = {})
   return {
     'POST /api/http/send': async ({ req, json }) => {
       const body = await json();
-      if (!isObject(body)) throw badRequest();
+      if (!isRecord(body)) throw badRequest();
       const spec = validateRequest(body.request);
       if (typeof body.secretRef === 'string' && secretHeaders) {
         const have = new Set(spec.headers.map(([name]) => name.toLowerCase()));
@@ -276,7 +275,7 @@ export function httpRoutes(executor: HttpExecutor, opts: HttpRoutesOptions = {})
 
     'POST /api/http/save': async ({ json }) => {
       const body = await json();
-      if (!isObject(body) || typeof body.id !== 'string') throw badRequest();
+      if (!isRecord(body) || typeof body.id !== 'string') throw badRequest();
       const response = executor.body(body.id);
       if (!response) throw invalid('responseGone', 'This response is no longer kept; send the request again.');
       const path = await save({ suggestedName: suggestedName(response.url, response.contentType) }).catch(fromPlatform);

@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { readJsonFile, writeJsonAtomic } from '@deckbuilder/platform';
-import type { Routes } from '@deckbuilder/server-core';
+import { isRecord, type Routes } from '@deckbuilder/server-core';
 import { PALETTES, type ThemeKind, type ThemeSettings } from '@deckbuilder/server-core/palettes';
 
 /** Settings every app gets; apps extend this with their own fields. */
@@ -31,7 +31,7 @@ export function settingsStore<T extends BaseSettings>(opts: SettingsOptions<T>):
 
   async function load(): Promise<T> {
     if (cache) return cache;
-    const stored = await readJsonFile(file, isPlainObject);
+    const stored = await readJsonFile(file, isRecord);
     cache = { ...opts.defaults, ...(stored as object | undefined) };
     return cache;
   }
@@ -53,7 +53,6 @@ export function settingsStore<T extends BaseSettings>(opts: SettingsOptions<T>):
   return { dir: opts.dir, load, save };
 }
 
-const isPlainObject = (v: unknown) => typeof v === 'object' && v !== null && !Array.isArray(v);
 
 /** Saves `value` as the `kind` palette when it is a palette id of that kind; an empty string clears it, anything else is ignored. */
 function applyPalette(value: unknown, kind: ThemeKind, next: ThemeSettings): void {

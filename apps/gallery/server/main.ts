@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { appHome, createAutostart, pickFolder } from '@deckbuilder/platform';
-import { updatePublicKey } from '@deckbuilder/server-core';
+import { isRecord, updatePublicKey } from '@deckbuilder/server-core';
 import {
   backupRoutes,
   createUpdater,
@@ -87,7 +87,6 @@ function validExplorer(raw: unknown): ExplorerSettings | null {
   return { sizes: [sizes[0], sizes[1]], collapsed, expanded: out, ...(tabs !== undefined && { tabs }) };
 }
 
-const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 
 const WORKBENCH_COLUMNS = ['id', 'name', 'amount', 'date'];
 

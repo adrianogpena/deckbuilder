@@ -2,7 +2,7 @@ import { statSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
 import { appHome, createToaster, openWithDefault, revealInFolder, saveFileAs, secretStore, writeFileAtomic } from '@deckbuilder/platform';
 import type { HttpRequestDraft } from '@deckbuilder/editor/http';
-import { AppError, forbidden, invalid, ndjson, type Routes } from '@deckbuilder/server-core';
+import { AppError, forbidden, invalid, isRecord, ndjson, type Routes } from '@deckbuilder/server-core';
 import { dialogRoutes, editorRoutes, fromPlatform, httpExecutor, httpRoutes, pickedPaths, recordRoutes, recordStore, rootedFs, validateDraft } from '@deckbuilder/server-mods';
 import type { StartContext } from '@deckbuilder/shell';
 import { APP } from '../app.ts';
@@ -54,7 +54,6 @@ export interface SavedRequest {
   auth?: unknown;
 }
 
-const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 
 /** Saved REST requests; the Authorization value is a secret field. */
 export const requests = recordStore<SavedRequest>({
@@ -63,7 +62,7 @@ export const requests = recordStore<SavedRequest>({
   secretFields: ['auth'],
   secrets: secretStore(APP.id),
   validate(input) {
-    const { name, request } = isObject(input) ? input : ({} as Record<string, unknown>);
+    const { name, request } = isRecord(input) ? input : ({} as Record<string, unknown>);
     const trimmed = typeof name === 'string' ? name.trim() : '';
     if (trimmed.length < 1 || trimmed.length > 80) throw invalid('badRequestName', 'The name must have 1 to 80 characters.');
     return { name: trimmed, request: validateDraft(request) };

@@ -9,17 +9,11 @@ import {
   readJsonFile,
   writeJsonAtomic,
 } from '@deckbuilder/platform';
-import { invalid, type Routes } from '@deckbuilder/server-core';
+import { type EditorInfo, invalid, isRecord, type Routes } from '@deckbuilder/server-core';
 import { fromPlatform } from './platform-errors.ts';
 import type { RootedFs } from './rooted-fs.ts';
 
-export interface EditorInfo {
-  id: EditorId;
-  name: string;
-  /** The program that opens it: the override, else the detected one; null when not found. */
-  path: string | null;
-  custom: boolean;
-}
+export type { EditorInfo };
 
 export interface EditorRoutesOptions {
   /** Folder of editors.json (the overrides), usually `appHome(APP.id)`. */
@@ -51,7 +45,7 @@ export function editorRoutes(opts: EditorRoutesOptions): Routes {
   const file = join(dir, 'editors.json');
 
   const readOverrides = async (): Promise<Overrides> => {
-    const stored = (await readJsonFile(file, (v) => typeof v === 'object' && v !== null && !Array.isArray(v))) as Record<string, unknown> | undefined;
+    const stored = (await readJsonFile(file, isRecord)) as Record<string, unknown> | undefined;
     const overrides: Overrides = {};
     for (const id of Object.keys(EDITOR_NAMES) as EditorId[]) {
       const value = stored?.[id];

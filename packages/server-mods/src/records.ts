@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { readJsonFile, writeJsonAtomic } from '@deckbuilder/platform';
-import { AppError, invalid, notFound, type Routes } from '@deckbuilder/server-core';
+import { AppError, type ImportResult, invalid, notFound, type Routes } from '@deckbuilder/server-core';
 import { fromPlatform } from './platform-errors.ts';
 
 /** A stored record: the app's fields plus the ones the store owns. */
@@ -52,12 +52,7 @@ export interface RecordStore<T extends object> {
   exportItems(): Promise<Rec<T>[]>;
 }
 
-export interface ImportResult {
-  added: number;
-  updated: number;
-  removed: number;
-  skipped: Array<{ id?: string; code: string; message: string }>;
-}
+export type { ImportResult };
 
 interface RecordFile<T> {
   version: 1;

@@ -2,7 +2,9 @@ import type { Dirent } from 'node:fs';
 import { lstat, mkdir, readdir, realpath, rename, stat, writeFile } from 'node:fs/promises';
 import { basename, dirname, extname, isAbsolute, join, sep } from 'node:path';
 import { moveToTrash, type SaveDialogOptions, saveFileAs, writeFileAtomic } from '@deckbuilder/platform';
-import { AppError, forbidden, type Handler, invalid, ndjson, notFound, type Routes } from '@deckbuilder/server-core';
+import { AppError, forbidden, type Handler, invalid, ndjson, notFound, type Routes, type TailChunk } from '@deckbuilder/server-core';
+
+export type { TailChunk };
 import { isBinary } from './bytes.ts';
 import { fromPlatform } from './platform-errors.ts';
 
@@ -24,19 +26,6 @@ export interface RootedFsOptions {
   trash?: (paths: string[]) => Promise<void>;
   /** The save dialog: `saveFileAs` from platform, a fake in tests. */
   saveAs?: (opts: SaveDialogOptions) => Promise<string | null>;
-}
-
-/** One `GET /api/fs/tail` answer: the whole lines in bytes `[from, to)` of a file `size` bytes long. */
-export interface TailChunk {
-  from: number;
-  to: number;
-  size: number;
-  mtime: number;
-  text: string;
-  /** The unterminated last line being written; `to` stops before it. */
-  partial?: string;
-  /** The file is shorter than the requested `from` (truncated or rotated). */
-  reset?: true;
 }
 
 export interface Resolved {

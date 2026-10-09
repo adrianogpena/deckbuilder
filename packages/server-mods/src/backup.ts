@@ -1,5 +1,5 @@
 import { pickFile, saveFileAs, writeJsonAtomic } from '@deckbuilder/platform';
-import { invalid, type Routes } from '@deckbuilder/server-core';
+import { type BackupInspect, invalid, isRecord, type Routes } from '@deckbuilder/server-core';
 import { fromPlatform } from './platform-errors.ts';
 import type { ImportResult, RecordStore, Rec } from './records.ts';
 import type { SettingsStore } from './settings.ts';
@@ -33,7 +33,6 @@ const JSON_FILTER = [{ name: 'JSON', patterns: ['*.json'] }];
 
 const badRequest = () => invalid('badRequest', 'Invalid request.');
 const badBackup = () => invalid('badBackup', 'This file is not a valid backup.');
-const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const isStringArray = (v: unknown): v is string[] => Array.isArray(v) && v.every((s) => typeof s === 'string');
 
 const localDate = (d = new Date()) =>
@@ -55,7 +54,7 @@ export function backupRoutes(opts: BackupRoutesOptions): Routes {
   };
 
   const parts = (body: unknown) => {
-    if (!isObject(body) || typeof body.settings !== 'boolean' || !isStringArray(body.stores)) throw badRequest();
+    if (!isRecord(body) || typeof body.settings !== 'boolean' || !isStringArray(body.stores)) throw badRequest();
     return { settings: body.settings, stores: body.stores };
   };
 
@@ -68,10 +67,10 @@ export function backupRoutes(opts: BackupRoutesOptions): Routes {
     } catch {
       throw badBackup();
     }
-    if (!isObject(file) || file.format !== 'deckbuilder-backup' || file.version !== 1 || typeof file.app !== 'string') throw badBackup();
+    if (!isRecord(file) || file.format !== 'deckbuilder-backup' || file.version !== 1 || typeof file.app !== 'string') throw badBackup();
     if (file.app !== app.id) throw invalid('backupOtherApp', 'This backup belongs to another app ({app}).', { app: file.app.slice(0, 100) });
-    if (file.settings !== undefined && !isObject(file.settings)) throw badBackup();
-    if (file.records !== undefined && !(isObject(file.records) && Object.values(file.records).every(Array.isArray))) throw badBackup();
+    if (file.settings !== undefined && !isRecord(file.settings)) throw badBackup();
+    if (file.records !== undefined && !(isRecord(file.records) && Object.values(file.records).every(Array.isArray))) throw badBackup();
     return file as unknown as BackupFile;
   }
 
@@ -98,7 +97,7 @@ export function backupRoutes(opts: BackupRoutesOptions): Routes {
       return { path, counts };
     },
 
-    'POST /api/backup/inspect': async () => {
+    'POST /api/backup/inspect': async (): Promise<BackupInspect> => {
       const path = await pick({ filters: JSON_FILTER }).catch(fromPlatform);
       if (path === null) return { token: null };
       const file = await read(path);

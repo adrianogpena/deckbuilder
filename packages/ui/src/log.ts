@@ -1,3 +1,5 @@
+import { isRecord, type TailChunk } from '@deckbuilder/server-core/protocol';
+
 export type LogLevel = 'error' | 'warn' | 'info' | 'debug' | 'trace';
 
 export interface LogLine {
@@ -35,14 +37,8 @@ export interface LogBookmark {
   preview: string;
 }
 
-/** Structural copy of server-mods' `TailChunk` (ui does not depend on server-mods). */
-export interface TailChunkLike {
-  from: number;
-  to: number;
-  text: string;
-  partial?: string;
-  reset?: true;
-}
+/** The subset of `TailChunk` (server-core protocol) that `linesOf` needs. */
+export type TailChunkLike = Pick<TailChunk, 'from' | 'to' | 'text' | 'partial' | 'reset'>;
 
 export interface TailState {
   lines: LogLine[];
@@ -257,7 +253,6 @@ export interface LogSettings {
   bookmarks: Record<string, LogBookmark[]>;
 }
 
-const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 
 function validBookmark(b: unknown): LogBookmark | null {
   if (!isRecord(b) || !Number.isSafeInteger(b.offset) || (b.offset as number) < 0) return null;
