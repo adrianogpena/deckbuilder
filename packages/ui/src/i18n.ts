@@ -120,6 +120,14 @@ const baseEn = {
   'tree.rename': 'New name',
   'explorer.toggleSidebar': 'Toggle sidebar (Ctrl+B)',
 
+  'keys.palette': 'Command palette',
+  'keys.toggleSidebar': 'Toggle sidebar',
+  'keys.tab.new': 'New tab',
+  'keys.tab.close': 'Close tab',
+  'keys.tab.next': 'Next tab',
+  'keys.tab.prev': 'Previous tab',
+  'keys.tab.select': 'Go to tab {n}',
+
   'resource.add': 'Add',
   'resource.edit': 'Edit',
   'resource.delete': 'Delete',
@@ -325,6 +333,14 @@ const basePtBR: Messages<typeof baseEn> = {
   'dialog.confirmDelete': 'Excluir {name}?',
   'tree.rename': 'Novo nome',
   'explorer.toggleSidebar': 'Mostrar ou ocultar a barra lateral (Ctrl+B)',
+
+  'keys.palette': 'Paleta de comandos',
+  'keys.toggleSidebar': 'Mostrar ou ocultar a barra lateral',
+  'keys.tab.new': 'Nova aba',
+  'keys.tab.close': 'Fechar aba',
+  'keys.tab.next': 'Próxima aba',
+  'keys.tab.prev': 'Aba anterior',
+  'keys.tab.select': 'Ir para a aba {n}',
 
   'resource.add': 'Adicionar',
   'resource.edit': 'Editar',

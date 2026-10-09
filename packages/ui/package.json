@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./grid": "./src/grid.ts",
+    "./keybindings": "./src/keybindings.ts",
     "./log": "./src/log.ts",
     "./styles.css": "./src/styles.css"
   },

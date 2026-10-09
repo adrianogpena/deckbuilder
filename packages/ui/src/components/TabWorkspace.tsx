@@ -1,7 +1,6 @@
 import { useRef, useState, type DragEvent, type ReactNode } from 'react';
-import { isDesktop } from '../api';
-import { useKey } from '../hooks';
-import { t } from '../i18n';
+import { t, type BaseKey } from '../i18n';
+import type { CommandDef } from '../keybindings';
 import {
   MAX_PANES,
   activate,
@@ -21,7 +20,8 @@ import {
   type Pane,
   type Tab,
 } from '../tabs';
-import { Icon, isModalOpen } from './ui';
+import { useCommand } from './Keybindings';
+import { Icon } from './ui';
 
 const DRAG_TYPE = 'application/x-deckbuilder-tab';
 
@@ -142,35 +142,33 @@ function TabBar<R>(props: TabBarProps<R>) {
 }
 
 /**
- * Alt+1..9 select a tab of the focused pane. Ctrl+T, Ctrl+W and Ctrl+Tab / Ctrl+Shift+Tab only
- * in the native window: Edge and Chrome keep them in browser and app mode.
- * `TabWorkspace` installs these itself; call this only for a layout shown another way.
+ * Commands of a tab workspace shown in view `scope`: Alt+1..9 select a tab of the focused pane;
+ * Ctrl+T, Ctrl+W and Ctrl+Tab / Ctrl+Shift+Tab only in the native window (Edge and Chrome keep
+ * them in browser and app mode).
  */
-export function useTabKeys<R>(layout: Layout<R>, onChange: (next: Layout<R>) => void, newRoute: () => R) {
-  useKey((e) => {
-    if (e.defaultPrevented || isModalOpen()) return;
-    if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
-      const digit = /^Digit([1-9])$/.exec(e.code);
-      if (digit) {
-        e.preventDefault();
-        onChange(selectIndex(layout, Number(digit[1]) - 1));
-      }
-      return;
-    }
-    if (!isDesktop || !e.ctrlKey || e.altKey || e.metaKey) return;
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      onChange(cycleTab(layout, e.shiftKey ? -1 : 1));
-    } else if (e.shiftKey) {
-      return;
-    } else if (e.key.toLowerCase() === 't') {
-      e.preventDefault();
-      onChange(addTab(layout, newTab(newRoute())));
-    } else if (e.key.toLowerCase() === 'w') {
-      e.preventDefault();
-      onChange(closeTab(layout, activeTab(layout).id, () => newTab(newRoute())));
-    }
-  });
+export function tabCommands(scope: string): CommandDef[] {
+  const desktop = (name: string, key: string): CommandDef => ({ id: `${scope}.tab.${name}`, scope, label: t(`keys.tab.${name}` as BaseKey), keys: [key], desktopOnly: true });
+  return [
+    desktop('new', 'Ctrl+T'),
+    desktop('close', 'Ctrl+W'),
+    desktop('next', 'Ctrl+Tab'),
+    desktop('prev', 'Ctrl+Shift+Tab'),
+    ...Array.from({ length: 9 }, (_, i) => ({ id: `${scope}.tab.select${i + 1}`, scope, label: t('keys.tab.select', { n: i + 1 }), keys: [`Alt+${i + 1}`] })),
+  ];
+}
+
+/**
+ * Binds `tabCommands(scope)` to the layout. `TabWorkspace` installs these itself; call this only
+ * for a layout shown another way.
+ */
+export function useTabKeys<R>(layout: Layout<R>, onChange: (next: Layout<R>) => void, newRoute: () => R, scope: string) {
+  const [add, close, next, prev, ...select] = tabCommands(scope);
+  useCommand(add, () => onChange(addTab(layout, newTab(newRoute()))));
+  useCommand(close, () => onChange(closeTab(layout, activeTab(layout).id, () => newTab(newRoute()))));
+  useCommand(next, () => onChange(cycleTab(layout, 1)));
+  useCommand(prev, () => onChange(cycleTab(layout, -1)));
+  // Always nine, so the hook order is fixed.
+  for (let i = 0; i < select.length; i++) useCommand(select[i], () => onChange(selectIndex(layout, i)));
 }
 
 export interface TabContext<R> {
@@ -190,10 +188,12 @@ interface TabWorkspaceProps<R> {
   titleOf: (route: R) => TabTitle;
   /** The route of a tab opened with the "+" button or Ctrl+T, and of the tab that replaces the last one closed. */
   newRoute: () => R;
+  /** The view id the tab shortcuts belong to (see `tabCommands`). */
+  scope: string;
 }
 
-export function TabWorkspace<R>({ layout, onChange, renderTab, titleOf, newRoute }: TabWorkspaceProps<R>) {
-  useTabKeys(layout, onChange, newRoute);
+export function TabWorkspace<R>({ layout, onChange, renderTab, titleOf, newRoute, scope }: TabWorkspaceProps<R>) {
+  useTabKeys(layout, onChange, newRoute, scope);
 
   // Handlers read the layout of the latest change, so two changes in one tick don't overwrite each other.
   const latest = useRef(layout);

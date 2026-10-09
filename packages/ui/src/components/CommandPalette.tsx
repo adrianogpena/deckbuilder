@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { t } from '../i18n';
+import { GLOBAL, type CommandDef } from '../keybindings';
 import { filterPalette, type PaletteItem } from '../palette';
+import { useCommand } from './Keybindings';
 import { useModalOpen } from './ui';
 
 const PAGE = 8;
@@ -83,20 +85,14 @@ export function CommandPalette({ items, onClose }: { items: PaletteItem[]; onClo
   );
 }
 
-/** Open state for the palette; Ctrl+K and Ctrl+Shift+P toggle it, also while typing in an input. */
+/** Ctrl+K and Ctrl+Shift+P toggle the palette, also while typing and while it is open. */
+export function paletteCommand(): CommandDef {
+  return { id: 'palette.toggle', scope: GLOBAL, label: t('keys.palette'), keys: ['Ctrl+K', 'Ctrl+Shift+P'], inInput: true, inModal: true };
+}
+
+/** Open state for the palette, toggled by `paletteCommand()`. */
 export function useCommandPalette(): { open: boolean; setOpen: (open: boolean) => void } {
   const [open, setOpen] = useState(false);
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (!e.ctrlKey || e.altKey || e.metaKey) return;
-      const key = e.key.toLowerCase();
-      if ((key === 'k' && !e.shiftKey) || (key === 'p' && e.shiftKey)) {
-        e.preventDefault();
-        setOpen((o) => !o);
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  useCommand(paletteCommand(), () => setOpen((o) => !o));
   return { open, setOpen };
 }

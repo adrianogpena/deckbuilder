@@ -121,16 +121,27 @@ source directly; there is no package build step.
   its settings screen. Style with the `var(--…)` tokens only. Pass
   `transformIndex: themeHead(settings)` (from `@deckbuilder/server-mods`) to `runApp`, so
   `index.html` already carries the saved palette and the first paint has its colours.
+- **Keyboard shortcuts**: `useCommand(def, run, { enabled? })` (from `@deckbuilder/ui`) runs `run`
+  on one of a `CommandDef`'s chords (`{ id, scope, label, keys, inInput?, inModal?, desktopOnly? }`;
+  `scope` is `GLOBAL` or a screen id). Wrap the app in `<KeybindingProvider defs keymap scope>` to
+  dispatch them from one listener: the current screen's (`scope`) commands win over global ones and
+  a `Keymap` (`{ [id]: chords }`, `[]` unbinds) overrides the defaults; without a provider each
+  command listens on its default keys. The pure model (`chordOf`, `normalizeChord`, `resolve`,
+  `conflictsOf`, `usesOf`, `validKeymap` for server-side settings validation) is in
+  `@deckbuilder/ui/keybindings`. Package commands come from `paletteCommand()`,
+  `tabCommands(scope)` and `explorerCommands(scope)`; list them in `defs`. Keys a focused widget
+  handles itself (editor, tree and table navigation, dialogs) aren't commands.
 - **Command palette**: `useCommandPalette()` (Ctrl+K, Ctrl+Shift+P) gives `{ open, setOpen }`; render
   `<CommandPalette items onClose />` (both from `@deckbuilder/ui`) with `PaletteItem`s
   `{ id, group, label, hint?, keywords?, run }`. `keywords[0]` doubles as a prefix that narrows
   to its group (`theme nord`). The gallery's `App.tsx` lists screens, themes and Quit.
-- **Tab workspace**: `<TabWorkspace layout onChange renderTab titleOf newRoute />` (from
+- **Tab workspace**: `<TabWorkspace layout onChange renderTab titleOf newRoute scope />` (from
   `@deckbuilder/ui`) shows tabs in up to 3 split panes: open, close (also middle-click), reorder,
   drag between panes, Back/Forward per tab. `layout` is a `Layout<R>` for your route type `R`
   (`singlePane(newTab(route))` to start); every tab stays mounted, so hidden ones keep their
   state, and `renderTab` gets `navigate(route)` to change what the tab shows. Alt+1..9 select a
-  tab; Ctrl+T, Ctrl+W and Ctrl+Tab only in the native window (browsers keep them). Persist with
+  tab; Ctrl+T, Ctrl+W and Ctrl+Tab only in the native window (browsers keep them); these are
+  `tabCommands(scope)`, `scope` being the screen id. Persist with
   `serialize(layout)` and read back with `restore(raw, isRoute)`; the gallery's Tabs screen keeps
   it in the `tabsLayout` setting.
 - **Panel grid**: `<PanelGrid items defs render onChange />` (from `@deckbuilder/ui`) shows draggable,
@@ -144,7 +155,8 @@ source directly; there is no package build step.
   show loading, empty/error and offline states. `PanelFrame` also works on its own.
 - **Explorer layout**: `<SplitView direction sizes onResize>` (resizable panes, persist `sizes` with
   `useDebouncedSave`), `<TreeView>` (lazy tree with keyboard, drag and rename), `<ContextMenu>` and
-  `<Explorer>` (sidebar plus tab workspace). The gallery's Explorer screen puts them together.
+  `<Explorer scope>` (sidebar plus tab workspace; Ctrl+B, `explorerCommands(scope)`, folds the
+  sidebar). The gallery's Explorer screen puts them together.
 - **Dialogs**: `useDialogs()` (from `@deckbuilder/ui`) gives `confirm` and `prompt` modals.
   Native pickers: `dialogRoutes()` on the server and the `dialogs` client in the UI (`pickFolder`,
   `pickFile`, `saveFileAs`). A route that takes back a path the client got from a dialog must

@@ -250,12 +250,14 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
         onResize={(sizes) => update((s) => ({ ...s, sizes }))}
         collapsed={state.collapsed}
         onCollapsedChange={(collapsed) => update((s) => ({ ...s, collapsed }))}
+        scope="explorer"
       >
         <TabWorkspace
           layout={state.layout}
           onChange={(layout) => update((s) => ({ ...s, layout }))}
           titleOf={titleOf}
           newRoute={() => WELCOME}
+          scope="explorer"
           renderTab={(tab, ctx) =>
             tab.route.kind === 'file' ? (
               <Suspense fallback={<PanelLoading />}>

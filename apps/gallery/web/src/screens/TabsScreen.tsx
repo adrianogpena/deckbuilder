@@ -52,6 +52,7 @@ export function TabsScreen({ settings, onSave }: { settings: Settings; onSave: (
       onChange={change}
       titleOf={titleOf}
       newRoute={(): Route => ({ page: 'notes', n: highestN(latest.current) + 1 })}
+      scope="tabs"
       renderTab={(tab, ctx) => <TabPage tab={tab} ctx={ctx} />}
     />
   );
