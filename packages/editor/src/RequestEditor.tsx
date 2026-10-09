@@ -2,7 +2,7 @@ import { HTTP_METHODS, HTTP_TIMEOUT_MAX_MS, HTTP_TIMEOUT_MIN_MS, type HttpMethod
 import { Icon, Spinner, t } from '@deckbuilder/ui';
 import { useState } from 'react';
 import { CodeEditor } from './CodeEditor';
-import { type HttpHeaderDraft, type HttpRequestDraft, sendsBody, timeoutFromSeconds } from './http';
+import { type HttpHeaderDraft, type HttpRequestDraft, headersFromText, formatXml, headersToText, sendsBody, timeoutFromSeconds } from './http';
 
 type Tab = 'headers' | 'body' | 'options';
 const TABS: Tab[] = ['headers', 'body', 'options'];
@@ -71,7 +71,39 @@ export function RequestEditor({ value, onChange, onSend, onCancel, sending }: Re
 const BLANK: HttpHeaderDraft = { name: '', value: '', enabled: true };
 
 function HeadersTab({ headers, onChange }: { headers: HttpHeaderDraft[]; onChange(h: HttpHeaderDraft[]): void }) {
+  const [bulk, setBulk] = useState<string | null>(null);
   const rows = [...headers, BLANK];
+  const toggle = (
+    <div className="req-body-bar">
+      <span className="spacer" />
+      <button
+        className={`btn btn-sm${bulk !== null ? ' btn-primary' : ' btn-ghost'}`}
+        aria-pressed={bulk !== null}
+        onClick={() => setBulk(bulk === null ? headersToText(headers) : null)}
+      >
+        {t('http.bulkEdit')}
+      </button>
+    </div>
+  );
+  if (bulk !== null) {
+    return (
+      <div className="req-headers">
+        {toggle}
+        <textarea
+          className="req-headers-bulk"
+          value={bulk}
+          rows={Math.max(6, bulk.split('\n').length + 1)}
+          spellCheck={false}
+          placeholder={t('http.bulkPlaceholder')}
+          aria-label={t('http.bulkEdit')}
+          onChange={(e) => {
+            setBulk(e.target.value);
+            onChange(headersFromText(e.target.value));
+          }}
+        />
+      </div>
+    );
+  }
   const update = (i: number, patch: Partial<HttpHeaderDraft>) => {
     const next = rows.map((h, j) => (j === i ? { ...h, ...patch } : h));
     const last = next[next.length - 1];
@@ -79,6 +111,7 @@ function HeadersTab({ headers, onChange }: { headers: HttpHeaderDraft[]; onChang
   };
   return (
     <div className="req-headers">
+      {toggle}
       {rows.map((h, i) => {
         const isBlank = i === headers.length;
         return (
@@ -107,7 +140,7 @@ function BodyTab({ value, onChange, onSend }: { value: HttpRequestDraft; onChang
   const bodyless = !sendsBody(value.method);
   const format = () => {
     try {
-      onChange({ body: JSON.stringify(JSON.parse(value.body), null, 2) });
+      onChange({ body: value.bodyLang === 'xml' ? formatXml(value.body) : JSON.stringify(JSON.parse(value.body), null, 2) });
       setFormatError(null);
     } catch (err) {
       setFormatError(err instanceof Error ? err.message : String(err));
@@ -116,7 +149,7 @@ function BodyTab({ value, onChange, onSend }: { value: HttpRequestDraft; onChang
   return (
     <div className="req-body">
       <div className="req-body-bar">
-        {(['json', 'text'] as const).map((lang) => (
+        {(['json', 'xml', 'text'] as const).map((lang) => (
           <button
             key={lang}
             className={`btn btn-sm${value.bodyLang === lang ? ' btn-primary' : ' btn-ghost'}`}
@@ -130,17 +163,16 @@ function BodyTab({ value, onChange, onSend }: { value: HttpRequestDraft; onChang
           </button>
         ))}
         <span className="spacer" />
-        {value.bodyLang === 'json' && (
+        {value.bodyLang !== 'text' && (
           <button className="btn btn-ghost btn-sm" onClick={format} disabled={value.body.trim() === ''}>{t('http.format')}</button>
         )}
       </div>
-      {formatError && <span className="field-error">{t('preview.jsonError', { message: formatError })}</span>}
+      {formatError && <span className="field-error">{t(value.bodyLang === 'xml' ? 'preview.xmlError' : 'preview.jsonError', { message: formatError })}</span>}
       {bodyless && <span className="req-hint">{t('http.bodyIgnored', { method: value.method })}</span>}
       <div className={bodyless ? 'req-body-editor disabled' : 'req-body-editor'}>
         <CodeEditor
           value={value.body}
-          lang={value.bodyLang === 'json' ? 'json' : 'text'}
-          height={200}
+          lang={value.bodyLang}
           placeholder={t('http.bodyPlaceholder')}
           onChange={(body) => {
             setFormatError(null);

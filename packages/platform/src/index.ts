@@ -12,6 +12,7 @@ export * from './secrets.ts';
 export * from './theme.ts';
 export * from './trash.ts';
 export * from './win/autostart.ts';
+export * from './win/placement.ts';
 export * from './win/powershell.ts';
 export * from './win/protocol.ts';
 export * from './win/toast.ts';

@@ -1,3 +1,4 @@
+import type { ArchiveContent } from '@deckbuilder/editor';
 import type { HttpRequestDraft } from '@deckbuilder/editor/http';
 import type { ThemeSettings } from '@deckbuilder/server-core/palettes';
 import type { BackupInspect, EditorInfo, HttpRequestSpec, HttpResponseInfo, ImportResult, TailChunk, UpdateState } from '@deckbuilder/server-core/protocol';
@@ -169,6 +170,7 @@ export const api = {
   updateProject: (id: string, input: Record<string, unknown>) => request<Project>('PUT', '/api/projects', { id }, input),
   deleteProject: (id: string) => request<{ ok: true }>('DELETE', '/api/projects', { id }),
   fsList: (root: string, path: string) => request<{ entries: FsEntry[] }>('GET', '/api/fs/list', { root, path }).then((r) => r.entries),
+  fsArchive: (root: string, path: string) => request<ArchiveContent>('GET', '/api/fs/archive', { root, path }),
   fsRead: (root: string, path: string) => request<FsRead>('GET', '/api/fs/read', { root, path }),
   fsCreate: (root: string, path: string, kind: 'file' | 'dir') => request<FsEntry>('POST', '/api/fs/create', {}, { root, path, kind }),
   fsTail: (root: string, path: string, from?: number, max?: number) =>
@@ -212,6 +214,8 @@ export const api = {
   createRequest: (input: Record<string, unknown>) => request<SavedRequest>('POST', '/api/requests', {}, input),
   updateRequest: (id: string, input: Record<string, unknown>) => request<SavedRequest>('PUT', '/api/requests', { id }, input),
   importRequestsFile: () => request<{ name?: string; text: string | null }>('POST', '/api/requests/import-file'),
+  saveCurl: (text: string) => request<{ path: string | null }>('POST', '/api/requests/save-curl', {}, { text }),
+  reorderRequests: (ids: string[]) => request<{ ok: true }>('POST', '/api/requests/order', {}, { ids }),
   deleteRequest: (id: string) => request<{ ok: true }>('DELETE', '/api/requests', { id }),
   httpSend: (httpRequest: HttpRequestSpec, secretRef: string | undefined, signal: AbortSignal) =>
     request<HttpResponseInfo>('POST', '/api/http/send', {}, { request: httpRequest, secretRef }, { signal }),

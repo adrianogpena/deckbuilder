@@ -50,6 +50,14 @@ test('create, list, get, update and remove', async () => {
   expect(saved.items).toHaveLength(1);
 });
 
+test('reorder puts the named records first and keeps the rest in order', async () => {
+  const { store } = await setup();
+  const [a, b, c, d] = [await store.create({ title: 'a' }), await store.create({ title: 'b' }), await store.create({ title: 'c' }), await store.create({ title: 'd' })];
+  await store.reorder([c.id, 'unknown', a.id, c.id]);
+  expect((await store.list()).map((r) => r.title)).toEqual(['c', 'a', 'b', 'd']);
+  expect(b.id).not.toBe(d.id);
+});
+
 test('a fresh store reads what an earlier one saved', async () => {
   const { dir, store } = await setup();
   const a = await store.create({ title: 'a' });

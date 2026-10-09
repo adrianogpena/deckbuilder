@@ -1,3 +1,4 @@
+export * from './ArchiveView';
 export * from './CodeEditor';
 export * from './CodeView';
 export * from './FilePreview';

@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { readJsonFile, writeJsonAtomic } from '@deckbuilder/platform';
-import { AppError, type ImportResult, invalid, notFound, type Routes } from '@deckbuilder/server-core';
+import { AppError, type ImportResult, invalid, isRecord, notFound, type Routes } from '@deckbuilder/server-core';
 import { fromPlatform } from './platform-errors.ts';
 
 /** A stored record: the app's fields plus the ones the store owns. */
@@ -40,6 +40,8 @@ export interface RecordStore<T extends object> {
   create(input: unknown): Promise<Rec<T>>;
   update(id: string, input: unknown): Promise<Rec<T>>;
   remove(id: string): Promise<void>;
+  /** Puts the records named in `ids` first, in that order; unknown ids are ignored and records not named keep their order after them. */
+  reorder(ids: string[]): Promise<void>;
   /** Server-only: the stored value of a secret field, null when none is set. Never return it from a route. */
   secret(id: string, field: string): Promise<string | null>;
   /**
@@ -189,6 +191,14 @@ export function recordStore<T extends object>(opts: RecordStoreOptions<T>): Reco
         await commit(all.filter((r) => r !== prev));
         await removeSecrets(secretRefs(prev));
       }),
+    reorder: (ids) =>
+      locked(async () => {
+        const all = await load();
+        const byId = new Map(all.map((r) => [r.id, r]));
+        const first = [...new Set(ids)].flatMap((id) => byId.get(id) ?? []);
+        const named = new Set(first);
+        await commit([...first, ...all.filter((r) => !named.has(r))]);
+      }),
     secret: (id, field) =>
       locked(async () => {
         if (!secretFields.includes(field)) throw new Error(`recordStore: ${field} is not a secret field`);
@@ -269,6 +279,13 @@ export function recordRoutes<T extends object>(store: RecordStore<T>, base: stri
     [`GET ${base}/item`]: ({ query }) => store.get(idOf(query)),
     [`POST ${base}`]: async ({ json }) => store.create(await json()),
     [`PUT ${base}`]: async ({ query, json }) => store.update(idOf(query), await json()),
+    [`POST ${base}/order`]: async ({ json }) => {
+      const body = await json();
+      const ids = isRecord(body) ? body.ids : undefined;
+      if (!Array.isArray(ids) || ids.some((id) => typeof id !== 'string')) throw invalid('badOrder', 'Invalid order.');
+      await store.reorder(ids as string[]);
+      return { ok: true };
+    },
     [`DELETE ${base}`]: async ({ query }) => {
       await store.remove(idOf(query));
       return { ok: true };

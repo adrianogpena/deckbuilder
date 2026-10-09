@@ -1,18 +1,25 @@
-import { type HighlightTerm, Icon, JsonTree, linesOf, LogView, PanelBanner, PanelNotice, t } from '@deckbuilder/ui';
-import { useMemo, useState } from 'react';
+import { type HighlightTerm, Icon, JsonTree, linesOf, LogView, PanelBanner, PanelLoading, PanelNotice, t } from '@deckbuilder/ui';
+import { lazy, Suspense, useMemo, useState } from 'react';
+import { type ArchiveContent, ArchiveView } from './ArchiveView';
 import { CodeView } from './CodeView';
 import { langOfFile, previewKind } from './languages';
 import { MarkdownView } from './MarkdownView';
 
+const SvgView = lazy(() => import('./SvgView').then((m) => ({ default: m.SvgView })));
+const PdfView = lazy(() => import('./PdfView').then((m) => ({ default: m.PdfView })));
+
 /** `/api/fs/read` gives text or `{ binary }`; images come as a URL (a blob URL of `/api/fs/raw`). */
-export type PreviewContent = { text: string; truncated?: boolean } | { binary: true } | { url: string };
+export type PreviewContent = { text: string; truncated?: boolean } | { binary: true } | { url: string; source?: string } | { pdf: Uint8Array } | { archive: ArchiveContent };
 
 /** Shows a file by its extension: rendered markdown, a JSON tree, highlighted code, a log, an image or plain text. */
 export function FilePreview({ name, content, resolveImage }: { name: string; content: PreviewContent; resolveImage?(src: string): string | null }) {
   const kind = previewKind(name);
 
   if ('binary' in content) return <PanelNotice icon={<Icon name="cube" size={20} />} title={t('preview.binary')} />;
+  if ('archive' in content) return <ArchiveView archive={content.archive} />;
+  if ('pdf' in content) return <Suspense fallback={<PanelLoading />}><PdfView data={content.pdf} /></Suspense>;
   if ('url' in content) {
+    if (kind === 'svg') return <Suspense fallback={<PanelLoading />}><SvgView url={content.url} source={content.source} name={name} /></Suspense>;
     if (kind !== 'image') return <PanelNotice icon={<Icon name="cube" size={20} />} title={t('preview.none')} message={t('preview.noneMessage')} />;
     return (
       <div className="file-preview">

@@ -6,6 +6,8 @@ export interface WindowOptions {
   height?: number;
   /** Enables the WebView2 dev tools (F12, right-click → Inspect). */
   debug?: boolean;
+  /** JSON file where the window's position, size and maximized state are kept between runs. */
+  stateFile?: string;
 }
 
 /** Message the window worker receives. */
@@ -15,6 +17,7 @@ export interface WindowRequest {
   width: number;
   height: number;
   debug: boolean;
+  stateFile?: string;
 }
 
 /** Size of a new native or app window unless the app passes one. */
@@ -41,6 +44,7 @@ export function openWindow(url: string, opts: WindowOptions, onAllClosed: () => 
     width: opts.width ?? DEFAULT_WINDOW.width,
     height: opts.height ?? DEFAULT_WINDOW.height,
     debug: opts.debug ?? false,
+    stateFile: opts.stateFile,
   };
   worker.postMessage(request);
   worker.addEventListener('message', (e: MessageEvent<{ error?: string }>) => {

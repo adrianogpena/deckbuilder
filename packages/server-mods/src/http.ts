@@ -96,7 +96,7 @@ export function validateDraft(raw: unknown): HttpRequestDraft {
   if (typeof url !== 'string' || url.length > HTTP_MAX_URL_CHARS) throw badSavedRequest();
   if (!Array.isArray(headers) || headers.length > HTTP_MAX_HEADERS) throw badSavedRequest();
   if (typeof body !== 'string' || body.length > HTTP_MAX_BODY_CHARS) throw badSavedRequest();
-  if (bodyLang !== 'json' && bodyLang !== 'text') throw badSavedRequest();
+  if (bodyLang !== 'json' && bodyLang !== 'xml' && bodyLang !== 'text') throw badSavedRequest();
   const out: HttpRequestDraft = {
     method: method as HttpMethod,
     url,

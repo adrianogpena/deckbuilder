@@ -23,7 +23,7 @@ describe('previewKind', () => {
     expect(previewKind('notes.markdown')).toBe('markdown');
     expect(previewKind('a.json')).toBe('json');
     expect(previewKind('req.http')).toBe('code');
-    expect(previewKind('logo.SVG')).toBe('image');
+    expect(previewKind('logo.SVG')).toBe('svg');
     expect(previewKind('a.txt')).toBe('text');
   });
 

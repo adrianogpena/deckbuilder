@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { bodyView, draftToSpec, emptyDraft, formatBytes, formatMs, statusTone, timeoutFromSeconds } from '../src/http.ts';
+import { bodyView, draftToSpec, emptyDraft, formatBytes, formatXml, toCurl, formatMs, statusTone, timeoutFromSeconds } from '../src/http.ts';
 
 const h = (name: string, value: string, enabled = true) => ({ name, value, enabled });
 
@@ -27,6 +27,30 @@ describe('draftToSpec', () => {
   test('keeps a Content-Type the user set, in any case', () => {
     const spec = draftToSpec({ ...emptyDraft(), method: 'POST', body: '{}', headers: [h('content-type', 'text/x')] });
     expect(spec.headers).toEqual([['content-type', 'text/x']]);
+  });
+
+  test('adds an XML Content-Type for an XML body', () => {
+    const spec = draftToSpec({ ...emptyDraft(), method: 'POST', body: '<a/>', bodyLang: 'xml' });
+    expect(spec.headers).toEqual([['Content-Type', 'application/xml']]);
+  });
+
+  test('toCurl builds a quoted multi-line command', () => {
+    const spec = draftToSpec({ ...emptyDraft(), method: 'POST', url: 'http://x/a?b=1&c=2', body: `{"a":"it's"}`, headers: [h('X-A', 'v')], insecure: true });
+    expect(toCurl(spec)).toBe(
+      [`curl 'http://x/a?b=1&c=2'`, `-X POST`, `-L`, `--insecure`, `-H 'X-A: v'`, `-H 'Content-Type: application/json'`, `--data-raw '{"a":"it'\\''s"}'`].join(' \\\n  '),
+    );
+    expect(toCurl(draftToSpec({ ...emptyDraft(), url: 'http://x', followRedirects: false }))).toBe(`curl 'http://x'`);
+  });
+
+  test('formatXml indents nested elements and keeps text-only ones inline', () => {
+    expect(formatXml('<?xml version="1.0"?><a><b>1</b><c x="1"/><d><e>  hi </e></d></a>')).toBe(
+      ['<?xml version="1.0"?>', '<a>', '  <b>1</b>', '  <c x="1"/>', '  <d>', '    <e>hi</e>', '  </d>', '</a>'].join('\n'),
+    );
+  });
+
+  test('formatXml rejects unbalanced tags', () => {
+    expect(() => formatXml('<a><b></a>')).toThrow();
+    expect(() => formatXml('<a>')).toThrow();
   });
 
   test('adds no Content-Type for a text body', () => {

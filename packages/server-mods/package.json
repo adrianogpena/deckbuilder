@@ -7,6 +7,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "7z-wasm": "^1.2.0",
     "@deckbuilder/platform": "workspace:*",
     "@deckbuilder/server-core": "workspace:*"
   }

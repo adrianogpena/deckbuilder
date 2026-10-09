@@ -171,6 +171,15 @@ export const routes = (ctx: StartContext): Routes => ({
   },
   ...dbApi,
   ...recordRoutes(requests, '/api/requests'),
+  // The target comes from the save dialog on this side; the client never names a path.
+  'POST /api/requests/save-curl': async ({ json }) => {
+    const { text } = await json<{ text?: unknown }>();
+    if (typeof text !== 'string' || text.length > MAX_IMPORT_BYTES) throw invalid('badRequest', 'Invalid request.');
+    const path = await saveFileAs({ suggestedName: 'request.curl', filters: [{ name: 'cURL', patterns: ['*.curl', '*.sh'] }, { name: 'All files', patterns: ['*.*'] }] }).catch(fromPlatform);
+    if (!path) return { path: null };
+    await writeFileAtomic(path, `${text}\n`).catch(fromPlatform);
+    return { path };
+  },
   // The file's text goes to the client for parsing; its path never does.
   'POST /api/requests/import-file': async () => {
     const path = await pickFile({ filters: HTTP_FILE_FILTERS }).catch(fromPlatform);

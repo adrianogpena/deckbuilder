@@ -58,15 +58,24 @@ function TextFileTab({ project, projectName, path, focused, markdownMode = 'live
     setPreviewing(false);
     setSaveError(undefined);
     try {
-      if (previewKind(name) === 'image') {
-        const url = URL.createObjectURL(await requestBlob('/api/fs/raw', { root: project, path }));
+      const kind = previewKind(name);
+      if (kind === 'image' || kind === 'svg') {
+        const blob = await requestBlob('/api/fs/raw', { root: project, path });
+        const source = kind === 'svg' ? await blob.text() : undefined;
+        const url = URL.createObjectURL(blob);
         if (gen !== generation.current) {
           URL.revokeObjectURL(url);
           return;
         }
         revoke();
         blobUrl.current = url;
-        setState({ status: 'ready', content: { url }, mtime: 0 });
+        setState({ status: 'ready', content: { url, source }, mtime: 0 });
+      } else if (kind === 'archive') {
+        const archive = await api.fsArchive(project, path);
+        if (gen === generation.current) setState({ status: 'ready', content: { archive }, mtime: 0 });
+      } else if (kind === 'pdf') {
+        const pdf = new Uint8Array(await (await requestBlob('/api/fs/raw', { root: project, path })).arrayBuffer());
+        if (gen === generation.current) setState({ status: 'ready', content: { pdf }, mtime: 0 });
       } else {
         const read = await api.fsRead(project, path);
         if (gen === generation.current) {

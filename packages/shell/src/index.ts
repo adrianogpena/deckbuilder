@@ -172,7 +172,7 @@ export async function runApp(opts: RunOptions): Promise<void> {
   // WebView2 keeps its profile in %APPDATA%\<exe name>\: the webview library passes that
   // folder explicitly, so WEBVIEW2_USER_DATA_FOLDER has no effect.
   const openNative = (url: string) => {
-    openWindow(url, { title: app.name, debug: dev, ...opts.window }, onAllClosed);
+    openWindow(url, { title: app.name, debug: dev, stateFile: join(appHome(app.id), 'window.json'), ...opts.window }, onAllClosed);
   };
   const show = (m: OpenMode, path?: string): string => {
     const url = launchUrl(origin, codes, path);

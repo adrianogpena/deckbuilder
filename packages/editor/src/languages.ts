@@ -6,9 +6,10 @@ import { MSSQL, MySQL, PLSQL, PostgreSQL, sql, SQLDialect, SQLite, StandardSQL }
 import { type Language, StreamLanguage } from '@codemirror/language';
 import { java } from '@codemirror/legacy-modes/mode/clike';
 import { shell } from '@codemirror/legacy-modes/mode/shell';
+import { xml } from '@codemirror/legacy-modes/mode/xml';
 import type { Extension } from '@codemirror/state';
 
-export type Lang = 'sql' | 'json' | 'shell' | 'java' | 'markdown' | 'text';
+export type Lang = 'sql' | 'json' | 'shell' | 'java' | 'markdown' | 'xml' | 'text';
 export type SqlDialect = 'postgres' | 'mysql' | 'sqlite' | 'mssql' | 'plsql' | 'standard';
 /** Table name → column names, for SQL completion. */
 export type SqlSchema = Record<string, string[]>;
@@ -20,6 +21,7 @@ const DIALECTS = { postgres: PostgreSQL, mysql: MySQL, sqlite: SQLite, mssql: MS
 
 const shellLanguage = StreamLanguage.define(shell);
 const javaLanguage = StreamLanguage.define(java);
+const xmlLanguage = StreamLanguage.define(xml);
 
 export function languageFor(lang: Lang, opts: { sqlDialect?: SqlDialect; sqlSchema?: SqlSchema } = {}): Extension {
   switch (lang) {
@@ -30,6 +32,7 @@ export function languageFor(lang: Lang, opts: { sqlDialect?: SqlDialect; sqlSche
     case 'json': return json();
     case 'shell': return shellLanguage;
     case 'java': return javaLanguage;
+    case 'xml': return xmlLanguage;
     case 'markdown': return markdown({ extensions: GFM });
     default: return [];
   }
@@ -87,9 +90,10 @@ export function langOfFile(name: string): Lang {
   return LANG_BY_EXT[extOf(name)] ?? 'text';
 }
 
-export type PreviewKind = 'markdown' | 'json' | 'code' | 'image' | 'log' | 'text';
+export type PreviewKind = 'markdown' | 'json' | 'code' | 'image' | 'svg' | 'pdf' | 'archive' | 'log' | 'text';
 
-const IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'ico']);
+const IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico']);
+const ARCHIVE_EXTS = new Set(['zip', '7z', 'rar', 'tar', 'gz', 'tgz', 'bz2', 'tbz2', 'xz', 'txz', 'lzma', 'zst', 'iso', 'cab', 'jar', 'war', 'whl', 'nupkg', 'apk']);
 // app.log, and rotated ones: server.log.1, server.log.2026-10-08.
 const LOG_NAME = /\.log(\.[0-9][\w-]*)?$/i;
 
@@ -98,6 +102,9 @@ export function previewKind(name: string): PreviewKind {
   if (LOG_NAME.test(name)) return 'log';
   const ext = extOf(name);
   if (IMAGE_EXTS.has(ext)) return 'image';
+  if (ext === 'svg') return 'svg';
+  if (ext === 'pdf') return 'pdf';
+  if (ARCHIVE_EXTS.has(ext)) return 'archive';
   const lang = LANG_BY_EXT[ext];
   if (lang === 'markdown' || lang === 'json') return lang;
   return lang ? 'code' : 'text';

@@ -5,6 +5,7 @@ import { moveToTrash, type SaveDialogOptions, saveFileAs, writeFileAtomic } from
 import { AppError, forbidden, type Handler, invalid, ndjson, notFound, type Routes, type TailChunk } from '@deckbuilder/server-core';
 
 export type { TailChunk };
+import { listArchive } from './archive.ts';
 import { isBinary } from './bytes.ts';
 import { fromPlatform } from './platform-errors.ts';
 
@@ -256,7 +257,7 @@ async function contentHits(file: string, q: string): Promise<Array<{ line: numbe
  * File routes confined to the roots the app registers. The client only ever sends a root id and a
  * relative path; `resolve` turns them into a real path inside that root or refuses.
  *
- * GET `/api/fs/list|stat|read|raw|search` take `root` and `path` in the query; POST
+ * GET `/api/fs/list|stat|read|raw|archive|search` take `root` and `path` in the query; POST
  * `/api/fs/create|write|rename|move|delete` take them in the JSON body.
  */
 export function rootedFs(opts: RootedFsOptions): RootedFs {
@@ -416,6 +417,13 @@ export function rootedFs(opts: RootedFsOptions): RootedFs {
       if (target === null) return { path: null };
       await writeFileAtomic(target, Bun.file(loc.real).slice(from, size));
       return { path: target, bytes: size - from };
+    },
+
+    'GET /api/fs/archive': async ({ query }) => {
+      const { root, path } = fromQuery(query);
+      const loc = await locate(root, path, true);
+      if ((await stat(loc.real)).isDirectory()) throw notAFile();
+      return listArchive(loc.real);
     },
 
     'GET /api/fs/raw': async ({ query }) => {

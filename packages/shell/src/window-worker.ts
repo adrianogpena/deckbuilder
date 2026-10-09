@@ -1,9 +1,19 @@
 // One native window per Worker: Webview.run() blocks this thread until the window closes.
-import { openExternal, showWindow } from '@deckbuilder/platform';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
+import { getWindowPlacement, openExternal, parsePlacement, setWindowPlacement, showWindow, type WindowPlacement } from '@deckbuilder/platform';
 import { SizeHint, Webview } from 'webview-bun';
 import type { WindowRequest } from './window.ts';
 
 declare const self: Worker;
+
+function readPlacement(file: string): WindowPlacement | undefined {
+  try {
+    return parsePlacement(JSON.parse(readFileSync(file, 'utf8')));
+  } catch {
+    return undefined;
+  }
+}
 
 // Runs before every page load. Tells the UI it is in a window, and sends links to other
 // origins to the default browser instead of navigating the app window away.
@@ -21,6 +31,9 @@ window.__DECKBUILDER_SHELL__ = 'window';
     e.preventDefault();
     window.__deckbuilderOpenExternal(new URL(href, location.href).href);
   });
+  const saveBounds = () => { if (window.__deckbuilderSaveBounds) window.__deckbuilderSaveBounds(); };
+  setInterval(saveBounds, 1000);
+  addEventListener('beforeunload', saveBounds);
   const open = window.open;
   window.open = (url, ...rest) => {
     if (url && external(String(url))) { window.__deckbuilderOpenExternal(String(url)); return null; }
@@ -32,7 +45,7 @@ window.__DECKBUILDER_SHELL__ = 'window';
 self.onmessage = (e: MessageEvent<WindowRequest>) => {
   // The window shows #121212 until the page paints (WEBVIEW2_DEFAULT_BACKGROUND_COLOR has no effect
   // with this webview library); the palette inlined into index.html (themeHead) carries the first paint.
-  const { url, title, width, height, debug } = e.data;
+  const { url, title, width, height, debug, stateFile } = e.data;
   const webview = new Webview(debug, { width, height, hint: SizeHint.NONE });
   if (!webview.unsafeHandle) {
     // WebView2 failed to start, e.g. its profile folder is still locked by msedgewebview2.exe
@@ -41,7 +54,26 @@ self.onmessage = (e: MessageEvent<WindowRequest>) => {
     process.exit(1);
   }
   // Started through `bun run`, the process starts hidden and the library's own show is swallowed.
-  showWindow(webview.unsafeWindowHandle);
+  const hwnd = webview.unsafeWindowHandle;
+  showWindow(hwnd);
+  if (stateFile) {
+    const saved = readPlacement(stateFile);
+    if (saved) setWindowPlacement(hwnd, saved);
+    // The window is gone once run() returns, so the page reports in while it lives: every second and on unload.
+    let last = JSON.stringify(saved ?? null);
+    webview.bind('__deckbuilderSaveBounds', () => {
+      const now = getWindowPlacement(hwnd);
+      const text = JSON.stringify(now ?? null);
+      if (!now || text === last) return;
+      last = text;
+      try {
+        mkdirSync(dirname(stateFile), { recursive: true });
+        writeFileSync(stateFile, text);
+      } catch {
+        // losing the position is harmless
+      }
+    });
+  }
   webview.title = title;
   webview.bind('__deckbuilderOpenExternal', (href: string) => openExternal(href));
   webview.init(INIT);

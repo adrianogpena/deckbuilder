@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react';
-import { draftToSpec, emptyDraft, type HttpRequestDraft, type ImportedRequest, RequestEditor, ResponseView } from '@deckbuilder/editor';
+import { draftToSpec, emptyDraft, type HttpRequestDraft, type ImportedRequest, RequestEditor, ResponseView, toCurl } from '@deckbuilder/editor';
 import type { HttpResponseInfo } from '@deckbuilder/server-core/protocol';
 import { type ApiError, ErrorBanner, errorOf, Icon, PageHead, SplitView, useAsync, useDebouncedSave, useDialogs } from '@deckbuilder/ui';
 import { api, type RestSettings, type SavedRequest, type Settings } from '../api';
 import { t } from '../i18n';
 import { ImportDialog, requestLabel } from './rest/ImportDialog';
+import { CurlDialog } from './rest/CurlDialog';
 
 const MAX_NAME = 80;
 
@@ -30,11 +31,14 @@ export function RestScreen({ settings, onSave }: { settings: Settings; onSave: (
   const [auth, setAuth] = useState('');
   const [imported, setImported] = useState<{ name: string; auth: boolean }>();
   const [importing, setImporting] = useState(false);
+  const [curl, setCurl] = useState<string>();
   const [response, setResponse] = useState<HttpResponseInfo>();
   const [error, setError] = useState<ApiError>();
   const [actionError, setActionError] = useState<ApiError>();
   const [sending, setSending] = useState(false);
   const [savedPath, setSavedPath] = useState<string>();
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState<string | null>(null);
   const controller = useRef<AbortController>();
 
   const persist = useDebouncedSave((next: RestSettings) => onSave({ rest: next }));
@@ -135,6 +139,46 @@ export function RestScreen({ settings, onSave }: { settings: Settings; onSave: (
     }
   };
 
+  const rename = async (item: SavedRequest) => {
+    const name = await prompt({
+      title: t('rest.renameTitle'),
+      label: t('rest.name'),
+      value: item.name,
+      validate: (v) => (v.trim() ? null : t('error.badRequestName')),
+    });
+    if (!name || name.trim() === item.name) return;
+    setActionError(undefined);
+    try {
+      const record = await api.updateRequest(item.id, { name, request: item.request });
+      if (loaded?.id === item.id) setLoaded(record);
+      saved.reload();
+    } catch (err) {
+      setActionError(errorOf(err));
+    }
+  };
+
+  const moveTo = async (fromId: string, toId: string) => {
+    const ids = (saved.data ?? []).map((r) => r.id);
+    const from = ids.indexOf(fromId);
+    const to = ids.indexOf(toId);
+    if (from < 0 || to < 0 || from === to) return;
+    ids.splice(to, 0, ...ids.splice(from, 1));
+    setActionError(undefined);
+    try {
+      await api.reorderRequests(ids);
+    } catch (err) {
+      setActionError(errorOf(err));
+    } finally {
+      saved.reload();
+    }
+  };
+
+  const showCurl = () => {
+    const spec = draftToSpec(draft);
+    if (auth && !spec.headers.some(([name]) => name.toLowerCase() === 'authorization')) spec.headers.push(['Authorization', auth]);
+    setCurl(toCurl(spec));
+  };
+
   const saveResponse = async (info: HttpResponseInfo) => {
     setActionError(undefined);
     try {
@@ -150,6 +194,7 @@ export function RestScreen({ settings, onSave }: { settings: Settings; onSave: (
       <PageHead crumb={t('rest.crumb')} title={t('nav.rest')}>
         <div className="row">
           <button className="btn btn-sm" onClick={() => setImporting(true)}>{t('rest.import')}</button>
+          <button className="btn btn-sm" onClick={showCurl}>{t('rest.code')}</button>
           <button className="btn btn-sm" onClick={() => save(false)}>{t('rest.save')}</button>
           <button className="btn btn-sm" onClick={() => save(true)}>{t('rest.saveAs')}</button>
         </div>
@@ -164,14 +209,43 @@ export function RestScreen({ settings, onSave }: { settings: Settings; onSave: (
           {saved.error && <ErrorBanner error={saved.error} onRetry={saved.reload} compact />}
           {saved.data?.length === 0 && <p className="muted">{t('rest.none')}</p>}
           {saved.data?.map((item) => (
-            <div key={item.id} className={`rest-item${item.id === loaded?.id ? ' active' : ''}`}>
+            <div
+              key={item.id}
+              className={`rest-item${item.id === loaded?.id ? ' active' : ''}${item.id === dragOver ? ' drop-target' : ''}`}
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', item.id);
+                setDragId(item.id);
+              }}
+              onDragOver={(e) => {
+                if (dragId === null) return;
+                e.preventDefault();
+                setDragOver(item.id);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (dragId !== null) void moveTo(dragId, item.id);
+                setDragId(null);
+                setDragOver(null);
+              }}
+              onDragEnd={() => {
+                setDragId(null);
+                setDragOver(null);
+              }}
+            >
               <button className="rest-item-main" onClick={() => load(item)} title={item.request.url}>
                 <span className="rest-method">{item.request.method}</span>
                 <span className="rest-item-name">{item.name}</span>
               </button>
-              <button className="btn btn-ghost btn-sm" onClick={() => remove(item)} aria-label={t('rest.delete')} title={t('rest.delete')}>
-                <Icon name="trash" />
-              </button>
+              <span className="rest-item-actions">
+                <button className="btn btn-ghost btn-sm" onClick={() => rename(item)} aria-label={t('rest.rename')} title={t('rest.rename')}>
+                  <Icon name="edit" />
+                </button>
+                <button className="btn btn-ghost btn-sm" onClick={() => remove(item)} aria-label={t('rest.delete')} title={t('rest.delete')}>
+                  <Icon name="trash" />
+                </button>
+              </span>
             </div>
           ))}
         </aside>
@@ -209,6 +283,7 @@ export function RestScreen({ settings, onSave }: { settings: Settings; onSave: (
         </SplitView>
       </div>
       {importing && <ImportDialog onLoad={loadImported} onSaveMany={saveImported} onClose={() => setImporting(false)} />}
+      {curl !== undefined && <CurlDialog curl={curl} onClose={() => setCurl(undefined)} />}
       {element}
     </div>
   );

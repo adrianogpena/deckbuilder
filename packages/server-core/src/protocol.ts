@@ -94,7 +94,7 @@ export interface HttpRequestDraft {
   url: string;
   headers: HttpHeaderDraft[];
   body: string;
-  bodyLang: 'json' | 'text';
+  bodyLang: 'json' | 'xml' | 'text';
   timeoutMs?: number;
   insecure?: boolean;
   followRedirects?: boolean;
