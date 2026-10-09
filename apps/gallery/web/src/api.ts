@@ -1,7 +1,7 @@
 import type { HttpRequestDraft } from '@deckbuilder/editor/http';
 import type { ThemeSettings } from '@deckbuilder/server-core/palettes';
 import type { HttpRequestSpec, HttpResponseInfo, UpdateState } from '@deckbuilder/server-core/protocol';
-import { type HighlightTerm, type Language, type LogBookmark, request, type TailChunkLike } from '@deckbuilder/ui';
+import { type Language, type LogSettings, request, type TailChunkLike } from '@deckbuilder/ui';
 
 export interface Settings extends ThemeSettings {
   language?: Language;
@@ -34,10 +34,7 @@ export interface SavedRequest {
   auth?: { hasSecret: true };
 }
 
-export interface LogSettings {
-  highlights: HighlightTerm[];
-  bookmarks: Record<string, LogBookmark[]>;
-}
+export type { LogSettings };
 
 export type TailChunk = TailChunkLike & { size: number; mtime: number };
 

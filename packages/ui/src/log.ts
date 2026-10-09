@@ -245,12 +245,58 @@ export function nextHighlightColor(terms: readonly HighlightTerm[]): HighlightCo
 
 export const MAX_HIGHLIGHTS = 50;
 export const MAX_BOOKMARKS = 50;
+export const MAX_HIGHLIGHT_CHARS = 200;
+export const MAX_LABEL_CHARS = 80;
+export const MAX_PREVIEW_CHARS = 200;
+export const MAX_LOG_FILES = 200;
+export const MAX_LOG_KEY_CHARS = 300;
 
-/** `terms` plus `text` in the next free color; unchanged for blank text, a duplicate (case-insensitive) or a full list. */
+/** Highlight words (global) and bookmarks per `<projectId>:<path>`. */
+export interface LogSettings {
+  highlights: HighlightTerm[];
+  bookmarks: Record<string, LogBookmark[]>;
+}
+
+const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+
+function validBookmark(b: unknown): LogBookmark | null {
+  if (!isRecord(b) || !Number.isSafeInteger(b.offset) || (b.offset as number) < 0) return null;
+  if (typeof b.label !== 'string' || b.label.length > MAX_LABEL_CHARS) return null;
+  if (typeof b.preview !== 'string' || b.preview.length > MAX_PREVIEW_CHARS) return null;
+  if (typeof b.at !== 'number' || !Number.isFinite(b.at)) return null;
+  return { offset: b.offset as number, label: b.label, at: b.at, preview: b.preview };
+}
+
+/**
+ * A copy of `raw` within the limits; invalid entries are dropped, not the whole value. Null only
+ * when `raw` is not `{ highlights: array, bookmarks: object }`.
+ */
+export function validLogSettings(raw: unknown): LogSettings | null {
+  if (!isRecord(raw) || !Array.isArray(raw.highlights) || !isRecord(raw.bookmarks)) return null;
+  const highlights: HighlightTerm[] = [];
+  for (const h of raw.highlights) {
+    if (highlights.length >= MAX_HIGHLIGHTS) break;
+    if (!isRecord(h) || typeof h.text !== 'string' || h.text.length < 1 || h.text.length > MAX_HIGHLIGHT_CHARS) continue;
+    if (!(HIGHLIGHT_COLORS as readonly unknown[]).includes(h.color)) continue;
+    highlights.push({ text: h.text, color: h.color as HighlightColor });
+  }
+  const files: Array<{ key: string; list: LogBookmark[]; newest: number }> = [];
+  for (const [key, value] of Object.entries(raw.bookmarks)) {
+    if (key.length > MAX_LOG_KEY_CHARS || !Array.isArray(value)) continue;
+    const valid = value.map(validBookmark).filter((b): b is LogBookmark => b !== null);
+    if (!valid.length) continue;
+    const list = valid.length > MAX_BOOKMARKS ? [...valid].sort((a, b) => b.at - a.at).slice(0, MAX_BOOKMARKS) : valid;
+    files.push({ key, list, newest: Math.max(...list.map((b) => b.at)) });
+  }
+  if (files.length > MAX_LOG_FILES) files.sort((a, b) => b.newest - a.newest).length = MAX_LOG_FILES;
+  return { highlights, bookmarks: Object.fromEntries(files.map((f) => [f.key, f.list])) };
+}
+
+/** `terms` plus `text` in the next free color; unchanged for blank or over-long text, a duplicate (case-insensitive) or a full list. */
 export function addHighlight(terms: HighlightTerm[], text: string): HighlightTerm[] {
   const term = text.trim();
   const lower = term.toLowerCase();
-  if (!term || terms.length >= MAX_HIGHLIGHTS || terms.some((t) => t.text.toLowerCase() === lower)) return terms;
+  if (!term || term.length > MAX_HIGHLIGHT_CHARS || terms.length >= MAX_HIGHLIGHTS || terms.some((t) => t.text.toLowerCase() === lower)) return terms;
   return [...terms, { text: term, color: nextHighlightColor(terms) }];
 }
 
@@ -264,6 +310,13 @@ export function addBookmark(list: LogBookmark[], bookmark: LogBookmark): LogBook
   if (all.length <= MAX_BOOKMARKS) return all;
   const kept = new Set([...all].sort((a, b) => b.at - a.at).slice(0, MAX_BOOKMARKS));
   return all.filter((b) => kept.has(b));
+}
+
+/** Number of line rows (not bookmark markers) before row index `row`; `rows` as `withMarkers` returns them. */
+export function lineIndexAt(rows: ReadonlyArray<LogLine | LogBookmark>, row: number): number {
+  let count = 0;
+  for (let i = 0; i < Math.min(row, rows.length); i++) if ('n' in rows[i]!) count++;
+  return count;
 }
 
 /** The file shrank below the bookmark. */

@@ -6,6 +6,7 @@ import {
   filterLines,
   firstLineAtOrAfter,
   levelCounts,
+  lineIndexAt,
   levelOf,
   linesOf,
   matcher,
@@ -13,9 +14,11 @@ import {
   matchIndexes,
   MAX_BOOKMARKS,
   MAX_HIGHLIGHTS,
+  MAX_LOG_FILES,
   nextHighlightColor,
   segments,
   tailReducer,
+  validLogSettings,
   withMarkers,
   wordAt,
 } from '../src/log.ts';
@@ -179,6 +182,11 @@ describe('addHighlight', () => {
     const full = Array.from({ length: MAX_HIGHLIGHTS }, (_, i) => ({ text: `t${i}`, color: 'accent' as const }));
     expect(addHighlight(full, 'new')).toBe(full);
   });
+
+  test('refuses text over the length cap', () => {
+    expect(addHighlight([], 'a'.repeat(201))).toEqual([]);
+    expect(addHighlight([], 'a'.repeat(200))).toHaveLength(1);
+  });
 });
 
 describe('addBookmark', () => {
@@ -204,5 +212,46 @@ describe('withMarkers', () => {
   test('puts markers above the first line at or after the offset, and at the end', () => {
     const rows = withMarkers(lines, [bm(112), bm(106), bm(102), bm(104)], 100, 112);
     expect(rows.map((r) => ('n' in r ? r.text : `#${r.offset}`))).toEqual(['aaa', '#102', '#104', 'bbb', '#106', 'ccc', '#112']);
+  });
+});
+
+describe('validLogSettings', () => {
+  const bm = (at: number, offset = 0) => ({ offset, label: 'x', at, preview: '' });
+  const term = (text: string) => ({ text, color: 'accent' });
+
+  test('is null for a wrong shape', () => {
+    expect(validLogSettings(null)).toBeNull();
+    expect(validLogSettings({ highlights: {}, bookmarks: {} })).toBeNull();
+    expect(validLogSettings({ highlights: [], bookmarks: [] })).toBeNull();
+  });
+
+  test('drops an over-long highlight and keeps the others', () => {
+    const out = validLogSettings({ highlights: [term('ok'), term('a'.repeat(201)), term('b')], bookmarks: {} });
+    expect(out!.highlights.map((h) => h.text)).toEqual(['ok', 'b']);
+  });
+
+  test('keeps the newest files beyond the file limit', () => {
+    const bookmarks = Object.fromEntries(Array.from({ length: MAX_LOG_FILES + 1 }, (_, i) => [`p:${i}`, [bm(i + 1)]]));
+    const out = validLogSettings({ highlights: [], bookmarks });
+    expect(Object.keys(out!.bookmarks)).toHaveLength(MAX_LOG_FILES);
+    expect(out!.bookmarks['p:0']).toBeUndefined();
+  });
+
+  test('drops only a key over the length limit and invalid bookmarks', () => {
+    const out = validLogSettings({ highlights: [], bookmarks: { ['k'.repeat(301)]: [bm(1)], ok: [bm(2), { offset: -1 }] } });
+    expect(Object.keys(out!.bookmarks)).toEqual(['ok']);
+    expect(out!.bookmarks.ok).toHaveLength(1);
+  });
+});
+
+describe('lineIndexAt', () => {
+  test('counts only line rows before the row', () => {
+    const lines = linesOf({ from: 0, to: 12, text: 'aaa\nbbb\nccc\n' }, 0, null);
+    const rows = withMarkers(lines, [{ offset: 0, label: 'a', at: 1, preview: '' }, { offset: 8, label: 'b', at: 2, preview: '' }], 0, 12);
+    expect(rows.map((r) => ('n' in r ? 'L' : 'M')).join('')).toBe('MLLML');
+    expect(lineIndexAt(rows, 0)).toBe(0);
+    expect(lineIndexAt(rows, 2)).toBe(1);
+    expect(lineIndexAt(rows, 4)).toBe(2);
+    expect(lineIndexAt(rows, 5)).toBe(3);
   });
 });

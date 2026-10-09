@@ -206,7 +206,9 @@ source directly; there is no package build step.
   to a file picked in the save dialog. A bookmark is a byte offset, so it goes stale when the file
   is rotated or cleared (shown as stale; copy and save answer `rangeStale`) and does not follow a
   rename. The gallery's `LogTab` (Explorer, `.log` files) persists highlights and bookmarks in
-  the `logs` setting, capped and validated by `validLogs`.
+  the `logs` setting, capped and validated by `validLogSettings` (`@deckbuilder/ui/log`, with `LogSettings` and the
+  `MAX_*` limits): it drops invalid entries instead of rejecting the whole value, so a client that
+  passes its state through it holds what the server saves.
 - **Open in editor**: `editorRoutes({ dir, fs })` (from `@deckbuilder/server-mods`, with a `rootedFs`)
   serves `/api/editors` (list, pick, override, open) for VS Code and IntelliJ IDEA. `findEditor`
   (platform) detects the real `.exe` (`code.cmd` on PATH leads to `Code.exe`; IntelliJ comes from the

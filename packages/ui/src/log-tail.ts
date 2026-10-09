@@ -38,6 +38,7 @@ export function useLogTail(fetchChunk: (from?: number) => Promise<TailChunkLike>
   const current = useRef(state);
   const generation = useRef(0);
   const inFlight = useRef(false);
+  const loaded = useRef(false);
   const fetchRef = useRef(fetchChunk);
   fetchRef.current = fetchChunk;
   const maxRef = useRef(maxLines);
@@ -56,6 +57,7 @@ export function useLogTail(fetchChunk: (from?: number) => Promise<TailChunkLike>
       .then((chunk) => {
         if (gen !== generation.current) return;
         commit(tailReducer({ ...emptyTail(), rotated }, chunk, maxRef.current));
+        loaded.current = true;
         setError(undefined);
       })
       .catch((err) => {
@@ -70,6 +72,10 @@ export function useLogTail(fetchChunk: (from?: number) => Promise<TailChunkLike>
 
   const poll = useCallback(() => {
     if (inFlight.current) return;
+    if (!loaded.current) {
+      load(false);
+      return;
+    }
     const gen = generation.current;
     inFlight.current = true;
     fetchRef.current(current.current.end)
@@ -90,6 +96,7 @@ export function useLogTail(fetchChunk: (from?: number) => Promise<TailChunkLike>
   useEffect(() => {
     commit(emptyTail());
     setError(undefined);
+    loaded.current = false;
     load(false);
     return () => {
       generation.current++;

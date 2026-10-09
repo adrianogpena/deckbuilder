@@ -8,9 +8,11 @@ import {
   type HighlightTerm,
   type LogBookmark,
   LogView,
+  MAX_LOG_KEY_CHARS,
   PanelBanner,
   PanelLoading,
   useLogTail,
+  validLogSettings,
 } from '@deckbuilder/ui';
 import { api, type LogSettings } from '../../api';
 import { t } from '../../i18n';
@@ -61,7 +63,7 @@ export function LogTab({ project, projectName, path, focused, logs, onLogsChange
   const [actionError, setActionError] = useState<ApiError>();
   const tail = useLogTail((from) => api.fsTail(project, path, from), { key, paused: !focused });
 
-  const change = (next: LogSettings) => (onLogsChange ?? setLocal)(next);
+  const change = (next: LogSettings) => (onLogsChange ?? setLocal)(validLogSettings(next) ?? next);
   const bookmarks = state.bookmarks[key] ?? [];
 
   const setBookmarks = (list: LogBookmark[]) => {
@@ -118,8 +120,8 @@ export function LogTab({ project, projectName, path, focused, logs, onLogsChange
           onHighlightsChange={(highlights: HighlightTerm[]) => change({ ...state, highlights })}
           follow={follow}
           onFollowChange={setFollow}
-          bookmarks={bookmarks}
-          onBookmarksChange={setBookmarks}
+          bookmarks={key.length > MAX_LOG_KEY_CHARS ? undefined : bookmarks}
+          onBookmarksChange={key.length > MAX_LOG_KEY_CHARS ? undefined : setBookmarks}
           endOffset={tail.end}
           onCopyFrom={(b) => void copyFrom(b)}
           onSaveFrom={(b) => void saveFrom(b)}

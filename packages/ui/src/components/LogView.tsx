@@ -1,13 +1,12 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type MouseEvent } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { copyText } from '../hooks';
 import { t } from '../i18n';
 import {
   addBookmark,
   addHighlight,
   filterLines,
-  firstLineAtOrAfter,
   type HighlightTerm,
-  isStale,
+  lineIndexAt,
   levelCounts,
   LOG_LEVELS,
   type LogBookmark,
@@ -18,17 +17,17 @@ import {
   matcherError,
   matchIndexes,
   MAX_HIGHLIGHTS,
-  nextColor,
+  MAX_PREVIEW_CHARS,
   segments,
   withMarkers,
-  wordAt,
 } from '../log';
 import { visibleRange } from '../table';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
-import { Icon, useDialogs } from './ui';
+import { Icon } from './ui';
+import { wordUnder } from '../log-dom';
+import { clock, LogBookmarkMenu } from './LogBookmarkMenu';
+import { LogHighlightBar } from './LogHighlightBar';
 
-const PREVIEW_CHARS = 200;
-const LABEL_MAX = 80;
 const MENU_WORD_CHARS = 40;
 
 export interface LogViewProps {
@@ -50,48 +49,6 @@ export interface LogViewProps {
 }
 
 const isLine = (row: LogLine | LogBookmark): row is LogLine => 'n' in row;
-const pad = (n: number) => String(n).padStart(2, '0');
-const clock = (at: number) => {
-  const d = new Date(at);
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-};
-
-/** Index into the text of `container` under the point, or null when the point is not on its text. */
-function textIndexAt(container: HTMLElement, x: number, y: number): number | null {
-  const doc = document as unknown as {
-    caretPositionFromPoint?(x: number, y: number): { offsetNode: Node; offset: number } | null;
-    caretRangeFromPoint?(x: number, y: number): Range | null;
-  };
-  let node: Node | null = null;
-  let offset = 0;
-  const pos = doc.caretPositionFromPoint?.(x, y);
-  if (pos) {
-    node = pos.offsetNode;
-    offset = pos.offset;
-  } else {
-    const range = doc.caretRangeFromPoint?.(x, y);
-    if (range) {
-      node = range.startContainer;
-      offset = range.startOffset;
-    }
-  }
-  if (!node || node.nodeType !== Node.TEXT_NODE || !container.contains(node)) return null;
-  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
-  let index = 0;
-  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
-    if (n === node) return index + offset;
-    index += n.textContent?.length ?? 0;
-  }
-  return null;
-}
-
-function wordUnder(e: MouseEvent<HTMLElement>, text: string): string {
-  const el = e.currentTarget.querySelector<HTMLElement>('.log-text');
-  const index = el ? textIndexAt(el, e.clientX, e.clientY) : null;
-  if (index === null) return '';
-  return wordAt(text, index) || (index > 0 ? wordAt(text, index - 1) : '');
-}
-
 /**
  * A log viewer: virtualized lines colored by level, search with level filter, highlight terms,
  * follow mode and byte-offset bookmarks. Knows nothing about files: the app passes the lines and
@@ -112,20 +69,14 @@ export function LogView({
 }: LogViewProps) {
   const scroller = useRef<HTMLDivElement>(null);
   const searchInput = useRef<HTMLInputElement>(null);
-  const listWrap = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const [viewport, setViewport] = useState(0);
   const [query, setQuery] = useState<LogQuery>({ text: '' });
   const [levels, setLevels] = useState<ReadonlySet<LogLevel>>(() => new Set());
   const [currentN, setCurrentN] = useState<number | null>(null);
-  const [term, setTerm] = useState('');
   const [menu, setMenu] = useState<{ at: { x: number; y: number }; line: LogLine; word: string } | null>(null);
-  const [listOpen, setListOpen] = useState(false);
-  const { prompt, element: dialogElement } = useDialogs();
   const marks = bookmarks !== undefined && onBookmarksChange !== undefined ? { list: bookmarks, change: onBookmarksChange } : null;
   const markList = marks?.list;
-  const latestMarks = useRef(bookmarks);
-  latestMarks.current = bookmarks;
 
   useEffect(() => {
     const el = scroller.current;
@@ -135,15 +86,6 @@ export function LogView({
     setViewport(el.clientHeight);
     return () => observer.disconnect();
   }, []);
-
-  useEffect(() => {
-    if (!listOpen) return;
-    const onDown = (e: globalThis.MouseEvent) => {
-      if (!listWrap.current?.contains(e.target as Node) && !(e.target as Element).closest?.('.modal-backdrop')) setListOpen(false);
-    };
-    window.addEventListener('mousedown', onDown, true);
-    return () => window.removeEventListener('mousedown', onDown, true);
-  }, [listOpen]);
 
   const filtered = useMemo(() => filterLines(lines, levels.size ? levels : null), [lines, levels]);
   const counts = useMemo(() => levelCounts(lines), [lines]);
@@ -197,7 +139,7 @@ export function LogView({
       return;
     }
     // No current hit yet: start from the top of the view.
-    const top = Math.floor((scroller.current?.scrollTop ?? 0) / rowHeight) - (rows.length - filtered.length);
+    const top = lineIndexAt(rows, Math.floor((scroller.current?.scrollTop ?? 0) / rowHeight));
     const below = hits.findIndex((i) => i >= top);
     const first = below >= 0 ? below : hits.length;
     goTo(dir > 0 ? first % hits.length : (first - 1 + hits.length) % hits.length);
@@ -251,25 +193,11 @@ export function LogView({
     if (endOffset === undefined) return;
     const last = lines.at(-1)?.partial ? lines.at(-2) : lines.at(-1);
     const at = Date.now();
-    addMark({ offset: endOffset, label: clock(at), at, preview: last?.text.slice(0, PREVIEW_CHARS) ?? '' });
+    addMark({ offset: endOffset, label: clock(at), at, preview: last?.text.slice(0, MAX_PREVIEW_CHARS) ?? '' });
   };
 
   const bookmarkLine = (line: LogLine) =>
-    addMark({ offset: line.offset, label: t('log.lineLabel', { n: line.n + 1 }), at: Date.now(), preview: line.text.slice(0, PREVIEW_CHARS) });
-
-  const same = (a: LogBookmark) => (b: LogBookmark) => a.at === b.at && a.offset === b.offset;
-
-  const rename = async (b: LogBookmark) => {
-    const label = await prompt({
-      title: t('log.rename'),
-      label: t('log.renameLabel'),
-      value: b.label,
-      validate: (v) => (!v.trim() ? t('log.labelEmpty') : v.trim().length > LABEL_MAX ? t('log.labelTooLong', { max: LABEL_MAX }) : null),
-    });
-    const list = latestMarks.current;
-    if (label === null || !list || !onBookmarksChange) return;
-    onBookmarksChange(list.map((x) => (same(b)(x) ? { ...x, label: label.trim() } : x)));
-  };
+    addMark({ offset: line.offset, label: t('log.lineLabel', { n: line.n + 1 }), at: Date.now(), preview: line.text.slice(0, MAX_PREVIEW_CHARS) });
 
   const menuItems = (line: LogLine, word: string): Array<ContextMenuItem | 'sep'> => {
     const shown = word.length > MENU_WORD_CHARS ? `${word.slice(0, MENU_WORD_CHARS)}…` : word;
@@ -282,15 +210,6 @@ export function LogView({
     if (marks) items.push({ id: 'bookmark', label: t('log.bookmarkLine'), icon: 'bookmark', run: () => bookmarkLine(line) });
     return items;
   };
-
-  const sortedMarks = useMemo(() => (markList ? [...markList].sort((a, b) => b.at - a.at) : []), [markList]);
-  const newest = sortedMarks[0];
-  const sinceNewest = (() => {
-    if (!newest || isStale(newest, endOffset) || newest.offset < windowStart) return null;
-    const i = firstLineAtOrAfter(lines, newest.offset);
-    if (i < 0) return 0;
-    return lines.length - i - (lines.at(-1)?.partial ? 1 : 0);
-  })();
 
   const renderText = (line: LogLine, current: boolean) =>
     segments(line.text, highlights, re).map((s, k) =>
@@ -346,76 +265,19 @@ export function LogView({
           </button>
         )}
         {marks && (
-          <div className="menu-wrap" ref={listWrap}>
-            <button className="btn btn-sm" aria-expanded={listOpen} onClick={() => setListOpen(!listOpen)}>
-              {t('log.bookmarks')} <span className="log-level-count">{marks.list.length}</span> <Icon name="chevron-down" size={12} />
-            </button>
-            {listOpen && (
-              <div className="menu log-bookmarks" onKeyDown={(e) => e.key === 'Escape' && setListOpen(false)}>
-                {sortedMarks.length === 0 && <div className="log-bm-empty">{t('log.noBookmarks')}</div>}
-                {newest && sinceNewest !== null && <div className="log-bm-since">{t('log.linesAfter', { count: sinceNewest, label: newest.label })}</div>}
-                {sortedMarks.map((b) => {
-                  const stale = isStale(b, endOffset);
-                  const row = stale ? -1 : rows.indexOf(b);
-                  return (
-                    <div key={`${b.at}-${b.offset}`} className={`log-bm${stale ? ' stale' : ''}`}>
-                      <div className="log-bm-head">
-                        <button className="log-bm-label" title={t('log.rename')} onClick={() => void rename(b)}>{b.label}</button>
-                        <span className="log-bm-time">{clock(b.at)}</span>
-                      </div>
-                      {stale ? <div className="log-bm-hint">{t('log.stale')}</div> : b.preview && <div className="log-bm-preview">{b.preview}</div>}
-                      <div className="log-bm-actions">
-                        <button className="btn btn-ghost btn-sm" disabled={row < 0} onClick={() => { setListOpen(false); reveal(row); }}>
-                          <Icon name="forward" size={14} /> {t('log.goTo')}
-                        </button>
-                        {onCopyFrom && (
-                          <button className="btn btn-ghost btn-sm" disabled={stale} onClick={() => onCopyFrom(b)}>
-                            <Icon name="copy" size={14} /> {t('log.copyToEnd')}
-                          </button>
-                        )}
-                        {onSaveFrom && (
-                          <button className="btn btn-ghost btn-sm" disabled={stale} onClick={() => onSaveFrom(b)}>
-                            <Icon name="download" size={14} /> {t('log.saveToEnd')}
-                          </button>
-                        )}
-                        <span className="spacer" />
-                        <button className="btn btn-ghost btn-sm log-icon-btn" title={t('log.delete')} aria-label={t('log.delete')} onClick={() => marks.change(marks.list.filter((x) => !same(b)(x)))}>
-                          <Icon name="trash" size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          <LogBookmarkMenu
+            bookmarks={marks.list}
+            onBookmarksChange={marks.change}
+            lines={lines}
+            endOffset={endOffset}
+            onGoTo={(b) => reveal(rows.indexOf(b))}
+            onCopyFrom={onCopyFrom}
+            onSaveFrom={onSaveFrom}
+          />
         )}
       </div>
       {reError !== null && <div className="field-error log-regex-error">{reError}</div>}
-      <div className="log-toolbar log-highlights">
-        {highlights.map((h, i) => (
-          <span key={h.text} className={`log-chip log-c-${h.color}`}>
-            <button className="log-dot" title={t('log.highlightColor')} aria-label={t('log.highlightColor')} onClick={() => onHighlightsChange(highlights.map((x, j) => (j === i ? { ...x, color: nextColor(x.color) } : x)))} />
-            <span className="log-chip-text">{h.text}</span>
-            <button className="log-chip-x" title={t('log.highlightRemove')} aria-label={t('log.highlightRemove')} onClick={() => onHighlightsChange(highlights.filter((_, j) => j !== i))}>
-              <Icon name="close" size={12} />
-            </button>
-          </span>
-        ))}
-        <form
-          className="log-add"
-          onSubmit={(e: FormEvent) => {
-            e.preventDefault();
-            addTerm(term);
-            setTerm('');
-          }}
-        >
-          <input value={term} placeholder={t('log.highlightPlaceholder')} aria-label={t('log.highlightPlaceholder')} spellCheck={false} disabled={highlights.length >= MAX_HIGHLIGHTS} onChange={(e) => setTerm(e.target.value)} />
-          <button type="submit" className="btn btn-ghost btn-sm" disabled={!term.trim() || highlights.length >= MAX_HIGHLIGHTS}>
-            <Icon name="plus" size={14} /> {t('log.highlightAdd')}
-          </button>
-        </form>
-      </div>
+      <LogHighlightBar highlights={highlights} onHighlightsChange={onHighlightsChange} />
       <div ref={scroller} className="log-scroll" tabIndex={0} onScroll={(e) => onScroll(e.currentTarget)}>
         {rows.length === 0 ? (
           <div className="log-empty">{lines.length ? t('log.emptyFiltered') : t('log.empty')}</div>
@@ -455,7 +317,6 @@ export function LogView({
         )}
       </div>
       {menu && <ContextMenu at={menu.at} items={menuItems(menu.line, menu.word)} onClose={() => setMenu(null)} />}
-      {dialogElement}
     </div>
   );
 }
