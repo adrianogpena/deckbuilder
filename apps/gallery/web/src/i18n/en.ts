@@ -200,7 +200,6 @@ export const en = {
   'error.badProjectPath': 'The path must be an existing folder.',
   'error.badProjectName': 'The name must have 1 to 80 characters.',
   'error.badRequestName': 'The name must have 1 to 80 characters.',
-  'error.badSavedRequest': 'The request is not valid.',
   'error.pickFolderFirst': 'Choose the folder with Browse.',
   'error.notASaveTarget': 'Choose where to save first.',
 };

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { bodyView, draftToSpec, emptyDraft, formatBytes, formatMs, statusTone } from '../src/http.ts';
+import { bodyView, draftToSpec, emptyDraft, formatBytes, formatMs, statusTone, timeoutFromSeconds } from '../src/http.ts';
 
 const h = (name: string, value: string, enabled = true) => ({ name, value, enabled });
 
@@ -79,5 +79,15 @@ describe('bodyView', () => {
 
   test('binary', () => {
     expect(bodyView({ binary: true, contentType: 'image/png' })).toEqual({ kind: 'binary' });
+  });
+});
+
+describe('timeoutFromSeconds', () => {
+  test('rounds to whole seconds within the bounds', () => {
+    expect(timeoutFromSeconds('1.0001')).toBe(1000);
+    expect(timeoutFromSeconds('0')).toBe(1000);
+    expect(timeoutFromSeconds('999')).toBe(300_000);
+    expect(timeoutFromSeconds('')).toBeUndefined();
+    expect(timeoutFromSeconds('abc')).toBeUndefined();
   });
 });

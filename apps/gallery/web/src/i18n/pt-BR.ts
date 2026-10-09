@@ -202,7 +202,6 @@ export const ptBR: Messages<typeof en> = {
   'error.badProjectPath': 'O caminho deve ser uma pasta existente.',
   'error.badProjectName': 'O nome deve ter de 1 a 80 caracteres.',
   'error.badRequestName': 'O nome deve ter de 1 a 80 caracteres.',
-  'error.badSavedRequest': 'A requisição não é válida.',
   'error.pickFolderFirst': 'Escolha a pasta com Procurar.',
   'error.notASaveTarget': 'Escolha onde salvar primeiro.',
 };

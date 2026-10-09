@@ -1,21 +1,20 @@
-import type { HttpMethod, HttpRequestSpec, HttpResponseInfo } from '@deckbuilder/server-core/protocol';
+import {
+  HTTP_TIMEOUT_MAX_MS,
+  HTTP_TIMEOUT_MIN_MS,
+  type HttpMethod,
+  type HttpRequestDraft,
+  type HttpRequestSpec,
+  type HttpResponseInfo,
+} from '@deckbuilder/server-core/protocol';
 import type { Lang } from './languages';
 
-export interface HttpHeaderDraft {
-  name: string;
-  value: string;
-  enabled: boolean;
-}
+export type { HttpHeaderDraft, HttpRequestDraft } from '@deckbuilder/server-core/protocol';
 
-export interface HttpRequestDraft {
-  method: HttpMethod;
-  url: string;
-  headers: HttpHeaderDraft[];
-  body: string;
-  bodyLang: 'json' | 'text';
-  timeoutMs?: number;
-  insecure?: boolean;
-  followRedirects?: boolean;
+/** The timeout field's text (seconds) as whole-second milliseconds within the protocol bounds; undefined for empty or not a number. */
+export function timeoutFromSeconds(text: string): number | undefined {
+  const n = Number(text);
+  if (text.trim() === '' || !Number.isFinite(n)) return undefined;
+  return Math.min(HTTP_TIMEOUT_MAX_MS, Math.max(HTTP_TIMEOUT_MIN_MS, Math.round(n) * 1000));
 }
 
 export const emptyDraft = (): HttpRequestDraft => ({ method: 'GET', url: '', headers: [], body: '', bodyLang: 'json' });

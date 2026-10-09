@@ -62,17 +62,41 @@ export type HttpMethod = (typeof HTTP_METHODS)[number];
 
 /** Response bodies above this are cut and marked `truncated`. */
 export const HTTP_MAX_BODY_BYTES = 10_000_000;
+/** Request limits, shared by the send route, saved drafts and the editor. */
+export const HTTP_MAX_HEADERS = 100;
+export const HTTP_MAX_BODY_CHARS = 900_000;
+export const HTTP_MAX_URL_CHARS = 4096;
+export const HTTP_TIMEOUT_MIN_MS = 1_000;
+export const HTTP_TIMEOUT_MAX_MS = 300_000;
 
 export interface HttpRequestSpec {
   method: HttpMethod;
   url: string;
   headers: Array<[string, string]>;
   body?: string;
-  /** Default 60_000, 1_000..300_000. */
+  /** Default 60_000, HTTP_TIMEOUT_MIN_MS..HTTP_TIMEOUT_MAX_MS. */
   timeoutMs?: number;
   /** Default false: skip TLS certificate checks. */
   insecure?: boolean;
   /** Default true. */
+  followRedirects?: boolean;
+}
+
+export interface HttpHeaderDraft {
+  name: string;
+  value: string;
+  enabled: boolean;
+}
+
+/** A request as the editor holds and saves it; `draftToSpec` (editor) turns it into a spec. */
+export interface HttpRequestDraft {
+  method: HttpMethod;
+  url: string;
+  headers: HttpHeaderDraft[];
+  body: string;
+  bodyLang: 'json' | 'text';
+  timeoutMs?: number;
+  insecure?: boolean;
   followRedirects?: boolean;
 }
 

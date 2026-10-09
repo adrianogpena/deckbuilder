@@ -1,8 +1,8 @@
-import { HTTP_METHODS, type HttpMethod } from '@deckbuilder/server-core/protocol';
+import { HTTP_METHODS, HTTP_TIMEOUT_MAX_MS, HTTP_TIMEOUT_MIN_MS, type HttpMethod } from '@deckbuilder/server-core/protocol';
 import { Icon, Spinner, t } from '@deckbuilder/ui';
 import { useState } from 'react';
 import { CodeEditor } from './CodeEditor';
-import { type HttpHeaderDraft, type HttpRequestDraft, sendsBody } from './http';
+import { type HttpHeaderDraft, type HttpRequestDraft, sendsBody, timeoutFromSeconds } from './http';
 
 type Tab = 'headers' | 'body' | 'options';
 const TABS: Tab[] = ['headers', 'body', 'options'];
@@ -20,6 +20,10 @@ export function RequestEditor({ value, onChange, onSend, onCancel, sending }: Re
   const [tab, setTab] = useState<Tab>('headers');
   const set = (patch: Partial<HttpRequestDraft>) => onChange({ ...value, ...patch });
   const enabledHeaders = value.headers.filter((h) => h.enabled && h.name.trim() !== '').length;
+  const canSend = value.url.trim() !== '';
+  const send = () => {
+    if (canSend && !sending) onSend();
+  };
 
   return (
     <div className="req-editor">
@@ -35,13 +39,13 @@ export function RequestEditor({ value, onChange, onSend, onCancel, sending }: Re
           aria-label={t('http.url')}
           onChange={(e) => set({ url: e.target.value })}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && !sending) onSend();
+            if (e.key === 'Enter') send();
           }}
         />
         {sending ? (
           <button className="btn" onClick={onCancel} disabled={!onCancel}>{t('dialog.cancel')}</button>
         ) : (
-          <button className="btn btn-primary req-send" onClick={onSend} disabled={value.url.trim() === ''}>
+          <button className="btn btn-primary req-send" onClick={send} disabled={!canSend}>
             <Icon name="send" /> {t('http.send')}
           </button>
         )}
@@ -57,7 +61,7 @@ export function RequestEditor({ value, onChange, onSend, onCancel, sending }: Re
       </div>
       <div className="req-panel">
         {tab === 'headers' && <HeadersTab headers={value.headers} onChange={(headers) => set({ headers })} />}
-        {tab === 'body' && <BodyTab value={value} onChange={set} onSend={() => !sending && onSend()} />}
+        {tab === 'body' && <BodyTab value={value} onChange={set} onSend={send} />}
         {tab === 'options' && <OptionsTab value={value} onChange={set} />}
       </div>
     </div>
@@ -157,14 +161,11 @@ function OptionsTab({ value, onChange }: { value: HttpRequestDraft; onChange(pat
         <span>{t('http.timeout')}</span>
         <input
           type="number"
-          min={1}
-          max={300}
+          min={HTTP_TIMEOUT_MIN_MS / 1000}
+          max={HTTP_TIMEOUT_MAX_MS / 1000}
           value={seconds}
           placeholder="60"
-          onChange={(e) => {
-            const n = Number(e.target.value);
-            onChange({ timeoutMs: e.target.value === '' || !Number.isFinite(n) ? undefined : Math.min(300, Math.max(1, n)) * 1000 });
-          }}
+          onChange={(e) => onChange({ timeoutMs: timeoutFromSeconds(e.target.value) })}
         />
       </label>
       <label className="req-check">

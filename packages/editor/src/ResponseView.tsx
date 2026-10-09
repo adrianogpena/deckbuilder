@@ -1,4 +1,4 @@
-import { HTTP_MAX_BODY_BYTES, type HttpResponseInfo } from '@deckbuilder/server-core/protocol';
+import type { HttpResponseInfo } from '@deckbuilder/server-core/protocol';
 import { type ApiError, Badge, CopyButton, ErrorBanner, Icon, JsonTree, PanelBanner, PanelNotice, Spinner, t } from '@deckbuilder/ui';
 import { useMemo, useState } from 'react';
 import { CodeView } from './CodeView';
@@ -36,7 +36,7 @@ function ResponseBody({ response, sending, onSave }: { response: HttpResponseInf
           <button className="btn btn-sm" onClick={onSave}><Icon name="download" /> {t('http.save')}</button>
         )}
       </div>
-      {response.truncated && <PanelBanner tone="warn" icon="alert">{t('http.truncated', { size: formatBytes(HTTP_MAX_BODY_BYTES) })}</PanelBanner>}
+      {response.truncated && <PanelBanner tone="warn" icon="alert">{t('http.truncated', { size: formatBytes(response.size) })}</PanelBanner>}
       <div className="req-tabs" role="tablist">
         {(['body', 'headers'] as const).map((id) => (
           <button key={id} role="tab" aria-selected={tab === id} className={`req-tab${tab === id ? ' active' : ''}`} onClick={() => setTab(id)}>

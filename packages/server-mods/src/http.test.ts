@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, expect, test } from 'bun:test';
 import type { saveFileAs } from '@deckbuilder/platform';
 import type { AppError, RouteContext } from '@deckbuilder/server-core';
-import { httpExecutor, httpRoutes, suggestedName, validateRequest } from './http.ts';
+import { httpExecutor, httpRoutes, suggestedName, validateDraft, validateRequest } from './http.ts';
 
 let server: ReturnType<typeof Bun.serve>;
 let base: string;
@@ -125,6 +125,67 @@ test('validateRequest builds a fresh object with the defaults', () => {
   const out = validateRequest(input);
   expect(out).toEqual({ method: 'POST', url: 'http://localhost/', headers: [['a', 'b']], body: 'x', timeoutMs: 60_000, insecure: false, followRedirects: true });
   expect(out.headers).not.toBe(input.headers);
+});
+
+test('validateDraft refuses drafts out of range and returns a fresh object', () => {
+  const draft = { method: 'POST', url: 'http://localhost/', headers: [{ name: 'a', value: 'b', enabled: true }], body: 'x', bodyLang: 'json' };
+  const fail = (input: Record<string, unknown>) => {
+    try {
+      validateDraft({ ...draft, ...input });
+    } catch (err) {
+      return (err as AppError).code;
+    }
+    return 'ok';
+  };
+  expect(fail({ headers: Array.from({ length: 101 }, () => ({ name: 'h', value: 'v', enabled: true })) })).toBe('badSavedRequest');
+  expect(fail({ timeoutMs: 1500.5 })).toBe('badSavedRequest');
+  expect(fail({ insecure: 'yes' })).toBe('badSavedRequest');
+  expect(fail({ url: 'x'.repeat(4097) })).toBe('badSavedRequest');
+  expect(fail({ url: '', timeoutMs: 300_000 })).toBe('ok');
+  const input = { ...draft, extra: 1 };
+  const out = validateDraft(input);
+  expect(out).toEqual(draft as typeof out);
+  expect(out).not.toBe(input);
+  expect(out.headers[0]).not.toBe(draft.headers[0]);
+});
+
+test('a saved Authorization does not follow a redirect to another origin', async () => {
+  const seen: Array<string | null> = [];
+  const target = Bun.serve({
+    port: 0,
+    hostname: '127.0.0.1',
+    fetch(req) {
+      seen.push(req.headers.get('authorization'));
+      return new Response('ok');
+    },
+  });
+  const origin = Bun.serve({
+    port: 0,
+    hostname: '127.0.0.1',
+    fetch(req) {
+      const path = new URL(req.url).pathname;
+      if (path === '/away') return new Response(null, { status: 302, headers: { location: `http://localhost:${target.port}/landed` } });
+      if (path === '/near') return new Response(null, { status: 302, headers: { location: '/landed' } });
+      seen.push(req.headers.get('authorization'));
+      return new Response('ok');
+    },
+  });
+  try {
+    const routes = httpRoutes(httpExecutor(), { secretHeaders: async () => [['Authorization', 'Bearer s3cret']] });
+    const send = (path: string) =>
+      Promise.resolve(
+        routes['POST /api/http/send']!({
+          req: new Request('http://x/'),
+          json: async () => ({ request: { method: 'GET', url: `http://127.0.0.1:${origin.port}${path}`, headers: [] }, secretRef: 'tok' }),
+        } as unknown as RouteContext),
+      );
+    await send('/away');
+    await send('/near');
+    expect(seen).toEqual([null, 'Bearer s3cret']);
+  } finally {
+    origin.stop(true);
+    target.stop(true);
+  }
 });
 
 test('secretHeaders gets the request URL and adds Authorization only when absent', async () => {

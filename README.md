@@ -169,8 +169,11 @@ source directly; there is no package build step.
   `@deckbuilder/server-mods`) serve `POST /api/http/send` and `/api/http/save`; the UI is
   `RequestEditor` and `ResponseView` from `@deckbuilder/editor` (pure helpers in
   `@deckbuilder/editor/http`). `secretHeaders(ref, url)` returns headers to add from a stored
-  secret (the gallery sends a saved Authorization only to the origin it was saved with). Limits:
-  10 MB response body, 60 s default timeout, http/https URLs only. See the REST screen.
+  secret (the gallery sends a saved Authorization only to the origin it was saved with).
+  `validateDraft(raw)` checks a saved `HttpRequestDraft` (call it in the store's `validate`); the
+  limits it shares with the send route and the editor are the `HTTP_*` constants in
+  `@deckbuilder/server-core/protocol`. Limits: 10 MB response body, 60 s default timeout,
+  http/https URLs only. See the REST screen.
 - **Rooted file system**: `rootedFs({ roots })` serves `/api/fs/*` (list, read, write, create,
   rename, move, delete, search). Requests carry a root id and a relative path, never an absolute
   path; deletes go to the recycle bin and a root can be `readOnly`. A link is never followed out

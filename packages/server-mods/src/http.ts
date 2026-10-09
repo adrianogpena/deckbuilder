@@ -3,8 +3,14 @@ import { saveFileAs, writeFileAtomic } from '@deckbuilder/platform';
 import { AppError, invalid, type Routes } from '@deckbuilder/server-core';
 import {
   HTTP_MAX_BODY_BYTES,
+  HTTP_MAX_BODY_CHARS,
+  HTTP_MAX_HEADERS,
+  HTTP_MAX_URL_CHARS,
   HTTP_METHODS,
+  HTTP_TIMEOUT_MAX_MS,
+  HTTP_TIMEOUT_MIN_MS,
   type HttpMethod,
+  type HttpRequestDraft,
   type HttpRequestSpec,
   type HttpResponseInfo,
 } from '@deckbuilder/server-core/protocol';
@@ -37,14 +43,15 @@ export interface HttpRoutesOptions {
   save?: typeof saveFileAs;
 }
 
-const MAX_HEADERS = 100;
-const MAX_BODY_CHARS = 900_000;
+const MAX_HEADER_NAME_CHARS = 200;
+const MAX_HEADER_VALUE_CHARS = 8192;
 const DEFAULT_TIMEOUT_MS = 60_000;
 const HEADER_NAME = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
 const HEADER_VALUE_BAD = /[\r\n\0]/;
 
 const badRequest = () => invalid('badRequest', 'Invalid request.');
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+const validTimeout = (ms: unknown): ms is number => typeof ms === 'number' && Number.isInteger(ms) && ms >= HTTP_TIMEOUT_MIN_MS && ms <= HTTP_TIMEOUT_MAX_MS;
 
 /** The request as a fresh, fully defaulted spec; throws an `invalid` AppError for anything out of range (never clamps). */
 export function validateRequest(input: unknown): HttpRequestSpec {
@@ -65,16 +72,64 @@ export function validateRequest(input: unknown): HttpRequestSpec {
     if (!Array.isArray(pair) || pair.length !== 2 || typeof pair[0] !== 'string' || typeof pair[1] !== 'string') throw badRequest();
     return [pair[0], pair[1]];
   });
-  if (pairs.length > MAX_HEADERS || pairs.some(([name, value]) => !HEADER_NAME.test(name) || HEADER_VALUE_BAD.test(value))) {
+  if (pairs.length > HTTP_MAX_HEADERS || pairs.some(([name, value]) => !HEADER_NAME.test(name) || HEADER_VALUE_BAD.test(value))) {
     throw invalid('badHeader', 'A header name or value is not valid.');
   }
-  if (body !== undefined && (typeof body !== 'string' || body.length > MAX_BODY_CHARS)) throw badRequest();
+  if (body !== undefined && (typeof body !== 'string' || body.length > HTTP_MAX_BODY_CHARS)) throw badRequest();
   if (body && (method === 'GET' || method === 'HEAD')) throw invalid('bodyNotAllowed', 'GET and HEAD requests cannot have a body.');
-  if (typeof timeoutMs !== 'number' || !Number.isInteger(timeoutMs) || timeoutMs < 1_000 || timeoutMs > 300_000) throw badRequest();
+  if (!validTimeout(timeoutMs)) throw badRequest();
   if (typeof insecure !== 'boolean' || typeof followRedirects !== 'boolean') throw badRequest();
   const spec: HttpRequestSpec = { method: method as HttpMethod, url, headers: pairs, timeoutMs, insecure, followRedirects };
   if (body) spec.body = body;
   return spec;
+}
+
+const badSavedRequest = () => invalid('badSavedRequest', 'The request is not valid.');
+
+/**
+ * A saved request draft as a fresh object; throws `badSavedRequest` for anything out of range.
+ * Looser than `validateRequest` (an empty or unfinished URL can be saved), but within its limits.
+ */
+export function validateDraft(raw: unknown): HttpRequestDraft {
+  if (!isObject(raw)) throw badSavedRequest();
+  const { method, url, headers, body, bodyLang, timeoutMs, insecure, followRedirects } = raw;
+  if (!(HTTP_METHODS as readonly unknown[]).includes(method)) throw badSavedRequest();
+  if (typeof url !== 'string' || url.length > HTTP_MAX_URL_CHARS) throw badSavedRequest();
+  if (!Array.isArray(headers) || headers.length > HTTP_MAX_HEADERS) throw badSavedRequest();
+  if (typeof body !== 'string' || body.length > HTTP_MAX_BODY_CHARS) throw badSavedRequest();
+  if (bodyLang !== 'json' && bodyLang !== 'text') throw badSavedRequest();
+  const out: HttpRequestDraft = {
+    method: method as HttpMethod,
+    url,
+    headers: headers.map((h) => {
+      if (
+        !isObject(h) ||
+        typeof h.name !== 'string' ||
+        h.name.length > MAX_HEADER_NAME_CHARS ||
+        typeof h.value !== 'string' ||
+        h.value.length > MAX_HEADER_VALUE_CHARS ||
+        typeof h.enabled !== 'boolean'
+      ) {
+        throw badSavedRequest();
+      }
+      return { name: h.name, value: h.value, enabled: h.enabled };
+    }),
+    body,
+    bodyLang,
+  };
+  if (timeoutMs !== undefined) {
+    if (!validTimeout(timeoutMs)) throw badSavedRequest();
+    out.timeoutMs = timeoutMs;
+  }
+  if (insecure !== undefined) {
+    if (typeof insecure !== 'boolean') throw badSavedRequest();
+    out.insecure = insecure;
+  }
+  if (followRedirects !== undefined) {
+    if (typeof followRedirects !== 'boolean') throw badSavedRequest();
+    out.followRedirects = followRedirects;
+  }
+  return out;
 }
 
 const isTextType = (contentType: string) => {
