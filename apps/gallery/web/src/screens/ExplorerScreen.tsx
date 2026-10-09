@@ -17,7 +17,6 @@ import {
   PageHead,
   PanelLoading,
   ResourceForm,
-  ResourceList,
   restore,
   serialize,
   singlePane,
@@ -32,6 +31,7 @@ import {
 import { api, type ExplorerSettings, type LogSettings, type Project, type Settings } from '../api';
 import { nodeId } from '../explorer-paths';
 import { t } from '../i18n';
+import { ProjectPicker } from './explorer/ProjectPicker';
 import { ProjectTree } from './explorer/ProjectTree';
 
 // The editor and viewers are large; they load when the first file opens.
@@ -52,6 +52,9 @@ interface State {
   sizes: [number, number];
   collapsed: boolean;
   expanded: Record<string, string[]>;
+  /** Saved project ids shown in the sidebar; `shownIds` resolves them against the project list. */
+  trees: string[];
+  treeSizes?: [number, number];
   layout: Layout<Route>;
 }
 
@@ -65,8 +68,16 @@ function initialState(saved: ExplorerSettings | undefined): State {
     sizes: Array.isArray(sizes) && sizes.length === 2 && sizes.every((n) => typeof n === 'number') ? [sizes[0], sizes[1]] : [0.25, 0.75],
     collapsed: saved?.collapsed === true,
     expanded,
+    trees: Array.isArray(saved?.trees) ? saved.trees.filter((x): x is string => typeof x === 'string').slice(0, 2) : [],
+    treeSizes: saved?.treeSizes,
     layout: restore(saved?.tabs, isRoute) ?? singlePane(newTab<Route>(WELCOME)),
   };
+}
+
+/** Id of the project the sidebar shows: the saved one, else the first with expanded folders, else the first project. */
+function shownId(state: State, list: Project[]): string | undefined {
+  const saved = list.find((p) => p.id === state.trees[0]);
+  return (saved ?? list.find((p) => state.expanded[p.id]) ?? list[0])?.id;
 }
 
 const fresh = () => newTab<Route>(WELCOME);
@@ -103,7 +114,16 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
   const [actionError, setActionError] = useState<ApiError>();
 
   const persist = useDebouncedSave((s: State) =>
-    onSave({ explorer: { sizes: s.sizes, collapsed: s.collapsed, expanded: s.expanded, tabs: serialize(s.layout) } }),
+    onSave({
+      explorer: {
+        sizes: s.sizes,
+        collapsed: s.collapsed,
+        expanded: s.expanded,
+        ...(s.trees.length > 0 && { trees: s.trees }),
+        ...(s.treeSizes && { treeSizes: s.treeSizes }),
+        tabs: serialize(s.layout),
+      },
+    }),
   );
   const [logs, setLogs] = useState<LogSettings | undefined>(settings.logs);
   const saveLogs = useDebouncedSave((l: LogSettings) => onSave({ logs: l }));
@@ -120,14 +140,13 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
   const setExpanded = (project: string, ids: string[]) =>
     update((s) => ({ ...s, expanded: { ...s.expanded, [project]: ids.slice(-MAX_EXPANDED) } }));
 
-  const openProject = (id: string) =>
-    update((s) => (s.expanded[id] ? s : { ...s, expanded: { ...s.expanded, [id]: [nodeId(id, '')] } }));
-
-  const closeProject = (id: string) =>
-    update((s) => {
-      const { [id]: _closed, ...expanded } = s.expanded;
-      return { ...s, expanded };
-    });
+  /** Shows `id` in the first tree, expanding its root the first time. */
+  const pickProject = (id: string) =>
+    update((s) => ({
+      ...s,
+      trees: [id, ...s.trees.slice(1).filter((x) => x !== id)],
+      expanded: s.expanded[id] ? s.expanded : { ...s.expanded, [id]: [nodeId(id, '')] },
+    }));
 
   const openFile = (project: string, path: string) =>
     update((s) => {
@@ -169,9 +188,15 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
       setActionError(errorOf(err));
       return;
     }
+    const at = list.findIndex((p) => p.id === project.id);
+    const next = list[at + 1] ?? list[at - 1];
     update((s) => {
       const { [project.id]: _removed, ...expanded } = s.expanded;
-      return { ...s, expanded, layout: closeTabsWhere(s.layout, (r) => r.kind === 'file' && r.project === project.id) };
+      const rest = s.trees.filter((x) => x !== project.id);
+      const shownRemoved = s.trees[0] === project.id || (s.trees.length === 0 && shownId(s, list) === project.id);
+      const trees = shownRemoved && next ? [next.id, ...rest.filter((x) => x !== next.id)] : rest;
+      if (shownRemoved && next && !expanded[next.id]) expanded[next.id] = [nodeId(next.id, '')];
+      return { ...s, expanded, trees, layout: closeTabsWhere(s.layout, (r) => r.kind === 'file' && r.project === project.id) };
     });
     projects.reload();
   };
@@ -183,7 +208,7 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
       const saved = form.project ? await api.updateProject(form.project.id, values) : await api.createProject(values);
       setForm(undefined);
       projects.reload();
-      if (!form.project) openProject(saved.id);
+      if (!form.project) pickProject(saved.id);
     } catch (err) {
       setFormError(errorOf(err));
     }
@@ -204,6 +229,9 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
           ...fileIconOf(relPath.basename(route.path)),
         };
 
+  const currentId = shownId(state, list);
+  const current = list.find((p) => p.id === currentId);
+
   const sidebar = (
     <>
       {actionError && <ErrorBanner error={actionError} compact />}
@@ -211,39 +239,34 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
       {projects.loading && !projects.data ? (
         <div className="xp-loading"><Spinner small /></div>
       ) : (
-        <ResourceList
-          items={list}
-          titleOf={(p) => p.name}
-          subtitleOf={(p) => p.path}
-          iconOf={() => 'folder'}
-          onOpen={(p) => openProject(p.id)}
-          onEdit={(p) => {
-            setFormError(undefined);
-            setForm({ project: p });
-          }}
-          onDelete={(p) => void removeProject(p)}
-          onAdd={() => {
-            setFormError(undefined);
-            setForm({});
-          }}
-          emptyTitle={t('explorer.noProjects')}
-          deleteBodyOf={(p) => t('explorer.deleteProjectBody', { name: p.name })}
-        />
-      )}
-      {list
-        .filter((p) => state.expanded[p.id])
-        .map((p) => (
-          <ProjectTree
-            key={p.id}
-            project={p}
-            expanded={state.expanded[p.id] ?? []}
-            onExpandedChange={(ids) => setExpanded(p.id, ids)}
-            onOpenFile={openFile}
-            onMoved={moved}
-            onDeleted={deleted}
-            onClose={() => closeProject(p.id)}
+        <>
+          <ProjectPicker
+            projects={list}
+            current={current}
+            onPick={(p) => pickProject(p.id)}
+            onAdd={() => {
+              setFormError(undefined);
+              setForm({});
+            }}
+            onEdit={(p) => {
+              setFormError(undefined);
+              setForm({ project: p });
+            }}
+            onRemove={(p) => void removeProject(p)}
           />
-        ))}
+          {current && (
+            <ProjectTree
+              key={current.id}
+              project={current}
+              expanded={state.expanded[current.id] ?? [nodeId(current.id, '')]}
+              onExpandedChange={(ids) => setExpanded(current.id, ids)}
+              onOpenFile={openFile}
+              onMoved={moved}
+              onDeleted={deleted}
+            />
+          )}
+        </>
+      )}
     </>
   );
 
@@ -269,7 +292,7 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
                 <FileTab project={tab.route.project} projectName={nameOf(tab.route.project)} path={tab.route.path} focused={ctx.focused} logs={logs} onLogsChange={changeLogs} />
               </Suspense>
             ) : (
-              <Welcome projects={list} onOpen={openProject} />
+              <Welcome projects={list} onOpen={pickProject} />
             )
           }
         />

@@ -42,11 +42,10 @@ export interface ProjectTreeProps {
   /** A file or folder was renamed or moved. */
   onMoved(project: string, from: string, to: string): void;
   onDeleted(project: string, path: string): void;
-  onClose(): void;
 }
 
-/** One project of the sidebar: a search box and the lazy tree of its folder, with the file actions. */
-export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, onMoved, onDeleted, onClose }: ProjectTreeProps) {
+/** The project shown in the sidebar: a search box and the lazy tree of its folder, with the file actions. */
+export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, onMoved, onDeleted }: ProjectTreeProps) {
   const tree = useRef<TreeViewHandle>(null);
   const { confirm, prompt, element } = useDialogs();
   const [error, setError] = useState<ApiError>();
@@ -239,9 +238,6 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
         </form>
         <button type="button" className={`chip${content ? ' chip-on' : ''}`} onClick={toggleContent} aria-pressed={content}>
           {t('explorer.search.content')}
-        </button>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={onClose} title={t('explorer.closeProject')} aria-label={t('explorer.closeProject')}>
-          <Icon name="close" />
         </button>
       </div>
       {error && (

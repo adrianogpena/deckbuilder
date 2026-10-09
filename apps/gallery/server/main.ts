@@ -64,6 +64,10 @@ export interface ExplorerSettings {
   sizes: [number, number];
   collapsed: boolean;
   expanded: Record<string, string[]>;
+  /** Project ids shown in the sidebar, 1 or 2. */
+  trees?: string[];
+  /** Fractions of the two trees when `trees` has 2. */
+  treeSizes?: [number, number];
   tabs?: unknown;
 }
 
@@ -79,7 +83,7 @@ const isStringArray = (v: unknown): v is string[] => Array.isArray(v) && v.every
 function validExplorer(raw: unknown): ExplorerSettings | null {
   const r = raw as Partial<ExplorerSettings> | null;
   if (typeof r !== 'object' || r === null) return null;
-  const { sizes, collapsed, expanded, tabs } = r;
+  const { sizes, collapsed, expanded, tabs, trees, treeSizes } = r;
   if (!Array.isArray(sizes) || sizes.length !== 2 || !sizes.every((n) => typeof n === 'number' && n >= 0 && n <= 1)) return null;
   if (Math.abs(sizes[0] + sizes[1] - 1) > 0.01) return null;
   if (typeof collapsed !== 'boolean' || typeof expanded !== 'object' || expanded === null || Array.isArray(expanded)) return null;
@@ -89,9 +93,18 @@ function validExplorer(raw: unknown): ExplorerSettings | null {
     out[project] = ids;
   }
   if (tabs !== undefined && (typeof tabs !== 'object' || tabs === null || JSON.stringify(tabs).length >= MAX_TABS_LAYOUT_BYTES)) return null;
-  return { sizes: [sizes[0], sizes[1]], collapsed, expanded: out, ...(tabs !== undefined && { tabs }) };
+  if (trees !== undefined && (!isStringArray(trees) || trees.length < 1 || trees.length > 2 || new Set(trees).size !== trees.length || trees.some((id) => id.length > MAX_ID_LENGTH))) return null;
+  const pair = treeSizes === undefined ? undefined : validPair(treeSizes);
+  if (treeSizes !== undefined && !pair) return null;
+  return {
+    sizes: [sizes[0], sizes[1]],
+    collapsed,
+    expanded: out,
+    ...(trees !== undefined && { trees }),
+    ...(pair && { treeSizes: pair }),
+    ...(tabs !== undefined && { tabs }),
+  };
 }
-
 
 const WORKBENCH_COLUMNS = ['id', 'name', 'amount', 'date'];
 

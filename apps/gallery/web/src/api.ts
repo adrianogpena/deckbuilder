@@ -64,8 +64,12 @@ export interface ExplorerSettings {
   /** Fractions of the sidebar and the workspace. */
   sizes: [number, number];
   collapsed: boolean;
-  /** Expanded tree node ids per project id; a project with an entry is open in the sidebar. */
+  /** Expanded tree node ids per project id. */
   expanded: Record<string, string[]>;
+  /** Project ids shown in the sidebar, 1 or 2. */
+  trees?: string[];
+  /** Fractions of the two trees when `trees` has 2. */
+  treeSizes?: [number, number];
   tabs?: unknown;
 }
 
