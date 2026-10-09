@@ -1,6 +1,6 @@
 import { statSync } from 'node:fs';
-import { isAbsolute } from 'node:path';
-import { appHome, createToaster, openWithDefault, revealInFolder, saveFileAs, secretStore, writeFileAtomic } from '@deckbuilder/platform';
+import { basename, isAbsolute } from 'node:path';
+import { appHome, createToaster, openWithDefault, pickFile, revealInFolder, saveFileAs, secretStore, writeFileAtomic } from '@deckbuilder/platform';
 import type { HttpRequestDraft } from '@deckbuilder/editor/http';
 import { AppError, forbidden, invalid, isRecord, ndjson, type Routes } from '@deckbuilder/server-core';
 import { dialogRoutes, editorRoutes, fromPlatform, httpExecutor, httpRoutes, pickedPaths, recordRoutes, recordStore, rootedFs, validateDraft } from '@deckbuilder/server-mods';
@@ -88,6 +88,12 @@ const secretHeaders = async (ref: string, url: string): Promise<Array<[string, s
   return value ? [['Authorization', value]] : [];
 };
 
+const MAX_IMPORT_BYTES = 1_000_000;
+const HTTP_FILE_FILTERS = [
+  { name: 'HTTP', patterns: ['*.http', '*.rest'] },
+  { name: 'All files', patterns: ['*.*'] },
+];
+
 const MAX_DEMO_ROWS = 100_000;
 const DEMO_BATCH = 500;
 const DEMO_PAUSE_MS = 20;
@@ -139,6 +145,14 @@ export const routes = (ctx: StartContext): Routes => ({
   },
   ...recordRoutes(demoSecrets, '/api/demo/secrets'),
   ...recordRoutes(requests, '/api/requests'),
+  // The file's text goes to the client for parsing; its path never does.
+  'POST /api/requests/import-file': async () => {
+    const path = await pickFile({ filters: HTTP_FILE_FILTERS }).catch(fromPlatform);
+    if (!path) return { text: null };
+    const file = Bun.file(path);
+    if (file.size > MAX_IMPORT_BYTES) throw invalid('importTooLarge', 'The file is too large to import.');
+    return { name: basename(path), text: await file.text() };
+  },
   ...httpRoutes(httpExecutor(), { secretHeaders }),
   // Example endpoint; delete it once real ones exist.
   'POST /api/echo': async ({ json }) => {

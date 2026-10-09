@@ -1,9 +1,23 @@
 import { useRef, useState } from 'react';
-import { draftToSpec, emptyDraft, type HttpRequestDraft, RequestEditor, ResponseView } from '@deckbuilder/editor';
+import { draftToSpec, emptyDraft, type HttpRequestDraft, type ImportedRequest, RequestEditor, ResponseView } from '@deckbuilder/editor';
 import type { HttpResponseInfo } from '@deckbuilder/server-core/protocol';
 import { type ApiError, ErrorBanner, errorOf, Icon, PageHead, SplitView, useAsync, useDebouncedSave, useDialogs } from '@deckbuilder/ui';
 import { api, type RestSettings, type SavedRequest, type Settings } from '../api';
 import { t } from '../i18n';
+import { ImportDialog, requestLabel } from './rest/ImportDialog';
+
+const MAX_NAME = 80;
+
+/** `name`, or `name (2)`, `name (3)`… when taken; the result stays within the name limit. */
+function uniqueName(name: string, taken: Set<string>): string {
+  const base = name.trim().slice(0, MAX_NAME) || 'Request';
+  let candidate = base;
+  for (let n = 2; taken.has(candidate); n++) {
+    const suffix = ` (${n})`;
+    candidate = base.slice(0, MAX_NAME - suffix.length) + suffix;
+  }
+  return candidate;
+}
 
 const DEFAULT_MAIN: [number, number] = [0.5, 0.5];
 
@@ -14,6 +28,8 @@ export function RestScreen({ settings, onSave }: { settings: Settings; onSave: (
   const [draft, setDraft] = useState<HttpRequestDraft>(emptyDraft);
   const [loaded, setLoaded] = useState<SavedRequest>();
   const [auth, setAuth] = useState('');
+  const [imported, setImported] = useState<{ name: string; auth: boolean }>();
+  const [importing, setImporting] = useState(false);
   const [response, setResponse] = useState<HttpResponseInfo>();
   const [error, setError] = useState<ApiError>();
   const [actionError, setActionError] = useState<ApiError>();
@@ -51,11 +67,35 @@ export function RestScreen({ settings, onSave }: { settings: Settings; onSave: (
     setLoaded(item);
     setDraft(item.request);
     setAuth('');
+    setImported(undefined);
   };
   const reset = () => {
     setLoaded(undefined);
     setDraft(emptyDraft());
     setAuth('');
+    setImported(undefined);
+  };
+
+  const loadImported = (item: ImportedRequest) => {
+    setLoaded(undefined);
+    setDraft(item.draft);
+    setAuth(item.auth ?? '');
+    setImported({ name: item.name ?? '', auth: item.auth !== undefined });
+    setResponse(undefined);
+    setError(undefined);
+  };
+
+  const saveImported = async (items: ImportedRequest[]) => {
+    const taken = new Set((saved.data ?? []).map((r) => r.name));
+    try {
+      for (const item of items) {
+        const name = uniqueName(requestLabel(item), taken);
+        taken.add(name);
+        await api.createRequest({ name, request: item.draft, ...(item.auth ? { auth: item.auth } : {}) });
+      }
+    } finally {
+      saved.reload();
+    }
   };
 
   const save = async (asNew: boolean) => {
@@ -67,7 +107,7 @@ export function RestScreen({ settings, onSave }: { settings: Settings; onSave: (
           (await prompt({
             title: t('rest.saveAsTitle'),
             label: t('rest.name'),
-            value: loaded?.name ?? '',
+            value: loaded?.name ?? imported?.name ?? '',
             validate: (v) => (v.trim() ? null : t('error.badRequestName')),
           })) ?? undefined;
         if (!name) return;
@@ -76,6 +116,7 @@ export function RestScreen({ settings, onSave }: { settings: Settings; onSave: (
       const record = asNew || !loaded ? await api.createRequest(input) : await api.updateRequest(loaded.id, input);
       setLoaded(record);
       setAuth('');
+      setImported(undefined);
       saved.reload();
     } catch (err) {
       setActionError(errorOf(err));
@@ -108,6 +149,7 @@ export function RestScreen({ settings, onSave }: { settings: Settings; onSave: (
     <div className="content">
       <PageHead crumb={t('rest.crumb')} title={t('nav.rest')}>
         <div className="row">
+          <button className="btn btn-sm" onClick={() => setImporting(true)}>{t('rest.import')}</button>
           <button className="btn btn-sm" onClick={() => save(false)}>{t('rest.save')}</button>
           <button className="btn btn-sm" onClick={() => save(true)}>{t('rest.saveAs')}</button>
         </div>
@@ -150,12 +192,14 @@ export function RestScreen({ settings, onSave }: { settings: Settings; onSave: (
               <input
                 type="password"
                 value={auth}
-                disabled={!loaded}
+                disabled={!loaded && !imported?.auth}
                 placeholder={loaded?.auth?.hasSecret ? t('rest.authSaved') : ''}
                 onChange={(e) => setAuth(e.target.value)}
                 autoComplete="off"
               />
-              <span className="muted">{loaded ? t('rest.authHint') : t('rest.authNeedsSave')}</span>
+              <span className="muted">
+                {loaded ? t('rest.authHint') : imported?.auth ? t('rest.authImported') : t('rest.authNeedsSave')}
+              </span>
             </label>
           </div>
           <div key="response" className="rest-pane">
@@ -164,6 +208,7 @@ export function RestScreen({ settings, onSave }: { settings: Settings; onSave: (
           </div>
         </SplitView>
       </div>
+      {importing && <ImportDialog onLoad={loadImported} onSaveMany={saveImported} onClose={() => setImporting(false)} />}
       {element}
     </div>
   );

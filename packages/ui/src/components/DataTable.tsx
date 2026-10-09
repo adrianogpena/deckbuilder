@@ -139,6 +139,9 @@ export function DataTable<T>({
     } else if (mod && e.key.toLowerCase() === 'c') {
       e.preventDefault();
       void copySelection();
+    } else if (e.key === 'Escape' && keys.length > 0) {
+      e.preventDefault();
+      changeSelection({ keys: [], anchor: null });
     } else if (e.key === 'Enter') {
       const row = sorted[ordered.indexOf(active.current ?? keys[0] ?? '')];
       if (row !== undefined && onRowOpen) {

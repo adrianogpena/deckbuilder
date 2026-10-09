@@ -224,6 +224,13 @@ source directly; there is no package build step.
   limits it shares with the send route and the editor are the `HTTP_*` constants in
   `@deckbuilder/server-core/protocol`. Limits: 10 MB response body, 60 s default timeout,
   http/https URLs only. See the REST screen.
+  Import: `parseCurl(text)` (browser "Copy as cURL", bash and cmd forms) and `parseHttpFile(text)`
+  (VS Code REST Client / IntelliJ `.http`: `###`, `@var`/`{{var}}`, `# @name`) from
+  `@deckbuilder/editor` return `ImportedRequest`s: `{ name?, draft, auth?, warnings }`, with the
+  Authorization value taken out of the headers into `auth` (the secret field) and `warnings` as
+  `<code>:<argument>` strings to translate; `parseImport(text)` picks cURL or `.http`. A file
+  import is a route that shows `pickFile` on the server and returns only `{ name, text }`, never
+  the path (`POST /api/requests/import-file`, 1 MB at most); the client parses and saves.
 - **Rooted file system**: `rootedFs({ roots })` serves `/api/fs/*` (list, read, write, create,
   rename, move, delete, search). Requests carry a root id and a relative path, never an absolute
   path; deletes go to the recycle bin and a root can be `readOnly`. A link is never followed out

@@ -2,6 +2,7 @@ export * from './CodeEditor';
 export * from './CodeView';
 export * from './FilePreview';
 export * from './http';
+export * from './http-import';
 export * from './RequestEditor';
 export * from './ResponseView';
 export * from './languages';

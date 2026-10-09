@@ -165,6 +165,7 @@ export const api = {
   requests: () => request<SavedRequest[]>('GET', '/api/requests'),
   createRequest: (input: Record<string, unknown>) => request<SavedRequest>('POST', '/api/requests', {}, input),
   updateRequest: (id: string, input: Record<string, unknown>) => request<SavedRequest>('PUT', '/api/requests', { id }, input),
+  importRequestsFile: () => request<{ name?: string; text: string | null }>('POST', '/api/requests/import-file'),
   deleteRequest: (id: string) => request<{ ok: true }>('DELETE', '/api/requests', { id }),
   httpSend: (httpRequest: HttpRequestSpec, secretRef: string | undefined, signal: AbortSignal) =>
     request<HttpResponseInfo>('POST', '/api/http/send', {}, { request: httpRequest, secretRef }, { signal }),

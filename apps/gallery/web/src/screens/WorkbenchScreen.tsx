@@ -14,7 +14,9 @@ import {
   PageHead,
   ResourceForm,
   SplitView,
+  copyText,
   toCsv,
+  toTsv,
   useAsync,
   useDebouncedSave,
   useStream,
@@ -41,6 +43,7 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
   const [query, setQuery] = useState(SAMPLE);
   const [lines, setLines] = useState<OutputLine[]>([]);
   const [actionError, setActionError] = useState<ApiError>();
+  const [selection, setSelection] = useState<string[]>([]);
   const rows = useStream<DemoRow>({ maxItems: ROW_COUNT });
   const cancelled = useRef(false);
   const reported = useRef(0);
@@ -62,6 +65,7 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
     cancelled.current = false;
     reported.current = 0;
     setActionError(undefined);
+    setSelection([]);
     log(t('workbench.log.start', { query: query.trim() }));
     rows.start('/api/demo/rows', { count: ROW_COUNT });
   };
@@ -98,6 +102,14 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
     }
   };
 
+  const copyResults = async () => {
+    const chosen = new Set(selection);
+    const picked = selection.length > 0 ? rows.items.filter((r) => chosen.has(String(r.id))) : rows.items;
+    const cols = columns().map((c) => ({ label: c.label, value: c.value }));
+    if (await copyText(toTsv(cols, picked))) log(t('workbench.log.copied', { count: picked.length }), 'ok');
+    else log(t('workbench.log.copyFailed'), 'err');
+  };
+
   const sizes = state.sizes ?? { main: DEFAULT_MAIN, results: DEFAULT_RESULTS };
   const cols = columns();
 
@@ -110,6 +122,7 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
           </button>
           {rows.running && <button className="btn btn-sm" onClick={cancel}>{t('workbench.cancel')}</button>}
           <button className="btn btn-sm" onClick={exportCsv} disabled={rows.items.length === 0}>{t('workbench.export')}</button>
+          <button className="btn btn-sm" onClick={copyResults} disabled={rows.items.length === 0}>{t(selection.length > 0 ? 'workbench.copySelected' : 'workbench.copy')}</button>
           <span className="muted">{t('workbench.exportHint', { count: EXPORT_ROWS })}</span>
         </div>
       </PageHead>
@@ -135,6 +148,8 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
                 columns={cols}
                 rows={rows.items}
                 rowKey={(r) => String(r.id)}
+                selection={selection}
+                onSelectionChange={setSelection}
                 widths={state.widths}
                 onWidthsChange={(widths) => update(() => ({ widths }))}
               />

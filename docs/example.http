@@ -1,0 +1,40 @@
+# Example for REST -> Import -> Open .http file (public test API, no account needed)
+@host = https://jsonplaceholder.typicode.com
+@token = demo-token-123
+
+### List posts
+GET {{host}}/posts
+  ?userId=1
+  &_limit=5
+Accept: application/json
+
+### Get one post
+# @name get-post
+GET {{host}}/posts/1 HTTP/1.1
+Accept: application/json
+
+### Create a post
+POST {{host}}/posts
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "Hello from deckbuilder",
+  "body": "Imported from a .http file",
+  "userId": 1
+}
+
+### Update a post
+// PUT replaces the whole post
+PUT {{host}}/posts/1
+Content-Type: application/json
+
+{
+  "id": 1,
+  "title": "Updated title",
+  "body": "Updated body",
+  "userId": 1
+}
+
+### Delete a post
+DELETE {{host}}/posts/1
