@@ -1,8 +1,9 @@
 import { Fragment, useState } from 'react';
-import { AppearanceFields, type ApiError, detectLanguage, ErrorBanner, errorMessage, errorOf, isDesktop, LANGUAGES, Modal, PageHead, Spinner, useAsync, type Language } from '@deckbuilder/ui';
+import { AppearanceFields, type ApiError, detectLanguage, ErrorBanner, errorMessage, errorOf, GLOBAL, isDesktop, KeybindingsEditor, LANGUAGES, Modal, PageHead, Spinner, useAsync, useKeybindings, type Language } from '@deckbuilder/ui';
 import { APP } from '../../../app';
 import { api, type BackupInfo, type EditorInfo, type ImportResult, type Settings } from '../api';
 import { type MessageKey, t } from '../i18n';
+import { NAV } from '../nav';
 
 interface Props {
   settings: Settings;
@@ -11,43 +12,87 @@ interface Props {
   onQuit: () => void;
 }
 
+const SECTIONS = [
+  { id: 'general', label: 'settings.general' },
+  { id: 'keys', label: 'settings.keys' },
+  { id: 'editors', label: 'settings.editors' },
+  { id: 'updates', label: 'settings.updates' },
+  { id: 'backup', label: 'settings.backup' },
+] as const satisfies ReadonlyArray<{ id: string; label: MessageKey }>;
+type SectionId = (typeof SECTIONS)[number]['id'];
+
 export function SettingsScreen({ settings, onChange, onQuit }: Props) {
+  const [section, setSection] = useState<SectionId>('general');
   return (
     <div className="content">
       <PageHead crumb={t('settings.crumb')} title={t('settings.title')} />
-      <div className="scroll">
-        <section className="section">
-          <h4 className="mono-label">{t('settings.theme')}</h4>
-          <div className="card form">
-            <AppearanceFields value={settings} onChange={onChange} />
-          </div>
-        </section>
-        <div className="card form">
-          <label className="field">
-            <span className="mono-label">{t('settings.language')}</span>
-            <select value={settings.language ?? detectLanguage()} onChange={(e) => onChange({ language: e.target.value as Language })}>
-              {LANGUAGES.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}
-            </select>
-          </label>
-          <OnOffField
-            label={t('settings.autostart')}
-            hint={t('settings.autostart.hint')}
-            value={settings.autostart}
-            onChange={(autostart) => onChange({ autostart })}
-          />
-          <OnOffField
-            label={t('settings.closeToTray')}
-            hint={t('settings.closeToTray.hint')}
-            value={settings.closeToTray}
-            onChange={(closeToTray) => onChange({ closeToTray })}
-          />
+      <div className="settings-layout">
+        <nav className="settings-nav" aria-label={t('settings.title')}>
+          {SECTIONS.map((s) => (
+            <button key={s.id} className={`settings-nav-item${section === s.id ? ' active' : ''}`} aria-current={section === s.id} onClick={() => setSection(s.id)}>
+              {t(s.label)}
+            </button>
+          ))}
+        </nav>
+        <div className="scroll">
+          {section === 'general' && <GeneralSection settings={settings} onChange={onChange} onQuit={onQuit} />}
+          {section === 'keys' && <KeysCard settings={settings} onChange={onChange} />}
+          {section === 'editors' && <EditorsCard />}
+          {section === 'updates' && <UpdatesCard folder={settings.updateFolder} onFolder={(updateFolder) => onChange({ updateFolder })} />}
+          {section === 'backup' && <BackupCard onSettings={onChange} />}
         </div>
-        {(!isDesktop || settings.closeToTray) && <GeneralCard onQuit={onQuit} />}
-        <EditorsCard />
-        <UpdatesCard folder={settings.updateFolder} onFolder={(updateFolder) => onChange({ updateFolder })} />
-        <BackupCard onSettings={onChange} />
       </div>
     </div>
+  );
+}
+
+function GeneralSection({ settings, onChange, onQuit }: Props) {
+  return (
+    <>
+      <section className="section">
+        <h4 className="mono-label">{t('settings.theme')}</h4>
+        <div className="card form">
+          <AppearanceFields value={settings} onChange={onChange} />
+        </div>
+      </section>
+      <div className="card form">
+        <label className="field">
+          <span className="mono-label">{t('settings.language')}</span>
+          <select value={settings.language ?? detectLanguage()} onChange={(e) => onChange({ language: e.target.value as Language })}>
+            {LANGUAGES.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}
+          </select>
+        </label>
+        <OnOffField
+          label={t('settings.autostart')}
+          hint={t('settings.autostart.hint')}
+          value={settings.autostart}
+          onChange={(autostart) => onChange({ autostart })}
+        />
+        <OnOffField
+          label={t('settings.closeToTray')}
+          hint={t('settings.closeToTray.hint')}
+          value={settings.closeToTray}
+          onChange={(closeToTray) => onChange({ closeToTray })}
+        />
+      </div>
+      {(!isDesktop || settings.closeToTray) && <GeneralCard onQuit={onQuit} />}
+    </>
+  );
+}
+
+/** Every command of the app, with the keys the user can change; a change applies at once. */
+function KeysCard({ settings, onChange }: { settings: Settings; onChange: (patch: Partial<Settings>) => void }) {
+  const keys = useKeybindings();
+  if (!keys) return null;
+  const screens = NAV.flatMap((s) => s.items);
+  const scopeLabel = (scope: string) => (scope === GLOBAL ? t('keys.global') : t(screens.find((i) => i.id === scope)?.label ?? 'nav.home'));
+  return (
+    <section className="section">
+      <h4 className="mono-label">{t('settings.keys')}</h4>
+      <div className="card form keys-card">
+        <KeybindingsEditor defs={keys.defs} keymap={settings.keybindings ?? {}} onChange={(keybindings) => onChange({ keybindings })} scopeLabel={scopeLabel} />
+      </div>
+    </section>
   );
 }
 

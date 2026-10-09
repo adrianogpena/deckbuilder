@@ -131,6 +131,13 @@ source directly; there is no package build step.
   `@deckbuilder/ui/keybindings`. Package commands come from `paletteCommand()`,
   `tabCommands(scope)` and `explorerCommands(scope)`; list them in `defs`. Keys a focused widget
   handles itself (editor, tree and table navigation, dialogs) aren't commands.
+- **Keybindings editor**: `<KeybindingsEditor defs keymap onChange scopeLabel />` (from
+  `@deckbuilder/ui`) lists every command with its keys and edits them: change, add (up to 4) or
+  remove a chord, reset one or all, filter, and "Find by shortcut" (press a chord to see what uses
+  it). It refuses a chord another command uses in the same scope or in `global`. Feed it
+  `useKeybindings()`'s `defs` and the settings' `keymap`, and save `onChange`'s result as
+  `settings.keybindings` (the settings route validates it with `validKeymap`). The provider re-reads
+  the keymap, so changes apply at once. See the gallery's and the template's `SettingsScreen.tsx`.
 - **Collapsible main menu**: `<Sidebar collapsed onCollapsedChange toggleLabel>` shows only the icons
   (items keep their label and `hint` as tooltip) and puts a toggle button in the footer; the app
   keeps `collapsed` in its settings, adds `nav-collapsed` to the `.app` element (narrow first column)

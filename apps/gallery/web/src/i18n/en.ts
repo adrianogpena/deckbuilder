@@ -109,6 +109,8 @@ export const en = {
   'settings.title': 'Settings',
   'settings.theme': 'Theme',
   'settings.general': 'General',
+  'settings.keys': 'Keyboard shortcuts',
+  'keys.global': 'Global',
   'settings.quit': 'Quit',
   'settings.quit.hint': 'Stops {name}. Closing the tab leaves it running.',
   'settings.quit.hintTray': 'Stops {name}. Closing the window leaves it running in the tray.',

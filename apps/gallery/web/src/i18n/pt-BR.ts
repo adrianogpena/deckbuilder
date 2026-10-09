@@ -111,6 +111,8 @@ export const ptBR: Messages<typeof en> = {
   'settings.title': 'Configurações',
   'settings.theme': 'Tema',
   'settings.general': 'Geral',
+  'settings.keys': 'Atalhos de teclado',
+  'keys.global': 'Global',
   'settings.quit': 'Sair',
   'settings.quit.hint': 'Encerra o {name}. Fechar a aba o deixa rodando.',
   'settings.quit.hintTray': 'Encerra o {name}. Fechar a janela o deixa rodando na bandeja.',
