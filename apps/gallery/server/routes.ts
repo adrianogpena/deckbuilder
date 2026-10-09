@@ -2,6 +2,7 @@ import { statSync } from 'node:fs';
 import { basename, isAbsolute } from 'node:path';
 import { appHome, createToaster, openWithDefault, pickFile, revealInFolder, saveFileAs, secretStore, writeFileAtomic } from '@deckbuilder/platform';
 import type { HttpRequestDraft } from '@deckbuilder/editor/http';
+import { dbRoutes, dbSessions, parseOracleUrl, validConnection, type DbConnectionFields } from '@deckbuilder/db';
 import { AppError, forbidden, invalid, isRecord, ndjson, type Routes } from '@deckbuilder/server-core';
 import { dialogRoutes, editorRoutes, fromPlatform, httpExecutor, httpRoutes, pickedPaths, recordRoutes, recordStore, rootedFs, validateDraft } from '@deckbuilder/server-mods';
 import type { StartContext } from '@deckbuilder/shell';
@@ -38,14 +39,31 @@ export const projects = recordStore<{ name: string; path: string }>({
 });
 const fs = rootedFs({ roots: async () => (await projects.list()).map((p) => ({ id: p.id, path: p.path })) });
 
-/** Demo: a record with a secret field, the shape a DB app uses for connections. */
-export const demoSecrets = recordStore<{ token?: unknown }>({
+/** Oracle connections of the Workbench; the password is a secret field, never returned by a route. */
+export const dbConnections = recordStore<DbConnectionFields & { password?: unknown }>({
   dir: appHome(APP.id),
-  name: 'demoSecrets',
-  secretFields: ['token'],
+  name: 'dbConnections',
+  secretFields: ['password'],
   secrets: secretStore(APP.id),
-  validate: () => ({}),
+  validate: (input) => validConnection(input),
 });
+const sessions = dbSessions();
+const dbApi = dbRoutes({
+  sessions,
+  async credentials(id) {
+    const record = await dbConnections.get(id).catch((err: unknown) => {
+      if (err instanceof AppError && err.kind === 'notfound') return null;
+      throw err;
+    });
+    if (!record) return null;
+    return {
+      connectString: parseOracleUrl(record.url).connectString,
+      user: record.user,
+      password: (await dbConnections.secret(id, 'password')) ?? '',
+    };
+  },
+});
+const connectionRoutes = recordRoutes(dbConnections, '/api/db/connections');
 
 export interface SavedRequest {
   name: string;
@@ -143,7 +161,15 @@ export const routes = (ctx: StartContext): Routes => ({
     await writeFileAtomic(path, text).catch(fromPlatform);
     return { ok: true };
   },
-  ...recordRoutes(demoSecrets, '/api/demo/secrets'),
+  ...connectionRoutes,
+  // A deleted record's open session is rolled back and closed.
+  'DELETE /api/db/connections': async (rc) => {
+    const id = rc.query.get('id');
+    const result = await connectionRoutes['DELETE /api/db/connections']!(rc);
+    if (id) await sessions.close(id);
+    return result;
+  },
+  ...dbApi,
   ...recordRoutes(requests, '/api/requests'),
   // The file's text goes to the client for parsing; its path never does.
   'POST /api/requests/import-file': async () => {

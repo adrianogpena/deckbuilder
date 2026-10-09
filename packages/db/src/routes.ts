@@ -1,4 +1,5 @@
 import { invalid, isRecord, ndjson, notFound, type Routes } from '@deckbuilder/server-core';
+import { parseOracleUrl, validUser } from './oracle-url.ts';
 import type { DbCredentials, DbSessions } from './sessions.ts';
 
 export interface DbRoutesOptions {
@@ -8,13 +9,16 @@ export interface DbRoutesOptions {
 }
 
 const MAX_SQL = 1_000_000;
+const MAX_PASSWORD = 1024;
+const MAX_ROWS = 100_000;
 const ID = /^[\w-]{1,64}$/;
+const OWNER = /^[A-Za-z0-9_$#]{1,128}$/;
 
 const badRequest = () => invalid('badRequest', 'Invalid request.');
 
 /**
- * The Workbench's database API: `POST /api/db/connect|run|commit|rollback|disconnect`,
- * `GET /api/db/rows?run=` (NDJSON of row arrays) and `GET /api/db/status?id=`.
+ * The Workbench's database API: `POST /api/db/test|connect|run|commit|rollback|disconnect`,
+ * `GET /api/db/rows?run=` (NDJSON of row arrays), `GET /api/db/schema?id=&owner=` and `GET /api/db/status?id=`.
  */
 export function dbRoutes({ sessions, credentials }: DbRoutesOptions): Routes {
   function idOf(value: unknown): string {
@@ -35,6 +39,20 @@ export function dbRoutes({ sessions, credentials }: DbRoutesOptions): Routes {
   }
 
   return {
+    // Tests a connection form's values (`url`, `user`, `password`) without keeping a session. An absent
+    // password means the saved one of record `id`, as the form leaves out a password that wasn't touched.
+    'POST /api/db/test': async ({ json }) => {
+      const b = await body(json);
+      const { connectString } = parseOracleUrl(b.url);
+      const user = validUser(b.user);
+      let password = '';
+      if (typeof b.password === 'string') password = b.password;
+      else if (b.password !== undefined) throw badRequest();
+      else if (b.id !== undefined) password = (await lookup(idOf(b.id))).password;
+      if (password.length > MAX_PASSWORD) throw badRequest();
+      await sessions.test({ connectString, user, password });
+      return { ok: true };
+    },
     'POST /api/db/connect': async ({ json }) => {
       const id = idOf((await body(json)).id);
       return sessions.open(id, await lookup(id));
@@ -43,7 +61,9 @@ export function dbRoutes({ sessions, credentials }: DbRoutesOptions): Routes {
       const b = await body(json);
       const id = idOf(b.id);
       if (typeof b.sql !== 'string' || b.sql.length > MAX_SQL) throw badRequest();
-      return sessions.run(id, await lookup(id), b.sql);
+      const maxRows = b.maxRows;
+      if (maxRows !== undefined && !(Number.isInteger(maxRows) && (maxRows as number) >= 1 && (maxRows as number) <= MAX_ROWS)) throw badRequest();
+      return sessions.run(id, await lookup(id), b.sql, { maxRows: maxRows as number | undefined });
     },
     'GET /api/db/rows': ({ req, query }) => {
       const run = query.get('run') ?? '';
@@ -62,6 +82,12 @@ export function dbRoutes({ sessions, credentials }: DbRoutesOptions): Routes {
     },
     // Works for a deleted record too, so its open session can still be closed.
     'POST /api/db/disconnect': async ({ json }) => sessions.close(idOf((await body(json)).id)),
+    'GET /api/db/schema': async ({ query }) => {
+      const id = idOf(query.get('id'));
+      const owner = query.get('owner') || undefined;
+      if (owner !== undefined && !OWNER.test(owner)) throw badRequest();
+      return sessions.schema(id, await lookup(id), owner);
+    },
     'GET /api/db/status': ({ query }) => sessions.status(idOf(query.get('id'))),
   };
 }

@@ -1,31 +1,63 @@
+import type { Completion, CompletionSource } from '@codemirror/autocomplete';
 import { json, jsonLanguage } from '@codemirror/lang-json';
 import { markdown } from '@codemirror/lang-markdown';
 import { GFM } from '@lezer/markdown';
-import { MSSQL, MySQL, PostgreSQL, sql, SQLite, StandardSQL } from '@codemirror/lang-sql';
+import { MSSQL, MySQL, PLSQL, PostgreSQL, sql, SQLDialect, SQLite, StandardSQL } from '@codemirror/lang-sql';
 import { type Language, StreamLanguage } from '@codemirror/language';
 import { java } from '@codemirror/legacy-modes/mode/clike';
 import { shell } from '@codemirror/legacy-modes/mode/shell';
 import type { Extension } from '@codemirror/state';
 
 export type Lang = 'sql' | 'json' | 'shell' | 'java' | 'markdown' | 'text';
-export type SqlDialect = 'postgres' | 'mysql' | 'sqlite' | 'mssql' | 'standard';
+export type SqlDialect = 'postgres' | 'mysql' | 'sqlite' | 'mssql' | 'plsql' | 'standard';
 /** Table name → column names, for SQL completion. */
 export type SqlSchema = Record<string, string[]>;
 
-const DIALECTS = { postgres: PostgreSQL, mysql: MySQL, sqlite: SQLite, mssql: MSSQL, standard: StandardSQL };
+// Oracle's unquoted names are case-insensitive: without this, completing an upper-case table inserts it in "quotes".
+const OracleSQL = SQLDialect.define({ ...PLSQL.spec, caseInsensitiveIdentifiers: true });
+
+const DIALECTS = { postgres: PostgreSQL, mysql: MySQL, sqlite: SQLite, mssql: MSSQL, plsql: OracleSQL, standard: StandardSQL };
 
 const shellLanguage = StreamLanguage.define(shell);
 const javaLanguage = StreamLanguage.define(java);
 
 export function languageFor(lang: Lang, opts: { sqlDialect?: SqlDialect; sqlSchema?: SqlSchema } = {}): Extension {
   switch (lang) {
-    case 'sql': return sql({ dialect: DIALECTS[opts.sqlDialect ?? 'standard'], schema: opts.sqlSchema });
+    case 'sql': {
+      const support = sql({ dialect: DIALECTS[opts.sqlDialect ?? 'standard'], schema: opts.sqlSchema });
+      return opts.sqlSchema ? [support, support.language.data.of({ autocomplete: columnCompletion(opts.sqlSchema) })] : support;
+    }
     case 'json': return json();
     case 'shell': return shellLanguage;
     case 'java': return javaLanguage;
     case 'markdown': return markdown({ extensions: GFM });
     default: return [];
   }
+}
+
+const IDENT = /[A-Za-z_][\w$#]*/g;
+/** Most text scanned for table names; a longer document gets no column completions. */
+const MAX_SCAN = 200_000;
+
+/**
+ * Columns of the schema's tables named anywhere in the text, without a `table.` prefix (lang-sql
+ * only completes columns after one). Table names match case-insensitively, as Oracle's unquoted ones do.
+ */
+export function columnCompletion(schema: SqlSchema): CompletionSource {
+  const tables = new Map(Object.keys(schema).map((name) => [name.toUpperCase(), name]));
+  return (ctx) => {
+    const word = ctx.matchBefore(/[\w$#]*/);
+    if (!word || (word.from === word.to && !ctx.explicit)) return null;
+    if (ctx.state.sliceDoc(word.from - 1, word.from) === '.' || ctx.state.doc.length > MAX_SCAN) return null;
+    const named = new Set<string>();
+    for (const [ident] of ctx.state.doc.toString().matchAll(IDENT)) {
+      const table = tables.get(ident.toUpperCase());
+      if (table) named.add(table);
+    }
+    const options: Completion[] = [];
+    for (const table of named) for (const label of schema[table]!) options.push({ label, type: 'property', detail: table, boost: -1 });
+    return options.length ? { from: word.from, options, validFor: /^[\w$#]*$/ } : null;
+  };
 }
 
 export type Parser = Language['parser'];

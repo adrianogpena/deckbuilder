@@ -121,6 +121,40 @@ describe('dbSessions', () => {
     expect(await collect(sessions, r.run)).toHaveLength(4);
   });
 
+  test('a run limit lowers the session limit but never raises it', async () => {
+    const { sessions } = setup({ rows: 10, maxRows: 5 });
+    const low = await sessions.run('a', CREDS, 'select 1 from dual', { maxRows: 2 }) as { run: string };
+    expect(await collect(sessions, low.run)).toEqual([[0, 'r1'], [1, 'r2'], { $truncated: true }]);
+    const high = await sessions.run('a', CREDS, 'select 1 from dual', { maxRows: 50 }) as { run: string };
+    expect(await collect(sessions, high.run)).toHaveLength(6);
+  });
+
+  test('schema groups columns by table and lists owners', async () => {
+    const queries: string[] = [];
+    const sessions = dbSessions({
+      connect: async () => ({
+        ...fakeConnection(),
+        async execute(sql: string) {
+          queries.push(sql);
+          if (sql.includes('CURRENT_SCHEMA')) return { rows: [['MILES']] };
+          if (sql.includes('all_users')) return { rows: [['MILES'], ['SCOTT']] };
+          return { rows: [['T1', 'TABLE', 'ID', 'NUMBER', 'N'], ['T1', 'TABLE', 'NAME', 'VARCHAR2', 'Y'], ['V1', 'VIEW', 'X', 'DATE', 'Y']] };
+        },
+      }),
+    });
+    const schema = await sessions.schema('a', CREDS);
+    expect(schema).toEqual({
+      owner: 'MILES',
+      owners: ['MILES', 'SCOTT'],
+      tables: [
+        { name: 'T1', kind: 'table', columns: [{ name: 'ID', type: 'NUMBER', nullable: false }, { name: 'NAME', type: 'VARCHAR2', nullable: true }] },
+        { name: 'V1', kind: 'view', columns: [{ name: 'X', type: 'DATE', nullable: true }] },
+      ],
+      truncated: false,
+    });
+    expect(sessions.status('a').pending).toBe(false);
+  });
+
   test('a result streams once', async () => {
     const { sessions } = setup();
     const r = await sessions.run('a', CREDS, 'select 1 from dual') as { run: string };
@@ -146,19 +180,51 @@ describe('dbSessions', () => {
     expect(sessions.status('a').pending).toBe(false);
   });
 
-  test('busy while running or a result set is open', async () => {
+  test('statements wait for one still executing; an open result set is busy', async () => {
     const { sessions, conns } = setup();
     await sessions.open('a', CREDS);
     conns[0]!.hold();
     const first = sessions.run('a', CREDS, 'delete from t');
     await Bun.sleep(1);
     expect(sessions.status('a').busy).toBe(true);
-    expect(await codeOf(sessions.run('a', CREDS, 'select 1 from dual'))).toBe('dbBusy');
-    expect(await codeOf(sessions.commit('a'))).toBe('dbBusy');
+    const second = sessions.run('a', CREDS, 'update t set a = 1');
+    const commit = sessions.commit('a');
+    await Bun.sleep(1);
+    expect(conns[0]!.log).toEqual(['execute delete from t']);
     conns[0]!.release();
-    await first;
+    await Promise.all([first, second, commit]);
+    expect(conns[0]!.log[0]).toBe('execute delete from t');
+    expect(conns[0]!.log.slice(1).sort()).toEqual(['commit', 'execute update t set a = 1']);
     await sessions.run('a', CREDS, 'select 1 from dual');
+    expect(sessions.status('a').busy).toBe(true);
     expect(await codeOf(sessions.run('a', CREDS, 'select 2 from dual'))).toBe('dbBusy');
+  });
+
+  test('schema waits for a statement still executing', async () => {
+    const { sessions, conns } = setup();
+    await sessions.open('a', CREDS);
+    conns[0]!.hold();
+    const first = sessions.schema('a', CREDS, 'SCOTT');
+    const second = sessions.schema('a', CREDS, 'HR');
+    await Bun.sleep(1);
+    expect(conns[0]!.log).toHaveLength(1);
+    conns[0]!.release();
+    expect((await first).owner).toBe('SCOTT');
+    expect((await second).owner).toBe('HR');
+    expect(sessions.status('a').busy).toBe(false);
+  });
+
+  test('test connects, runs a probe and closes without a session', async () => {
+    const { sessions, conns } = setup();
+    await sessions.test(CREDS);
+    expect(conns[0]!.log).toEqual(['execute select 1 from dual', 'close']);
+    expect(sessions.status('a').connected).toBe(false);
+  });
+
+  test('test maps driver errors and still closes', async () => {
+    const { sessions, conns } = setup({ fail: new Error('ORA-01017: invalid credential for s3cret!') });
+    expect(await codeOf(sessions.test(CREDS))).toBe('dbLogin');
+    expect(conns[0]!.log).toEqual(['execute select 1 from dual', 'close']);
   });
 
   test('abort breaks and closes the result set', async () => {

@@ -46,6 +46,12 @@ export type { LogSettings };
 export interface WorkbenchSettings {
   sizes?: { main: [number, number]; results: [number, number] };
   widths?: Record<string, number>;
+  /** `'demo'` or a database connection id. */
+  source?: string;
+  /** Most rows a database query returns. */
+  maxRows?: number;
+  /** The schema sidebar is open. */
+  schema?: boolean;
 }
 
 export interface DemoRow {
@@ -55,10 +61,40 @@ export interface DemoRow {
   date: string;
 }
 
-export interface DemoSecret {
+export interface DbConnection {
   id: string;
-  token?: { hasSecret: true };
+  name: string;
+  url: string;
+  user: string;
+  password?: { hasSecret: true };
 }
+
+export interface DbStatus {
+  connected: boolean;
+  /** Uncommitted changes may exist. */
+  pending: boolean;
+  busy: boolean;
+}
+
+export interface DbColumn {
+  name: string;
+  type: 'number' | 'text' | 'date' | 'binary';
+}
+
+export interface DbSchemaTable {
+  name: string;
+  kind: 'table' | 'view';
+  columns: Array<{ name: string; type: string; nullable: boolean }>;
+}
+
+export interface DbSchema {
+  owner: string;
+  owners: string[];
+  tables: DbSchemaTable[];
+  truncated: boolean;
+}
+
+export type DbRunResult = { kind: 'rows'; run: string; columns: DbColumn[] } | { kind: 'done'; rowsAffected?: number };
 
 export interface ExplorerSettings {
   /** Fractions of the sidebar and the workspace. */
@@ -159,9 +195,19 @@ export const api = {
     request<{ ok: true }>('POST', '/api/editors/open', {}, { editor, root, path: path || undefined }),
   saveTarget: () => request<{ path: string | null }>('POST', '/api/demo/save-target'),
   saveDemo: (path: string, text: string) => request<{ ok: true }>('POST', '/api/demo/save', {}, { path, text }),
-  demoSecrets: () => request<DemoSecret[]>('GET', '/api/demo/secrets'),
-  createDemoSecret: (input: Record<string, unknown>) => request<DemoSecret>('POST', '/api/demo/secrets', {}, input),
-  updateDemoSecret: (id: string, input: Record<string, unknown>) => request<DemoSecret>('PUT', '/api/demo/secrets', { id }, input),
+  dbConnections: () => request<DbConnection[]>('GET', '/api/db/connections'),
+  createDbConnection: (input: Record<string, unknown>) => request<DbConnection>('POST', '/api/db/connections', {}, input),
+  updateDbConnection: (id: string, input: Record<string, unknown>) => request<DbConnection>('PUT', '/api/db/connections', { id }, input),
+  deleteDbConnection: (id: string) => request<{ ok: true }>('DELETE', '/api/db/connections', { id }),
+  /** Tests a connection form's values; without `password`, record `id`'s saved one is used. */
+  dbTest: (input: Record<string, unknown>) => request<{ ok: true }>('POST', '/api/db/test', {}, input),
+  dbConnect: (id: string) => request<DbStatus>('POST', '/api/db/connect', {}, { id }),
+  dbRun: (id: string, sql: string, maxRows?: number) => request<DbRunResult>('POST', '/api/db/run', {}, { id, sql, maxRows }),
+  dbSchema: (id: string, owner?: string) => request<DbSchema>('GET', '/api/db/schema', { id, owner }),
+  dbCommit: (id: string) => request<DbStatus>('POST', '/api/db/commit', {}, { id }),
+  dbRollback: (id: string) => request<DbStatus>('POST', '/api/db/rollback', {}, { id }),
+  dbDisconnect: (id: string) => request<DbStatus>('POST', '/api/db/disconnect', {}, { id }),
+  dbStatus: (id: string) => request<DbStatus>('GET', '/api/db/status', { id }),
   requests: () => request<SavedRequest[]>('GET', '/api/requests'),
   createRequest: (input: Record<string, unknown>) => request<SavedRequest>('POST', '/api/requests', {}, input),
   updateRequest: (id: string, input: Record<string, unknown>) => request<SavedRequest>('PUT', '/api/requests', { id }, input),

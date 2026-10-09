@@ -1,3 +1,4 @@
+/// <reference path="./oracledb.d.ts" />
 import { createHash, randomUUID } from 'node:crypto';
 import oracledb, { type FetchMetadata, type FetchTypeResult } from 'oracledb';
 import { AppError, type Emit, invalid, notFound } from '@deckbuilder/server-core';
@@ -23,6 +24,7 @@ export interface DbConnection {
   execute(sql: string, binds: unknown[], options: Record<string, unknown>): Promise<{
     metaData?: DbColumnMeta[];
     resultSet?: DbResultSet;
+    rows?: unknown[][];
     rowsAffected?: number;
   }>;
   commit(): Promise<void>;
@@ -41,6 +43,31 @@ export type DbRunResult =
   | { kind: 'rows'; run: string; columns: DbColumn[] }
   | { kind: 'done'; rowsAffected?: number };
 
+export interface DbRunOptions {
+  /** Most rows this query streams (1 to the sessions' `maxRows`); then `{ $truncated: true }` ends it. */
+  maxRows?: number;
+}
+
+export interface DbSchemaColumn {
+  name: string;
+  type: string;
+  nullable: boolean;
+}
+
+export interface DbSchemaTable {
+  name: string;
+  kind: 'table' | 'view';
+  columns: DbSchemaColumn[];
+}
+
+export interface DbSchema {
+  owner: string;
+  owners: string[];
+  tables: DbSchemaTable[];
+  /** The column limit cut the list short. */
+  truncated: boolean;
+}
+
 export interface DbStatus {
   connected: boolean;
   /** Uncommitted changes may exist. */
@@ -54,13 +81,18 @@ export interface DbSessionsOptions {
   idleMs?: number;
   /** Most rows one query streams; then `{ $truncated: true }` ends it. */
   maxRows?: number;
+  /** Rows per round trip (and per `getRows`) when streaming a query's rows. */
   fetchBatch?: number;
 }
 
 export interface DbSessions {
+  /** Connects, runs `select 1 from dual` and disconnects; no session is kept. */
+  test(creds: DbCredentials): Promise<void>;
   /** Opens the session of connection record `id` (or reuses it) and reports its status. */
   open(id: string, creds: DbCredentials): Promise<DbStatus>;
-  run(id: string, creds: DbCredentials, sql: string): Promise<DbRunResult>;
+  run(id: string, creds: DbCredentials, sql: string, opts?: DbRunOptions): Promise<DbRunResult>;
+  /** Tables, views and columns of `owner` (default: the session's schema) and the owners to choose from. */
+  schema(id: string, creds: DbCredentials, owner?: string): Promise<DbSchema>;
   /** Streams the rows of a `run` result, then closes its result set. */
   rows(run: string, emit: Emit, signal: AbortSignal): Promise<void>;
   commit(id: string): Promise<DbStatus>;
@@ -76,6 +108,7 @@ interface OpenResult {
   run: string;
   rs: DbResultSet;
   streaming: boolean;
+  maxRows: number;
 }
 
 interface Session {
@@ -85,12 +118,23 @@ interface Session {
   connected: boolean;
   pending: boolean;
   executing: boolean;
+  /** Settles when the statement now executing ends. */
+  idle: Promise<void>;
   result?: OpenResult;
   timer?: ReturnType<typeof setTimeout>;
 }
 
+const SCHEMA_MAX_COLUMNS = 200_000;
+const SCHEMA_MAX_OWNERS = 5000;
+/**
+ * Rows per round trip for the schema's columns. The driver's default of 100 made a 29k-column
+ * schema take 12 s over a 40 ms link (290 round trips); 10 000 takes it under 1 s.
+ */
+const SCHEMA_FETCH_SIZE = 10_000;
+
 const DISCONNECTED: DbStatus = { connected: false, pending: false, busy: false };
 
+/** Statements on one session wait for the one still executing; an open result set makes `run` fail with this. */
 const busyError = () => invalid('dbBusy', 'A statement is still running on this connection.');
 
 /**
@@ -102,7 +146,7 @@ export function dbSessions(opts: DbSessionsOptions = {}): DbSessions {
   const connect = opts.connect ?? defaultConnect;
   const idleMs = opts.idleMs ?? 900_000;
   const maxRows = opts.maxRows ?? 100_000;
-  const fetchBatch = opts.fetchBatch ?? 500;
+  const fetchBatch = opts.fetchBatch ?? 2000;
   const sessions = new Map<string, Session>();
   const runs = new Map<string, string>();
 
@@ -118,6 +162,17 @@ export function dbSessions(opts: DbSessionsOptions = {}): DbSessions {
       else void closeSession(id, s);
     }, idleMs);
     (s.timer as { unref?: () => void }).unref?.();
+  }
+
+  /** Marks `s` executing until the returned function is called. */
+  function startExecuting(s: Session): () => void {
+    let end!: () => void;
+    s.idle = new Promise((resolve) => { end = resolve; });
+    s.executing = true;
+    return () => {
+      s.executing = false;
+      end();
+    };
   }
 
   async function closeSession(id: string, s: Session): Promise<void> {
@@ -153,6 +208,7 @@ export function dbSessions(opts: DbSessionsOptions = {}): DbSessions {
         connected: false,
         pending: false,
         executing: false,
+        idle: Promise.resolve(),
       };
       sessions.set(id, created);
       s = created;
@@ -171,12 +227,13 @@ export function dbSessions(opts: DbSessionsOptions = {}): DbSessions {
     return s;
   }
 
-  async function run(id: string, creds: DbCredentials, sql: string): Promise<DbRunResult> {
+  async function run(id: string, creds: DbCredentials, sql: string, runOpts: DbRunOptions = {}): Promise<DbRunResult> {
     const statement = prepareSql(sql);
     if (!statement) throw invalid('badRequest', 'Invalid request.');
     const s = await session(id, creds);
-    if (isBusy(s)) throw busyError();
-    s.executing = true;
+    while (s.executing) await s.idle;
+    if (s.result) throw busyError();
+    const done = startExecuting(s);
     try {
       const conn = await s.conn;
       const kind = statementKind(statement);
@@ -184,12 +241,14 @@ export function dbSessions(opts: DbSessionsOptions = {}): DbSessions {
         const r = await conn.execute(statement, [], {
           autoCommit: false,
           resultSet: true,
+          // The driver's default is 100 rows per round trip, slow over a VPN (see SCHEMA_FETCH_SIZE).
+          fetchArraySize: fetchBatch,
           outFormat: oracledb.OUT_FORMAT_ARRAY,
           fetchTypeHandler,
         });
         const columns = (r.metaData ?? []).map((m) => ({ name: m.name, type: columnType(m.dbType?.name) }));
         if (!r.resultSet) return { kind: 'done' };
-        const result = { run: randomUUID(), rs: r.resultSet, streaming: false };
+        const result = { run: randomUUID(), rs: r.resultSet, streaming: false, maxRows: Math.min(Math.max(runOpts.maxRows ?? maxRows, 1), maxRows) };
         s.result = result;
         runs.set(result.run, id);
         return { kind: 'rows', run: result.run, columns };
@@ -201,7 +260,54 @@ export function dbSessions(opts: DbSessionsOptions = {}): DbSessions {
     } catch (err) {
       throw mapError(err, s.creds);
     } finally {
-      s.executing = false;
+      done();
+      touch(id, s);
+    }
+  }
+
+  async function schema(id: string, creds: DbCredentials, owner?: string): Promise<DbSchema> {
+    const s = await session(id, creds);
+    // An open result set doesn't block reading the dictionary.
+    while (s.executing) await s.idle;
+    const done = startExecuting(s);
+    try {
+      const conn = await s.conn;
+      const options = { autoCommit: false, outFormat: oracledb.OUT_FORMAT_ARRAY, maxRows: SCHEMA_MAX_COLUMNS + 1, fetchArraySize: SCHEMA_FETCH_SIZE };
+      let name = owner;
+      if (!name) {
+        const current = await conn.execute("select sys_context('USERENV', 'CURRENT_SCHEMA') from dual", [], options);
+        name = String(current.rows?.[0]?.[0] ?? creds.user.toUpperCase());
+      }
+      const owners = await conn.execute('select username from all_users order by username', [], { ...options, maxRows: SCHEMA_MAX_OWNERS });
+      const found = await conn.execute(
+        `select c.table_name, o.object_type, c.column_name, c.data_type, c.nullable
+           from all_tab_columns c
+           join all_objects o on o.owner = c.owner and o.object_name = c.table_name and o.object_type in ('TABLE', 'VIEW')
+          where c.owner = :owner and c.table_name not like 'BIN$%'
+          order by c.table_name, c.column_id`,
+        [name],
+        options,
+      );
+      const rows = found.rows ?? [];
+      const tables: DbSchemaTable[] = [];
+      for (const [table, kind, column, type, nullable] of rows.slice(0, SCHEMA_MAX_COLUMNS) as string[][]) {
+        let t = tables[tables.length - 1];
+        if (t?.name !== table) {
+          t = { name: table!, kind: kind === 'VIEW' ? 'view' : 'table', columns: [] };
+          tables.push(t);
+        }
+        t.columns.push({ name: column!, type: type!, nullable: nullable === 'Y' });
+      }
+      return {
+        owner: name,
+        owners: (owners.rows ?? []).map((r) => String(r[0])),
+        tables,
+        truncated: rows.length > SCHEMA_MAX_COLUMNS,
+      };
+    } catch (err) {
+      throw mapError(err, s.creds);
+    } finally {
+      done();
       touch(id, s);
     }
   }
@@ -214,18 +320,19 @@ export function dbSessions(opts: DbSessionsOptions = {}): DbSessions {
       throw notFound('dbResultGone', 'This result is no longer available; run the statement again.');
     }
     result.streaming = true;
+    const limit = result.maxRows;
     const conn = await s.conn;
     const stop = () => { void conn.break().catch(() => {}); };
     signal.addEventListener('abort', stop, { once: true });
     try {
       let count = 0;
       while (!signal.aborted) {
-        if (count >= maxRows) {
+        if (count >= limit) {
           const more = await result.rs.getRows(1);
           if (more.length) await emit({ $truncated: true });
           break;
         }
-        const batch = await result.rs.getRows(Math.min(fetchBatch, maxRows - count));
+        const batch = await result.rs.getRows(Math.min(fetchBatch, limit - count));
         touch(id, s);
         for (const row of batch) {
           if (signal.aborted) break;
@@ -248,7 +355,7 @@ export function dbSessions(opts: DbSessionsOptions = {}): DbSessions {
   async function finish(id: string, op: 'commit' | 'rollback'): Promise<DbStatus> {
     const s = sessions.get(id);
     if (!s) return DISCONNECTED;
-    if (s.executing) throw busyError();
+    while (s.executing) await s.idle;
     const conn = await s.conn;
     try {
       await conn[op]();
@@ -261,10 +368,22 @@ export function dbSessions(opts: DbSessionsOptions = {}): DbSessions {
   }
 
   return {
+    async test(creds) {
+      let conn: DbConnection | undefined;
+      try {
+        conn = await connect(creds);
+        await conn.execute('select 1 from dual', [], { autoCommit: false });
+      } catch (err) {
+        throw mapError(err, creds);
+      } finally {
+        await conn?.close().catch(() => {});
+      }
+    },
     async open(id, creds) {
       return statusOf(await session(id, creds));
     },
     run,
+    schema,
     rows,
     commit: (id) => finish(id, 'commit'),
     rollback: (id) => finish(id, 'rollback'),
@@ -386,7 +505,7 @@ export function fetchTypeHandler(meta: FetchMetadata): FetchTypeResult | undefin
 }
 
 const LOGIN = /ORA-01017/;
-const UNREACHABLE = /ORA-12514|ORA-12505|ORA-12541|ORA-12170|NJS-503|NJS-500|ECONNREFUSED|ETIMEDOUT|ENOTFOUND/;
+const UNREACHABLE = /ORA-12514|ORA-12505|ORA-12541|ORA-12170|NJS-503|NJS-500|NJS-530|ECONNREFUSED|ETIMEDOUT|ENOTFOUND/;
 
 /** The host of a connect string (`host:port/service`, `[v6]:port/service` or a descriptor). */
 export function hostOf(connectString: string): string {

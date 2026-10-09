@@ -21,7 +21,7 @@ import { validKeymap, type Keymap } from '@deckbuilder/ui/keybindings';
 import { type LogSettings, validLogSettings } from '@deckbuilder/ui/log';
 import { APP } from '../app.ts';
 import pkg from '../package.json';
-import { demoSecrets, projects, requests, routes } from './routes.ts';
+import { dbConnections, projects, requests, routes } from './routes.ts';
 
 export interface Settings extends BaseSettings {
   /** Start at Windows login (exe only). */
@@ -58,6 +58,12 @@ export interface RestSettings {
 export interface WorkbenchSettings {
   sizes?: { main: [number, number]; results: [number, number] };
   widths?: Record<string, number>;
+  /** `'demo'` or the id of a database connection record. */
+  source?: string;
+  /** Most rows a database query returns, 1 to 100 000. */
+  maxRows?: number;
+  /** The schema sidebar is open. */
+  schema?: boolean;
 }
 
 export interface ExplorerSettings {
@@ -143,6 +149,18 @@ function validWorkbench(raw: unknown): WorkbenchSettings | null {
     }
     out.widths = widths;
   }
+  if (r.source !== undefined) {
+    if (typeof r.source !== 'string' || !/^[\w-]{1,64}$/.test(r.source)) return null;
+    out.source = r.source;
+  }
+  if (r.maxRows !== undefined) {
+    if (!Number.isInteger(r.maxRows) || r.maxRows < 1 || r.maxRows > 100_000) return null;
+    out.maxRows = r.maxRows;
+  }
+  if (r.schema !== undefined) {
+    if (typeof r.schema !== 'boolean') return null;
+    out.schema = r.schema;
+  }
   return out;
 }
 
@@ -221,7 +239,7 @@ await runApp({
     },
     ...updateRoutes(updater, ctx.quit),
     // Machine-specific: autostart writes the Run key, updateFolder is a local or share path.
-    ...backupRoutes({ app: { id: APP.id, version: pkg.version }, settings, stores: { projects, demoSecrets, requests }, excludeSettings: ['autostart', 'updateFolder'] }),
+    ...backupRoutes({ app: { id: APP.id, version: pkg.version }, settings, stores: { projects, dbConnections, requests }, excludeSettings: ['autostart', 'updateFolder'] }),
     ...routes(ctx),
   }),
   webDir: join(import.meta.dir, '../dist/web'),

@@ -87,6 +87,8 @@ export function startServer(opts: ServerOptions) {
         return json(401, { kind: 'forbidden', code: 'invalidToken', message: 'Invalid session. Open the address printed in the terminal.' });
       }
       if (!open) opts.onActivity?.();
+      // Bun drops a request that is silent for 10 s; a slow database query or REST call may take longer.
+      if (!open) server.timeout(req, 0);
 
       const handler = open ?? opts.routes[key];
       if (!handler) return json(404, { kind: 'notfound', code: 'routeNotFound', message: 'Route not found.' });

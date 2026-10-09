@@ -13,6 +13,7 @@
       "name": "@deckbuilder/gallery",
       "version": "0.1.0",
       "dependencies": {
+        "@deckbuilder/db": "workspace:*",
         "@deckbuilder/editor": "workspace:*",
         "@deckbuilder/platform": "workspace:*",
         "@deckbuilder/server-core": "workspace:*",

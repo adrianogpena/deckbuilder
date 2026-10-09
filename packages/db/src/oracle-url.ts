@@ -90,7 +90,12 @@ export function validConnection(input: unknown): DbConnectionFields {
   if (name.length < 1 || name.length > 80) throw invalid('dbBadName', 'The name must have 1 to 80 characters.');
   const url = typeof input.url === 'string' ? input.url.trim() : '';
   parseOracleUrl(url);
-  const user = typeof input.user === 'string' ? input.user.trim() : '';
+  return { name, url, user: validUser(input.user) };
+}
+
+/** The trimmed user name of a connection. */
+export function validUser(input: unknown): string {
+  const user = typeof input === 'string' ? input.trim() : '';
   if (!/^\S{1,128}$/.test(user)) throw invalid('dbBadUser', 'The user must have 1 to 128 characters, without spaces.');
-  return { name, url, user };
+  return user;
 }

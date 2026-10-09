@@ -37,7 +37,8 @@
 .xp-body > .code-editor { height: 100%; }
 
 .wb-pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; height: 100%; overflow: hidden; }
-.wb-token { margin: 8px 14px 14px; }
+.wb-test { margin-top: 10px; align-items: center; }
+.wb-test-btn { margin-right: auto; }
 
 /* Settings > Editors: names above, then one row per editor; the button columns are shared so they line up. */
 .editors { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px 8px; align-items: center; }
@@ -57,3 +58,21 @@
 .rest-pane { display: flex; flex-direction: column; gap: 10px; min-width: 0; min-height: 0; height: 100%; padding: 10px 14px; overflow: auto; }
 .rest-auth { max-width: 420px; }
 .rest-body > :last-child { flex: 1; min-width: 0; }
+
+/* Workbench: schema sidebar next to the editor and results. */
+.wb-body { display: flex; flex: 1; min-height: 0; }
+.wb-body > :last-child { flex: 1; min-width: 0; }
+.wb-schema { width: 260px; flex-shrink: 0; display: flex; flex-direction: column; gap: 6px; padding: 8px; overflow: hidden; border-right: 1px solid var(--border-soft); }
+.wb-schema-head { display: flex; align-items: center; gap: 8px; }
+.wb-schema-head .mono-label { flex: 1; }
+.wb-schema-list, .wb-schema-cols { list-style: none; margin: 0; padding: 0; }
+.wb-schema-list { flex: 1; min-height: 0; overflow-y: auto; }
+.wb-schema-table { display: flex; align-items: center; gap: 6px; width: 100%; padding: 3px 4px; border: 0; border-radius: 6px; background: transparent; color: var(--text); text-align: left; cursor: pointer; }
+.wb-schema-table:hover { background: var(--hover); }
+.wb-schema-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.wb-schema-cols { padding: 2px 0 4px 30px; }
+.wb-schema-cols li { display: flex; gap: 8px; font-size: 11px; line-height: 1.6; }
+.wb-schema-more { font-size: 11px; }
+.wb-bar { flex-wrap: wrap; margin-bottom: 10px; }
+.wb-maxrows { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.wb-max { width: 96px; flex: none; }

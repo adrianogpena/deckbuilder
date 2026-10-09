@@ -13,6 +13,7 @@
     "build": "deckbuilder build"
   },
   "dependencies": {
+    "@deckbuilder/db": "workspace:*",
     "@deckbuilder/editor": "workspace:*",
     "@deckbuilder/platform": "workspace:*",
     "@deckbuilder/server-core": "workspace:*",

@@ -304,6 +304,11 @@ source directly; there is no package build step.
   and returns `{ kind: 'rows', run, columns: [{ name, type }] }` for a query, then
   `GET /api/db/rows?run=` streams the rows as NDJSON arrays (`useStream`; at most 100 000, then
   `{ $truncated: true }`); other statements return `{ kind: 'done', rowsAffected? }`.
+  `run` takes an optional `maxRows` (1 to 100 000, never above the sessions' limit): the stream
+  ends after that many rows with `{ $truncated: true }` when there are more.
+  `GET /api/db/schema?id=&owner=` lists the tables, views and columns of a schema owner (default:
+  the session's current schema) plus the owners to choose from, for a schema browser and SQL
+  completion (`CodeEditor` `sqlDialect="plsql"` + `sqlSchema`).
   `POST /api/db/commit|rollback|disconnect {id}` and `GET /api/db/status?id=` report the status.
   Transactions are explicit: nothing autocommits, DML and PL/SQL blocks set `pending`, DDL
   clears it (Oracle commits it), and disconnecting or 15 minutes without a call rolls back. One
@@ -311,8 +316,14 @@ source directly; there is no package build step.
   or password reconnects, refused with `dbPendingChanges` while changes are pending. Numbers
   arrive as strings (precision), dates as ISO text, binary values as `<binary n bytes>`. Driver
   errors become `dbLogin`, `dbUnreachable` or `dbError` (the first line, full text in `detail`),
-  with the password replaced by `***`. Call `sessions.closeAll()` on shutdown and
-  `sessions.close(id)` when a connection record is deleted. The Workbench is the example.
+  with the password replaced by `***`. Call `sessions.close(id)` when a connection record is
+  deleted (a process that exits drops its sessions and Oracle rolls them back).
+  The gallery's Workbench is the example: `server/routes.ts` keeps the `dbConnections` store
+  (also in the backup, without passwords) and spreads `dbRoutes`; the Source select picks Demo
+  rows or a connection, "Connections…" opens `workbench/Connections.tsx` (`ResourceList` +
+  `ResourceForm`, password shown as "Saved", Test button), and while a connection is the source a
+  bar shows an "Uncommitted changes" badge with Commit, Rollback and Disconnect; a "Max rows" field (default 1000, kept in the settings) limits each query, and
+  the Schema button opens a sidebar with the tables and columns whose names also feed completion.
 
 ## New app
 

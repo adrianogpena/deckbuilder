@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, type ReactNode } from 'react';
 import { errorOf, type ApiError } from '../api';
 import { t } from '../i18n';
 import type { IconName } from '../icons';
@@ -89,12 +89,14 @@ export interface ResourceFormProps {
   /** Opens a picker for a `path` field, which is then read-only; the path it resolves to fills the field, null leaves it unchanged. */
   onBrowse?(key: string): Promise<string | null>;
   error?: ApiError;
+  /** Extra buttons (`type="button"`) left of Cancel; `values()` gives what Save would submit, without the required check. */
+  actions?(values: () => Record<string, unknown>): ReactNode;
 }
 
 const hasSecret = (v: unknown) => typeof v === 'object' && v !== null && (v as { hasSecret?: unknown }).hasSecret === true;
 
 /** Form for one item. A `password` field whose value is `{ hasSecret: true }` shows "Saved": typing replaces the secret, Clear removes it, untouched is left out of the submit. */
-export function ResourceForm({ fields, value, onSubmit, onCancel, onBrowse, error }: ResourceFormProps) {
+export function ResourceForm({ fields, value, onSubmit, onCancel, onBrowse, error, actions }: ResourceFormProps) {
   const [draft, setDraft] = useState<Record<string, string>>(() => {
     const init: Record<string, string> = {};
     for (const f of fields) {
@@ -108,11 +110,7 @@ export function ResourceForm({ fields, value, onSubmit, onCancel, onBrowse, erro
   const [browseError, setBrowseError] = useState<ApiError>();
   const set = (key: string, text: string) => setDraft((d) => ({ ...d, [key]: text }));
 
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
-    const absent = fields.filter((f) => f.required && !(draft[f.key]?.trim() || (f.kind === 'password' && draft[f.key] === undefined && hasSecret(value[f.key])))).map((f) => f.key);
-    setMissing(absent);
-    if (absent.length) return;
+  const values = () => {
     const out: Record<string, unknown> = {};
     for (const f of fields) {
       const text = draft[f.key];
@@ -123,7 +121,15 @@ export function ResourceForm({ fields, value, onSubmit, onCancel, onBrowse, erro
         out[f.key] = text ?? '';
       }
     }
-    onSubmit(out);
+    return out;
+  };
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    const absent = fields.filter((f) => f.required && !(draft[f.key]?.trim() || (f.kind === 'password' && draft[f.key] === undefined && hasSecret(value[f.key])))).map((f) => f.key);
+    setMissing(absent);
+    if (absent.length) return;
+    onSubmit(values());
   };
 
   return (
@@ -182,6 +188,7 @@ export function ResourceForm({ fields, value, onSubmit, onCancel, onBrowse, erro
         );
       })}
       <div className="resource-actions">
+        {actions?.(values)}
         {onCancel && <button type="button" className="btn" onClick={onCancel}>{t('resource.cancel')}</button>}
         <button type="submit" className="btn btn-primary">{t('resource.save')}</button>
       </div>

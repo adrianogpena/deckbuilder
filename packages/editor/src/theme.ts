@@ -13,13 +13,14 @@ export const editorTheme = EditorView.theme({
   '.cm-content': { caretColor: 'var(--accent)' },
   '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--accent)' },
   '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection':
-    { backgroundColor: 'var(--accent-soft)' },
+    { backgroundColor: 'color-mix(in srgb, var(--accent) 35%, transparent)' },
   '.cm-gutters': { backgroundColor: 'var(--bg-elev)', color: 'var(--text-3)', borderRight: '1px solid var(--border-soft)' },
-  '.cm-activeLine': { backgroundColor: 'var(--hover)' },
+  // Translucent: the selection layer is drawn behind the lines, so an opaque one would hide it.
+  '.cm-activeLine': { backgroundColor: 'color-mix(in srgb, var(--hover) 60%, transparent)' },
   '.cm-activeLineGutter': { backgroundColor: 'var(--hover)', color: 'var(--text-2)' },
   '.cm-searchMatch': { backgroundColor: 'var(--mark)' },
   '.cm-searchMatch.cm-searchMatch-selected': { backgroundColor: 'var(--mark)', outline: '1px solid var(--warn)' },
-  '.cm-selectionMatch': { backgroundColor: 'var(--accent-soft)' },
+  '.cm-selectionMatch': { backgroundColor: 'var(--accent-soft)', outline: '1px solid color-mix(in srgb, var(--accent) 50%, transparent)' },
   '&.cm-focused .cm-matchingBracket': { backgroundColor: 'var(--accent-soft)', outline: '1px solid var(--accent)' },
   '&.cm-focused .cm-nonmatchingBracket': { backgroundColor: 'var(--err-soft)' },
   '.cm-placeholder': { color: 'var(--text-3)' },
