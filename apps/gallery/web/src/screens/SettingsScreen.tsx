@@ -253,6 +253,7 @@ const sourceLabel = (id: string): string => (id.startsWith('github:') ? `GitHub 
 const STORE_LABELS: Record<string, MessageKey> = {
   projects: 'settings.backup.store.projects',
   demoSecrets: 'settings.backup.store.demoSecrets',
+  requests: 'settings.backup.store.requests',
 };
 const storeLabel = (name: string) => (Object.hasOwn(STORE_LABELS, name) ? t(STORE_LABELS[name]!) : name);
 

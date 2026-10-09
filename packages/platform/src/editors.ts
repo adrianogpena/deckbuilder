@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { readdir, readFile } from 'node:fs/promises';
 import { isAbsolute, win32 } from 'node:path';
 import { PlatformError } from './errors.ts';
-import { launch } from './files.ts';
+import { launch } from './launch.ts';
 
 export type EditorId = 'vscode' | 'intellij';
 
@@ -26,7 +26,16 @@ const defaultDeps: EditorDeps = {
   listDir: (path) => readdir(path).catch(() => []),
 };
 
-const compareVersions = (a: string, b: string) => a.localeCompare(b, undefined, { numeric: true });
+const versionOf = (name: string) => (name.match(/(\d+(?:\.\d+)*)$/)?.[1] ?? '').split('.').filter(Boolean).map(Number);
+
+function compareVersions(a: string, b: string): number {
+  const [x, y] = [versionOf(a), versionOf(b)];
+  for (let i = 0; i < Math.max(x.length, y.length); i++) {
+    const d = (x[i] ?? 0) - (y[i] ?? 0);
+    if (d) return d;
+  }
+  return a.localeCompare(b);
+}
 
 async function findOnWindows(id: EditorId, deps: EditorDeps): Promise<string | null> {
   const { env, exists } = deps;

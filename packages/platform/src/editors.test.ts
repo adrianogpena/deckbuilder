@@ -56,6 +56,16 @@ test('intellij falls back to the newest IntelliJ IDEA folder', async () => {
   expect(await findEditor('intellij', d)).toBe(w(newest));
 });
 
+test('intellij picks the newest version across edition names', async () => {
+  const programs = `${LOCAL}/Programs`;
+  const newest = `${programs}/IntelliJ IDEA 2024.1.4/bin/idea64.exe`;
+  const d = deps({
+    files: [newest, `${programs}/IntelliJ IDEA Community Edition 2023.3.2/bin/idea64.exe`],
+    dirs: { [programs]: ['IntelliJ IDEA 2024.1.4', 'IntelliJ IDEA Community Edition 2023.3.2'] },
+  });
+  expect(await findEditor('intellij', d)).toBe(w(newest));
+});
+
 test('nothing installed gives null', async () => {
   expect(await findEditor('vscode', deps())).toBeNull();
   expect(await findEditor('intellij', deps())).toBeNull();

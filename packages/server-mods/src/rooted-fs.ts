@@ -414,7 +414,7 @@ export function rootedFs(opts: RootedFsOptions): RootedFs {
         filters: [{ name: 'Log', patterns: ['*.log'] }],
       }).catch(fromPlatform);
       if (target === null) return { path: null };
-      await writeFileAtomic(target, new Uint8Array(await Bun.file(loc.real).slice(from, size).arrayBuffer()));
+      await writeFileAtomic(target, Bun.file(loc.real).slice(from, size));
       return { path: target, bytes: size - from };
     },
 

@@ -148,6 +148,7 @@ export const ptBR: Messages<typeof en> = {
   'settings.backup.settings': 'Configurações',
   'settings.backup.store.projects': 'Projetos',
   'settings.backup.store.demoSecrets': 'Segredos de demonstração',
+  'settings.backup.store.requests': 'Requisições HTTP salvas',
   'settings.backup.hint': 'Senhas e tokens ficam de fora; informe-os de novo após uma importação.',
   'settings.backup.export': 'Exportar…',
   'settings.backup.import': 'Importar…',

@@ -1,5 +1,6 @@
 import { dirname, extname } from 'node:path';
 import { PlatformError } from './errors.ts';
+import { launch } from './launch.ts';
 
 // Extensions whose default app shows the file. An allowlist: a denylist misses every script type
 // another tool registers (`.py` → py.exe). `.svg`/`.html` open in a browser and run script; macro
@@ -27,11 +28,6 @@ export function openArgv(path: string, platform: NodeJS.Platform = process.platf
   // Windows paths can't contain `"`, so quoting is safe.
   if (platform === 'win32') return { argv: ['explorer.exe', `"${path}"`], verbatim: true };
   return { argv: [platform === 'darwin' ? 'open' : 'xdg-open', path], verbatim: false };
-}
-
-// Not hidden: windowsHide starts explorer.exe with SW_HIDE and its window never appears.
-export function launch(argv: string[], windowsVerbatimArguments = false): void {
-  Bun.spawn(argv, { stdio: ['ignore', 'ignore', 'ignore'], windowsHide: false, windowsVerbatimArguments }).unref();
 }
 
 /** Shows the absolute `path` selected in the OS file manager (Linux: opens its folder). */

@@ -16,12 +16,18 @@ function enqueue<T>(file: string, job: () => Promise<T>): Promise<T> {
 }
 
 /** Writes `data` to a temp file beside `file`, then renames it over the target; a crash never leaves a half-written file. */
-export function writeFileAtomic(file: string, data: string | Uint8Array): Promise<void> {
+export function writeFileAtomic(file: string, data: string | Uint8Array | Blob): Promise<void> {
   return enqueue(file, async () => {
     await mkdir(dirname(file), { recursive: true });
     const tmp = `${file}.${process.pid}.${crypto.randomUUID().slice(0, 8)}.tmp`;
     try {
-      await writeFile(tmp, data);
+      if (typeof data === 'string' || data instanceof Uint8Array) await writeFile(tmp, data);
+      else {
+        // Bun.write(path, blob) copies a sliced file whole; the writer streams just the slice.
+        const out = Bun.file(tmp).writer();
+        for await (const chunk of data.stream()) out.write(chunk);
+        await out.end();
+      }
       await rename(tmp, file);
     } catch (err) {
       await rm(tmp, { force: true });

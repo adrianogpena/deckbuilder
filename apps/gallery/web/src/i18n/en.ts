@@ -146,6 +146,7 @@ export const en = {
   'settings.backup.settings': 'Settings',
   'settings.backup.store.projects': 'Projects',
   'settings.backup.store.demoSecrets': 'Demo secrets',
+  'settings.backup.store.requests': 'Saved HTTP requests',
   'settings.backup.hint': 'Passwords and tokens are left out; enter them again after an import.',
   'settings.backup.export': 'Export…',
   'settings.backup.import': 'Import…',
