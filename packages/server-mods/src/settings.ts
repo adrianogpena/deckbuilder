@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import { readJsonFile, writeJsonAtomic } from '@deckbuilder/platform';
 import { isRecord, type Routes } from '@deckbuilder/server-core';
-import { PALETTES, type ThemeKind, type ThemeSettings } from '@deckbuilder/server-core/palettes';
+import { PALETTES, ZOOM_LEVELS, type ThemeKind, type ThemeSettings } from '@deckbuilder/server-core/palettes';
 
 /** Settings every app gets; apps extend this with their own fields. */
 export interface BaseSettings extends ThemeSettings {
@@ -42,6 +42,7 @@ export function settingsStore<T extends BaseSettings>(opts: SettingsOptions<T>):
     if (patch.theme === 'system' || patch.theme === 'dark' || patch.theme === 'light') next.theme = patch.theme;
     applyPalette(patch.paletteDark, 'dark', next);
     applyPalette(patch.paletteLight, 'light', next);
+    if (ZOOM_LEVELS.includes(patch.zoom as never)) next.zoom = patch.zoom as number;
     if (typeof patch.language === 'string' && /^[a-z]{2}(-[A-Z]{2})?$/.test(patch.language)) next.language = patch.language;
     opts.apply?.(patch, next);
     cache = next;

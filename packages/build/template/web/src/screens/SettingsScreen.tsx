@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AppearanceFields, type ApiError, detectLanguage, ErrorBanner, errorMessage, errorOf, GLOBAL, isDesktop, KeybindingsEditor, LANGUAGES, PageHead, Spinner, useAsync, useKeybindings, type Language } from '@deckbuilder/ui';
+import { AppearanceFields, ZoomField, type ApiError, detectLanguage, ErrorBanner, errorMessage, errorOf, GLOBAL, isDesktop, KeybindingsEditor, LANGUAGES, PageHead, Spinner, useAsync, useKeybindings, type Language } from '@deckbuilder/ui';
 import { APP } from '../../../app';
 import { api, type Settings } from '../api';
 import { type MessageKey, t } from '../i18n';
@@ -13,6 +13,7 @@ interface Props {
 
 const SECTIONS = [
   { id: 'general', label: 'settings.general' },
+  { id: 'layout', label: 'settings.layout' },
   { id: 'keys', label: 'settings.keys' },
   { id: 'updates', label: 'settings.updates' },
 ] as const satisfies ReadonlyArray<{ id: string; label: MessageKey }>;
@@ -33,6 +34,14 @@ export function SettingsScreen({ settings, onChange, onQuit }: Props) {
         </nav>
         <div className="scroll">
           {section === 'general' && <GeneralSection settings={settings} onChange={onChange} onQuit={onQuit} />}
+          {section === 'layout' && (
+            <section className="section">
+              <h4 className="mono-label">{t('settings.layout')}</h4>
+              <div className="card form">
+                <ZoomField value={settings} onChange={onChange} />
+              </div>
+            </section>
+          )}
           {section === 'keys' && <KeysCard settings={settings} onChange={onChange} />}
           {section === 'updates' && <UpdatesCard folder={settings.updateFolder} onFolder={(updateFolder) => onChange({ updateFolder })} />}
         </div>

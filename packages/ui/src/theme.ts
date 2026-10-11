@@ -27,3 +27,10 @@ export function useTheme(settings: ThemeSettings): { kind: ThemeKind; palette: P
   }, [palette]);
   return { kind: palette.kind, palette };
 }
+
+/** Sets the app window's zoom (`settings.zoom`); a no-op in a browser tab. */
+export function useZoom(zoom: number | undefined): void {
+  useEffect(() => {
+    (window as { __deckbuilderSetZoom?: (factor: number) => void }).__deckbuilderSetZoom?.(zoom ?? 1);
+  }, [zoom]);
+}

@@ -121,6 +121,7 @@ export const en = {
   'settings.title': 'Settings',
   'settings.theme': 'Theme',
   'settings.general': 'General',
+  'settings.layout': 'Layout',
   'settings.keys': 'Keyboard shortcuts',
   'keys.global': 'Global',
   'settings.quit': 'Quit',

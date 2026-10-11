@@ -9,7 +9,11 @@ export interface ThemeSettings {
   /** Palette id used when the effective theme is dark; unset means the default (or the light pick's family). */
   paletteDark?: string;
   paletteLight?: string;
+  /** Zoom of the app window, one of `ZOOM_LEVELS`; unset means 1. */
+  zoom?: number;
 }
+
+export const ZOOM_LEVELS = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2] as const;
 
 export const TOKENS = [
   '--bg', '--bg-elev', '--bg-sunken', '--panel', '--panel-2', '--hover', '--selected', '--side-active',

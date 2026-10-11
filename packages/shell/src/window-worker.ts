@@ -2,7 +2,9 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { getWindowPlacement, openExternal, parsePlacement, setWindowPlacement, showWindow, type WindowPlacement } from '@deckbuilder/platform';
+import type { Pointer } from 'bun:ffi';
 import { SizeHint, Webview } from 'webview-bun';
+import { setWebviewZoom } from './webview-zoom.ts';
 import type { WindowRequest } from './window.ts';
 
 declare const self: Worker;
@@ -15,11 +17,15 @@ function readPlacement(file: string): WindowPlacement | undefined {
   }
 }
 
-// Runs before every page load. Tells the UI it is in a window, and sends links to other
-// origins to the default browser instead of navigating the app window away.
+// Runs before every page load. Tells the UI it is in a window, sends links to other origins to
+// the default browser instead of navigating the app window away, and stops Ctrl+wheel and
+// Ctrl +/-/0 from zooming the whole window (the zoom is a setting; the page still gets the events).
 const INIT = `
 window.__DECKBUILDER_SHELL__ = 'window';
 (() => {
+  addEventListener('wheel', (e) => { if (e.ctrlKey) e.preventDefault(); }, { passive: false, capture: true });
+  const zoomKeys = ['Equal', 'Minus', 'Digit0', 'NumpadAdd', 'NumpadSubtract', 'Numpad0'];
+  addEventListener('keydown', (e) => { if (e.ctrlKey && zoomKeys.includes(e.code)) e.preventDefault(); }, { capture: true });
   const external = (href) => {
     try { return new URL(href, location.href).origin !== location.origin; } catch { return false; }
   };
@@ -76,6 +82,7 @@ self.onmessage = (e: MessageEvent<WindowRequest>) => {
   }
   webview.title = title;
   webview.bind('__deckbuilderOpenExternal', (href: string) => openExternal(href));
+  webview.bind('__deckbuilderSetZoom', (factor: number) => setWebviewZoom(webview.unsafeHandle as Pointer, factor));
   webview.init(INIT);
   webview.navigate(url);
   webview.run();

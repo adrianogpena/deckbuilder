@@ -32,6 +32,7 @@ export const ptBR: Messages<typeof en> = {
   'settings.title': 'Configurações',
   'settings.theme': 'Tema',
   'settings.general': 'Geral',
+  'settings.layout': 'Layout',
   'settings.keys': 'Atalhos de teclado',
   'keys.global': 'Global',
   'settings.quit': 'Sair',

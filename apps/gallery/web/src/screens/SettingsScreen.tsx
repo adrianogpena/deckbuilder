@@ -1,5 +1,5 @@
 import { Fragment, useState } from 'react';
-import { AppearanceFields, type ApiError, detectLanguage, type FileAssociation, validFileAssociations, ErrorBanner, errorMessage, errorOf, GLOBAL, isDesktop, KeybindingsEditor, LANGUAGES, Modal, PageHead, Spinner, useAsync, useKeybindings, type Language } from '@deckbuilder/ui';
+import { AppearanceFields, ZoomField, type ApiError, detectLanguage, type FileAssociation, validFileAssociations, ErrorBanner, errorMessage, errorOf, GLOBAL, isDesktop, KeybindingsEditor, LANGUAGES, Modal, PageHead, Spinner, useAsync, useKeybindings, type Language } from '@deckbuilder/ui';
 import { APP } from '../../../app';
 import { api, type BackupInfo, type EditorInfo, type ImportResult, type Settings } from '../api';
 import { type MessageKey, t } from '../i18n';
@@ -14,6 +14,7 @@ interface Props {
 
 const SECTIONS = [
   { id: 'general', label: 'settings.general' },
+  { id: 'layout', label: 'settings.layout' },
   { id: 'keys', label: 'settings.keys' },
   { id: 'files', label: 'settings.files' },
   { id: 'editors', label: 'settings.editors' },
@@ -37,6 +38,14 @@ export function SettingsScreen({ settings, onChange, onQuit }: Props) {
         </nav>
         <div className="scroll">
           {section === 'general' && <GeneralSection settings={settings} onChange={onChange} onQuit={onQuit} />}
+          {section === 'layout' && (
+            <section className="section">
+              <h4 className="mono-label">{t('settings.layout')}</h4>
+              <div className="card form">
+                <ZoomField value={settings} onChange={onChange} />
+              </div>
+            </section>
+          )}
           {section === 'keys' && <KeysCard settings={settings} onChange={onChange} />}
           {section === 'files' && <FileTypesCard value={settings.fileAssociations ?? []} onChange={(fileAssociations) => onChange({ fileAssociations })} />}
           {section === 'editors' && <EditorsCard />}

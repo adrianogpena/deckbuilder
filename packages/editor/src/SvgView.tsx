@@ -46,7 +46,10 @@ function parseSvg(source: string): Parsed {
 const MIN_ZOOM = 0.05;
 const MAX_ZOOM = 40;
 
-/** An SVG drawn by an `<img>` (its scripts never run) with wheel zoom, drag to pan, a background switch and its source. */
+/**
+ * An SVG drawn by an `<img>` (its scripts never run) with wheel zoom, drag to pan, a background switch and its source.
+ * Without `source` it shows any image this way (PNG, JPEG, ...).
+ */
 export function SvgView({ url, source, name }: { url: string; source?: string; name: string }) {
   const [view, setView] = useState({ zoom: 1, x: 0, y: 0 });
   const [light, setLight] = useState(true);
@@ -82,10 +85,18 @@ export function SvgView({ url, source, name }: { url: string; source?: string; n
     });
   const reset = () => setView({ zoom: 1, x: 0, y: 0 });
 
-  const onWheel = (e: React.WheelEvent) => {
-    const r = stage.current!.getBoundingClientRect();
-    zoomAt(e.deltaY < 0 ? 1.15 : 1 / 1.15, e.clientX - r.left - r.width / 2, e.clientY - r.top - r.height / 2);
-  };
+  // A native listener: React's wheel listeners are passive, so they can't stop the page from scrolling or zooming (Ctrl+wheel in a browser tab).
+  useEffect(() => {
+    const el = stage.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const r = el.getBoundingClientRect();
+      zoomAt(e.deltaY < 0 ? 1.15 : 1 / 1.15, e.clientX - r.left - r.width / 2, e.clientY - r.top - r.height / 2);
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [showSource]);
 
   return (
     <div className="file-preview">
@@ -114,7 +125,6 @@ export function SvgView({ url, source, name }: { url: string; source?: string; n
           <div
             ref={stage}
             className={`svg-stage${light ? ' svg-light' : ''}`}
-            onWheel={onWheel}
             onPointerDown={(e) => {
               drag.current = { x: e.clientX, y: e.clientY };
               e.currentTarget.setPointerCapture(e.pointerId);

@@ -1,4 +1,5 @@
-import { effectiveKind, familySibling, PALETTES, resolvePalette, type ThemeKind, type ThemePreference, type ThemeSettings } from '@deckbuilder/server-core/palettes';
+import { effectiveKind, familySibling, PALETTES, resolvePalette, type ThemeKind, type ThemePreference, type ThemeSettings, ZOOM_LEVELS } from '@deckbuilder/server-core/palettes';
+import { isDesktop } from '../api';
 import { t } from '../i18n';
 import { useSystemKind } from '../theme';
 
@@ -42,5 +43,20 @@ export function AppearanceFields({ value, onChange }: Props) {
         </select>
       </label>
     </>
+  );
+}
+
+/** The app window's zoom (applied by `useZoom`); a browser tab has the browser's own. */
+export function ZoomField({ value, onChange }: Props) {
+  return (
+    <label className="field">
+      <span className="mono-label">{t('zoom.label')}</span>
+      {isDesktop && (
+        <select value={value.zoom ?? 1} onChange={(e) => onChange({ zoom: Number(e.target.value) })}>
+          {ZOOM_LEVELS.map((z) => <option key={z} value={z}>{Math.round(z * 100)}%</option>)}
+        </select>
+      )}
+      <span className="muted">{t(isDesktop ? 'zoom.hint' : 'zoom.browser')}</span>
+    </label>
   );
 }

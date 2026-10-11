@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { PALETTES } from '@deckbuilder/server-core/palettes';
-import { CommandPalette, detectLanguage, effectiveKeys, ErrorBanner, Icon, isDesktop, KeybindingProvider, type PaletteItem, PanelLoading, setFileAssociations, setLanguage, Sidebar, Spinner, useAsync, useCommand, useCommandPalette, useHashRoute, useHeartbeat, useKeybindings, useTheme } from '@deckbuilder/ui';
+import { CommandPalette, detectLanguage, effectiveKeys, ErrorBanner, Icon, isDesktop, KeybindingProvider, type PaletteItem, PanelLoading, setFileAssociations, setLanguage, Sidebar, Spinner, useAsync, useCommand, useCommandPalette, useHashRoute, useHeartbeat, useKeybindings, useTheme, useZoom } from '@deckbuilder/ui';
 import { APP } from '../../app';
 import { api, type Settings } from './api';
 import { commandById, commands, navCommandId, TOGGLE_NAV } from './commands';
@@ -58,6 +58,7 @@ function Main({ settings, setSettings, screen, go }: MainProps) {
   const palette = useCommandPalette();
 
   const { kind } = useTheme(settings);
+  useZoom(settings.zoom);
 
   useEffect(() => {
     const item = NAV.flatMap((s) => s.items).find((i) => i.id === screen);

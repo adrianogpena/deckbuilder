@@ -35,13 +35,8 @@ export function FilePreview({ name, content, resolveImage }: { name: string; con
   }
   if ('url' in content) {
     if (kind === 'audio' || kind === 'video') return <MediaView url={content.url} video={kind === 'video'} />;
-    if (kind === 'svg') return <Suspense fallback={<PanelLoading />}><SvgView url={content.url} source={content.source} name={name} /></Suspense>;
-    if (kind !== 'image') return <PanelNotice icon={<Icon name="cube" size={20} />} title={t('preview.none')} message={t('preview.noneMessage')} />;
-    return (
-      <div className="file-preview">
-        <div className="file-preview-body file-preview-image"><img src={content.url} alt={name} /></div>
-      </div>
-    );
+    if (kind !== 'svg' && kind !== 'image') return <PanelNotice icon={<Icon name="cube" size={20} />} title={t('preview.none')} message={t('preview.noneMessage')} />;
+    return <Suspense fallback={<PanelLoading />}><SvgView url={content.url} source={kind === 'svg' ? content.source : undefined} name={name} /></Suspense>;
   }
   return (
     <div className="file-preview">

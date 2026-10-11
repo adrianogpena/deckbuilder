@@ -813,11 +813,15 @@ kbd {
 }
 
 .pdf-bar { justify-content: flex-start; align-items: center; }
-.pdf-page { font-size: 12px; color: var(--text-muted, inherit); padding: 0 6px; min-width: 90px; text-align: center; }
+.pdf-page { font-size: 12px; color: var(--text-muted, inherit); padding: 0 6px 0 2px; white-space: nowrap; }
+.pdf-page-input { width: 52px; text-align: center; font-size: 12px; padding: 2px 4px; }
 .pdf-prev { display: inline-flex; transform: rotate(180deg); }
 .pdf-main { display: flex; flex: 1; min-height: 0; gap: 8px; }
 .pdf-body { background: var(--bg-sunken); border-radius: 6px; padding: 12px; }
-.pdf-canvas { display: block; margin: 0 auto; background: #fff; box-shadow: 0 1px 6px rgba(0, 0, 0, 0.3); }
+.pdf-pages { display: flex; flex-direction: column; align-items: center; gap: 12px; width: max-content; min-width: 100%; }
+.pdf-page-box { position: relative; flex: none; background: #fff; box-shadow: 0 1px 6px rgba(0, 0, 0, 0.3); }
+.pdf-canvas { display: block; }
+.pdf-page-error { position: absolute; inset: 8px; }
 .pdf-layers { width: 220px; flex: none; overflow: auto; display: flex; flex-direction: column; gap: 4px; padding: 8px; border: 1px solid var(--border, rgba(128, 128, 128, 0.3)); border-radius: 6px; }
 .pdf-layer { display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
 .pdf-layers-empty { font-size: 12px; opacity: 0.7; }
