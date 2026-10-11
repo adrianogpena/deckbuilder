@@ -605,9 +605,10 @@ kbd {
 .markdown code { padding: 1px 5px; border-radius: 4px; background: var(--bg-sunken); font-family: var(--font-mono); font-size: 12.5px; }
 .markdown pre { padding: 10px 12px; overflow: auto; background: var(--bg-sunken); border: 1px solid var(--border-soft); border-radius: 8px; }
 .markdown pre code { padding: 0; background: none; line-height: 1.55; }
-.markdown pre { position: relative; }
+.md-code { position: relative; margin: 0 0 12px; }
+.md-code pre { margin: 0; }
 .md-code-copy { position: absolute; top: 6px; right: 6px; padding: 2px 8px; font-size: 11px; color: var(--ink-muted, inherit); background: var(--bg-raised, var(--bg-sunken)); border: 1px solid var(--border-soft); border-radius: 6px; cursor: pointer; opacity: 0; transition: opacity 0.1s; }
-.markdown pre:hover .md-code-copy, .md-code-copy:focus-visible { opacity: 1; }
+.md-code:hover .md-code-copy, .md-code-copy:focus-visible { opacity: 1; }
 .markdown blockquote { padding: 2px 12px; border-left: 3px solid var(--border); color: var(--text-2); }
 .markdown table { border-collapse: collapse; display: block; max-width: 100%; overflow: auto; }
 .markdown th, .markdown td { padding: 5px 10px; border: 1px solid var(--border); }

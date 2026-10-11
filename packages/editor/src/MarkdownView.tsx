@@ -40,7 +40,10 @@ export function MarkdownView({ markdown, resolveImage }: { markdown: string; res
       button.type = 'button';
       button.className = 'md-code-copy';
       button.textContent = t('output.copyAll');
-      pre.append(button);
+      const wrap = document.createElement('div');
+      wrap.className = 'md-code';
+      pre.replaceWith(wrap);
+      wrap.append(pre, button);
     }
   }, [html]);
 
