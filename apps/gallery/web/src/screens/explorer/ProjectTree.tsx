@@ -42,10 +42,11 @@ export interface ProjectTreeProps {
 
 /** The lazy tree of a project's folder, with the file actions. */
 export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, onMoved, onDeleted }: ProjectTreeProps) {
-  const tree = useRef<TreeViewHandle>(null);
+  const tree = useRef<TreeViewHandle<Node>>(null);
+  const clipboard = useRef<{ mode: 'copy' | 'cut'; paths: string[] }>();
   const { confirm, prompt, element } = useDialogs();
   const [error, setError] = useState<ApiError>();
-  const [menu, setMenu] = useState<{ at: { x: number; y: number }; node: Node }>();
+  const [menu, setMenu] = useState<{ at: { x: number; y: number }; node: Node; selection: Node[] }>();
   const editors = useAsync(() => api.editors(), []);
 
   const folderFiles = useRef(new Map<string, string[]>());
@@ -142,6 +143,8 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
       reloadDir(relPath.dirname(node.path));
     });
 
+  const actionable = (nodes: Node[]) => nodes.filter((n) => !isRoot(n) && !n.outside);
+
   const remove = (node: Node) =>
     run(async () => {
       if (isRoot(node) || node.outside) return;
@@ -160,28 +163,69 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
       }
     });
 
-  const move = (dragged: Node, target: Node) =>
+  const move = (dragged: Node[], target: Node) =>
     run(async () => {
-      if (isRoot(dragged) || dragged.outside || target.outside || relPath.dirname(dragged.path) === target.path || relPath.isUnder(target.path, dragged.path)) return;
-      const to = relPath.join(target.path, dragged.name);
+      if (target.outside) return;
+      const moving = actionable(dragged).filter((n) => relPath.dirname(n.path) !== target.path && !relPath.isUnder(target.path, n.path));
       try {
-        await api.fsMove(project.id, dragged.path, to);
-        onMoved(project.id, dragged.path, to);
+        for (const n of moving) {
+          const to = relPath.join(target.path, n.name);
+          await api.fsMove(project.id, n.path, to);
+          onMoved(project.id, n.path, to);
+        }
       } finally {
-        reloadDir(relPath.dirname(dragged.path));
-        reloadDir(target.path);
+        for (const dir of new Set(moving.map((n) => relPath.dirname(n.path)))) reloadDir(dir);
+        if (moving.length) reloadDir(target.path);
       }
     });
 
-  const menuItems = (node: Node): Array<ContextMenuItem | 'sep'> => {
+  const stash = (mode: 'copy' | 'cut', nodes: Node[]) => {
+    const paths = actionable(nodes).map((n) => n.path);
+    if (paths.length) clipboard.current = { mode, paths };
+  };
+
+  const paste = (node: Node) =>
+    run(async () => {
+      const clip = clipboard.current;
+      if (!clip || node.outside) return;
+      const dir = isDir(node) ? node.path : relPath.dirname(node.path);
+      const reload = new Set([dir]);
+      try {
+        for (const from of clip.paths) {
+          const name = relPath.basename(from);
+          if (clip.mode === 'copy') {
+            await api.fsCopy(project.id, from, relPath.join(dir, name));
+          } else if (relPath.dirname(from) !== dir && !relPath.isUnder(dir, from)) {
+            const to = relPath.join(dir, name);
+            await api.fsMove(project.id, from, to);
+            onMoved(project.id, from, to);
+            reload.add(relPath.dirname(from));
+          }
+        }
+        if (clip.mode === 'cut') clipboard.current = undefined;
+      } finally {
+        for (const d of reload) reloadDir(d);
+        expand(nodeId(project.id, dir));
+      }
+    });
+
+  const menuItems = (node: Node, selection: Node[]): Array<ContextMenuItem | 'sep'> => {
     const disabled = !!node.outside;
     const item = (id: string, label: string, act: () => void, extra: Partial<ContextMenuItem> = {}): ContextMenuItem => ({ id, label, run: act, disabled, ...extra });
     const call = (job: () => Promise<unknown>) => () => void run(async () => void (await job()));
+    if (selection.length > 1) {
+      return [
+        item('copy', t('explorer.copy'), () => stash('copy', selection), { icon: 'copy', hint: 'Ctrl+C' }),
+        item('cut', t('explorer.cut'), () => stash('cut', selection), { hint: 'Ctrl+X' }),
+      ];
+    }
     return [
       ...(isDir(node) ? [] : [item('open', t('explorer.open'), () => open(node), { icon: 'file' })]),
       item('newFile', t('explorer.newFile'), () => void create('file', node), { icon: 'plus' }),
       item('newDir', t('explorer.newFolder'), () => void create('dir', node), { icon: 'folder' }),
       'sep',
+      ...(isRoot(node) ? [] : [item('copy', t('explorer.copy'), () => stash('copy', [node]), { icon: 'copy', hint: 'Ctrl+C' }), item('cut', t('explorer.cut'), () => stash('cut', [node]), { hint: 'Ctrl+X' })]),
+      item('paste', t('explorer.paste'), () => void paste(node), { hint: 'Ctrl+V', disabled: disabled || !clipboard.current }),
       ...(isRoot(node)
         ? []
         : [
@@ -223,13 +267,16 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
         expanded={expanded}
         onExpandedChange={onExpandedChange}
         onOpen={open}
-        onContextMenu={(node, e) => setMenu({ at: { x: e.clientX, y: e.clientY }, node })}
+        onContextMenu={(node, e) => setMenu({ at: { x: e.clientX, y: e.clientY }, node, selection: tree.current?.selection() ?? [node] })}
         onRename={(node, name) => void rename(node, name)}
-        onDelete={(node) => void remove(node)}
+        onDelete={(nodes) => nodes.length === 1 && void remove(nodes[0]!)}
+        onCopy={(nodes) => stash('copy', nodes)}
+        onCut={(nodes) => stash('cut', nodes)}
+        onPaste={(node) => void paste(node)}
         draggable
         onDrop={(dragged, target) => void move(dragged, target)}
       />
-      {menu && <ContextMenu at={menu.at} items={menuItems(menu.node)} onClose={() => setMenu(undefined)} />}
+      {menu && <ContextMenu at={menu.at} items={menuItems(menu.node, menu.selection)} onClose={() => setMenu(undefined)} />}
     </section>
   );
 }

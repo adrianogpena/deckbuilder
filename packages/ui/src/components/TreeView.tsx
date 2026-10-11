@@ -43,16 +43,24 @@ export interface TreeViewProps<N> {
   onContextMenu?: (node: N, e: MouseEvent) => void;
   /** F2 or `startRename` show an inline input; Enter or leaving it commits, Escape cancels. */
   onRename?: (node: N, name: string) => void;
-  onDelete?: (node: N) => void;
+  /** Delete on the selected rows (Ctrl/Shift+click and Shift+Arrows select several). */
+  onDelete?: (nodes: N[]) => void;
+  /** Ctrl+C / Ctrl+X on the selected rows. */
+  onCopy?: (nodes: N[]) => void;
+  onCut?: (nodes: N[]) => void;
+  /** Ctrl+V with `target` as the focused row. */
+  onPaste?: (target: N) => void;
   draggable?: boolean;
-  /** A row dropped on a row with children, never on itself or its descendants. */
-  onDrop?: (dragged: N, target: N) => void;
+  /** Rows dragged (the whole selection when one of its rows is dragged) onto a row with children, never onto themselves or their descendants. */
+  onDrop?: (dragged: N[], target: N) => void;
 }
 
-export interface TreeViewHandle {
+export interface TreeViewHandle<N = unknown> {
   /** Reloads the children of `id`, or of every loaded node; collapsed ones are dropped from the cache instead. */
   reload: (id?: string) => void;
   startRename: (id: string) => void;
+  /** The selected nodes in display order. */
+  selection: () => N[];
 }
 
 function RenameInput({ initial, onDone }: { initial: string; onDone: (value: string | null) => void }) {
@@ -92,8 +100,8 @@ function RenameInput({ initial, onDone }: { initial: string; onDone: (value: str
   );
 }
 
-function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle>) {
-  const { roots, idOf, labelOf, iconOf, iconToneOf, hasChildren, expanded, onExpandedChange, onOpen, onContextMenu, onRename, onDelete, draggable, onDrop } = props;
+function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) {
+  const { roots, idOf, labelOf, iconOf, iconToneOf, hasChildren, expanded, onExpandedChange, onOpen, onContextMenu, onRename, onDelete, onCopy, onCut, onPaste, draggable, onDrop } = props;
   const cache = useRef(new Map<string, Entry<N>>());
   const generations = useRef(new Map<string, number>());
   const [, bump] = useReducer((x: number) => x + 1, 0);
@@ -101,7 +109,9 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle>) {
   const selected = props.selected !== undefined ? props.selected : ownSelected;
   const [renaming, setRenaming] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
-  const dragged = useRef<{ id: string; node: N } | null>(null);
+  const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
+  const anchor = useRef<string | null>(null);
+  const dragged = useRef<Array<{ id: string; node: N }> | null>(null);
   const rowEls = useRef(new Map<string, HTMLDivElement>());
   const focusNext = useRef<string | null>(null);
   const typeahead = useRef({ text: '', at: 0 });
@@ -118,6 +128,8 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle>) {
   rowsRef.current = rows;
   const rowOf = (id: string | null) => (id === null ? undefined : rows.find((r) => r.id === id));
   const current = rowOf(selected);
+  const isPicked = (id: string) => id === selected || picked.has(id);
+  const pickedRows = () => rowsRef.current.filter((r) => isPicked(r.id));
 
   const bumpGeneration = (id: string) => {
     const gen = (generations.current.get(id) ?? 0) + 1;
@@ -163,7 +175,11 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle>) {
     rowEls.current.get(id)?.focus();
   });
 
-  const select = (row: TreeRow<N>, focus = true) => {
+  const select = (row: TreeRow<N>, focus = true, extend = false) => {
+    if (!extend) {
+      anchor.current = row.id;
+      setPicked(new Set());
+    }
     if (latest.current.selected === undefined) setOwnSelected(row.id);
     if (row.id !== selected) latest.current.onSelect?.(row.node);
     if (focus) focusNext.current = row.id;
@@ -176,7 +192,31 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle>) {
     setRenaming(id);
   };
 
+  const selectRange = (to: TreeRow<N>) => {
+    const all = rowsRef.current;
+    const a = all.findIndex((r) => r.id === (anchor.current ?? current?.id));
+    const b = all.indexOf(to);
+    if (a < 0 || b < 0) return select(to);
+    setPicked(new Set(all.slice(Math.min(a, b), Math.max(a, b) + 1).map((r) => r.id)));
+    select(to, true, true);
+  };
+
+  const toggle = (row: TreeRow<N>) => {
+    const next = new Set(pickedRows().map((r) => r.id));
+    anchor.current = row.id;
+    if (!next.delete(row.id)) {
+      next.add(row.id);
+      setPicked(next);
+      return select(row, false, true);
+    }
+    const rest = rowsRef.current.filter((r) => next.has(r.id));
+    if (!rest.length) return;
+    setPicked(next);
+    select(rest[rest.length - 1], false, true);
+  };
+
   useImperativeHandle(ref, () => ({
+    selection: () => pickedRows().map((r) => r.node),
     reload(id?: string) {
       const ids = id === undefined ? [...cache.current.keys()] : [id];
       const open = new Set(latest.current.expanded);
@@ -227,7 +267,9 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle>) {
     if (renaming !== null || e.altKey || e.metaKey || !rows.length) return;
     const go = (id: string | null) => {
       const row = rowOf(id);
-      if (row) select(row);
+      if (!row) return;
+      if (e.shiftKey) selectRange(row);
+      else select(row);
     };
     const first = rows[0];
     const last = rows[rows.length - 1];
@@ -238,6 +280,12 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle>) {
     else if (e.key === 'End') go(last.id);
     else if (e.key.length === 1 && !e.ctrlKey) typeAhead(e.key);
     else if (!current) handled = false;
+    else if (e.ctrlKey && e.key.toLowerCase() === 'a') {
+      setPicked(new Set(rows.map((r) => r.id)));
+      anchor.current = first.id;
+    } else if (e.ctrlKey && e.key.toLowerCase() === 'c' && onCopy) onCopy(pickedRows().map((r) => r.node));
+    else if (e.ctrlKey && e.key.toLowerCase() === 'x' && onCut) onCut(pickedRows().map((r) => r.node));
+    else if (e.ctrlKey && e.key.toLowerCase() === 'v' && onPaste) onPaste(current.node);
     else if (e.key === 'ArrowLeft') {
       if (expandedSet.has(current.id) && hasChildren(current.node)) setOpen(current, false);
       else go(parentId(rows, current.id));
@@ -247,7 +295,7 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle>) {
       else go(firstChildId(rows, current.id));
     } else if (e.key === 'Enter') open(current);
     else if (e.key === 'F2' && onRename) startRename(current.id);
-    else if (e.key === 'Delete' && onDelete) onDelete(current.node);
+    else if (e.key === 'Delete' && onDelete) onDelete(pickedRows().map((r) => r.node));
     else handled = false;
     if (handled) {
       e.preventDefault();
@@ -264,13 +312,13 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle>) {
 
   const canDrop = (row: TreeRow<N>) => {
     const d = dragged.current;
-    return !!d && !!onDrop && hasChildren(row.node) && !isInside(rows, row.id, d.id);
+    return !!d && !!onDrop && hasChildren(row.node) && !d.some((x) => isInside(rows, row.id, x.id));
   };
 
   const tabStop = current?.id ?? rows[0]?.id;
 
   return (
-    <div className="tree" role="tree" onKeyDown={onKeyDown}>
+    <div className="tree" role="tree" aria-multiselectable="true" onKeyDown={onKeyDown}>
       {rows.map((row) => {
         const { node, id, depth } = row;
         const expandable = hasChildren(node);
@@ -286,12 +334,14 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle>) {
               role="treeitem"
               aria-level={depth + 1}
               aria-expanded={expandable ? isOpen : undefined}
-              aria-selected={id === selected}
+              aria-selected={isPicked(id)}
               tabIndex={id === tabStop ? 0 : -1}
-              className={`tree-row${id === selected ? ' selected' : ''}${id === dropTarget ? ' drop-target' : ''}`}
+              className={`tree-row${isPicked(id) ? ' selected' : ''}${id === dropTarget ? ' drop-target' : ''}`}
               style={{ paddingLeft: depth * INDENT + 4 }}
               draggable={draggable && renaming !== id}
-              onClick={() => {
+              onClick={(e) => {
+                if (e.ctrlKey || e.metaKey) return toggle(row);
+                if (e.shiftKey) return selectRange(row);
                 select(row, false);
                 if (expandable) setOpen(row, !isOpen);
               }}
@@ -300,14 +350,14 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle>) {
                 onContextMenu &&
                 ((e) => {
                   e.preventDefault();
-                  select(row, false);
+                  if (!isPicked(id)) select(row, false);
                   onContextMenu(node, e);
                 })
               }
               onDragStart={(e) => {
                 e.dataTransfer.setData(TREE_DRAG_TYPE, id);
                 e.dataTransfer.effectAllowed = 'move';
-                dragged.current = { id, node };
+                dragged.current = isPicked(id) ? pickedRows() : [{ id, node }];
               }}
               onDragEnd={() => {
                 dragged.current = null;
@@ -326,7 +376,7 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle>) {
                 if (!d || !canDrop(row)) return;
                 e.preventDefault();
                 dragged.current = null;
-                onDrop?.(d.node, node);
+                onDrop?.(d.map((x) => x.node), node);
               }}
             >
               <span className={`tree-chevron${isOpen ? ' open' : ''}`}>{expandable && <Icon name="chevron" size={14} />}</span>
@@ -364,8 +414,9 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle>) {
 }
 
 /**
- * Generic lazy tree: children load on the first expand, single selection that follows the
- * keyboard focus (Up/Down/Left/Right/Home/End, Enter, F2, Delete, type-ahead), optional drag and drop.
+ * Generic lazy tree: children load on the first expand, multi-selection (Ctrl/Shift+click,
+ * Shift+Arrows, Ctrl+A) whose primary row follows the keyboard focus (Up/Down/Left/Right/Home/End, Enter, F2, Delete,
+ * Ctrl+C/X/V, type-ahead), optional drag and drop.
  * The app owns `expanded` (and `selected` when given); a ref gives `reload` and `startRename`.
  */
-export const TreeView = forwardRef(TreeViewInner) as <N>(props: TreeViewProps<N> & { ref?: Ref<TreeViewHandle> }) => ReactElement;
+export const TreeView = forwardRef(TreeViewInner) as <N>(props: TreeViewProps<N> & { ref?: Ref<TreeViewHandle<N>> }) => ReactElement;

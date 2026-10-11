@@ -118,6 +118,17 @@ test('write checks the mtime, creates new files and needs the parent', async () 
   expect(await fail('POST /api/fs/write', { root: 'r', path: 'a', text: 'x' })).toMatchObject({ code: 'notAFile' });
 });
 
+test('copy', async () => {
+  const { root, call, fail } = await setup();
+  await call('POST /api/fs/create', { root: 'r', path: 'a/c.txt', kind: 'file', text: 'c' });
+  expect(await call('POST /api/fs/copy', { root: 'r', from: 'a/c.txt', to: 'a/c.txt' })).toMatchObject({ name: 'c copy.txt' });
+  expect(await call('POST /api/fs/copy', { root: 'r', from: 'a/c.txt', to: 'a/c.txt' })).toMatchObject({ name: 'c copy 2.txt' });
+  expect(await readFile(join(root, 'a', 'c copy.txt'), 'utf8')).toBe('c');
+  expect(await call('POST /api/fs/copy', { root: 'r', from: 'a', to: 'a2' })).toMatchObject({ name: 'a2', kind: 'dir' });
+  expect(await readFile(join(root, 'a2', 'c.txt'), 'utf8')).toBe('c');
+  expect(await fail('POST /api/fs/copy', { root: 'r', from: 'a', to: 'a/x' })).toMatchObject({ code: 'moveIntoSelf' });
+});
+
 test('create, rename and move', async () => {
   const { root, call, fail } = await setup();
   await call('POST /api/fs/create', { root: 'r', path: 'a/c.txt', kind: 'file', text: 'c' });

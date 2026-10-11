@@ -1,5 +1,5 @@
 import type { Dirent } from 'node:fs';
-import { lstat, mkdir, readdir, realpath, rename, stat, writeFile } from 'node:fs/promises';
+import { cp, lstat, mkdir, readdir, realpath, rename, stat, writeFile } from 'node:fs/promises';
 import { basename, dirname, extname, isAbsolute, join, sep } from 'node:path';
 import { moveToTrash, type SaveDialogOptions, saveFileAs, writeFileAtomic } from '@deckbuilder/platform';
 import { AppError, forbidden, type Handler, invalid, ndjson, notFound, type Routes, type TailChunk } from '@deckbuilder/server-core';
@@ -545,6 +545,25 @@ export function rootedFs(opts: RootedFsOptions): RootedFs {
       await refuseExisting(from, to);
       // Never copy-then-delete across volumes: that would be a permanent delete without undo.
       await rename(from, to);
+      return described(to, basename(to), dest.realRoot);
+    },
+
+    'POST /api/fs/copy': async ({ json }) => {
+      const b = await body(json);
+      const src = await locate(b.root, b.from, true);
+      const dest = await locate(b.root, b.to);
+      writable(dest.root);
+      const from = await entryPath(src);
+      const wanted = await entryPath(dest);
+      if ((await lstat(from)).isDirectory() && fold(wanted).startsWith(fold(from) + sep)) {
+        throw invalid('moveIntoSelf', "A folder can't be copied into itself.");
+      }
+      // Like a paste in a file manager: an existing name gets " copy", " copy 2", ... instead of an error.
+      const ext = (await lstat(from)).isDirectory() ? '' : extname(wanted);
+      const stem = basename(wanted, ext);
+      let to = wanted;
+      for (let n = 1; await present(to); n++) to = join(dirname(wanted), `${stem} copy${n > 1 ? ` ${n}` : ''}${ext}`);
+      await cp(from, to, { recursive: true, errorOnExist: true, force: false });
       return described(to, basename(to), dest.realRoot);
     },
 
