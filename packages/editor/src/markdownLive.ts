@@ -4,7 +4,7 @@ import { type EditorState, type Extension, type Range, StateField } from '@codem
 import { Decoration, type DecorationSet, EditorView, WidgetType } from '@codemirror/view';
 import { highlightTree } from '@lezer/highlight';
 import { langOfFile, parserOf } from './languages';
-import { imagePolicy, renderMarkdown } from './markdown';
+import { frontmatter, frontmatterEntries, frontmatterTable, imagePolicy, renderMarkdown } from './markdown';
 import { highlightStyle } from './theme';
 
 const hidden = Decoration.replace({});
@@ -30,6 +30,29 @@ class TableWidget extends WidgetType {
     el.addEventListener('mousedown', (e) => {
       e.preventDefault();
       view.dispatch({ selection: { anchor: this.from }, scrollIntoView: true });
+      view.focus();
+    });
+    return el;
+  }
+  override ignoreEvent() {
+    return true;
+  }
+}
+
+class FrontmatterWidget extends WidgetType {
+  constructor(readonly entries: [string, string][], readonly source: string) {
+    super();
+  }
+  override eq(other: FrontmatterWidget) {
+    return other.source === this.source;
+  }
+  override toDOM(view: EditorView) {
+    const el = document.createElement('div');
+    el.className = 'markdown cm-md-table';
+    el.append(frontmatterTable(this.entries));
+    el.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      view.dispatch({ selection: { anchor: 0 }, scrollIntoView: true });
       view.focus();
     });
     return el;
@@ -136,8 +159,29 @@ function decorate(state: EditorState, resolveImage?: (src: string) => string | n
     });
   };
 
+  const fm = frontmatter(state.doc.toString());
+  const fmEnd = fm?.length ?? 0;
+  if (fm) {
+    const last = state.doc.lineAt(Math.max(0, fmEnd - 1)).number;
+    const entries = frontmatterEntries(fm.yaml);
+    if (entries && !touched(state, 0, state.doc.line(last).to)) {
+      const source = state.doc.sliceString(0, state.doc.line(last).to);
+      out.push(Decoration.replace({ widget: new FrontmatterWidget(entries, source), block: true }).range(0, state.doc.line(last).to));
+    } else {
+      for (let n = 1; n <= last; n++) addLine(state.doc.line(n).from, n === 1 || n === last ? 'cm-md-fence cm-md-fence-edge' : 'cm-md-fence');
+      const offset = state.doc.line(2).from;
+      const parser = parserOf('yaml');
+      if (parser) {
+        highlightTree(parser.parse(state.doc.sliceString(offset, state.doc.line(last).from)), highlightStyle, (from, to, classes) => {
+          out.push(mark(classes).range(offset + from, offset + to));
+        });
+      }
+    }
+  }
+
   syntaxTree(state).iterate({
     enter: (node) => {
+      if (node.from < fmEnd && node.name !== 'Document') return false;
       const name = node.name;
       const heading = HEADING.exec(name);
       if (heading) {
@@ -204,22 +248,26 @@ const live = (resolveImage?: (src: string) => string | null) => StateField.defin
 });
 
 const theme = EditorView.theme({
-  '&.cm-editor .cm-scroller': { fontFamily: "system-ui, 'Segoe UI', sans-serif", fontSize: '14px', lineHeight: '1.7', padding: '8px 4px' },
-  '.cm-content': { maxWidth: '860px', margin: '0 auto' },
-  '.cm-md-h': { fontWeight: '600', lineHeight: '1.3' },
-  '.cm-md-h1': { fontSize: '1.7em', paddingTop: '.5em' },
-  '.cm-md-h2': { fontSize: '1.4em', paddingTop: '.4em' },
-  '.cm-md-h3': { fontSize: '1.2em', paddingTop: '.3em' },
-  '.cm-md-h4, .cm-md-h5, .cm-md-h6': { fontSize: '1.05em', color: 'var(--text-2)' },
+  // Mirrors `.markdown` in the UI styles, so Live reads like Preview.
+  '&': { backgroundColor: 'var(--bg)', fontSize: '14px' },
+  '&.cm-editor .cm-scroller': { fontFamily: "'Geist', 'Segoe UI', system-ui, sans-serif", fontSize: '14px', lineHeight: '1.6', padding: '4px 12px' },
+  '.cm-content': { maxWidth: 'var(--md-width, 860px)', margin: 'var(--md-margin, 0 auto)', padding: '0' },
+  '.cm-md-h span': { color: 'inherit' },
+  '.cm-md-h': { fontWeight: '600', lineHeight: '1.25', letterSpacing: '-.01em' },
+  '.cm-md-h1': { fontSize: '24px', paddingTop: '16px', paddingBottom: '6px', borderBottom: '1px solid var(--border-soft)', marginBottom: '8px' },
+  '.cm-md-h2': { fontSize: '19px', paddingTop: '14px', paddingBottom: '4px', borderBottom: '1px solid var(--border-soft)', marginBottom: '8px' },
+  '.cm-md-h3': { fontSize: '16px', paddingTop: '12px' },
+  '.cm-md-h4, .cm-md-h5, .cm-md-h6': { fontSize: '14px', paddingTop: '10px', color: 'var(--text-2)' },
   '.cm-md-strong': { fontWeight: '700' },
   '.cm-md-em': { fontStyle: 'italic' },
   '.cm-md-strike': { textDecoration: 'line-through' },
-  '.cm-md-code': { fontFamily: 'var(--font-mono)', fontSize: '.9em', backgroundColor: 'var(--bg-sunken)', borderRadius: '4px', padding: '0 3px' },
-  '.cm-md-link': { color: 'var(--accent)' },
-  '.cm-md-quote': { borderLeft: '3px solid var(--border)', paddingLeft: '10px', color: 'var(--text-2)' },
-  '.cm-md-hr': { borderBottom: '1px solid var(--border)' },
-  '.cm-md-fence': { fontFamily: 'var(--font-mono)', fontSize: '.9em', lineHeight: '1.5', backgroundColor: 'var(--bg-elev)', paddingLeft: '10px' },
-  '.cm-md-fence-edge': { fontSize: '.75em', lineHeight: '1.6' },
+  '.cm-md-code': { fontFamily: 'var(--font-mono)', fontSize: '12.5px', backgroundColor: 'var(--bg-sunken)', borderRadius: '4px', padding: '1px 5px' },
+  '.cm-md-link, .cm-md-link span': { color: 'var(--accent)' },
+  '.cm-md-quote': { borderLeft: '3px solid var(--border)', paddingLeft: '12px', color: 'var(--text-2)' },
+  '.cm-md-quote span': { color: 'inherit' },
+  '.cm-md-hr': { borderBottom: '1px solid var(--border)', paddingBottom: '9px', marginBottom: '9px' },
+  '.cm-md-fence': { fontFamily: 'var(--font-mono)', fontSize: '12.5px', lineHeight: '1.55', backgroundColor: 'var(--bg-sunken)', padding: '0 12px', borderLeft: '1px solid var(--border-soft)', borderRight: '1px solid var(--border-soft)' },
+  '.cm-md-fence-edge': { padding: '5px 12px', lineHeight: '1.3', color: 'var(--text-3)' },
   '.cm-md-fence-label': { color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.04em' },
   '.cm-md-table': { padding: '4px 0', whiteSpace: 'normal', lineHeight: '1.5' },
   '.cm-md-img': { maxWidth: '100%', verticalAlign: 'middle' },

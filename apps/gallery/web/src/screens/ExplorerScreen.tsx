@@ -4,6 +4,8 @@ import {
   activeTab,
   addTab,
   closeTab,
+  type ContextMenuItem,
+  copyText,
   dialogs,
   Empty,
   errorOf,
@@ -31,7 +33,7 @@ import {
   relPath,
 } from '@deckbuilder/ui';
 import { api, type ExplorerSettings, type LogSettings, type Project, type Settings } from '../api';
-import { nodeId } from '../explorer-paths';
+import { fullPath, nodeId } from '../explorer-paths';
 import { t } from '../i18n';
 import { ProjectPicker } from './explorer/ProjectPicker';
 import { TreePane } from './explorer/TreePane';
@@ -266,6 +268,15 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
           ...fileIconOf(relPath.basename(route.path)),
         };
 
+  const menuOf = (route: Route): ContextMenuItem[] => {
+    const project = route.kind === 'file' ? list.find((p) => p.id === route.project) : undefined;
+    if (route.kind !== 'file' || !project) return [];
+    return [
+      { id: 'copyFullPath', label: t('explorer.copyFullPath'), icon: 'copy', run: () => void copyText(fullPath(project.path, route.path)) },
+      { id: 'copyPath', label: t('explorer.copyPath'), icon: 'copy', run: () => void copyText(route.path) },
+    ];
+  };
+
   const shown = shownIds(state, list).flatMap((id) => list.find((p) => p.id === id) ?? []);
   const focus = shown.length > 1 ? focusedTree : 0;
 
@@ -347,6 +358,7 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
           layout={state.layout}
           onChange={(layout) => update((s) => ({ ...s, layout }))}
           titleOf={titleOf}
+          menuOf={menuOf}
           newRoute={() => WELCOME}
           scope="explorer"
           renderTab={(tab, ctx) =>

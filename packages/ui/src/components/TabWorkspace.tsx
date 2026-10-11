@@ -23,6 +23,7 @@ import {
   type SplitNode,
   type Tab,
 } from '../tabs';
+import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { useCommand } from './Keybindings';
 import { SplitView } from './SplitView';
 import { Icon, type IconName, type Tone } from './ui';
@@ -42,6 +43,7 @@ interface TabBarProps<R> {
   canSplit: boolean;
   canClosePane: boolean;
   titleOf: (route: R) => TabTitle;
+  menuOf?: (route: R) => Array<ContextMenuItem | 'sep'>;
   onActivate: (tabId: string) => void;
   onClose: (tabId: string) => void;
   onNew: () => void;
@@ -55,6 +57,7 @@ interface TabBarProps<R> {
 function TabBar<R>(props: TabBarProps<R>) {
   const { pane, focused, titleOf } = props;
   const [dropAt, setDropAt] = useState<number | null>(null);
+  const [menu, setMenu] = useState<{ at: { x: number; y: number }; items: Array<ContextMenuItem | 'sep'> } | null>(null);
   const active = pane.tabs.find((x) => x.id === pane.active) ?? pane.tabs[0];
 
   const onDragOver = (e: DragEvent, index: number) => {
@@ -112,6 +115,12 @@ function TabBar<R>(props: TabBarProps<R>) {
                 onDrop(e, i);
               }}
               onClick={() => props.onActivate(tab.id)}
+              onContextMenu={(e) => {
+                const items = props.menuOf?.(tab.route);
+                if (!items?.length) return;
+                e.preventDefault();
+                setMenu({ at: { x: e.clientX, y: e.clientY }, items });
+              }}
               onMouseDown={(e) => e.button === 1 && e.preventDefault()}
               onAuxClick={(e) => e.button === 1 && props.onClose(tab.id)}
             >
@@ -151,6 +160,7 @@ function TabBar<R>(props: TabBarProps<R>) {
           </button>
         )}
       </div>
+      {menu && <ContextMenu at={menu.at} items={menu.items} onClose={() => setMenu(null)} />}
     </div>
   );
 }
@@ -200,13 +210,15 @@ interface TabWorkspaceProps<R> {
   /** Every tab of every pane stays mounted; hidden ones keep their state. */
   renderTab: (tab: Tab<R>, ctx: TabContext<R>) => ReactNode;
   titleOf: (route: R) => TabTitle;
+  /** Context menu of a tab; none when it returns no items. */
+  menuOf?: (route: R) => Array<ContextMenuItem | 'sep'>;
   /** The route of a tab opened with the "+" button or Ctrl+T, and of the tab that replaces the last one closed. */
   newRoute: () => R;
   /** The view id the tab shortcuts belong to (see `tabCommands`). */
   scope: string;
 }
 
-export function TabWorkspace<R>({ layout, onChange, renderTab, titleOf, newRoute, scope }: TabWorkspaceProps<R>) {
+export function TabWorkspace<R>({ layout, onChange, renderTab, titleOf, menuOf, newRoute, scope }: TabWorkspaceProps<R>) {
   useTabKeys(layout, onChange, newRoute, scope);
 
   // Handlers read the layout of the latest change, so two changes in one tick don't overwrite each other.
@@ -235,6 +247,7 @@ export function TabWorkspace<R>({ layout, onChange, renderTab, titleOf, newRoute
           canSplit={layout.panes.length < MAX_PANES}
           canClosePane={layout.panes.length > 1}
           titleOf={titleOf}
+          menuOf={menuOf}
           onActivate={(tabId) => update((l) => activate(l, pane.id, tabId))}
           onClose={closeById}
           onNew={() => update((l) => addTab(l, fresh(), pane.id))}

@@ -1,6 +1,6 @@
-import { t } from '@deckbuilder/ui';
+import { copyText, t } from '@deckbuilder/ui';
 import { classHighlighter, highlightTree } from '@lezer/highlight';
-import { useLayoutEffect, useMemo, useRef } from 'react';
+import { type MouseEvent, useLayoutEffect, useMemo, useRef } from 'react';
 import { langOfFile, type Parser, parserOf } from './languages';
 import { renderMarkdown } from './markdown';
 
@@ -35,7 +35,25 @@ export function MarkdownView({ markdown, resolveImage }: { markdown: string; res
       const parser = fence ? parserOf(fence.toLowerCase() === 'shell' ? 'shell' : langOfFile('x.' + fence)) : null;
       if (parser) highlightCode(code, parser);
     }
+    for (const pre of host.current?.querySelectorAll<HTMLElement>('pre') ?? []) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'md-code-copy';
+      button.textContent = t('output.copyAll');
+      pre.append(button);
+    }
   }, [html]);
 
-  return <div ref={host} className="markdown" dangerouslySetInnerHTML={{ __html: html }} />;
+  const onClick = async (e: MouseEvent<HTMLDivElement>) => {
+    const button = e.target as HTMLElement;
+    if (!button.classList.contains('md-code-copy')) return;
+    const code = button.parentElement?.querySelector('code') ?? button.parentElement;
+    if (!code || !(await copyText(code.textContent ?? ''))) return;
+    button.textContent = t('common.copied');
+    setTimeout(() => {
+      button.textContent = t('output.copyAll');
+    }, 1500);
+  };
+
+  return <div ref={host} className="markdown" onClick={onClick} dangerouslySetInnerHTML={{ __html: html }} />;
 }

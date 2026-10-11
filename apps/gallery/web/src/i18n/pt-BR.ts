@@ -91,6 +91,8 @@ export const ptBR: Messages<typeof en> = {
   'explorer.openInEditor': 'Abrir no {editor}',
   'explorer.editorMissing': 'não encontrado',
   'explorer.openDefault': 'Abrir com o app padrão',
+  'explorer.copyFullPath': 'Copiar caminho completo',
+  'explorer.copyPath': 'Copiar caminho relativo',
   'explorer.name': 'Nome',
   'explorer.nameInvalid': 'O nome não pode conter / nem \\.',
   'explorer.deleteTitle': 'Excluir',

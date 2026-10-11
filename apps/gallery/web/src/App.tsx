@@ -100,7 +100,12 @@ function Main({ settings, setSettings, screen, go }: MainProps) {
 
   if (stopped) return <div className="boot"><span>{t('app.stopped', { name: APP.name })}</span></div>;
 
-  const sections = NAV.map((s) => ({ title: t(s.title), items: s.items.map((i) => ({ ...i, label: t(i.label), hint: chordOf(navCommandId(i.id)) })) }));
+  const sections = NAV.map((s) => ({
+    title: t(s.title),
+    items: s.items.filter((i) => i.id !== 'settings').map((i) => ({ ...i, label: t(i.label), hint: chordOf(navCommandId(i.id)) })),
+  }));
+  const settingsChord = chordOf(navCommandId('settings'));
+  const settingsTitle = settingsChord ? `${t('nav.settings')} (${settingsChord})` : t('nav.settings');
   const toggleChord = chordOf(TOGGLE_NAV);
 
   return (
@@ -115,8 +120,8 @@ function Main({ settings, setSettings, screen, go }: MainProps) {
         toggleLabel={toggleChord ? `${t('keys.toggleNav')} (${toggleChord})` : t('keys.toggleNav')}
         footer={
           <>
-            <button className="btn btn-ghost btn-sm" onClick={() => save({ theme: nextTheme })} title={t(`nav.theme.${nextTheme}`)}>
-              <Icon name={kind === 'dark' ? 'sun' : 'moon'} />{!collapsed && ` ${t(`nav.theme.${nextTheme}`)}`}
+            <button className={`btn btn-ghost btn-sm${screen === 'settings' ? ' active' : ''}`} onClick={() => go('settings')} title={settingsTitle} aria-label={settingsTitle}>
+              <Icon name="settings" />
             </button>
             <button className="btn btn-ghost btn-sm" onClick={() => palette.setOpen(true)} title={t('nav.palette')} aria-label={t('nav.palette')}>
               <Icon name="search" />

@@ -89,6 +89,8 @@ export const en = {
   'explorer.openInEditor': 'Open in {editor}',
   'explorer.editorMissing': 'not found',
   'explorer.openDefault': 'Open with default app',
+  'explorer.copyFullPath': 'Copy full path',
+  'explorer.copyPath': 'Copy relative path',
   'explorer.name': 'Name',
   'explorer.nameInvalid': 'A name cannot contain / or \\.',
   'explorer.deleteTitle': 'Delete',

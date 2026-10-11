@@ -28,10 +28,61 @@ export function imagePolicy(src: string, resolveImage?: (src: string) => string 
   return resolveImage?.(s) ?? 'blocked';
 }
 
+const FRONTMATTER = /^﻿?---[ \t]*\r?\n(?:([\s\S]*?)\r?\n)?(?:---|\.\.\.)[ \t]*(?:\r?\n|$)/;
+
+/** A leading YAML frontmatter block (`---` ... `---`): its full length and its YAML text; null if there is none. */
+export function frontmatter(md: string): { length: number; yaml: string } | null {
+  const m = FRONTMATTER.exec(md);
+  return m ? { length: m[0].length, yaml: m[1] ?? '' } : null;
+}
+
+/** Top-level `key: value` pairs of frontmatter YAML; nested lines and list items fold into their key's value. Null if no key is found. */
+export function frontmatterEntries(yaml: string): [string, string][] | null {
+  const entries: [string, string[]][] = [];
+  for (const line of yaml.split(/\r?\n/)) {
+    const m = /^([^\s#:-][^:]*?|-[^\s:][^:]*?):(?:\s+(.*))?$/.exec(line.trimEnd());
+    if (m) {
+      entries.push([m[1], m[2] && !/^[|>][+-]?$/.test(m[2]) ? [unquote(m[2].trim())] : []]);
+    } else if (entries.length && line.trim() && !line.trim().startsWith('#')) {
+      entries[entries.length - 1][1].push(unquote(line.trim().replace(/^-\s+/, '')));
+    }
+  }
+  if (!entries.length) return null;
+  return entries.map(([k, v]) => [k, v.join(', ')]);
+}
+
+function unquote(v: string): string {
+  return /^(".*"|'.*')$/.test(v) ? v.slice(1, -1) : v;
+}
+
+/** The frontmatter as a two-column table (built with textContent, so values are never parsed as HTML). */
+export function frontmatterTable(entries: [string, string][]): HTMLTableElement {
+  const table = document.createElement('table');
+  table.className = 'md-frontmatter';
+  const body = table.createTBody();
+  for (const [key, value] of entries) {
+    const row = body.insertRow();
+    const th = document.createElement('th');
+    th.scope = 'row';
+    th.textContent = key;
+    row.append(th);
+    row.insertCell().textContent = value;
+  }
+  return table;
+}
+
+/** Length of the frontmatter block, 0 if there is none. */
+export function frontmatterLength(md: string): number {
+  return frontmatter(md)?.length ?? 0;
+}
+
 const BLOCKED_ATTR = 'data-md-blocked';
 
 /** Markdown (GFM) to sanitized HTML. Needs a DOM (DOMPurify): browser only. */
 export function renderMarkdown(md: string, opts: MarkdownOptions = {}): string {
+  const fm = frontmatter(md);
+  const entries = fm ? frontmatterEntries(fm.yaml) : null;
+  if (fm) md = (entries ? '' : '~~~~yaml\n' + fm.yaml + '\n~~~~\n') + md.slice(fm.length);
   const raw = marked.parse(md, { gfm: true, async: false }) as string;
   const hook = (node: Element) => {
     if (node.tagName === 'A' && node.hasAttribute('href')) {
@@ -71,6 +122,7 @@ export function renderMarkdown(md: string, opts: MarkdownOptions = {}): string {
     img.replaceWith(span);
   }
   const box = document.createElement('div');
+  if (entries) box.append(frontmatterTable(entries));
   box.append(fragment);
   return box.innerHTML;
 }

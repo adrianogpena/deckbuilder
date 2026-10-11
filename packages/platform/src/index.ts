@@ -1,4 +1,5 @@
 // OS-specific code lives here, so apps and the other packages stay portable.
+import { basename } from 'node:path';
 export * from './browser.ts';
 export * from './dialogs.ts';
 export * from './editors.ts';
@@ -56,6 +57,35 @@ export function showWindow(hwnd: import('bun:ffi').Pointer | null): void {
     user32.close();
   } catch {
     // the window stays as the library left it
+  }
+}
+
+/**
+ * Sets a native window's title-bar and taskbar icon (Windows) to the icon embedded in the running
+ * exe. The webview library picks its own icon; this makes the exe's `--windows-icon` the one shown.
+ * A no-op elsewhere and when running from source (the exe would be bun's).
+ */
+export function setWindowIconFromExe(hwnd: import('bun:ffi').Pointer | null): void {
+  if (process.platform !== 'win32' || !hwnd || /^bun(\.exe)?$/i.test(basename(process.execPath))) return;
+  try {
+    const { dlopen, FFIType } = require('bun:ffi') as typeof import('bun:ffi');
+    const shell32 = dlopen('shell32.dll', {
+      ExtractIconExW: { args: [FFIType.ptr, FFIType.i32, FFIType.ptr, FFIType.ptr, FFIType.u32], returns: FFIType.u32 },
+    });
+    const user32 = dlopen('user32.dll', {
+      SendMessageW: { args: [FFIType.ptr, FFIType.u32, FFIType.u64, FFIType.u64], returns: FFIType.u64 },
+    });
+    const large = new BigUint64Array(1);
+    const small = new BigUint64Array(1);
+    const path = Buffer.from(`${process.execPath}\0`, 'utf16le');
+    shell32.symbols.ExtractIconExW(path, 0, large, small, 1);
+    const WM_SETICON = 0x80;
+    if (small[0]) user32.symbols.SendMessageW(hwnd, WM_SETICON, 0n, small[0]); // ICON_SMALL
+    if (large[0]) user32.symbols.SendMessageW(hwnd, WM_SETICON, 1n, large[0]); // ICON_BIG
+    shell32.close();
+    user32.close();
+  } catch {
+    // the window keeps the library's icon
   }
 }
 

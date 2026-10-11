@@ -574,15 +574,19 @@ kbd {
 
 /* ---- markdown editor */
 .md-editor { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; gap: 8px; }
-.md-editor-bar { display: flex; justify-content: flex-end; }
+.md-editor-bar { display: flex; justify-content: flex-end; gap: 8px; }
+.md-editor[data-layout="left"] { --md-width: 860px; --md-margin: 0; }
+.md-editor[data-layout="center"] { --md-width: 860px; --md-margin: 0 auto; }
+.md-editor[data-layout="full"] { --md-width: none; --md-margin: 0; }
+.md-editor-preview .markdown { max-width: var(--md-width, none); margin: var(--md-margin, 0); }
 .md-editor-modes { display: inline-flex; border: 1px solid var(--border-soft); border-radius: 8px; overflow: hidden; }
 .md-editor-modes button { padding: 3px 10px; border: 0; background: transparent; color: var(--text-2); font: inherit; font-size: 12px; cursor: pointer; }
 .md-editor-modes button + button { border-left: 1px solid var(--border-soft); }
 .md-editor-modes button[aria-pressed="true"] { background: var(--accent); color: var(--ink-on-accent); }
 .md-editor-body { display: flex; flex: 1; min-height: 0; }
 .md-editor-body > .split, .md-editor-body > .code-editor { flex: 1; min-width: 0; }
-.md-editor-body > .code-editor { height: 100%; }
-.md-editor-preview { height: 100%; overflow: auto; padding: 4px 12px; border: 1px solid var(--border-soft); border-radius: 8px; }
+.md-editor-body > .code-editor { height: 100%; border: 1px solid var(--border-soft); border-radius: 8px; overflow: hidden; }
+.md-editor-preview { flex: 1; min-width: 0; height: 100%; overflow: auto; padding: 4px 12px; border: 1px solid var(--border-soft); border-radius: 8px; }
 
 /* ---- markdown */
 .markdown { color: var(--text); font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
@@ -601,10 +605,15 @@ kbd {
 .markdown code { padding: 1px 5px; border-radius: 4px; background: var(--bg-sunken); font-family: var(--font-mono); font-size: 12.5px; }
 .markdown pre { padding: 10px 12px; overflow: auto; background: var(--bg-sunken); border: 1px solid var(--border-soft); border-radius: 8px; }
 .markdown pre code { padding: 0; background: none; line-height: 1.55; }
+.markdown pre { position: relative; }
+.md-code-copy { position: absolute; top: 6px; right: 6px; padding: 2px 8px; font-size: 11px; color: var(--ink-muted, inherit); background: var(--bg-raised, var(--bg-sunken)); border: 1px solid var(--border-soft); border-radius: 6px; cursor: pointer; opacity: 0; transition: opacity 0.1s; }
+.markdown pre:hover .md-code-copy, .md-code-copy:focus-visible { opacity: 1; }
 .markdown blockquote { padding: 2px 12px; border-left: 3px solid var(--border); color: var(--text-2); }
 .markdown table { border-collapse: collapse; display: block; max-width: 100%; overflow: auto; }
 .markdown th, .markdown td { padding: 5px 10px; border: 1px solid var(--border); }
 .markdown th { background: var(--panel-2); font-weight: 600; text-align: left; }
+.markdown table.md-frontmatter { display: table; width: 100%; }
+.markdown .md-frontmatter th { width: 1%; white-space: nowrap; vertical-align: top; }
 .markdown hr { border: 0; border-top: 1px solid var(--border); margin: 18px 0; }
 .markdown img { max-width: 100%; }
 .markdown .md-img-blocked {

@@ -8,6 +8,22 @@ export type MarkdownMode = 'live' | 'edit' | 'split' | 'preview';
 
 export const MARKDOWN_MODES: readonly MarkdownMode[] = ['live', 'edit', 'split', 'preview'];
 
+/** Where the text column sits in the Live and Preview views; `full` fits it to the width. */
+export type MarkdownLayout = 'left' | 'center' | 'full';
+
+export const MARKDOWN_LAYOUTS: readonly MarkdownLayout[] = ['left', 'center', 'full'];
+
+const LAYOUT_KEY = 'deckbuilder.markdownLayout';
+
+function readLayout(): MarkdownLayout {
+  try {
+    const v = localStorage.getItem(LAYOUT_KEY);
+    return MARKDOWN_LAYOUTS.find((l) => l === v) ?? 'center';
+  } catch {
+    return 'center';
+  }
+}
+
 export interface MarkdownEditorProps {
   value: string;
   onChange(value: string): void;
@@ -25,6 +41,11 @@ export function MarkdownEditor({ value, onChange, mode, onModeChange, resolveIma
   const preview = useRef<HTMLDivElement>(null);
   const liveExt = useMemo(() => markdownLive(resolveImage), [resolveImage]);
   const [sizes, setSizes] = useState([0.5, 0.5]);
+  const [layout, setLayoutState] = useState<MarkdownLayout>(readLayout);
+  const setLayout = (l: MarkdownLayout) => {
+    setLayoutState(l);
+    try { localStorage.setItem(LAYOUT_KEY, l); } catch { /* storage unavailable */ }
+  };
 
   // Proportional: the preview sits at the same fraction of its range as the editor.
   const syncScroll = (fraction: number) => {
@@ -43,8 +64,13 @@ export function MarkdownEditor({ value, onChange, mode, onModeChange, resolveIma
   );
 
   return (
-    <div className="md-editor">
+    <div className="md-editor" data-layout={layout}>
       <div className="md-editor-bar">
+        <div className="md-editor-modes" role="group">
+          {MARKDOWN_LAYOUTS.map((l) => (
+            <button key={l} type="button" aria-pressed={layout === l} onClick={() => setLayout(l)}>{t(`preview.layout.${l}`)}</button>
+          ))}
+        </div>
         <div className="md-editor-modes" role="group">
           {MARKDOWN_MODES.map((m) => (
             <button key={m} type="button" aria-pressed={mode === m} onClick={() => onModeChange(m)}>{t(`preview.mode.${m}`)}</button>

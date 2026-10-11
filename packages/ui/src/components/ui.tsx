@@ -300,10 +300,15 @@ export function BrandMark({ size = 30 }: { size?: number }) {
   return (
     <svg className="brand-mark" width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
       <rect width="24" height="24" rx="6" fill="#9b8cff" />
-      <rect x="6" y="5" width="12" height="3" rx="1.2" fill="#120d2b" opacity=".45" />
-      <rect x="5" y="9" width="14" height="3" rx="1.2" fill="#120d2b" opacity=".7" />
-      <rect x="4" y="13" width="16" height="6" rx="1.6" fill="#120d2b" />
-      <circle cx="7.2" cy="16" r="1" fill="#9b8cff" />
+      <rect x="4" y="4" width="16" height="16" rx="2.6" fill="#120d2b" />
+      <rect x="5.4" y="5.4" width="5.6" height="2.4" rx="1" fill="#9b8cff" />
+      <rect x="12" y="5.4" width="4.4" height="2.4" rx="1" fill="#9b8cff" opacity=".4" />
+      <rect x="5.6" y="9.8" width="3.8" height="3.8" rx="1" fill="#9b8cff" />
+      <rect x="10.1" y="9.8" width="3.8" height="3.8" rx="1" fill="#9b8cff" opacity=".7" />
+      <rect x="14.6" y="9.8" width="3.8" height="3.8" rx="1" fill="#9b8cff" opacity=".4" />
+      <rect x="5.6" y="14.4" width="3.8" height="3.8" rx="1" fill="#9b8cff" opacity=".7" />
+      <rect x="10.1" y="14.4" width="3.8" height="3.8" rx="1" fill="#9b8cff" opacity=".4" />
+      <rect x="14.85" y="14.65" width="3.3" height="3.3" rx=".9" fill="none" stroke="#9b8cff" strokeWidth=".7" strokeDasharray="1.2 .9" />
     </svg>
   );
 }

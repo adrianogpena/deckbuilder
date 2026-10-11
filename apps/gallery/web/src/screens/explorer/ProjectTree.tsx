@@ -1,8 +1,9 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   type ApiError,
   ContextMenu,
   type ContextMenuItem,
+  copyText,
   errorOf,
   ErrorBanner,
   fileIconOf,
@@ -14,7 +15,7 @@ import {
   useDialogs,
 } from '@deckbuilder/ui';
 import { api, type FsEntry, type Project } from '../../api';
-import { nodeId } from '../../explorer-paths';
+import { fullPath, nodeId } from '../../explorer-paths';
 import { t } from '../../i18n';
 
 interface Node {
@@ -89,6 +90,20 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
     folderFiles.current.delete(nodeId(project.id, path));
     tree.current?.reload(nodeId(project.id, path));
   };
+
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState !== 'visible') return;
+      folderFiles.current.clear();
+      tree.current?.reload();
+    };
+    const timer = setInterval(refresh, 4000);
+    window.addEventListener('focus', refresh);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('focus', refresh);
+    };
+  }, [project.id]);
 
   const open = (node: Node) => {
     if (node.outside) return;
@@ -174,6 +189,9 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
             item('delete', t('explorer.delete'), () => void remove(node), { icon: 'trash', hint: 'Del', danger: true }),
             'sep' as const,
           ]),
+      item('copyFullPath', t('explorer.copyFullPath'), () => void copyText(fullPath(project.path, node.path)), { icon: 'copy', disabled: false }),
+      ...(isRoot(node) ? [] : [item('copyPath', t('explorer.copyPath'), () => void copyText(node.path), { icon: 'copy', disabled: false })]),
+      'sep' as const,
       item('reveal', t('explorer.reveal'), call(() => api.fsReveal(project.id, node.path))),
       ...(editors.data ?? []).map((editor) =>
         item(`editor-${editor.id}`, t('explorer.openInEditor', { editor: editor.name }), call(() => api.openInEditor(editor.id, project.id, node.path)), {
