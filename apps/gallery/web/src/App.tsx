@@ -129,21 +129,21 @@ function Main({ settings, setSettings, screen, go }: MainProps) {
             </>
           }
         />
-        <main className="main">{renderScreen(screen, settings, save, () => setStopped(true))}</main>
+        <main className="main">{renderScreen(screen, settings, save, () => setStopped(true), go)}</main>
         {palette.open && <CommandPalette items={items} initialQuery={palette.initialQuery} onClose={() => palette.setOpen(false)} />}
       </div>
     </ToastProvider>
   );
 }
 
-function renderScreen(screen: ScreenId, settings: Settings, save: (patch: Partial<Settings>) => void, onQuit: () => void) {
+function renderScreen(screen: ScreenId, settings: Settings, save: (patch: Partial<Settings>) => void, onQuit: () => void, go: (screen: ScreenId) => void) {
   switch (screen) {
     case 'tabs':
       return <TabsScreen settings={settings} onSave={save} />;
     case 'grid':
       return <GridScreen settings={settings} onSave={save} />;
     case 'explorer':
-      return <ExplorerScreen settings={settings} onSave={save} />;
+      return <ExplorerScreen settings={settings} onSave={save} go={go} />;
     case 'workbench':
       return <Suspense fallback={<PanelLoading />}><WorkbenchScreen settings={settings} onSave={save} /></Suspense>;
     case 'rest':

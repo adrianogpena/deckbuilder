@@ -80,6 +80,8 @@ export interface WorkbenchSettings {
   explorerConnections?: Record<string, string>;
   /** How result cells are shown and copied. */
   results?: ResultFormat;
+  /** Format of "Copy results": tsv, csv, markdown, json or insert. */
+  copyFormat?: 'tsv' | 'csv' | 'markdown' | 'json' | 'insert';
   /** SQL formatter options; the editor package owns their meaning. */
   format?: Record<string, string | number | boolean>;
   /** The document the Workbench edits; the default script of the connection when omitted. */
@@ -98,6 +100,8 @@ export interface ExplorerSettings {
   markdownMode?: 'live' | 'edit' | 'split' | 'preview';
   /** Wrap long lines in the file editors; on when omitted. */
   wrapLines?: boolean;
+  /** Fractions of the SQL editor and its results panel. */
+  sqlSizes?: [number, number];
   tabs?: unknown;
 }
 
@@ -115,7 +119,7 @@ const isStringArray = (v: unknown): v is string[] => Array.isArray(v) && v.every
 function validExplorer(raw: unknown): ExplorerSettings | null {
   const r = raw as Partial<ExplorerSettings> | null;
   if (typeof r !== 'object' || r === null) return null;
-  const { sizes, collapsed, expanded, tabs, trees, treeSizes, markdownMode, wrapLines } = r;
+  const { sizes, collapsed, expanded, tabs, trees, treeSizes, markdownMode, wrapLines, sqlSizes } = r;
   if (!Array.isArray(sizes) || sizes.length !== 2 || !sizes.every((n) => typeof n === 'number' && n >= 0 && n <= 1)) return null;
   if (Math.abs(sizes[0] + sizes[1] - 1) > 0.01) return null;
   if (typeof collapsed !== 'boolean' || typeof expanded !== 'object' || expanded === null || Array.isArray(expanded)) return null;
@@ -130,6 +134,8 @@ function validExplorer(raw: unknown): ExplorerSettings | null {
   if (treeSizes !== undefined && !pair) return null;
   if (markdownMode !== undefined && !MARKDOWN_MODES.includes(markdownMode)) return null;
   if (wrapLines !== undefined && typeof wrapLines !== 'boolean') return null;
+  const sqlPair = sqlSizes === undefined ? undefined : validPair(sqlSizes);
+  if (sqlSizes !== undefined && !sqlPair) return null;
   return {
     sizes: [sizes[0], sizes[1]],
     collapsed,
@@ -138,6 +144,7 @@ function validExplorer(raw: unknown): ExplorerSettings | null {
     ...(pair && { treeSizes: pair }),
     ...(markdownMode !== undefined && { markdownMode }),
     ...(wrapLines !== undefined && { wrapLines }),
+    ...(sqlPair && { sqlSizes: sqlPair }),
     ...(tabs !== undefined && { tabs }),
   };
 }
@@ -203,6 +210,10 @@ function validWorkbench(raw: unknown): WorkbenchSettings | null {
     if (typeof timestampFormat !== 'string' || timestampFormat.length > 64) return null;
     if (typeof hideMidnight !== 'boolean' || typeof thousandsSeparator !== 'boolean') return null;
     out.results = { nullText, dateFormat, hideMidnight, timestampFormat, thousandsSeparator };
+  }
+  if (r.copyFormat !== undefined) {
+    if (typeof r.copyFormat !== 'string' || !['tsv', 'csv', 'markdown', 'json', 'insert'].includes(r.copyFormat)) return null;
+    out.copyFormat = r.copyFormat;
   }
   if (r.format !== undefined) {
     if (!isRecord(r.format)) return null;

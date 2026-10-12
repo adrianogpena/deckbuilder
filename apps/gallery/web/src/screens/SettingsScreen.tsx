@@ -2,7 +2,8 @@ import { Fragment, type ReactNode, type RefObject, useEffect, useMemo, useRef, u
 import { FORMAT_OPTION_META, formatSql, type FormatOptionMeta } from '@deckbuilder/editor';
 import { AppearanceFields, AUTO_SAVE, type AutoSave, SORT_ORDERS, fileSettingsOf, ZoomField, type ApiError, detectLanguage, type FileAssociation, validFileAssociations, ErrorBanner, errorMessage, errorOf, GLOBAL, isDesktop, KeybindingsEditor, LANGUAGES, Modal, PageHead, Spinner, useAsync, useKeybindings, type Language } from '@deckbuilder/ui';
 import { APP } from '../../../app';
-import { api, type BackupInfo, type EditorInfo, type Project, type ImportResult, type ResultFormat, type Settings, type SqlFormatOptions, type WorkbenchSettings, withWorkbenchDefaults } from '../api';
+import { COPY_FORMATS } from './workbench/copy-format';
+import { api, type BackupInfo, type CopyFormat, type EditorInfo, type Project, type ImportResult, type ResultFormat, type Settings, type SqlFormatOptions, type WorkbenchSettings, withWorkbenchDefaults } from '../api';
 import { type MessageKey, t } from '../i18n';
 import { NAV } from '../nav';
 
@@ -488,6 +489,12 @@ function WorkbenchCard({ settings, onChange }: { settings: Settings; onChange: (
             value={wb.results.thousandsSeparator}
             onChange={(thousandsSeparator) => setResults({ thousandsSeparator })}
           />
+          <label className="field">
+            <span className="mono-label">{t('settings.workbench.copyFormat')}</span>
+            <select value={wb.copyFormat} onChange={(e) => set({ copyFormat: e.target.value as CopyFormat })}>
+              {COPY_FORMATS.map((f) => <option key={f} value={f}>{t(`settings.workbench.copyFormat.${f}` as MessageKey)}</option>)}
+            </select>
+          </label>
         </div>
       </section>
       {FORMAT_GROUPS.map((group) => (

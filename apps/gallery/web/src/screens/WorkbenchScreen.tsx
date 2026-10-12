@@ -9,9 +9,7 @@ import {
   Icon,
   PageHead,
   SplitView,
-  copyText,
   toCsv,
-  toTsv,
   useAsync,
   useCommand,
   useDebouncedSave,
@@ -155,13 +153,6 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
     }
   };
 
-  const copyResults = async () => {
-    const chosen = new Set(selection);
-    const picked = selection.length > 0 ? tableRows.filter((r) => chosen.has(r.key)) : tableRows;
-    if (await copyText(toTsv(cols.map((c) => ({ label: c.label, value: c.copy ?? c.value })), picked))) log(t('workbench.log.copied', { count: picked.length }), 'ok');
-    else log(t('workbench.log.copyFailed'), 'err');
-  };
-
   const disconnect = async () => {
     if (status?.pending && !(await confirm({ title: t('workbench.tx.disconnect'), body: t('workbench.tx.disconnectConfirm'), okLabel: t('workbench.tx.disconnect'), danger: true }))) return;
     await runner.disconnect();
@@ -221,7 +212,7 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
             </>
           )}
           <button className="btn btn-sm" onClick={exportCsv} disabled={tableRows.length === 0}>{t('workbench.export')}</button>
-          <button className="btn btn-sm" onClick={copyResults} disabled={tableRows.length === 0}>{t(selection.length > 0 ? 'workbench.copySelected' : 'workbench.copy')}</button>
+          <button className="btn btn-sm" onClick={runner.copy} disabled={tableRows.length === 0}>{t(selection.length > 0 ? 'workbench.copySelected' : 'workbench.copy')}</button>
           {doc.kind === 'file' && (
             <>
               <span className="muted" title={doc.path}>{t('workbench.doc.file', { name: docName })}</span>

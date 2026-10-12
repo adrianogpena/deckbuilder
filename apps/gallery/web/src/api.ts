@@ -5,6 +5,7 @@ import type { BackupInspect, EditorInfo, HttpRequestSpec, HttpResponseInfo, Impo
 
 export type { EditorInfo, ImportResult, TailChunk };
 import type { SessionInfo } from '@deckbuilder/terminal';
+import type { CopyFormat } from './screens/workbench/copy-format';
 import { DEFAULT_RESULT_FORMAT, type FileAssociation, type FileSettings, type Keymap, type Language, type LogSettings, type ResultFormat, request, requestUpload } from '@deckbuilder/ui';
 
 export interface Settings extends ThemeSettings {
@@ -49,6 +50,7 @@ export interface SavedRequest {
   auth?: { hasSecret: true };
 }
 
+export type { CopyFormat };
 export type { LogSettings, ResultFormat, SqlFormatOptions };
 
 
@@ -67,6 +69,8 @@ export interface WorkbenchSettings {
   explorerConnections: Record<string, string>;
   /** How result cells are shown and copied; exports stay raw. */
   results: ResultFormat;
+  /** Format of "Copy results". */
+  copyFormat: CopyFormat;
   /** SQL formatter options. */
   format: SqlFormatOptions;
   /** The document the editor edits: the connection's default script (also when omitted) or a project file. */
@@ -75,10 +79,11 @@ export interface WorkbenchSettings {
 
 export type WorkbenchDoc = { kind: 'default' } | { kind: 'file'; project: string; path: string };
 
-export const DEFAULT_WORKBENCH_SETTINGS: Pick<WorkbenchSettings, 'explorerProjects' | 'explorerConnections' | 'results' | 'format'> = {
+export const DEFAULT_WORKBENCH_SETTINGS: Pick<WorkbenchSettings, 'explorerProjects' | 'explorerConnections' | 'results' | 'copyFormat' | 'format'> = {
   explorerProjects: [],
   explorerConnections: {},
   results: DEFAULT_RESULT_FORMAT,
+  copyFormat: 'tsv',
   format: DEFAULT_FORMAT_OPTIONS,
 };
 
@@ -88,6 +93,7 @@ export const withWorkbenchDefaults = (raw?: Partial<WorkbenchSettings>): Workben
   explorerProjects: raw?.explorerProjects ?? DEFAULT_WORKBENCH_SETTINGS.explorerProjects,
   explorerConnections: raw?.explorerConnections ?? DEFAULT_WORKBENCH_SETTINGS.explorerConnections,
   results: { ...DEFAULT_RESULT_FORMAT, ...raw?.results },
+  copyFormat: raw?.copyFormat ?? DEFAULT_WORKBENCH_SETTINGS.copyFormat,
   format: { ...DEFAULT_FORMAT_OPTIONS, ...raw?.format },
 });
 
@@ -149,6 +155,8 @@ export interface ExplorerSettings {
   markdownMode?: 'live' | 'edit' | 'split' | 'preview';
   /** Wrap long lines in the file editors; on when omitted. */
   wrapLines?: boolean;
+  /** Fractions of the SQL editor and its results panel. */
+  sqlSizes?: [number, number];
   tabs?: unknown;
 }
 

@@ -1,8 +1,9 @@
 import { createElement, useEffect, useMemo, useRef, useState } from 'react';
 import { type RunMode, splitStatements } from '@deckbuilder/editor';
-import { type ApiError, type DataTableColumn, type OutputLine, errorMessage, errorOf, formatCell, useStream } from '@deckbuilder/ui';
+import { type ApiError, type DataTableColumn, type OutputLine, copyText, errorMessage, errorOf, formatCell, useStream } from '@deckbuilder/ui';
 import { api, type DbColumn, type DbStatus, type DemoRow, type ResultFormat, type WorkbenchSettings } from '../../api';
 import { t } from '../../i18n';
+import { type CopyColumn, formatCopy } from './copy-format';
 
 const ROW_COUNT = 50_000;
 const MAX_STREAM_ITEMS = 100_001;
@@ -46,7 +47,7 @@ const demoCells = (r: DemoRow) => [r.id, r.name, r.amount, r.date];
 const isTruncatedMarker = (item: unknown) => typeof item === 'object' && item !== null && !Array.isArray(item) && '$truncated' in item;
 
 /** Runs SQL on connection `db` (the demo rows when undefined) and holds the result table, the log and the transaction state. */
-export function useSqlRunner(db: string | undefined, settings: Pick<WorkbenchSettings, 'maxRows' | 'results'>) {
+export function useSqlRunner(db: string | undefined, settings: Pick<WorkbenchSettings, 'maxRows' | 'results'> & Partial<Pick<WorkbenchSettings, 'copyFormat'>>) {
   const [lines, setLines] = useState<OutputLine[]>([]);
   const [actionError, setActionError] = useState<ApiError>();
   const [selection, setSelection] = useState<string[]>([]);
@@ -57,6 +58,7 @@ export function useSqlRunner(db: string | undefined, settings: Pick<WorkbenchSet
   const cancelled = useRef(false);
   const reported = useRef(0);
   const wasRunning = useRef(false);
+  const lastSql = useRef<string>();
 
   const maxRows = settings.maxRows ?? DEFAULT_MAX_ROWS;
 
@@ -110,6 +112,7 @@ export function useSqlRunner(db: string | undefined, settings: Pick<WorkbenchSet
     try {
       for (const [i, sql] of statements.entries()) {
         log(t('workbench.log.start', { query: sql.trim() }));
+        lastSql.current = sql;
         const last = i === statements.length - 1;
         const result = await api.dbRun(id, sql, maxRows);
         if (result.kind === 'rows' && last) {
@@ -185,6 +188,20 @@ export function useSqlRunner(db: string | undefined, settings: Pick<WorkbenchSet
     }
   };
 
+  /** Copies the selected rows (all when none is selected) in the copy format setting, and logs the outcome. */
+  const copy = async () => {
+    const chosen = new Set(selection);
+    const picked = selection.length > 0 ? tableRows.filter((r) => chosen.has(r.key)) : tableRows;
+    const columns: CopyColumn<TableRow>[] = cols.map((c, i) => ({
+      label: c.label,
+      text: (r) => String((c.copy ?? c.value)(r) ?? ''),
+      raw: (r) => r.cells[i],
+      type: shown.kind === 'db' ? shown.columns[i]?.type : undefined,
+    }));
+    if (await copyText(formatCopy(settings.copyFormat ?? 'tsv', columns, picked, lastSql.current))) log(t('workbench.log.copied', { count: picked.length }), 'ok');
+    else log(t('workbench.log.copyFailed'), 'err');
+  };
+
   /** Cancels the running query and closes the connection; the caller confirms a pending transaction first. */
   const disconnect = async () => {
     if (!db) return;
@@ -220,5 +237,6 @@ export function useSqlRunner(db: string | undefined, settings: Pick<WorkbenchSet
     commit: () => finishTransaction('commit'),
     rollback: () => finishTransaction('rollback'),
     disconnect,
+    copy,
   };
 }

@@ -11,6 +11,7 @@ import { api, type LogSettings, type TextEncoding } from '../../api';
 import { commandById } from '../../commands';
 import { t } from '../../i18n';
 import { LogTab } from './LogTab';
+import { type ExplorerSqlProps, useExplorerSql } from './SqlPanel';
 import { useChordOf, useTabActions } from './tab-actions';
 
 type State =
@@ -44,6 +45,8 @@ export interface FileTabProps {
   onOpenPath?: (path: string) => void;
   /** Puts the tab's actions in the tab bar (see `TabContext.setActions`). */
   onActions?: (actions: TabAction[]) => void;
+  /** Running SQL from `.sql` files of allowed projects (see `useExplorerSql`). */
+  sql?: ExplorerSqlProps;
 }
 
 const MODE_ICONS: Record<MarkdownMode, IconName> = { live: 'edit', edit: 'code', split: 'split', preview: 'preview' };
@@ -79,7 +82,7 @@ export function FileTab(props: FileTabProps) {
 }
 
 /** A preview by extension, and for text files an editor with Save (Ctrl+S). */
-function TextFileTab({ project, projectName, path, focused, preview, markdownMode = 'live', onMarkdownModeChange, wrapLines = true, onWrapLinesChange, files = FILE_DEFAULTS, onDirty, onSaver, onOpenPath, onActions }: FileTabProps) {
+function TextFileTab({ project, projectName, path, focused, preview, markdownMode = 'live', onMarkdownModeChange, wrapLines = true, onWrapLinesChange, files = FILE_DEFAULTS, onDirty, onSaver, onOpenPath, onActions, sql }: FileTabProps) {
   const name = relPath.basename(path);
   const markdown = previewKind(name) === 'markdown';
   const [state, setState] = useState<State>({ status: 'loading' });
@@ -318,8 +321,9 @@ function TextFileTab({ project, projectName, path, focused, preview, markdownMod
     if (ok) void save({ overwrite: true });
   };
 
+  const sqlUi = useExplorerSql({ project, name, active, focused, draft, sql });
   const chordOf = useChordOf();
-  const actions: TabAction[] = [];
+  const actions: TabAction[] = [...sqlUi.actions];
   if (editable && TOGGLES.has(previewKind(name))) {
     actions.push({ id: 'preview', group: 'primary', icon: 'preview', label: t('explorer.preview'), checked: previewing, run: () => void toggleEdit() });
   }
@@ -390,7 +394,7 @@ function TextFileTab({ project, projectName, path, focused, preview, markdownMod
         {content && (mdEditor
           ? <MarkdownEditor value={draft} onChange={setDraft} mode={markdownMode} layout={mdLayout} wrap={wrapLines} autoFocus={!preview} onSelection={setSelection} />
           : active
-          ? <CodeEditor value={draft} lang={langOfFile(name)} onChange={setDraft} height="100%" wrap={wrapLines} autoFocus={!preview} onSelection={setSelection} />
+          ? sqlUi.layout(<CodeEditor ref={sqlUi.editor} value={draft} lang={langOfFile(name)} onChange={setDraft} height="100%" wrap={wrapLines} autoFocus={!preview} onSelection={setSelection} {...sqlUi.editorProps} />)
           : <FilePreview name={name} content={content} onImageInfo={setImage} />)}
       </div>
       {status.length > 0 && <StatusBar items={status} />}

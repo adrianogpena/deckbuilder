@@ -398,6 +398,7 @@ kbd {
 .tab-new { align-self: center; flex-shrink: 0; width: 28px; justify-content: center; padding: 0; }
 .tabbar-tools { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
 .tabbar .btn-icon { width: 26px; height: 26px; }
+.tabbar-select { height: 24px; max-width: 180px; margin-right: 4px; padding: 0 22px 0 7px; border-radius: 6px; font-size: 11.5px; }
 .tabbar-sep { width: 1px; height: 16px; margin: 0 4px; background: var(--border-soft); }
 
 /* ---- panel grid */

@@ -62,11 +62,16 @@ export interface TabAction {
   disabled?: boolean;
   /** Menu actions of different sections are separated by a line. */
   section?: string;
-  run(): void;
+  /** A `primary` action with options is a compact dropdown with `value` selected; `run` gets the chosen value. */
+  options?: Array<{ value: string; label: string }>;
+  value?: string;
+  run(value?: string): void;
 }
 
 const actionKey = (list: TabAction[]) =>
-  list.map((a) => [a.id, a.label, a.group, a.icon, a.hint, a.checked, a.radio, a.disabled, a.section].join('\u0001')).join('\u0002');
+  list
+    .map((a) => [a.id, a.label, a.group, a.icon, a.hint, a.checked, a.radio, a.disabled, a.section, a.value, a.options?.map((o) => `${o.value}=${o.label}`).join('\u0003')].join('\u0001'))
+    .join('\u0002');
 
 const withHint = (label: string, hint?: string) => (hint ? `${label} (${hint})` : label);
 
@@ -123,7 +128,7 @@ function TabBar<R>(props: TabBarProps<R>) {
     for (const a of props.actions.filter((x) => x.group === 'menu')) {
       if (items.length && a.section !== section) items.push('sep');
       section = a.section;
-      items.push({ id: a.id, label: a.label, icon: a.icon, hint: a.hint, checked: a.checked, radio: a.radio, disabled: a.disabled, run: a.run });
+      items.push({ id: a.id, label: a.label, icon: a.icon, hint: a.hint, checked: a.checked, radio: a.radio, disabled: a.disabled, run: () => a.run() });
     }
     if (items.length) items.push('sep');
     items.push(
@@ -230,11 +235,25 @@ function TabBar<R>(props: TabBarProps<R>) {
         </button>
       </div>
       <div className="tabbar-tools">
-        {props.actions.filter((a) => a.group === 'primary').map((a) => (
+        {props.actions.filter((a) => a.group === 'primary').map((a) => a.options ? (
+          <select
+            key={a.id}
+            className="tabbar-select"
+            value={a.value ?? ''}
+            onChange={(e) => a.run(e.target.value)}
+            disabled={a.disabled}
+            title={withHint(a.label, a.hint)}
+            aria-label={a.label}
+          >
+            {a.options.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        ) : (
           <button
             key={a.id}
             className={`btn btn-ghost btn-sm btn-icon${a.checked ? ' active' : ''}`}
-            onClick={a.run}
+            onClick={() => a.run()}
             disabled={a.disabled}
             title={withHint(a.label, a.hint)}
             aria-label={a.label}

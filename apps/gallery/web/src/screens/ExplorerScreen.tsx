@@ -43,12 +43,14 @@ import { api, type ExplorerSettings, type LogSettings, type Project, type Settin
 import { commandById } from '../commands';
 import { fullPath, nodeId } from '../explorer-paths';
 import { t } from '../i18n';
+import type { ScreenId } from '../nav';
 import { setZen, useZen } from '../zen';
 import { ProjectPicker } from './explorer/ProjectPicker';
 import { useCopyPath } from './explorer/copy-path';
 import { useFileUndo } from './explorer/file-undo';
 import { useNameIndex } from './explorer/name-index';
 import type { ProjectTreeApi } from './explorer/ProjectTree';
+import type { ExplorerSqlProps } from './explorer/SqlPanel';
 import { useChordOf } from './explorer/tab-actions';
 import { TreePane } from './explorer/TreePane';
 
@@ -98,6 +100,7 @@ interface State {
   treeSizes?: [number, number];
   markdownMode: MarkdownMode;
   wrapLines: boolean;
+  sqlSizes?: [number, number];
   layout: Layout<Route>;
 }
 
@@ -115,6 +118,7 @@ function initialState(saved: ExplorerSettings | undefined): State {
     treeSizes: saved?.treeSizes,
     markdownMode: MARKDOWN_MODES.includes(saved?.markdownMode as MarkdownMode) ? saved!.markdownMode! : 'live',
     wrapLines: saved?.wrapLines !== false,
+    sqlSizes: saved?.sqlSizes,
     layout: restore(saved?.tabs, isRoute) ?? singlePane(newTab<Route>(WELCOME)),
   };
 }
@@ -160,7 +164,7 @@ function closeTabsWhere(layout: Layout<Route>, matches: (route: Route) => boolea
 /** Ids of `project` under `path`, the folder itself included. */
 const idsUnder = (project: string, path: string) => (id: string) => id.startsWith(`${project}:`) && relPath.isUnder(id.slice(project.length + 1), path);
 
-export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSave: (patch: Partial<Settings>) => void }) {
+export function ExplorerScreen({ settings, onSave, go }: { settings: Settings; onSave: (patch: Partial<Settings>) => void; go: (screen: ScreenId) => void }) {
   const projects = useAsync(() => api.projects(), []);
   const list = projects.data ?? [];
   const [state, setState] = useState(() => initialState(settings.explorer));
@@ -198,11 +202,19 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
         ...(s.treeSizes && { treeSizes: s.treeSizes }),
         markdownMode: s.markdownMode,
         wrapLines: s.wrapLines,
+        ...(s.sqlSizes && { sqlSizes: s.sqlSizes }),
         tabs: serialize(s.layout),
       },
     }),
   );
   const files = fileSettingsOf(settings.files);
+  const sql: ExplorerSqlProps = {
+    workbench: settings.workbench,
+    onWorkbenchChange: (workbench) => onSave({ workbench }),
+    sizes: state.sqlSizes,
+    onSizesChange: (sqlSizes) => update((s) => ({ ...s, sqlSizes })),
+    go,
+  };
   const [logs, setLogs] = useState<LogSettings | undefined>(settings.logs);
   const saveLogs = useDebouncedSave((l: LogSettings) => onSave({ logs: l }));
   const changeLogs = (next: LogSettings) => {
@@ -528,7 +540,7 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
           renderTab={(tab, ctx) =>
             tab.route.kind === 'file' ? (
               <Suspense fallback={<PanelLoading />}>
-                <FileTab project={tab.route.project} projectName={nameOf(tab.route.project)} path={tab.route.path} focused={ctx.focused} preview={tab.preview} logs={logs} onLogsChange={changeLogs} onDirty={ctx.setDirty} onSaver={ctx.setSaver} onActions={ctx.setActions}markdownMode={state.markdownMode} onMarkdownModeChange={(markdownMode) => update((s) => ({ ...s, markdownMode }))} wrapLines={state.wrapLines} onWrapLinesChange={(wrapLines) => update((s) => ({ ...s, wrapLines }))} files={files} onOpenPath={(p) => tab.route.kind === 'file' && openFile(tab.route.project, p, files.previewTabs)} />
+                <FileTab project={tab.route.project} projectName={nameOf(tab.route.project)} path={tab.route.path} focused={ctx.focused} preview={tab.preview} logs={logs} onLogsChange={changeLogs} onDirty={ctx.setDirty} onSaver={ctx.setSaver} onActions={ctx.setActions} sql={sql} markdownMode={state.markdownMode} onMarkdownModeChange={(markdownMode) => update((s) => ({ ...s, markdownMode }))} wrapLines={state.wrapLines} onWrapLinesChange={(wrapLines) => update((s) => ({ ...s, wrapLines }))} files={files} onOpenPath={(p) => tab.route.kind === 'file' && openFile(tab.route.project, p, files.previewTabs)} />
               </Suspense>
             ) : tab.route.kind === 'terminal' ? (
               <Suspense fallback={<PanelLoading />}>
