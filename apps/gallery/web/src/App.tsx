@@ -3,7 +3,7 @@ import { PALETTES } from '@deckbuilder/server-core/palettes';
 import { CommandPalette, detectLanguage, effectiveKeys, ErrorBanner, Icon, isDesktop, KeybindingProvider, type PaletteItem, PanelLoading, setFileAssociations, setLanguage, Sidebar, Spinner, ToastProvider, useAsync, useCommand, useCommandPalette, useHashRoute, useHeartbeat, useKeybindings, useTheme, useZoom } from '@deckbuilder/ui';
 import { APP } from '../../app';
 import { api, type Settings } from './api';
-import { commandById, commands, navCommandId, TOGGLE_NAV } from './commands';
+import { commandById, commands, navCommandId } from './commands';
 import { t } from './i18n';
 import { useZen } from './zen';
 import { NAV, SCREENS, type ScreenId } from './nav';
@@ -76,8 +76,6 @@ function Main({ settings, setSettings, screen, go }: MainProps) {
   const navItems = NAV.flatMap((s) => s.items);
   // The nav list is a constant, so the hooks run in the same order every render.
   for (const item of navItems) useCommand(commandById(navCommandId(item.id)), () => go(item.id));
-  const collapsed = settings.navCollapsed ?? false;
-  useCommand(commandById(TOGGLE_NAV), () => save({ navCollapsed: !collapsed }));
   const zen = useZen();
   const keys = useKeybindings();
   const chordOf = (id: string) => (keys ? effectiveKeys(keys.defs, keys.keymap).get(id)?.[0] : undefined);
@@ -110,25 +108,22 @@ function Main({ settings, setSettings, screen, go }: MainProps) {
   }));
   const settingsChord = chordOf(navCommandId('settings'));
   const settingsTitle = settingsChord ? `${t('nav.settings')} (${settingsChord})` : t('nav.settings');
-  const toggleChord = chordOf(TOGGLE_NAV);
 
   return (
     <ToastProvider>
-      <div className={`app${collapsed ? ' nav-collapsed' : ''}${zen ? ' zen' : ''}`}>
+      <div className={`app nav-collapsed${zen ? ' zen' : ''}`}>
         <Sidebar
           name={APP.name}
           sections={sections}
           current={screen}
           onSelect={go}
-          collapsed={collapsed}
-          onCollapsedChange={(next) => save({ navCollapsed: next })}
-          toggleLabel={toggleChord ? `${t('keys.toggleNav')} (${toggleChord})` : t('keys.toggleNav')}
+          collapsed
           footer={
             <>
-              <button className={`btn btn-ghost btn-sm${screen === 'settings' ? ' active' : ''}`} onClick={() => go('settings')} title={settingsTitle} aria-label={settingsTitle}>
+              <button className={`btn btn-ghost btn-sm${screen === 'settings' ? ' active' : ''} btn-icon`} onClick={() => go('settings')} title={settingsTitle} aria-label={settingsTitle}>
                 <Icon name="settings" />
               </button>
-              <button className="btn btn-ghost btn-sm" onClick={() => palette.setOpen(true)} title={t('nav.palette')} aria-label={t('nav.palette')}>
+              <button className="btn btn-ghost btn-sm btn-icon" onClick={() => palette.setOpen(true)} title={t('nav.palette')} aria-label={t('nav.palette')}>
                 <Icon name="search" />
               </button>
             </>

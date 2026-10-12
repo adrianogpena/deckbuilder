@@ -10,7 +10,6 @@ import { DEFAULT_RESULT_FORMAT, type FileAssociation, type FileSettings, type Ke
 export interface Settings extends ThemeSettings {
   language?: Language;
   /** The main menu shows only its icons. */
-  navCollapsed?: boolean;
   /** Keybinding overrides by command id; the server validates it. */
   keybindings?: Keymap;
   autostart: boolean;
@@ -61,6 +60,7 @@ export interface WorkbenchSettings {
   /** Most rows a database query returns. */
   maxRows?: number;
   /** The schema sidebar is open. */
+  schema?: boolean;
   /** Project ids allowed to run SQL from the Explorer. */
   explorerProjects: string[];
   /** Last connection id used per project id. */
@@ -69,8 +69,8 @@ export interface WorkbenchSettings {
   results: ResultFormat;
   /** SQL formatter options. */
   format: SqlFormatOptions;
-  schema?: boolean;
 }
+
 export const DEFAULT_WORKBENCH_SETTINGS: Pick<WorkbenchSettings, 'explorerProjects' | 'explorerConnections' | 'results' | 'format'> = {
   explorerProjects: [],
   explorerConnections: {},
@@ -86,7 +86,6 @@ export const withWorkbenchDefaults = (raw?: Partial<WorkbenchSettings>): Workben
   results: { ...DEFAULT_RESULT_FORMAT, ...raw?.results },
   format: { ...DEFAULT_FORMAT_OPTIONS, ...raw?.format },
 });
-
 
 export interface DemoRow {
   id: number;
@@ -112,9 +111,9 @@ export interface DbStatus {
 
 export interface DbColumn {
   name: string;
+  type: 'number' | 'text' | 'date' | 'binary';
   /** A TIMESTAMP column (also reported as type `date`). */
   timestamp?: boolean;
-  type: 'number' | 'text' | 'date' | 'binary';
 }
 
 export interface DbSchemaTable {

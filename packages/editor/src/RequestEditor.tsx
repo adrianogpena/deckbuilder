@@ -127,7 +127,7 @@ function HeadersTab({ headers, onChange }: { headers: HttpHeaderDraft[]; onChang
             <input value={h.name} placeholder={t('http.headerName')} spellCheck={false} aria-label={t('http.headerName')} onChange={(e) => update(i, { name: e.target.value })} />
             <input value={h.value} placeholder={t('http.headerValue')} spellCheck={false} aria-label={t('http.headerValue')} onChange={(e) => update(i, { value: e.target.value })} />
             <button
-              className="btn btn-ghost btn-sm"
+              className="btn btn-ghost btn-sm btn-icon"
               disabled={isBlank}
               title={t('http.removeHeader')}
               aria-label={t('http.removeHeader')}

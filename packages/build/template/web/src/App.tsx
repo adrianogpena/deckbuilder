@@ -20,7 +20,6 @@ const NAV: Array<{ title: MessageKey; items: Array<{ id: ScreenId; label: Messag
   },
 ];
 
-const TOGGLE_NAV = 'app.toggleNav';
 const navCommandId = (screen: ScreenId) => `nav.${screen}`;
 
 /** Every shortcut of the app; built at render so the labels follow the language. */
@@ -28,7 +27,7 @@ function commands(): CommandDef[] {
   const nav = NAV.flatMap((s) => s.items).map((item, i): CommandDef => ({
     id: navCommandId(item.id), scope: GLOBAL, label: t(item.label), keys: [`Ctrl+${i + 1}`], inInput: true,
   }));
-  return [paletteCommand(), ...nav, { id: TOGGLE_NAV, scope: GLOBAL, label: t('keys.toggleNav'), keys: ['Ctrl+Shift+B'], inInput: true }];
+  return [paletteCommand(), ...nav];
 }
 
 // Retrying can't revive a used launch code or a stale token; the user has to open the app again.
@@ -88,8 +87,6 @@ function Main({ settings, setSettings, screen, go }: MainProps) {
   const defs = commands();
   // The nav list is a constant, so the hooks run in the same order every render.
   for (const item of navItems) useCommand(defs.find((d) => d.id === navCommandId(item.id))!, () => go(item.id));
-  const collapsed = settings.navCollapsed ?? false;
-  useCommand(defs.find((d) => d.id === TOGGLE_NAV)!, () => save({ navCollapsed: !collapsed }));
   const keys = useKeybindings();
   const chordOf = (id: string) => (keys ? effectiveKeys(keys.defs, keys.keymap).get(id)?.[0] : undefined);
 
@@ -116,24 +113,21 @@ function Main({ settings, setSettings, screen, go }: MainProps) {
   if (stopped) return <div className="boot"><span>{t('app.stopped', { name: APP.name })}</span></div>;
 
   const sections = NAV.map((s) => ({ title: t(s.title), items: s.items.map((i) => ({ ...i, label: t(i.label), hint: chordOf(navCommandId(i.id)) })) }));
-  const toggleChord = chordOf(TOGGLE_NAV);
 
   return (
-    <div className={`app${collapsed ? ' nav-collapsed' : ''}`}>
+    <div className={"app nav-collapsed"}>
       <Sidebar
         name={APP.name}
         sections={sections}
         current={screen}
         onSelect={go}
-        collapsed={collapsed}
-        onCollapsedChange={(next) => save({ navCollapsed: next })}
-        toggleLabel={toggleChord ? `${t('keys.toggleNav')} (${toggleChord})` : t('keys.toggleNav')}
+        collapsed
         footer={
           <>
             <button className="btn btn-ghost btn-sm" onClick={() => save({ theme: nextTheme })} title={t(`nav.theme.${nextTheme}`)}>
               <Icon name={kind === 'dark' ? 'sun' : 'moon'} />{!collapsed && ` ${t(`nav.theme.${nextTheme}`)}`}
             </button>
-            <button className="btn btn-ghost btn-sm" onClick={() => palette.setOpen(true)} title={t('nav.palette')} aria-label={t('nav.palette')}>
+            <button className="btn btn-ghost btn-sm btn-icon" onClick={() => palette.setOpen(true)} title={t('nav.palette')} aria-label={t('nav.palette')}>
               <Icon name="search" />
             </button>
           </>

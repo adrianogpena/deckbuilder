@@ -56,10 +56,10 @@ export function ResourceList<T extends { id: string }>({ items, titleOf, subtitl
                     {subtitle && <span className="resource-sub">{subtitle}</span>}
                   </span>
                 </button>
-                <button className="btn btn-ghost btn-sm resource-btn" onClick={() => onEdit(item)} title={t('resource.edit')} aria-label={t('resource.edit')}>
+                <button className="btn btn-ghost btn-sm resource-btn btn-icon" onClick={() => onEdit(item)} title={t('resource.edit')} aria-label={t('resource.edit')}>
                   <Icon name="edit" />
                 </button>
-                <button className="btn btn-ghost btn-sm resource-btn" onClick={() => askDelete(item)} title={t('resource.delete')} aria-label={t('resource.delete')}>
+                <button className="btn btn-ghost btn-sm resource-btn btn-icon" onClick={() => askDelete(item)} title={t('resource.delete')} aria-label={t('resource.delete')}>
                   <Icon name="trash" />
                 </button>
               </li>

@@ -168,7 +168,7 @@ export function Modal({ title, onClose, children, footer }: { title: string; onC
       <div ref={box} className="modal" role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} onKeyDown={trapTab}>
         <div className="modal-head">
           <h3>{title}</h3>
-          <button className="btn btn-ghost btn-sm" onClick={onClose} aria-label={t('common.close')}><Icon name="close" /></button>
+          <button className="btn btn-ghost btn-sm btn-icon" onClick={onClose} title={t('common.close')} aria-label={t('common.close')}><Icon name="close" /></button>
         </div>
         <div className="modal-body">{children}</div>
         {footer && <div className="modal-foot">{footer}</div>}

@@ -244,8 +244,8 @@ export function LogView({
           <button className={`btn btn-ghost btn-sm log-toggle${query.regex ? ' active' : ''}`} aria-pressed={!!query.regex} title={t('log.regex')} onClick={() => changeQuery({ ...query, regex: !query.regex })}>.*</button>
         </div>
         {query.text && <span className="log-hits" role="status">{currentHit + 1}/{hits.length}</span>}
-        <button className="btn btn-ghost btn-sm log-icon-btn" title={t('log.prev')} aria-label={t('log.prev')} disabled={!hits.length} onClick={() => step(-1)}><Icon name="chevron-up" size={14} /></button>
-        <button className="btn btn-ghost btn-sm log-icon-btn" title={t('log.next')} aria-label={t('log.next')} disabled={!hits.length} onClick={() => step(1)}><Icon name="chevron-down" size={14} /></button>
+        <button className="btn btn-ghost btn-sm log-icon-btn btn-icon" title={t('log.prev')} aria-label={t('log.prev')} disabled={!hits.length} onClick={() => step(-1)}><Icon name="chevron-up" size={14} /></button>
+        <button className="btn btn-ghost btn-sm log-icon-btn btn-icon" title={t('log.next')} aria-label={t('log.next')} disabled={!hits.length} onClick={() => step(1)}><Icon name="chevron-down" size={14} /></button>
         <div className="log-levels" role="group" aria-label={t('log.levels')}>
           {LOG_LEVELS.map((level) => (
             <button key={level} className={`chip log-level lvl-${level}${levels.has(level) ? ' chip-on' : ''}`} aria-pressed={levels.has(level)} onClick={() => toggleLevel(level)}>

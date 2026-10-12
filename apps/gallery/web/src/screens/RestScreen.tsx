@@ -239,10 +239,10 @@ export function RestScreen({ settings, onSave }: { settings: Settings; onSave: (
                 <span className="rest-item-name">{item.name}</span>
               </button>
               <span className="rest-item-actions">
-                <button className="btn btn-ghost btn-sm" onClick={() => rename(item)} aria-label={t('rest.rename')} title={t('rest.rename')}>
+                <button className="btn btn-ghost btn-sm btn-icon" onClick={() => rename(item)} aria-label={t('rest.rename')} title={t('rest.rename')}>
                   <Icon name="edit" />
                 </button>
-                <button className="btn btn-ghost btn-sm" onClick={() => remove(item)} aria-label={t('rest.delete')} title={t('rest.delete')}>
+                <button className="btn btn-ghost btn-sm btn-icon" onClick={() => remove(item)} aria-label={t('rest.delete')} title={t('rest.delete')}>
                   <Icon name="trash" />
                 </button>
               </span>

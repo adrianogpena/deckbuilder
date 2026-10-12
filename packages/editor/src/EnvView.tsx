@@ -31,7 +31,7 @@ export function EnvView({ text }: { text: string }) {
             <div key={i} className="env-row">
               <span className="env-key">{l.key}</span>
               <span className="env-value">{shown.has(l.key) ? l.value : l.value ? '••••••••' : ''}</span>
-              <button className="btn btn-ghost btn-sm" onClick={() => toggle(l.key!)} aria-label={shown.has(l.key) ? t('preview.hide') : t('preview.reveal')} title={shown.has(l.key) ? t('preview.hide') : t('preview.reveal')}>
+              <button className="btn btn-ghost btn-sm btn-icon" onClick={() => toggle(l.key!)} aria-label={shown.has(l.key) ? t('preview.hide') : t('preview.reveal')} title={shown.has(l.key) ? t('preview.hide') : t('preview.reveal')}>
                 <Icon name={shown.has(l.key) ? 'lock' : 'key'} size={14} />
               </button>
             </div>

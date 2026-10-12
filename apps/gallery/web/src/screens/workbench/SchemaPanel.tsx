@@ -31,7 +31,7 @@ export function SchemaPanel({ schema, loading, error, onOwner, onReload, onPick 
       <div className="wb-schema-head">
         <span className="mono-label">{t('workbench.schema')}</span>
         {loading && <Spinner small />}
-        <button className="btn btn-ghost btn-sm" onClick={onReload} disabled={loading} title={t('workbench.schema.reload')} aria-label={t('workbench.schema.reload')}>
+        <button className="btn btn-ghost btn-sm btn-icon" onClick={onReload} disabled={loading} title={t('workbench.schema.reload')} aria-label={t('workbench.schema.reload')}>
           <Icon name="refresh" />
         </button>
       </div>

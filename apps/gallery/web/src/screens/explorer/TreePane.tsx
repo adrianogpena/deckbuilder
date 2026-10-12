@@ -1,4 +1,4 @@
-import { useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Icon, useCommand } from '@deckbuilder/ui';
 import type { Project, SearchHit } from '../../api';
 import { commandById } from '../../commands';
@@ -19,12 +19,16 @@ export interface TreePaneProps extends ProjectTreeProps, Omit<ProjectPickerProps
   /** Every path of the project, for find in the tree; `ensureNames` loads or refreshes it. */
   names?: SearchHit[];
   ensureNames?(): void;
-  /** Extra header buttons, after the search button. */
-  actions?: ReactNode;
+  /** Show a second tree below; listed in the header's more menu. */
+  onSplit?(): void;
+  /** Close this tree; listed in the header's more menu. */
+  onCloseTree?(): void;
+  /** Reveal the active file in the tree, switching project if needed; undefined while no file is open. */
+  onGoToFile?(): void;
 }
 
 /** One sidebar tree: the project picker, and the project's tree or, while searching, its search panel. */
-export function TreePane({ focused, onFocus, exclude, sort, names, ensureNames, actions, apiRef, projects, onPick, onAdd, onEdit, onRemove, ...tree }: TreePaneProps) {
+export function TreePane({ focused, onFocus, exclude, sort, names, ensureNames, onSplit, onCloseTree, onGoToFile, apiRef, projects, onPick, onAdd, onEdit, onRemove, ...tree }: TreePaneProps) {
   const { project } = tree;
   const own = useRef<ProjectTreeApi>(null);
   useImperativeHandle(apiRef, () => ({
@@ -34,6 +38,38 @@ export function TreePane({ focused, onFocus, exclude, sort, names, ensureNames, 
     collapseAll: () => own.current?.collapseAll(),
     reveal: (path) => own.current?.reveal(path),
   }));
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreWrap = useRef<HTMLDivElement>(null);
+  const [moreBox, setMoreBox] = useState<{ top: number; right: number; maxHeight: number }>();
+  useEffect(() => {
+    if (!moreOpen || !moreWrap.current) return setMoreBox(undefined);
+    const r = moreWrap.current.getBoundingClientRect();
+    setMoreBox({ top: r.bottom + 4, right: window.innerWidth - r.right, maxHeight: Math.max(120, window.innerHeight - r.bottom - 12) });
+  }, [moreOpen]);
+  useEffect(() => {
+    if (!moreOpen) return;
+    const away = (e: MouseEvent) => {
+      if (!moreWrap.current?.contains(e.target as Node)) setMoreOpen(false);
+    };
+    document.addEventListener('mousedown', away);
+    return () => document.removeEventListener('mousedown', away);
+  }, [moreOpen]);
+  const item = (icon: string, label: string, act: () => void, checked?: boolean) => (
+    <button
+      type="button"
+      className="menu-item"
+      role={checked === undefined ? 'menuitem' : 'menuitemcheckbox'}
+      aria-checked={checked}
+      onClick={() => {
+        setMoreOpen(false);
+        act();
+      }}
+    >
+      <span className="menu-icon"><Icon name={icon as never} size={14} /></span>
+      <span className="menu-label">{label}</span>
+      {checked && <Icon name="check" size={14} />}
+    </button>
+  );
   const [searching, setSearching] = useState(false);
   const [showExcluded, setShowExcluded] = useState(false);
   const [signal, setSignal] = useState(0);
@@ -85,25 +121,28 @@ export function TreePane({ focused, onFocus, exclude, sort, names, ensureNames, 
         onRemove={onRemove}
         actions={
           <>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => own.current?.newFile()} title={t('explorer.newFile')} aria-label={t('explorer.newFile')}>
+            <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={() => own.current?.newFile()} title={t('explorer.newFile')} aria-label={t('explorer.newFile')}>
               <Icon name="file-plus" />
             </button>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => own.current?.newFolder()} title={t('explorer.newFolder')} aria-label={t('explorer.newFolder')}>
-              <Icon name="folder-plus" />
+            <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={onGoToFile} disabled={!onGoToFile} title={t('explorer.goToFile')} aria-label={t('explorer.goToFile')}>
+              <Icon name="locate" />
             </button>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => own.current?.refresh()} title={t('explorer.refresh')} aria-label={t('explorer.refresh')}>
-              <Icon name="refresh" />
-            </button>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => own.current?.collapseAll()} title={t('explorer.collapseAll')} aria-label={t('explorer.collapseAll')}>
-              <Icon name="collapse-all" />
-            </button>
-            <button type="button" className={`btn btn-ghost btn-sm${showExcluded ? ' active' : ''}`} onClick={() => setShowExcluded(!showExcluded)} aria-pressed={showExcluded} title={t('explorer.showExcluded')} aria-label={t('explorer.showExcluded')}>
-              <Icon name={showExcluded ? 'eye' : 'eye-off'} />
-            </button>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={openSearch} title={t('explorer.search.open')} aria-label={t('explorer.search.open')}>
-              <Icon name="search" />
-            </button>
-            {actions}
+            <div className="menu-wrap" ref={moreWrap} onKeyDown={(e) => e.key === 'Escape' && setMoreOpen(false)}>
+              <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={() => setMoreOpen(!moreOpen)} aria-expanded={moreOpen} aria-haspopup="menu" title={t('explorer.more')} aria-label={t('explorer.more')}>
+                <Icon name="more" />
+              </button>
+              {moreOpen && moreBox && (
+                <div className="menu" role="menu" style={{ position: 'fixed', overflowY: 'auto', ...moreBox }}>
+                  {item('search', t('explorer.search.open'), openSearch)}
+                  {item('folder-plus', t('explorer.newFolder'), () => own.current?.newFolder())}
+                  {item('refresh', t('explorer.refresh'), () => own.current?.refresh())}
+                  {item('collapse-all', t('explorer.collapseAll'), () => own.current?.collapseAll())}
+                  {item(showExcluded ? 'eye' : 'eye-off', t('explorer.showExcluded'), () => setShowExcluded(!showExcluded), showExcluded)}
+                  {onSplit && item('split-down', t('explorer.split'), onSplit)}
+                  {onCloseTree && item('close', t('explorer.closeTree'), onCloseTree)}
+                </div>
+              )}
+            </div>
           </>
         }
       />
@@ -135,7 +174,7 @@ export function TreePane({ focused, onFocus, exclude, sort, names, ensureNames, 
           <button type="button" className={`chip${filterMode ? ' chip-on' : ''}`} onClick={() => setFilterMode(!filterMode)} aria-pressed={filterMode} title={t('explorer.find.filterHint')}>
             {t('explorer.find.filter')}
           </button>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={closeFind} title={t('explorer.search.close')} aria-label={t('explorer.search.close')}>
+          <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={closeFind} title={t('explorer.search.close')} aria-label={t('explorer.search.close')}>
             <Icon name="close" />
           </button>
         </div>

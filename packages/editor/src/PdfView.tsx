@@ -174,7 +174,7 @@ export function PdfView({ data }: { data: Uint8Array }) {
         </button>
         <button className="btn btn-ghost btn-sm" onClick={() => setZoom(clampZoom(scale / ZOOM_STEP))} title={t('pdf.zoomOut')} aria-label={t('pdf.zoomOut')}>−</button>
         <span className="svg-zoom">{Math.round(scale * 100)}%</span>
-        <button className="btn btn-ghost btn-sm" onClick={() => setZoom(clampZoom(scale * ZOOM_STEP))} title={t('pdf.zoomIn')} aria-label={t('pdf.zoomIn')}>
+        <button className="btn btn-ghost btn-sm btn-icon" onClick={() => setZoom(clampZoom(scale * ZOOM_STEP))} title={t('pdf.zoomIn')} aria-label={t('pdf.zoomIn')}>
           <Icon name="plus" />
         </button>
         <button className="btn btn-ghost btn-sm" onClick={() => setZoom('fit')} aria-pressed={zoom === 'fit'}>{t('pdf.fit')}</button>

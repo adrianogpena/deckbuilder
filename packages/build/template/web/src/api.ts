@@ -5,7 +5,6 @@ import { type Keymap, type Language, request } from '@deckbuilder/ui';
 export interface Settings extends ThemeSettings {
   language?: Language;
   /** The main menu shows only its icons. */
-  navCollapsed?: boolean;
   /** Keybinding overrides by command id; the server validates it. */
   keybindings?: Keymap;
   autostart: boolean;

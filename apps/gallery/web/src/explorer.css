@@ -7,7 +7,7 @@
 }
 .xp-picker-button:hover, .xp-picker-button[aria-expanded='true'] { background: var(--hover); }
 .xp-picker-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
-.xp-picker-menu { left: 0; right: 0; min-width: 0; }
+.xp-picker-menu { max-width: calc(100vw - 16px); }
 .xp-picker-item { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .xp-picker-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
 .xp-picker-actions { display: flex; gap: 2px; }

@@ -12,7 +12,6 @@ export const ptBR: Messages<typeof en> = {
   'palette.group.app': 'App',
   'palette.theme': 'Tema: {name}',
   'palette.quit': 'Sair do {name}',
-  'keys.toggleNav': 'Recolher ou expandir o menu principal',
   'nav.palette': 'Paleta de comandos (Ctrl+K)',
 
   'home.title': 'Início',

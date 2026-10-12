@@ -219,13 +219,13 @@ function TabBar<R>(props: TabBarProps<R>) {
                   props.onClose(tab.id);
                 }}
               >
-                {tab.dirty && <span className="tab-dot" aria-label={t('tabs.unsaved')}>●</span>}
+                {tab.dirty && <span className="tab-dot" title={t('tabs.unsaved')} aria-label={t('tabs.unsaved')}>●</span>}
                 <Icon name="close" size={12} />
               </button>
             </div>
           );
         })}
-        <button className="btn btn-ghost btn-sm tab-new" onClick={props.onNew} title={t('tabs.new')}>
+        <button className="btn btn-ghost btn-sm tab-new btn-icon" onClick={props.onNew} title={t('tabs.new')}>
           <Icon name="plus" />
         </button>
       </div>

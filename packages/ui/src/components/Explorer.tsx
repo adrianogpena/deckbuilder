@@ -42,7 +42,7 @@ export function Explorer({ sidebar, sizes, onResize, collapsed: stored, onCollap
     <div className="explorer">
       {collapsed && !hidden && (
         <div className="explorer-rail">
-          <button className="btn btn-ghost btn-sm" onClick={() => onCollapsedChange(false)} title={t('explorer.toggleSidebar')} aria-label={t('explorer.toggleSidebar')}>
+          <button className="btn btn-ghost btn-sm btn-icon" onClick={() => onCollapsedChange(false)} title={t('explorer.toggleSidebar')} aria-label={t('explorer.toggleSidebar')}>
             <Icon name="sidebar" />
           </button>
         </div>

@@ -10,7 +10,6 @@ export const en = {
   'palette.group.app': 'App',
   'palette.theme': 'Theme: {name}',
   'palette.quit': 'Quit {name}',
-  'keys.toggleNav': 'Collapse or expand the main menu',
   'nav.palette': 'Command palette (Ctrl+K)',
 
   'home.title': 'Home',

@@ -154,13 +154,13 @@ export function KeybindingsEditor({ defs, keymap, onChange, scopeLabel }: Keybin
                       </span>
                     ))}
                     {chords.length < MAX_CHORDS && (
-                      <button className="btn btn-ghost btn-sm" onClick={() => setEdit({ id: def.id, index: -1 })} title={t('keys.add')} aria-label={t('keys.add')}>
+                      <button className="btn btn-ghost btn-sm btn-icon" onClick={() => setEdit({ id: def.id, index: -1 })} title={t('keys.add')} aria-label={t('keys.add')}>
                         <Icon name="plus" />
                       </button>
                     )}
                     {Object.hasOwn(keymap, def.id) && (
                       <button
-                        className="btn btn-ghost btn-sm"
+                        className="btn btn-ghost btn-sm btn-icon"
                         onClick={() => {
                           setEdit(null);
                           setKeys(def, [...def.keys]);

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Icon, useDialogs } from '@deckbuilder/ui';
 import type { Project } from '../../api';
 import { t } from '../../i18n';
@@ -18,12 +19,21 @@ export interface ProjectPickerProps {
 export function ProjectPicker({ projects, current, onPick, onAdd, onEdit, onRemove, actions }: ProjectPickerProps) {
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
+  const list = useRef<HTMLDivElement>(null);
   const { confirm, element } = useDialogs();
+
+  const [box, setBox] = useState<{ top: number; left: number; minWidth: number; maxHeight: number }>();
+  useEffect(() => {
+    if (!open || !wrap.current) return setBox(undefined);
+    const r = wrap.current.getBoundingClientRect();
+    setBox({ top: r.bottom + 4, left: r.left, minWidth: Math.max(r.width, 260), maxHeight: Math.max(120, window.innerHeight - r.bottom - 12) });
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
     const away = (e: MouseEvent) => {
-      if (!wrap.current?.contains(e.target as Node)) setOpen(false);
+      const at = e.target as Node;
+      if (!wrap.current?.contains(at) && !list.current?.contains(at)) setOpen(false);
     };
     document.addEventListener('mousedown', away);
     return () => document.removeEventListener('mousedown', away);
@@ -60,8 +70,8 @@ export function ProjectPicker({ projects, current, onPick, onAdd, onEdit, onRemo
           <span className="xp-picker-name">{current?.name ?? t('explorer.addAProject')}</span>
           <Icon name="chevron-down" size={14} />
         </button>
-        {open && (
-          <div className="menu xp-picker-menu" role="menu">
+        {open && box && createPortal(
+          <div ref={list} className="menu xp-picker-menu" role="menu" onKeyDown={(e) => e.key === 'Escape' && setOpen(false)} style={{ position: 'fixed', right: 'auto', overflowY: 'auto', ...box }}>
             {projects.map((p) => (
               <button key={p.id} type="button" className="menu-item" role="menuitemradio" aria-checked={p.id === current?.id} onClick={close(() => onPick(p))}>
                 <span className="menu-icon">{p.id === current?.id && <Icon name="check" size={14} />}</span>
@@ -88,7 +98,8 @@ export function ProjectPicker({ projects, current, onPick, onAdd, onEdit, onRemo
                 </button>
               </>
             )}
-          </div>
+          </div>,
+          document.body,
         )}
       </div>
       {actions && <div className="xp-picker-actions">{actions}</div>}

@@ -12,7 +12,6 @@ import {
   errorOf,
   ErrorBanner,
   Explorer,
-  Icon,
   type ApiError,
   type FieldSpec,
   Modal,
@@ -495,17 +494,9 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
                   onDeleted={deleted}
                   undo={undo}
                   dirtyCount={dirtyCount}
-                  actions={
-                    i === 0 && shown.length === 1 ? (
-                      <button type="button" className="btn btn-ghost btn-sm" onClick={splitTree} title={t('explorer.split')} aria-label={t('explorer.split')}>
-                        <Icon name="split-down" />
-                      </button>
-                    ) : i === 1 ? (
-                      <button type="button" className="btn btn-ghost btn-sm" onClick={closeSecondTree} title={t('explorer.closeTree')} aria-label={t('explorer.closeTree')}>
-                        <Icon name="close" />
-                      </button>
-                    ) : undefined
-                  }
+                  onGoToFile={activeFile ? () => revealFile(activeFile.project, activeFile.path) : undefined}
+                  onSplit={i === 0 && shown.length === 1 ? splitTree : undefined}
+                  onCloseTree={i === 1 ? closeSecondTree : undefined}
                 />
               ))}
             </SplitView>

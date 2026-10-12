@@ -146,10 +146,9 @@ source directly; there is no package build step.
   `@deckbuilder/ui`) pick a built-in icon by extension or folder name (an unnamed folder of two or
   more files of one kind gets that kind's icon). `TreeView` takes `iconOf` and `iconToneOf`;
   `TabTitle` takes `icon` and `tone`. See the gallery's `ProjectTree.tsx`.
-- **Collapsible main menu**: `<Sidebar collapsed onCollapsedChange toggleLabel>` shows only the icons
-  (items keep their label and `hint` as tooltip) and puts a toggle button in the footer; the app
-  keeps `collapsed` in its settings, adds `nav-collapsed` to the `.app` element (narrow first column)
-  and binds a global command (Ctrl+Shift+B) to it. See the gallery's `App.tsx`.
+- **Icon-only main menu**: `<Sidebar collapsed>` shows only the icons (items keep their label and
+  `hint` as tooltip); the app adds `nav-collapsed` to the `.app` element (narrow first column).
+  See the gallery's `App.tsx`.
 - **Command palette**: `useCommandPalette()` (Ctrl+K, Ctrl+Shift+P) gives `{ open, setOpen }`; render
   `<CommandPalette items onClose />` (both from `@deckbuilder/ui`) with `PaletteItem`s
   `{ id, group, label, hint?, keywords?, run }`. `keywords[0]` doubles as a prefix that narrows

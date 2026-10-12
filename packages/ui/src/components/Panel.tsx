@@ -42,7 +42,7 @@ export function PanelFrame({ title, icon, actions, collapsed: controlled, onColl
           {actions}
           {menu && menu.length > 0 && (
             <button
-              className="btn btn-ghost btn-sm panel-btn"
+              className="btn btn-ghost btn-sm panel-btn btn-icon"
               data-panel-menu
               title={t('panel.menu')}
               aria-label={t('panel.menu')}
@@ -59,7 +59,7 @@ export function PanelFrame({ title, icon, actions, collapsed: controlled, onColl
             <span className={`panel-chevron${collapsed ? ' collapsed' : ''}`}><Icon name="chevron-down" /></span>
           </button>
           {onRemove && (
-            <button className="btn btn-ghost btn-sm panel-btn panel-remove" onClick={onRemove} title={t('panel.remove')} aria-label={t('panel.remove')}>
+            <button className="btn btn-ghost btn-sm panel-btn panel-remove btn-icon" onClick={onRemove} title={t('panel.remove')} aria-label={t('panel.remove')}>
               <Icon name="close" />
             </button>
           )}

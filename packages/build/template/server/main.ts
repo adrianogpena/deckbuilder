@@ -21,8 +21,6 @@ import pkg from '../package.json';
 import { routes } from './routes.ts';
 
 export interface Settings extends BaseSettings {
-  /** The main menu shows only its icons. */
-  navCollapsed?: boolean;
   /** Keybinding overrides by command id, checked by `validKeymap`. */
   keybindings?: Keymap;
   /** Start at Windows login (exe only). */
@@ -50,7 +48,6 @@ const settings = settingsStore<Settings>({
     if (patch.updateFolder === '' || (typeof patch.updateFolder === 'string' && pickedUpdateFolder.take(patch.updateFolder))) {
       next.updateFolder = patch.updateFolder;
     }
-    if (typeof patch.navCollapsed === 'boolean') next.navCollapsed = patch.navCollapsed;
     const keybindings = validKeymap(patch.keybindings);
     if (keybindings) next.keybindings = keybindings;
   },

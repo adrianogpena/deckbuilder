@@ -3,7 +3,6 @@ import { t } from './i18n';
 import { NAV } from './nav';
 
 export const navCommandId = (screen: string) => `nav.${screen}`;
-export const TOGGLE_NAV = 'app.toggleNav';
 
 /** Every shortcut of the gallery; built at render so the labels follow the language. */
 export function commands(): CommandDef[] {
@@ -14,7 +13,6 @@ export function commands(): CommandDef[] {
     paletteCommand(),
     quickOpenCommand(),
     ...nav,
-    { id: TOGGLE_NAV, scope: GLOBAL, label: t('keys.toggleNav'), keys: ['Ctrl+Shift+B'], inInput: true },
     ...tabCommands('tabs'),
     ...tabCommands('explorer'),
     ...tabCommands('terminal'),

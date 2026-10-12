@@ -37,8 +37,6 @@ export interface Settings extends BaseSettings {
    * else no update checks. Set only through the folder dialog of `POST /api/settings/update-folder`.
    */
   updateFolder: string;
-  /** The main menu shows only its icons. */
-  navCollapsed?: boolean;
   /** Keybinding overrides by command id, checked by `validKeymap`. */
   keybindings?: Keymap;
   /** Layout of the Tabs screen (`serialize` of `@deckbuilder/ui`'s tabs); the UI validates it on restore. */
@@ -74,6 +72,8 @@ export interface WorkbenchSettings {
   source?: string;
   /** Most rows a database query returns, 1 to 100 000. */
   maxRows?: number;
+  /** The schema sidebar is open. */
+  schema?: boolean;
   /** Project ids allowed to run SQL from the Explorer. */
   explorerProjects?: string[];
   /** Last connection id used per project id. */
@@ -82,8 +82,6 @@ export interface WorkbenchSettings {
   results?: ResultFormat;
   /** SQL formatter options; the editor package owns their meaning. */
   format?: Record<string, string | number | boolean>;
-  /** The schema sidebar is open. */
-  schema?: boolean;
 }
 
 export interface ExplorerSettings {
@@ -179,6 +177,8 @@ function validWorkbench(raw: unknown): WorkbenchSettings | null {
   }
   if (r.schema !== undefined) {
     if (typeof r.schema !== 'boolean') return null;
+    out.schema = r.schema;
+  }
   if (r.explorerProjects !== undefined) {
     if (!Array.isArray(r.explorerProjects) || r.explorerProjects.length > 1000 || !r.explorerProjects.every((id) => typeof id === 'string' && /^[\w-]{1,64}$/.test(id))) return null;
     out.explorerProjects = [...r.explorerProjects];
@@ -210,8 +210,6 @@ function validWorkbench(raw: unknown): WorkbenchSettings | null {
       format[key] = v;
     }
     out.format = format;
-  }
-    out.schema = r.schema;
   }
   return out;
 }
@@ -265,7 +263,6 @@ const settings = settingsStore<Settings>({
     if (typeof patch.terminalLayout === 'object' && patch.terminalLayout !== null && JSON.stringify(patch.terminalLayout).length < MAX_TABS_LAYOUT_BYTES) {
       next.terminalLayout = patch.terminalLayout;
     }
-    if (typeof patch.navCollapsed === 'boolean') next.navCollapsed = patch.navCollapsed;
     const keybindings = validKeymap(patch.keybindings);
     if (keybindings) next.keybindings = keybindings;
   },

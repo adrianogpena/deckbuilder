@@ -89,10 +89,10 @@ export function JsonTree({ value, initialDepth = 1, onCopyPath }: { value: unkno
       }}
     >
       <div className="json-bar">
-        <button className="btn btn-ghost btn-sm" onClick={() => issue('all')} title={t('json.expandAll')} aria-label={t('json.expandAll')}>
+        <button className="btn btn-ghost btn-sm btn-icon" onClick={() => issue('all')} title={t('json.expandAll')} aria-label={t('json.expandAll')}>
           <Icon name="chevron-down" size={14} />
         </button>
-        <button className="btn btn-ghost btn-sm" onClick={() => issue('none')} title={t('json.collapseAll')} aria-label={t('json.collapseAll')}>
+        <button className="btn btn-ghost btn-sm btn-icon" onClick={() => issue('none')} title={t('json.collapseAll')} aria-label={t('json.collapseAll')}>
           <Icon name="chevron-up" size={14} />
         </button>
         <span className="spacer" />
@@ -111,10 +111,10 @@ export function JsonTree({ value, initialDepth = 1, onCopyPath }: { value: unkno
           }}
         />
         {q && <span className="json-hits">{found.matches.length ? `${at + 1}/${found.matches.length}${found.matches.length >= MAX_MATCHES ? '+' : ''}` : t('json.noMatches')}</span>}
-        <button className="btn btn-ghost btn-sm" onClick={() => step(-1)} disabled={!found.matches.length} aria-label={t('json.prevMatch')} title={t('json.prevMatch')}>
+        <button className="btn btn-ghost btn-sm btn-icon" onClick={() => step(-1)} disabled={!found.matches.length} aria-label={t('json.prevMatch')} title={t('json.prevMatch')}>
           <Icon name="chevron-up" size={14} />
         </button>
-        <button className="btn btn-ghost btn-sm" onClick={() => step(1)} disabled={!found.matches.length} aria-label={t('json.nextMatch')} title={t('json.nextMatch')}>
+        <button className="btn btn-ghost btn-sm btn-icon" onClick={() => step(1)} disabled={!found.matches.length} aria-label={t('json.nextMatch')} title={t('json.nextMatch')}>
           <Icon name="chevron-down" size={14} />
         </button>
       </div>
@@ -203,7 +203,7 @@ function JsonNode({ label, value, path, depth, initialDepth, onCopyPath }: NodeP
         )}
         <span className="json-actions">
           <button
-            className="btn btn-ghost btn-sm"
+            className="btn btn-ghost btn-sm btn-icon"
             title={t('json.copyValue')}
             onClick={() => copyText(typeof value === 'string' ? value : JSON.stringify(value, null, 2) ?? String(value))}
           >

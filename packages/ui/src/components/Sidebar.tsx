@@ -64,7 +64,7 @@ export function Sidebar<Id extends string>({ name, sections, current, onSelect, 
         <div className="side-footer">
           {footer}
           {onCollapsedChange && (
-            <button className="btn btn-ghost btn-sm side-toggle" onClick={() => onCollapsedChange(!collapsed)} title={toggleLabel} aria-label={toggleLabel} aria-pressed={collapsed}>
+            <button className="btn btn-ghost btn-sm side-toggle btn-icon" onClick={() => onCollapsedChange(!collapsed)} title={toggleLabel} aria-label={toggleLabel} aria-pressed={collapsed}>
               <Icon name="sidebar" />
             </button>
           )}

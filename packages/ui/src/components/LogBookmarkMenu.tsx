@@ -94,7 +94,7 @@ export function LogBookmarkMenu({ bookmarks, onBookmarksChange, lines, endOffset
                     </button>
                   )}
                   <span className="spacer" />
-                  <button className="btn btn-ghost btn-sm log-icon-btn" title={t('log.delete')} aria-label={t('log.delete')} onClick={() => onBookmarksChange(bookmarks.filter((x) => !same(b)(x)))}>
+                  <button className="btn btn-ghost btn-sm log-icon-btn btn-icon" title={t('log.delete')} aria-label={t('log.delete')} onClick={() => onBookmarksChange(bookmarks.filter((x) => !same(b)(x)))}>
                     <Icon name="trash" size={14} />
                   </button>
                 </div>
