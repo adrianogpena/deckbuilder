@@ -553,6 +553,10 @@ kbd {
 .tree-icon, .tab-icon { display: inline-flex; flex-shrink: 0; }
 .tree-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tree-rename { flex: 1; min-width: 0; height: 22px; padding: 0 6px; border-radius: 5px; font-size: 13px; }
+.tree-new { flex-wrap: wrap; }
+.tree-new .tree-rename { flex: 1 1 0; }
+.tree-new .tree-rename[aria-invalid='true'] { border-color: var(--err); }
+.tree-new-error { flex-basis: 100%; padding: 2px 4px 2px 40px; color: var(--err); font-size: 12px; }
 .tree-status { color: var(--text-3); font-size: 12px; cursor: default; }
 .tree-error { color: var(--err); }
 .tree-error .btn { height: 22px; }

@@ -6,7 +6,7 @@ import { dbRoutes, dbSessions, parseOracleUrl, validConnection, type DbConnectio
 import { AppError, forbidden, invalid, isRecord, ndjson, type Routes } from '@deckbuilder/server-core';
 import { dialogRoutes, editorRoutes, fromPlatform, httpExecutor, httpRoutes, pickedPaths, recordRoutes, recordStore, rootedFs, validateDraft } from '@deckbuilder/server-mods';
 import type { StartContext } from '@deckbuilder/shell';
-import { APP } from '../app.ts';
+import { APP, MULTI_DELETE_ENABLED } from '../app.ts';
 
 const toaster = createToaster();
 
@@ -37,7 +37,7 @@ export const projects = recordStore<{ name: string; path: string }>({
     return { name: trimmed, path };
   },
 });
-const fs = rootedFs({ roots: async () => (await projects.list()).map((p) => ({ id: p.id, path: p.path })) });
+const fs = rootedFs({ multiDelete: MULTI_DELETE_ENABLED, roots: async () => (await projects.list()).map((p) => ({ id: p.id, path: p.path })) });
 
 /** A project folder as a terminal's working directory: `path` inside project `root`, a directory. */
 export async function resolveCwd(root: string, path: string): Promise<string> {

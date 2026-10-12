@@ -27,6 +27,8 @@ export interface RootedFsOptions {
   maxReadBytes?: number;
   /** Moves absolute paths to the recycle bin: `moveToTrash` from platform, a fake in tests. */
   trash?: (paths: string[]) => Promise<void>;
+  /** False: the delete route takes one path only. Default true. */
+  multiDelete?: boolean;
   /** The save dialog: `saveFileAs` from platform, a fake in tests. */
   saveAs?: (opts: SaveDialogOptions) => Promise<string | null>;
 }
@@ -166,6 +168,15 @@ function optionalInt(value: string | null, min: number, max: number): number | u
 }
 
 const present = (path: string) => lstat(path).then(() => true, () => false);
+
+/** `wanted`, or the first free `name copy.ext`, `name copy 2.ext`, ... next to it. */
+async function freeName(wanted: string, isDir: boolean): Promise<string> {
+  const ext = isDir ? '' : extname(wanted);
+  const stem = basename(wanted, ext);
+  let to = wanted;
+  for (let n = 1; await present(to); n++) to = join(dirname(wanted), `${stem} copy${n > 1 ? ` ${n}` : ''}${ext}`);
+  return to;
+}
 
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 
@@ -557,10 +568,26 @@ export function rootedFs(opts: RootedFsOptions): RootedFs {
       if ((await lstat(from)).isDirectory() && fold(to).startsWith(fold(from) + sep)) {
         throw invalid('moveIntoSelf', "A folder can't be moved into itself.");
       }
-      await refuseExisting(from, to);
-      // Never copy-then-delete across volumes: that would be a permanent delete without undo.
-      await renameWithRetry(from, to);
-      return described(to, basename(to), dest.realRoot);
+      const onExisting = b.onExisting;
+      if (onExisting !== undefined && onExisting !== 'replace' && onExisting !== 'keepBoth') throw badRequest();
+      let target = to;
+      if (onExisting === 'keepBoth') {
+        target = await freeName(to, (await lstat(from)).isDirectory());
+      } else if (onExisting === 'replace' && fold(from) !== fold(to) && (await present(to))) {
+        if (fold(from).startsWith(fold(to) + sep)) throw invalid('moveIntoSelf', "A folder can't replace the folder it is in.");
+        await trash([to]).catch(fromPlatform);
+      } else {
+        await refuseExisting(from, to);
+      }
+      try {
+        await renameWithRetry(from, target);
+      } catch (err) {
+        if (errno(err) !== 'EXDEV') throw err;
+        // Across volumes: copy, then the source goes to the bin (never a permanent delete). A failed copy leaves the source alone.
+        await cp(from, target, { recursive: true, errorOnExist: true, force: false });
+        await trash([from]).catch(fromPlatform);
+      }
+      return described(target, basename(target), dest.realRoot);
     },
 
     'POST /api/fs/copy': async ({ json }) => {
@@ -574,10 +601,7 @@ export function rootedFs(opts: RootedFsOptions): RootedFs {
         throw invalid('moveIntoSelf', "A folder can't be copied into itself.");
       }
       // Like a paste in a file manager: an existing name gets " copy", " copy 2", ... instead of an error.
-      const ext = (await lstat(from)).isDirectory() ? '' : extname(wanted);
-      const stem = basename(wanted, ext);
-      let to = wanted;
-      for (let n = 1; await present(to); n++) to = join(dirname(wanted), `${stem} copy${n > 1 ? ` ${n}` : ''}${ext}`);
+      const to = await freeName(wanted, (await lstat(from)).isDirectory());
       await cp(from, to, { recursive: true, errorOnExist: true, force: false });
       return described(to, basename(to), dest.realRoot);
     },
@@ -586,6 +610,7 @@ export function rootedFs(opts: RootedFsOptions): RootedFs {
       const b = await body(json);
       if (!Array.isArray(b.paths) || !b.paths.length) throw badRequest();
       // outermost() compares all pairs.
+      if (opts.multiDelete === false && b.paths.length > 1) throw invalid('multiDeleteOff', 'Delete one item at a time.');
       if (b.paths.length > MAX_DELETE_PATHS) throw invalid('tooManyItems', 'Too many items at once.');
       const located = await Promise.all(b.paths.map((p) => locate(b.root, p, true)));
       writable(located[0]!.root);

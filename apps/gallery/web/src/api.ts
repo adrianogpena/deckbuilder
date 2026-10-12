@@ -198,7 +198,7 @@ export const api = {
   fsWrite: (root: string, path: string, text: string, expectedMtime: number | undefined, encoding?: TextEncoding, unlock?: boolean) =>
     request<FsEntry>('POST', '/api/fs/write', {}, { root, path, text, expectedMtime, encoding, unlock }),
   fsRename: (root: string, path: string, name: string) => request<FsEntry>('POST', '/api/fs/rename', {}, { root, path, name }),
-  fsMove: (root: string, from: string, to: string) => request<FsEntry>('POST', '/api/fs/move', {}, { root, from, to }),
+  fsMove: (root: string, from: string, to: string, onExisting?: 'replace' | 'keepBoth') => request<FsEntry>('POST', '/api/fs/move', {}, { root, from, to, onExisting }),
   fsCopy: (root: string, from: string, to: string) => request<FsEntry>('POST', '/api/fs/copy', {}, { root, from, to }),
   fsDelete: (root: string, paths: string[]) => request<{ ok: true }>('POST', '/api/fs/delete', {}, { root, paths }),
   fsReveal: (root: string, path: string) => request<{ ok: true }>('POST', '/api/fs/reveal', {}, { root, path }),

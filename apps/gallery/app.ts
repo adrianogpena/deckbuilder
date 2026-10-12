@@ -8,3 +8,10 @@ export const APP: AppIdentity = {
   name: 'DeckBuilder',
   id: 'deckbuilder',
 };
+
+/**
+ * Deleting several Explorer items at once. Off: the server refuses more than one path and the tree
+ * disables Delete on a multi-selection. Multi-item delete crashes the app under some antivirus
+ * (see `packages/platform/src/trash.ts`); flip this when that is fixed.
+ */
+export const MULTI_DELETE_ENABLED = false;

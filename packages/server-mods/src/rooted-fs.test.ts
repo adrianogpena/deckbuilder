@@ -192,6 +192,27 @@ test('delete hands the real paths to the trash in one call', async () => {
   expect(await fail('POST /api/fs/delete', { root: 'r', paths: Array(1001).fill('top.txt') })).toMatchObject({ code: 'tooManyItems' });
 });
 
+test('move onto an existing name keeps both or replaces through the trash', async () => {
+  const { root, realRoot, call, trashed } = await setup();
+  await writeFile(join(root, 'a', 'top.txt'), 'old');
+  const kept = await call('POST /api/fs/move', { root: 'r', from: 'top.txt', to: 'a/top.txt', onExisting: 'keepBoth' });
+  expect(kept).toMatchObject({ name: 'top copy.txt' });
+  expect(await readFile(join(root, 'a', 'top copy.txt'), 'utf8')).toBe('top');
+  await writeFile(join(root, 'top.txt'), 'new');
+  await call('POST /api/fs/move', { root: 'r', from: 'top.txt', to: 'a/top.txt', onExisting: 'replace' });
+  expect(trashed).toEqual([[join(realRoot, 'a', 'top.txt')]]);
+});
+
+test('multiDelete off refuses more than one path', async () => {
+  const base = await mkdtemp(join(tmpdir(), 'deckbuilder-fs-'));
+  dirs.push(base);
+  const fs = rootedFs({ roots: async () => [{ id: 'r', path: base }], trash: async () => {}, multiDelete: false });
+  await writeFile(join(base, 'f.txt'), 'x');
+  const run = (paths: string[]) => Promise.resolve(fs.routes['POST /api/fs/delete']!({ json: async () => ({ root: 'r', paths }) } as unknown as RouteContext)).catch((e) => e);
+  expect(await run(['f.txt', 'g.txt'])).toMatchObject({ code: 'multiDeleteOff' });
+  expect(await run(['f.txt'])).toEqual({ ok: true });
+});
+
 test('a trash failure reaches the client as its PlatformError code', async () => {
   const base = await mkdtemp(join(tmpdir(), 'deckbuilder-fs-'));
   dirs.push(base);

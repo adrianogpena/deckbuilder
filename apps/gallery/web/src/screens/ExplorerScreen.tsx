@@ -44,6 +44,7 @@ import { fullPath, nodeId } from '../explorer-paths';
 import { t } from '../i18n';
 import { ProjectPicker } from './explorer/ProjectPicker';
 import { useCopyPath } from './explorer/copy-path';
+import { useFileUndo } from './explorer/file-undo';
 import type { ProjectTreeApi } from './explorer/ProjectTree';
 import { TreePane } from './explorer/TreePane';
 
@@ -148,6 +149,7 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
   const [actionError, setActionError] = useState<ApiError>();
   const [focusedTree, setFocusedTree] = useState<0 | 1>(0);
   const copyPath = useCopyPath();
+  const undo = useFileUndo();
 
   const persist = useDebouncedSave((s: State) =>
     onSave({
@@ -259,6 +261,11 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
           }
         : s.expanded,
     }));
+
+  const dirtyCount = (project: string, paths: string[]) =>
+    latest.current.layout.panes
+      .flatMap((p) => p.tabs)
+      .filter((x) => x.dirty && x.route.kind === 'file' && x.route.project === project && paths.some((path) => relPath.isUnder(x.route.kind === 'file' ? x.route.path : '', path))).length;
 
   const deleted = (project: string, path: string) =>
     update((s) => ({
@@ -409,6 +416,8 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
                   onOpenTerminal={openTerminal}
                   onMoved={moved}
                   onDeleted={deleted}
+                  undo={undo}
+                  dirtyCount={dirtyCount}
                   actions={
                     i === 0 && shown.length === 1 ? (
                       <button type="button" className="btn btn-ghost btn-sm" onClick={splitTree} title={t('explorer.split')} aria-label={t('explorer.split')}>

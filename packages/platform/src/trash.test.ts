@@ -2,46 +2,45 @@ import { afterEach, expect, test } from 'bun:test';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { moveToTrash, type TrashDeps, trashScript } from './trash.ts';
+import { PlatformError } from './errors.ts';
+import { moveToTrash, type TrashDeps } from './trash.ts';
 
 const dirs: string[] = [];
 afterEach(async () => {
   await Promise.all(dirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })));
 });
 
-function fakeSpawn(code: number, stderr = '') {
-  const calls: Array<{ script: string; stdin: string }> = [];
+function fakeTrash(failOn?: string) {
+  const calls: string[] = [];
   const deps: TrashDeps = {
-    spawn: (script) => {
-      const call = { script, stdin: '' };
-      calls.push(call);
-      return {
-        pid: 0,
-        stdin: { write: (data: string) => (call.stdin += data), end: () => {} },
-        stderr: new Response(stderr).body!,
-        exited: Promise.resolve(code),
-      };
+    trashOne: async (path) => {
+      calls.push(path);
+      if (path === failOn) throw new PlatformError('trashFailed', 'nope', 'boom');
     },
   };
   return { calls, deps };
 }
 
-test('the script recycles and reads the paths from stdin only', async () => {
-  expect(trashScript()).toContain('FOF_ALLOWUNDO');
-  expect(trashScript()).toContain('FOF_WANTNUKEWARNING');
-  const { calls, deps } = fakeSpawn(0);
-  const paths = [`C:\\x\\a'b";$(evil).txt`, 'C:\\x\\ção'];
-  await moveToTrash(paths, deps);
-  expect(calls[0]!.script).not.toContain('evil');
-  expect(calls[0]!.stdin).not.toContain('ç');
-  expect(JSON.parse(calls[0]!.stdin)).toEqual({ paths });
+test('one awaited call per path, in order; no paths do nothing', async () => {
+  const { calls, deps } = fakeTrash();
+  await moveToTrash(['C:\\x\\a', 'C:\\x\\b', 'C:\\x\\c'], deps);
+  expect(calls).toEqual(['C:\\x\\a', 'C:\\x\\b', 'C:\\x\\c']);
+  await moveToTrash([], deps);
+  expect(calls).toHaveLength(3);
 });
 
-test('a failing host gives trashFailed with its stderr; no paths spawn nothing', async () => {
-  expect(await moveToTrash(['C:\\x'], fakeSpawn(1, 'boom\n').deps).catch((e) => e)).toMatchObject({ code: 'trashFailed', detail: 'boom' });
-  const { calls, deps } = fakeSpawn(0);
-  await moveToTrash([], deps);
-  expect(calls).toHaveLength(0);
+test('stops at the first failure and says which paths were and were not moved', async () => {
+  const { calls, deps } = fakeTrash('b');
+  const err = await moveToTrash(['a', 'b', 'c'], deps).catch((e) => e);
+  expect(err).toMatchObject({ code: 'trashFailed' });
+  expect(err.detail).toContain('boom');
+  expect(err.detail).toContain('Moved: a');
+  expect(err.detail).toContain('Not moved: b, c');
+  expect(calls).toEqual(['a', 'b']);
+});
+
+test('a single failing path keeps its own error', async () => {
+  expect(await moveToTrash(['b'], fakeTrash('b').deps).catch((e) => e)).toMatchObject({ code: 'trashFailed', detail: 'boom' });
 });
 
 test.skipIf(process.platform !== 'win32')('files and folders end up gone', async () => {
@@ -52,7 +51,8 @@ test.skipIf(process.platform !== 'win32')('files and folders end up gone', async
   await writeFile(file, 'x');
   await mkdir(folder);
   await writeFile(join(folder, 'inner.txt'), 'y');
-  await moveToTrash([file, folder]);
+  await moveToTrash([file]);
+  await moveToTrash([folder]);
   expect(await Bun.file(file).exists()).toBe(false);
   expect(await Bun.file(join(folder, 'inner.txt')).exists()).toBe(false);
 });

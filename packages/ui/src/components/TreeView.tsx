@@ -20,6 +20,8 @@ import { Icon, Spinner, type Tone } from './ui';
 export const TREE_DRAG_TYPE = 'application/x-deckbuilder-tree';
 const TYPEAHEAD_MS = 700;
 const INDENT = 14;
+const HOVER_EXPAND_MS = 500;
+const SCROLL_EDGE = 28;
 
 /** Children of a node; `children` stays set while a reload runs so the rows don't flicker. */
 type Entry<N> = { status: 'loading'; children?: N[] } | { status: 'error'; error: ApiError } | { status: 'ok'; children: N[] };
@@ -54,9 +56,19 @@ export interface TreeViewProps<N> {
   onCut?: (nodes: N[]) => void;
   /** Ctrl+V with `target` as the focused row. */
   onPaste?: (target: N) => void;
+  /** Ctrl+Z with the tree focused. */
+  onUndo?: () => void;
+  /** An input row for a new entry as the first child of the (expanded) node `parentId`. */
+  newEntry?: {
+    parentId: string;
+    kind: 'file' | 'dir';
+    /** Enter or leaving the input with a name; returns the error to show inline, or null once done. Esc or an empty name calls `onCancel`. */
+    onSubmit: (name: string) => Promise<string | null>;
+    onCancel: () => void;
+  };
   draggable?: boolean;
-  /** Rows dragged (the whole selection when one of its rows is dragged) onto a row with children, never onto themselves or their descendants. */
-  onDrop?: (dragged: N[], target: N) => void;
+  /** Rows dragged (the whole selection when one of its rows is dragged) onto a row with children, never onto themselves or their descendants; `copy` when Ctrl was held. */
+  onDrop?: (dragged: N[], target: N, copy: boolean) => void;
 }
 
 export interface TreeViewHandle<N = unknown> {
@@ -106,8 +118,58 @@ function RenameInput({ initial, onDone }: { initial: string; onDone: (value: str
   );
 }
 
+function NewEntryInput({ kind, depth, onSubmit, onCancel }: { kind: 'file' | 'dir'; depth: number } & Pick<NonNullable<TreeViewProps<unknown>['newEntry']>, 'onSubmit' | 'onCancel'>) {
+  const input = useRef<HTMLInputElement>(null);
+  const busy = useRef(false);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => input.current?.focus(), []);
+  const submit = async (value: string) => {
+    if (busy.current) return;
+    if (!value.trim()) return onCancel();
+    busy.current = true;
+    const err = await onSubmit(value.trim());
+    busy.current = false;
+    if (err !== null) {
+      setError(err);
+      input.current?.focus();
+    }
+  };
+  return (
+    <div className="tree-row tree-new" style={{ paddingLeft: (depth + 1) * INDENT + 4 }}>
+      <span className="tree-chevron" />
+      <span className="tree-icon">
+        <Icon name={kind === 'dir' ? 'folder' : 'file'} size={15} />
+      </span>
+      <input
+        ref={input}
+        className="tree-rename"
+        aria-label={t('tree.newName')}
+        aria-invalid={error !== null}
+        onChange={() => setError(null)}
+        onClick={(e) => e.stopPropagation()}
+        onDoubleClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          e.stopPropagation();
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            void submit(e.currentTarget.value);
+          } else if (e.key === 'Escape') {
+            e.preventDefault();
+            onCancel();
+          }
+        }}
+        onBlur={(e) => {
+          if (error === null) void submit(e.currentTarget.value);
+        }}
+      />
+      {error !== null && <div className="tree-new-error" role="alert">{error}</div>}
+    </div>
+  );
+}
+
 function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) {
-  const { roots, idOf, labelOf, iconOf, iconToneOf, hasChildren, expanded, onExpandedChange, onOpen, onPreview, onOpenToSide, onContextMenu, onRename, onDelete, onCopy, onCut, onPaste, draggable, onDrop } = props;
+  const { roots, idOf, labelOf, iconOf, iconToneOf, hasChildren, expanded, onExpandedChange, onOpen, onPreview, onOpenToSide, onContextMenu, onRename, onDelete, onCopy, onCut, onPaste, onUndo, newEntry, draggable, onDrop } = props;
   const cache = useRef(new Map<string, Entry<N>>());
   const generations = useRef(new Map<string, number>());
   const [, bump] = useReducer((x: number) => x + 1, 0);
@@ -115,6 +177,7 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
   const selected = props.selected !== undefined ? props.selected : ownSelected;
   const [renaming, setRenaming] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
+  const hoverTimer = useRef<{ id: string; timer: number }>();
   const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
   const anchor = useRef<string | null>(null);
   const dragged = useRef<Array<{ id: string; node: N }> | null>(null);
@@ -308,6 +371,7 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
     } else if (e.ctrlKey && e.key.toLowerCase() === 'c' && onCopy) onCopy(pickedRows().map((r) => r.node));
     else if (e.ctrlKey && e.key.toLowerCase() === 'x' && onCut) onCut(pickedRows().map((r) => r.node));
     else if (e.ctrlKey && e.key.toLowerCase() === 'v' && onPaste) onPaste(current.node);
+    else if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'z' && onUndo) onUndo();
     else if (e.key === 'ArrowLeft') {
       if (expandedSet.has(current.id) && hasChildren(current.node)) setOpen(current, false);
       else go(parentId(rows, current.id));
@@ -354,8 +418,30 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
 
   const tabStop = current?.id ?? rows[0]?.id;
 
+  const clearHover = () => {
+    if (hoverTimer.current) window.clearTimeout(hoverTimer.current.timer);
+    hoverTimer.current = undefined;
+  };
+  useEffect(() => clearHover, []);
+
+  // A collapsed folder under the pointer opens after a pause; near the top or bottom edge the list scrolls.
+  const dragOverFolder = (row: TreeRow<N>) => {
+    if (expandedSet.has(row.id)) return clearHover();
+    if (hoverTimer.current?.id === row.id) return;
+    clearHover();
+    hoverTimer.current = { id: row.id, timer: window.setTimeout(() => latest.current.onExpandedChange([...latest.current.expanded, row.id]), HOVER_EXPAND_MS) };
+  };
+  const autoScroll = (e: { currentTarget: HTMLElement; clientY: number }) => {
+    let el: HTMLElement | null = e.currentTarget;
+    while (el && !(el.scrollHeight > el.clientHeight && /auto|scroll/.test(getComputedStyle(el).overflowY))) el = el.parentElement;
+    if (!el) return;
+    const box = el.getBoundingClientRect();
+    if (e.clientY < box.top + SCROLL_EDGE) el.scrollTop -= 12;
+    else if (e.clientY > box.bottom - SCROLL_EDGE) el.scrollTop += 12;
+  };
+
   return (
-    <div className="tree" role="tree" aria-multiselectable="true" onKeyDown={onKeyDown}>
+    <div className="tree" role="tree" aria-multiselectable="true" onKeyDown={onKeyDown} onDragOver={draggable ? autoScroll : undefined}>
       {rows.map((row) => {
         const { node, id, depth } = row;
         const expandable = hasChildren(node);
@@ -396,27 +482,33 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
               }
               onDragStart={(e) => {
                 e.dataTransfer.setData(TREE_DRAG_TYPE, id);
-                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.effectAllowed = 'copyMove';
                 dragged.current = isPicked(id) ? pickedRows() : [{ id, node }];
               }}
               onDragEnd={() => {
+                clearHover();
                 dragged.current = null;
                 setDropTarget(null);
               }}
               onDragOver={(e) => {
                 if (!e.dataTransfer.types.includes(TREE_DRAG_TYPE) || !canDrop(row)) return;
                 e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
+                e.dataTransfer.dropEffect = e.ctrlKey ? 'copy' : 'move';
                 if (dropTarget !== id) setDropTarget(id);
+                dragOverFolder(row);
               }}
-              onDragLeave={() => dropTarget === id && setDropTarget(null)}
+              onDragLeave={() => {
+                if (hoverTimer.current?.id === id) clearHover();
+                if (dropTarget === id) setDropTarget(null);
+              }}
               onDrop={(e) => {
                 const d = dragged.current;
+                clearHover();
                 setDropTarget(null);
                 if (!d || !canDrop(row)) return;
                 e.preventDefault();
                 dragged.current = null;
-                onDrop?.(d.map((x) => x.node), node);
+                onDrop?.(d.map((x) => x.node), node, e.ctrlKey);
               }}
             >
               {guides.map((level) => (
@@ -434,6 +526,7 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
                 <span className="tree-label">{labelOf(node)}</span>
               )}
             </div>
+            {isOpen && newEntry?.parentId === id && <NewEntryInput key={`new-${id}`} kind={newEntry.kind} depth={depth} onSubmit={newEntry.onSubmit} onCancel={newEntry.onCancel} />}
             {entry?.status === 'loading' && !entry.children && (
               <div className="tree-status" style={statusIndent}>
                 <Spinner small />
