@@ -1,3 +1,4 @@
+import type { ServerWebSocket } from 'bun';
 import { timingSafeEqual } from 'node:crypto';
 import { AppError, invalid } from './errors.ts';
 import { SESSION_PATH, TOKEN_HEADER } from './protocol.ts';
@@ -18,6 +19,23 @@ export type Handler = (ctx: RouteContext) => unknown;
 /** The API. Keys are "METHOD /path"; handlers throw an AppError (see errors.ts) for errors the UI shows. */
 export type Routes = Record<string, Handler>;
 
+/** `ws.data` of every socket: the socket path and the data its ticket carried. */
+export interface SocketData {
+  path: string;
+  data: unknown;
+}
+
+/** A WebSocket endpoint; the upgrade redeems the one-time ticket in `?t=` for `data`. */
+export interface SocketRoute<T = unknown> {
+  tickets: { redeem(ticket: string): T | undefined };
+  open(ws: ServerWebSocket<SocketData>, data: T): void;
+  message(ws: ServerWebSocket<SocketData>, msg: string | Buffer): void;
+  close(ws: ServerWebSocket<SocketData>, code: number, reason: string): void;
+}
+
+/** Keys are paths, e.g. '/api/terminal/socket'. */
+export type SocketRoutes = Record<string, SocketRoute<any>>;
+
 export interface ServerOptions {
   routes: Routes;
   /** Routes outside the session token check; each handler checks its own credentials. */
@@ -32,6 +50,8 @@ export interface ServerOptions {
   port?: number;
   /** Called for every request that passed the session token check. */
   onActivity?: () => void;
+  /** WebSocket endpoints; they take a one-time ticket instead of the session token. */
+  sockets?: SocketRoutes;
 }
 
 const ALLOWED_HOST = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/;
@@ -42,6 +62,8 @@ const MAX_BODY = 1_000_000;
  * Every /api call needs the session token in the TOKEN_HEADER, so other local programs and web
  * pages can't use it; launch URLs carry a one-time code that the UI trades for it at SESSION_PATH.
  * Browser requests from a foreign Origin are refused before anything else.
+ * A `sockets` path upgrades to a WebSocket after the Host and Origin checks when its `?t=` ticket
+ * redeems (browsers can't set headers on a WebSocket); it never reaches `routes` or `onActivity`.
  */
 export function startServer(opts: ServerOptions) {
   const tokenBuf = Buffer.from(opts.token);
@@ -66,9 +88,17 @@ export function startServer(opts: ServerOptions) {
     return json(401, { kind: 'forbidden', code: 'invalidCode', message: 'This link was already used or has expired. Open the app again.' });
   }
 
-  return Bun.serve({
+  const sockets = opts.sockets ?? {};
+  const socketFor = (ws: ServerWebSocket<SocketData>) => sockets[ws.data.path]!;
+
+  return Bun.serve<SocketData>({
     hostname: '127.0.0.1',
     port: opts.port ?? 0,
+    websocket: {
+      open: (ws) => socketFor(ws).open(ws, ws.data.data),
+      message: (ws, msg) => socketFor(ws).message(ws, msg),
+      close: (ws, code, reason) => socketFor(ws).close(ws, code, reason),
+    },
     async fetch(req, server) {
       const url = new URL(req.url);
 
@@ -78,6 +108,14 @@ export function startServer(opts: ServerOptions) {
       if (!url.pathname.startsWith('/api/')) return serveStatic(url.pathname);
 
       if (!originAllowed(req, server.port!)) return json(403, { kind: 'forbidden', code: 'badOrigin', message: 'Request from a foreign origin.' });
+
+      if (Object.hasOwn(sockets, url.pathname)) {
+        if (req.method !== 'GET') return json(405, { kind: 'invalid', code: 'methodNotAllowed', message: 'Method not allowed.' });
+        const data = sockets[url.pathname]!.tickets.redeem(url.searchParams.get('t') ?? '');
+        if (data === undefined) return json(401, { kind: 'forbidden', code: 'invalidTicket', message: 'Invalid or expired socket ticket.' });
+        if (server.upgrade(req, { data: { path: url.pathname, data } })) return undefined;
+        return json(400, { kind: 'invalid', code: 'upgradeRequired', message: 'WebSocket upgrade required.' });
+      }
 
       const key = `${req.method} ${url.pathname}`;
       if (key === `POST ${SESSION_PATH}`) return session(req);

@@ -37,3 +37,33 @@ export function launchCodes({ ttlMs = 60_000, now = Date.now, reusable = false }
     },
   };
 }
+
+export interface SocketTickets<T> {
+  /** A one-time ticket that carries `data` to a WebSocket upgrade. */
+  issue(data: T): string;
+  /** The data once per valid ticket; undefined when it is unknown, used or expired. */
+  redeem(ticket: string): T | undefined;
+}
+
+/**
+ * One-time tickets for WebSocket upgrades: browsers can't set headers on a WebSocket and the session
+ * token must not appear in a URL, so an authenticated call issues a ticket the socket URL carries.
+ */
+export function socketTickets<T>({ ttlMs = 30_000, now = Date.now } = {}): SocketTickets<T> {
+  const pending = new Map<string, { data: T; expires: number }>();
+
+  return {
+    issue(data) {
+      const ticket = randomBytes(16).toString('hex');
+      pending.set(ticket, { data, expires: now() + ttlMs });
+      while (pending.size > MAX_OUTSTANDING) pending.delete(pending.keys().next().value!);
+      return ticket;
+    },
+    redeem(ticket) {
+      const entry = pending.get(ticket);
+      if (!entry) return undefined;
+      pending.delete(ticket);
+      return now() <= entry.expires ? entry.data : undefined;
+    },
+  };
+}

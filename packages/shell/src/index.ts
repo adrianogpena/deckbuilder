@@ -8,6 +8,7 @@ import {
   isUrlScheme,
   launchCodes,
   type Routes,
+  type SocketRoutes,
   startServer,
   VITE_PORT,
 } from '@deckbuilder/server-core';
@@ -50,6 +51,10 @@ export interface RunOptions {
   app: AppIdentity;
   /** The app's API; as a function it gets the start context, called before the server serves. */
   routes: Routes | ((ctx: StartContext) => Routes);
+  /** WebSocket routes (see `startServer`); as a function it gets the start context, like `routes`. */
+  sockets?: SocketRoutes | ((ctx: StartContext) => SocketRoutes);
+  /** Awaited first on every exit path (window close, tray Quit, `/api/quit`, idle, signals); errors are logged and ignored. */
+  onQuit?: () => void | Promise<void>;
   /** Built UI folder, served when running from source; the exe serves its embedded copy instead. */
   webDir: string;
   /** Rewrites `index.html` before it is served, e.g. `themeHead(settings)` for the saved colours. */
@@ -158,6 +163,11 @@ export async function runApp(opts: RunOptions): Promise<void> {
   /** The single exit path. */
   const quit = async (): Promise<void> => {
     disableIdleExit();
+    try {
+      await opts.onQuit?.();
+    } catch (err) {
+      console.error(err);
+    }
     closeAppWindows();
     await Promise.all([server?.stop(true), tray?.close()]);
     process.exit(0);
@@ -219,10 +229,13 @@ export async function runApp(opts: RunOptions): Promise<void> {
     'POST /api/alive': () => ({ ok: true }),
   };
 
+  const sockets = typeof opts.sockets === 'function' ? opts.sockets(ctx) : opts.sockets;
+
   let server: ReturnType<typeof startServer> | undefined;
   try {
     server = startServer({
       routes,
+      sockets,
       unauthenticated: instance?.routes,
       token,
       codes,

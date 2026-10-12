@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { SESSION_PATH, TOKEN_HEADER } from './protocol.ts';
 import { startServer } from './server.ts';
-import { launchCodes } from './session.ts';
+import { launchCodes, socketTickets } from './session.ts';
 import { CSP } from './static.ts';
 
 const TOKEN = 'secret-token';
@@ -110,6 +110,87 @@ test('index.html gets the CSP, every static file nosniff', async () => {
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+const SOCKET = '/api/test/socket';
+
+function startSockets() {
+  const tickets = socketTickets<string>();
+  const opened: string[] = [];
+  let activity = 0;
+  server = startServer({
+    routes: { 'GET /api/ping': () => ({ ok: true }), [`GET ${SOCKET}`]: () => ({ handler: true }) },
+    token: TOKEN,
+    codes: launchCodes(),
+    web: { files: {} },
+    onActivity: () => activity++,
+    sockets: {
+      [SOCKET]: {
+        tickets,
+        open: (_ws, data: string) => opened.push(data),
+        message: (ws, msg) => ws.send(msg),
+        close: () => {},
+      },
+    },
+  });
+  return { port: server.port, tickets, opened, activity: () => activity };
+}
+
+function connect(url: string, headers?: Record<string, string>) {
+  const ws = new WebSocket(url, { headers } as any);
+  ws.binaryType = 'arraybuffer';
+  const opened = new Promise<boolean>((resolve) => {
+    ws.onopen = () => resolve(true);
+    ws.onerror = () => resolve(false);
+    ws.onclose = () => resolve(false);
+  });
+  return { ws, opened };
+}
+
+const nextMessage = (ws: WebSocket) =>
+  new Promise<unknown>((resolve) => ws.addEventListener('message', (e) => resolve(e.data), { once: true }));
+
+test('a socket path without a valid ticket is refused before any handler', async () => {
+  const { port, tickets, activity } = startSockets();
+  const base = `http://127.0.0.1:${port}`;
+  const res = await fetch(`${base}${SOCKET}`, { headers: { [TOKEN_HEADER]: TOKEN } });
+  expect(res.status).toBe(401);
+  expect(((await res.json()) as any).code).toBe('invalidTicket');
+  expect((await fetch(`${base}${SOCKET}?t=bogus`)).status).toBe(401);
+  expect((await fetch(`${base}${SOCKET}?t=${tickets.issue('x')}`)).status).toBe(400);
+  expect(activity()).toBe(0);
+});
+
+test('a socket upgrade from a foreign Origin fails', async () => {
+  const { port, tickets, opened } = startSockets();
+  const ticket = tickets.issue('x');
+  const res = await fetch(`http://127.0.0.1:${port}${SOCKET}?t=${ticket}`, {
+    headers: { origin: 'http://evil.example', connection: 'Upgrade', upgrade: 'websocket', 'sec-websocket-version': '13', 'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==' },
+  });
+  expect(res.status).toBe(403);
+  const { opened: ok } = connect(`ws://127.0.0.1:${port}${SOCKET}?t=${ticket}`, { Origin: 'http://evil.example' });
+  expect(await ok).toBe(false);
+  expect(opened).toEqual([]);
+});
+
+test('a valid ticket opens a socket once and frames round-trip', async () => {
+  const { port, tickets, opened, activity } = startSockets();
+  const ticket = tickets.issue('session-1');
+  const url = `ws://127.0.0.1:${port}${SOCKET}?t=${ticket}`;
+  const { ws, opened: ok } = connect(url, { Origin: `http://127.0.0.1:${port}` });
+  expect(await ok).toBe(true);
+  expect(opened).toEqual(['session-1']);
+
+  const text = nextMessage(ws);
+  ws.send('hello');
+  expect(await text).toBe('hello');
+  const binary = nextMessage(ws);
+  ws.send(new Uint8Array([1, 2, 3]));
+  expect(new Uint8Array((await binary) as ArrayBuffer)).toEqual(new Uint8Array([1, 2, 3]));
+  ws.close();
+
+  expect(await connect(url).opened).toBe(false);
+  expect(activity()).toBe(0);
 });
 
 const post = (base: string, body: string | ReadableStream<Uint8Array>) =>
