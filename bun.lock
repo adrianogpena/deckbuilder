@@ -11,7 +11,7 @@
     },
     "apps/gallery": {
       "name": "@deckbuilder/gallery",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "dependencies": {
         "@deckbuilder/db": "workspace:*",
         "@deckbuilder/editor": "workspace:*",
@@ -109,6 +109,14 @@
         "@deckbuilder/platform": "workspace:*",
         "@deckbuilder/server-core": "workspace:*",
         "webview-bun": "^2.4.0",
+      },
+    },
+    "packages/terminal": {
+      "name": "@deckbuilder/terminal",
+      "version": "0.0.0",
+      "dependencies": {
+        "@deckbuilder/platform": "workspace:*",
+        "@deckbuilder/server-core": "workspace:*",
       },
     },
     "packages/ui": {
@@ -218,6 +226,8 @@
     "@deckbuilder/server-mods": ["@deckbuilder/server-mods@workspace:packages/server-mods"],
 
     "@deckbuilder/shell": ["@deckbuilder/shell@workspace:packages/shell"],
+
+    "@deckbuilder/terminal": ["@deckbuilder/terminal@workspace:packages/terminal"],
 
     "@deckbuilder/ui": ["@deckbuilder/ui@workspace:packages/ui"],
 
