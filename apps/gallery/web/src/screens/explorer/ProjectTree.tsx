@@ -35,13 +35,14 @@ export interface ProjectTreeProps {
   expanded: string[];
   onExpandedChange(ids: string[]): void;
   onOpenFile(project: string, path: string): void;
+  onOpenTerminal(project: string, path: string): void;
   /** A file or folder was renamed or moved. */
   onMoved(project: string, from: string, to: string): void;
   onDeleted(project: string, path: string): void;
 }
 
 /** The lazy tree of a project's folder, with the file actions. */
-export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, onMoved, onDeleted }: ProjectTreeProps) {
+export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, onOpenTerminal, onMoved, onDeleted }: ProjectTreeProps) {
   const tree = useRef<TreeViewHandle<Node>>(null);
   const clipboard = useRef<{ mode: 'copy' | 'cut'; paths: string[] }>();
   const { confirm, prompt, element } = useDialogs();
@@ -236,6 +237,7 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
       item('copyFullPath', t('explorer.copyFullPath'), () => void copyText(fullPath(project.path, node.path)), { icon: 'copy', disabled: false }),
       ...(isRoot(node) ? [] : [item('copyPath', t('explorer.copyPath'), () => void copyText(node.path), { icon: 'copy', disabled: false })]),
       'sep' as const,
+      ...(isDir(node) ? [item('openTerminal', t('explorer.openTerminal'), () => onOpenTerminal(project.id, node.path), { icon: 'terminal', disabled })] : []),
       item('reveal', t('explorer.reveal'), call(() => api.fsReveal(project.id, node.path))),
       ...(editors.data ?? []).map((editor) =>
         item(`editor-${editor.id}`, t('explorer.openInEditor', { editor: editor.name }), call(() => api.openInEditor(editor.id, project.id, node.path)), {

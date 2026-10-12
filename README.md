@@ -93,10 +93,12 @@ packages/
   editor/        CodeMirror 6 editor and content viewers (CodeEditor, CodeView, MarkdownView, FilePreview)
   db/            Opt-in Oracle access (oracledb thin mode): URL parser, sessions with explicit
                  transactions, /api/db/* routes
+  terminal/      Opt-in integrated terminal: `TerminalPane` (xterm.js client view), protocol, and server
+                 sessions (real PTY, screen replay, launchers, /api/terminal/* routes)
   build/         The `deckbuilder` CLI used by app scripts: dev, build:web, build, release; new
                  template/ is the app that `deckbuilder new` copies
 apps/
-  gallery/       Example app (Home, Tabs, Grid, Explorer, Workbench, REST and Settings screens, echo and toast endpoints)
+  gallery/       Example app (Home, Tabs, Grid, Explorer, Workbench, REST, Terminal and Settings screens, echo and toast endpoints)
     app.ts         Name and id
     server/        main.ts (composes routes, calls runApp) and routes.ts (the app's own API)
     web/           Vite root: index.html, public/favicon.svg (also the exe icon), src/
@@ -192,6 +194,19 @@ source directly; there is no package build step.
   (`explorer.search`) replaces the body of the tree you last clicked with a `ProjectSearch`
   panel (names, or names and content, over `/api/fs/search`); Escape cancels a running search,
   then closes the panel.
+- **A terminal**: add `@deckbuilder/terminal` (and `"lib": ["ESNext", "DOM", "DOM.Iterable", "DOM.AsyncIterable"]`
+  in the app's tsconfig). Server: spread `terminalRoutes({ sessions, shell, resolveCwd, launchers })`
+  (from `@deckbuilder/terminal/server`, `sessions = terminalSessions()`) into `routes`, and pass
+  `sockets` and `onQuit: sessions.closeAll` to `runApp`; keep the shell in a setting
+  (`terminal.shell`, checked with `isShellId`). Client: `<TerminalPane session cwd onSession />` in a
+  tab, saving the id from `onSession` in the tab's route. Sessions survive socket drops and
+  reloads (the screen is replayed on reattach); close them explicitly with `closeSession(id)` when
+  the tab closes. `launchers` start other programs by id (the client sends an id and args, never a
+  program; `parse` validates the args). `preview` viewers and `listSessions()` info (title, bells,
+  `lastOutputAt`, `meta`) feed a session sidebar. Terminal-first keys: the pane owns the keyboard
+  and only `appKeys` commands (the palette by default) pass through. A real PTY on every platform
+  through `Bun.spawn({ terminal })` (ConPTY on Windows). The gallery's Terminal screen and the
+  Explorer's "Open terminal here" use it.
 - **Dialogs**: `useDialogs()` (from `@deckbuilder/ui`) gives `confirm` and `prompt` modals.
   Native pickers: `dialogRoutes()` on the server and the `dialogs` client in the UI (`pickFolder`,
   `pickFile`, `saveFileAs`). A route that takes back a path the client got from a dialog must
@@ -431,6 +446,8 @@ push and pull request.
 The server binds to `127.0.0.1` only. Every `/api` call needs the random token generated at
 start, sent in the `x-deckbuilder-token` header only; a token in the URL is ignored. The token
 never appears in a URL, because URLs land in browser history, command lines and terminal output.
+A terminal WebSocket can't send headers, so it takes a one-time, short-lived ticket in `?t=`
+(issued by `POST /api/terminal/open|attach`, which need the token) and still passes the Host and Origin checks.
 
 - **Launch codes**: every URL the app opens or prints carries a one-time code (`?c=<code>`)
   instead. The UI removes it from the address bar at once and trades it for the token at

@@ -92,6 +92,7 @@ export const ptBR: Messages<typeof en> = {
   'explorer.newFolder': 'Nova pasta',
   'explorer.rename': 'Renomear',
   'explorer.delete': 'Excluir',
+  'explorer.openTerminal': 'Abrir terminal aqui',
   'explorer.reveal': 'Mostrar no Explorador',
   'explorer.openInEditor': 'Abrir no {editor}',
   'explorer.editorMissing': 'não encontrado',

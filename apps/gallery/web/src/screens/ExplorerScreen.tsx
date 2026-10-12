@@ -32,6 +32,7 @@ import {
   fileIconOf,
   relPath,
 } from '@deckbuilder/ui';
+import { closeSession } from '@deckbuilder/terminal';
 import { api, type ExplorerSettings, type LogSettings, type Project, type Settings } from '../api';
 import { fullPath, nodeId } from '../explorer-paths';
 import { t } from '../i18n';
@@ -40,16 +41,19 @@ import { TreePane } from './explorer/TreePane';
 
 // The editor and viewers are large; they load when the first file opens.
 const FileTab = lazy(() => import('./explorer/FileTab').then((m) => ({ default: m.FileTab })));
+const TerminalPane = lazy(() => import('@deckbuilder/terminal').then((m) => ({ default: m.TerminalPane })));
 
-type Route = { kind: 'welcome' } | { kind: 'file'; project: string; path: string };
+type Route = { kind: 'welcome' } | { kind: 'file'; project: string; path: string } | { kind: 'terminal'; project: string; path: string; session?: string };
 
 const WELCOME: Route = { kind: 'welcome' };
 const MAX_EXPANDED = 2000;
 
 const isRoute = (x: unknown): x is Route => {
-  const r = x as { kind?: unknown; project?: unknown; path?: unknown } | null;
+  const r = x as { kind?: unknown; project?: unknown; path?: unknown; session?: unknown } | null;
   if (!r || typeof r !== 'object') return false;
-  return r.kind === 'welcome' || (r.kind === 'file' && typeof r.project === 'string' && typeof r.path === 'string');
+  if (r.kind === 'welcome') return true;
+  if (typeof r.project !== 'string' || typeof r.path !== 'string') return false;
+  return r.kind === 'file' || (r.kind === 'terminal' && (r.session === undefined || typeof r.session === 'string'));
 };
 
 type MarkdownMode = NonNullable<ExplorerSettings['markdownMode']>;
@@ -98,6 +102,9 @@ function shownIds(state: State, list: Project[]): string[] {
   const second = list.find((p) => p.id === state.trees[1]);
   return second ? [first, second.id] : [first];
 }
+
+const sessionIds = (layout: Layout<Route>) =>
+  new Set(layout.panes.flatMap((p) => p.tabs.flatMap((tab) => (tab.route.kind === 'terminal' && tab.route.session ? [tab.route.session] : []))));
 
 const fresh = () => newTab<Route>(WELCOME);
 
@@ -155,6 +162,8 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
   };
   const update = (fn: (s: State) => State) => {
     const next = fn(latest.current);
+    const kept = sessionIds(next.layout);
+    for (const id of sessionIds(latest.current.layout)) if (!kept.has(id)) void closeSession(id).catch(() => {});
     latest.current = next;
     setState(next);
     persist(next);
@@ -198,6 +207,21 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
       const layout = current.route.kind === 'welcome' ? navigate(s.layout, current.id, target, { replace: true }) : addTab(s.layout, newTab(target));
       return { ...s, layout };
     });
+
+  const openTerminal = (project: string, path: string) =>
+    update((s) => {
+      const target: Route = { kind: 'terminal', project, path };
+      const current = activeTab(s.layout);
+      const layout = current.route.kind === 'welcome' ? navigate(s.layout, current.id, target, { replace: true }) : addTab(s.layout, newTab(target));
+      return { ...s, layout };
+    });
+
+  const onSession = (tabId: string, session: string) => {
+    const tab = latest.current.layout.panes.flatMap((p) => p.tabs).find((x) => x.id === tabId);
+    if (!tab || tab.route.kind !== 'terminal' || tab.route.session === session) return;
+    const route = tab.route;
+    update((s) => ({ ...s, layout: navigate(s.layout, tabId, { ...route, session }, { replace: true }) }));
+  };
 
   // Open tabs and expanded folders follow a rename or move.
   const moved = (project: string, from: string, to: string) =>
@@ -262,7 +286,9 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
   const titleOf = (route: Route) =>
     route.kind === 'welcome'
       ? { title: t('explorer.welcome') }
-      : {
+      : route.kind === 'terminal'
+        ? { title: `${t('terminalScreen.tab')} · ${relPath.basename(route.path) || nameOf(route.project)}`, icon: 'terminal' as const }
+        : {
           title: relPath.basename(route.path),
           tooltip: `${nameOf(route.project)}/${route.path}`,
           ...fileIconOf(relPath.basename(route.path)),
@@ -322,6 +348,7 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
                   expanded={state.expanded[project.id] ?? [nodeId(project.id, '')]}
                   onExpandedChange={(ids) => setExpanded(project.id, ids)}
                   onOpenFile={openFile}
+                  onOpenTerminal={openTerminal}
                   onMoved={moved}
                   onDeleted={deleted}
                   actions={
@@ -365,6 +392,14 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
             tab.route.kind === 'file' ? (
               <Suspense fallback={<PanelLoading />}>
                 <FileTab project={tab.route.project} projectName={nameOf(tab.route.project)} path={tab.route.path} focused={ctx.focused} logs={logs} onLogsChange={changeLogs} markdownMode={state.markdownMode} onMarkdownModeChange={(markdownMode) => update((s) => ({ ...s, markdownMode }))} wrapLines={state.wrapLines} onWrapLinesChange={(wrapLines) => update((s) => ({ ...s, wrapLines }))} />
+              </Suspense>
+            ) : tab.route.kind === 'terminal' ? (
+              <Suspense fallback={<PanelLoading />}>
+                <TerminalPane
+                  session={tab.route.session}
+                  cwd={{ root: tab.route.project, path: tab.route.path }}
+                  onSession={(id) => onSession(tab.id, id)}
+                />
               </Suspense>
             ) : (
               <Welcome projects={list} onOpen={pickProject} />

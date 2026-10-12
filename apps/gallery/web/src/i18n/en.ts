@@ -90,6 +90,7 @@ export const en = {
   'explorer.newFolder': 'New folder',
   'explorer.rename': 'Rename',
   'explorer.delete': 'Delete',
+  'explorer.openTerminal': 'Open terminal here',
   'explorer.reveal': 'Reveal in Explorer',
   'explorer.openInEditor': 'Open in {editor}',
   'explorer.editorMissing': 'not found',
