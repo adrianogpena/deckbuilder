@@ -4,18 +4,19 @@ import {
   copyText,
   errorOf,
   ErrorBanner,
-  Icon,
   type HighlightTerm,
   type LogBookmark,
   LogView,
   MAX_LOG_KEY_CHARS,
   PanelBanner,
   PanelLoading,
+  type TabAction,
   useLogTail,
   validLogSettings,
 } from '@deckbuilder/ui';
 import { api, type LogSettings } from '../../api';
 import { t } from '../../i18n';
+import { useTabActions } from './tab-actions';
 
 const COPY_CHUNK_BYTES = 20_000_000;
 const COPY_MAX_BYTES = 50_000_000;
@@ -31,6 +32,7 @@ interface LogTabProps {
   focused: boolean;
   logs?: LogSettings;
   onLogsChange?: (logs: LogSettings) => void;
+  onActions?: (actions: TabAction[]) => void;
 }
 
 /** Text from byte `from` to the end of the file as the first answer saw it. */
@@ -54,7 +56,7 @@ async function textFrom(project: string, path: string, from: number): Promise<st
 const lineCount = (text: string) => (text.match(/\n/g)?.length ?? 0) + (text === '' || text.endsWith('\n') ? 0 : 1);
 
 /** One open log file: followed live, with highlights and byte-offset bookmarks persisted in settings. */
-export function LogTab({ project, projectName, path, focused, logs, onLogsChange }: LogTabProps) {
+export function LogTab({ project, path, focused, logs, onLogsChange, onActions }: LogTabProps) {
   const key = `${project}:${path}`;
   const [local, setLocal] = useState<LogSettings>({ highlights: [], bookmarks: {} });
   const state = logs ?? local;
@@ -96,15 +98,11 @@ export function LogTab({ project, projectName, path, focused, logs, onLogsChange
       if (saved.path) setNote(t('explorer.logSaved', { path: saved.path }));
     });
 
+  useTabActions([{ id: 'reload', group: 'menu', icon: 'refresh', label: t('explorer.reload'), run: tail.reload }], onActions);
+
   return (
     <div className="xp-file">
-      <div className="xp-bar">
-        <span className="xp-path mono" title={`${projectName}/${path}`}>{projectName}/{path}</span>
-        {note && <span className="muted">{note}</span>}
-        <button className="btn btn-ghost btn-sm" onClick={tail.reload} title={t('explorer.reload')} aria-label={t('explorer.reload')}>
-          <Icon name="refresh" />
-        </button>
-      </div>
+      {note && <div className="xp-bar muted">{note}</div>}
       {tail.rotated && (
         <PanelBanner tone="warn" icon="alert" action={<button className="btn btn-sm" onClick={tail.dismissRotated}>{t('explorer.logDismiss')}</button>}>
           {t('explorer.logRotated')}

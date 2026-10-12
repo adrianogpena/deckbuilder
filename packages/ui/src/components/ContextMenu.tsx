@@ -12,6 +12,9 @@ export interface ContextMenuItem {
   hint?: string;
   danger?: boolean;
   disabled?: boolean;
+  /** Makes the item a check item (or a radio item with `radio`): a check or dot shows when true. */
+  checked?: boolean;
+  radio?: boolean;
   run(): void;
 }
 
@@ -91,14 +94,17 @@ export function ContextMenu({ at, items, onClose }: { at: { x: number; y: number
           <button
             key={item.id}
             className={`menu-item${item.danger ? ' danger' : ''}`}
-            role="menuitem"
+            role={item.checked === undefined ? 'menuitem' : item.radio ? 'menuitemradio' : 'menuitemcheckbox'}
+            aria-checked={item.checked}
             disabled={item.disabled}
             onClick={() => {
               onClose();
               item.run();
             }}
           >
-            <span className="menu-icon">{item.icon && <Icon name={item.icon} size={15} />}</span>
+            <span className="menu-icon">
+              {item.checked ? (item.radio ? <span className="menu-radio" /> : <Icon name="check" size={14} />) : item.icon && <Icon name={item.icon} size={15} />}
+            </span>
             <span className="menu-label">{item.label}</span>
             {item.hint && <span className="menu-hint">{item.hint}</span>}
           </button>

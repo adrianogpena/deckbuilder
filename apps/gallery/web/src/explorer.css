@@ -31,12 +31,13 @@
 .xp-hit-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
 .xp-hit-line { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--text-3); }
 
-.xp-file { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 10px 14px 14px; gap: 8px; }
-.xp-bar { display: flex; align-items: center; gap: 8px; }
-.xp-path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--text-3); }
+/* The file view fills its pane edge to edge, like VS Code: breadcrumbs, banners, content, status bar. */
+.xp-file { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.xp-bar { display: flex; align-items: center; gap: 8px; min-height: 26px; padding: 0 8px; font-size: 12px; }
 .xp-body { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .xp-body > .code-editor { height: 100%; }
-.xp-file > .status-bar { margin: 0 -14px -14px; }
+.xp-body .code-editor, .xp-body .code-view, .xp-body .code-view-plain { border: 0; border-radius: 0; }
+.xp-file > .panel-banner { border-radius: 0; }
 
 .wb-pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; height: 100%; overflow: hidden; }
 .wb-test { margin-top: 10px; align-items: center; }

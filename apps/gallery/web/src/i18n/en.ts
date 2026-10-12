@@ -370,6 +370,12 @@ export const en = {
   'error.pickFolderFirst': 'Choose the folder with Browse.',
   'keys.toggleNav': 'Collapse or expand the main menu',
   'keys.file.save': 'Save file',
+  'keys.file.wrap': 'Toggle word wrap',
+  'keys.markdown.live': 'Markdown: Live',
+  'keys.markdown.edit': 'Markdown: Source',
+  'keys.markdown.split': 'Markdown: Split',
+  'keys.markdown.preview': 'Markdown: Toggle Preview',
+  'explorer.layout': 'Text column',
   'keys.explorer.search': 'Search in the project',
   'error.notASaveTarget': 'Choose where to save first.',
 };

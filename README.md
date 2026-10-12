@@ -156,14 +156,16 @@ source directly; there is no package build step.
   to its group (`theme nord`). The gallery's `App.tsx` lists screens, themes and Quit.
 - **Tab workspace**: `<TabWorkspace layout onChange renderTab titleOf newRoute scope />` (from
   `@deckbuilder/ui`) shows tabs in up to 4 panes: open, close (also middle-click), reorder,
-  drag between panes, Back/Forward per tab. Each tab bar has Split right and Split down
-  (`splitPane(layout, tabId, 'right' | 'down')`), so panes nest (a pane beside a column of two)
+  drag between panes, Back/Forward per tab (shown once a tab has history). Each tab bar has a
+  Split button (Alt+click splits down; both also in its "…" menu with Close pane;
+  `splitPane(layout, tabId, 'right' | 'down')`), so panes nest (a pane beside a column of two)
   with draggable dividers (`resizeSplit`); closing a pane gives its space to its neighbours.
   `layout` is a `Layout<R>` for your route type `R` (`singlePane(newTab(route))` to start); its
   optional `tree` holds the arrangement (`layoutTree(layout)`; without it, one row of panes).
   Every tab stays mounted, so hidden ones keep their state, except when its pane moves under
   another split (splitting a pane of a split in the other direction): that pane remounts.
-  `renderTab` gets `navigate(route)` to change what the tab shows. Alt+1..9 select a
+  `renderTab` gets `navigate(route)` to change what the tab shows, and `setActions(TabAction[])`
+  to put the tab's actions in the bar (`primary`: icon buttons, `menu`: the "…" menu). Alt+1..9 select a
   tab; Ctrl+T, Ctrl+W and Ctrl+Tab only in the native window (browsers keep them); these are
   `tabCommands(scope)`, `scope` being the screen id. Persist with
   `serialize(layout)` and read back with `restore(raw, isRoute)`; the gallery's Tabs screen keeps
@@ -221,9 +223,10 @@ source directly; there is no package build step.
   Jupyter notebook, HAR, `.env`, image, SVG, audio/video, PDF, archive, SQLite, font, else hex
   for binaries; PDF, SVG and font viewers load lazily). The gallery's `FileTab.tsx` shows how
   each kind gets its content from `/api/fs/*`. `MarkdownEditor` (`value`, `onChange`, `mode`: `'live' | 'edit' | 'split' |
-  'preview'`, `onModeChange`, `resolveImage?`) edits markdown in place (`live`: formatted inline, raw syntax
-  only on the cursor's lines) or as source (`edit`), source + preview (`split`) or preview only,
-  with a mode switch; in `split` the preview follows the editor's scroll proportionally and
+  'preview'`, `layout?`: `'left' | 'center' | 'full'`, `resolveImage?`) edits markdown in place (`live`: formatted inline, raw syntax
+  only on the cursor's lines) or as source (`edit`), source + preview (`split`) or preview only;
+  the host shows the mode switch (the gallery puts it in the tab bar) and keeps the layout with
+  `useMarkdownLayout()`; in `split` the preview follows the editor's scroll proportionally and
   renders a deferred copy of the text, so typing stays smooth; `wrap` (default on) wraps long lines,
   like `CodeEditor`'s `wrap` (default off). Keep the mode in a setting. It brings the CodeMirror language parsers (~700 kB): load the
   screen with `React.lazy` and set `chunkSizeWarningLimit: 900` in `vite.config.ts`, as the gallery does.

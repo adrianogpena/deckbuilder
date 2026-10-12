@@ -372,6 +372,12 @@ export const ptBR: Messages<typeof en> = {
   'error.pickFolderFirst': 'Escolha a pasta com Procurar.',
   'keys.toggleNav': 'Recolher ou expandir o menu principal',
   'keys.file.save': 'Salvar arquivo',
+  'keys.file.wrap': 'Alternar quebra de linhas',
+  'keys.markdown.live': 'Markdown: Ao vivo',
+  'keys.markdown.edit': 'Markdown: Código',
+  'keys.markdown.split': 'Markdown: Dividir',
+  'keys.markdown.preview': 'Markdown: Alternar visualização',
+  'explorer.layout': 'Coluna de texto',
   'keys.explorer.search': 'Buscar no projeto',
   'error.notASaveTarget': 'Escolha onde salvar primeiro.',
 };

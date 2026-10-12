@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  applyEol, CodeEditor, detectEol, type Eol, FilePreview, HEX_LIMIT, type ImageInfo, langLabel, langOfFile, MarkdownEditor, type MarkdownMode, normalizeEol,
-  prepareForSave, previewKind, type PreviewContent, type SelectionInfo,
+  applyEol, CodeEditor, detectEol, type Eol, FilePreview, HEX_LIMIT, type ImageInfo, langLabel, langOfFile, MARKDOWN_LAYOUTS, MARKDOWN_MODES, MarkdownEditor,
+  type MarkdownMode, normalizeEol, prepareForSave, previewKind, type PreviewContent, type SelectionInfo, useMarkdownLayout,
 } from '@deckbuilder/editor';
 import {
-  type ApiError, type BreadcrumbEntry, Breadcrumbs, errorOf, ErrorBanner, FILE_DEFAULTS, type FileSettings, formatBytes, Icon, PanelBanner, PanelLoading, relPath, requestBlob, StatusBar,
-  type StatusItem, useCommand, useDialogs,
+  type ApiError, type BreadcrumbEntry, Breadcrumbs, errorOf, ErrorBanner, FILE_DEFAULTS, type FileSettings, formatBytes, Icon, type IconName, PanelBanner, PanelLoading,
+  relPath, requestBlob, StatusBar, type StatusItem, type TabAction, useCommand, useDialogs,
 } from '@deckbuilder/ui';
 import { api, type LogSettings, type TextEncoding } from '../../api';
 import { commandById } from '../../commands';
 import { t } from '../../i18n';
 import { LogTab } from './LogTab';
+import { useChordOf, useTabActions } from './tab-actions';
 
 type State =
   | { status: 'loading' }
@@ -39,7 +40,11 @@ export interface FileTabProps {
   onSaver?: (save: (() => Promise<boolean>) | undefined) => void;
   /** Opens another file of the project (picked in the breadcrumbs). */
   onOpenPath?: (path: string) => void;
+  /** Puts the tab's actions in the tab bar (see `TabContext.setActions`). */
+  onActions?: (actions: TabAction[]) => void;
 }
+
+const MODE_ICONS: Record<MarkdownMode, IconName> = { live: 'edit', edit: 'code', split: 'split', preview: 'preview' };
 
 /** Line breaks of new files and of files without any: the OS's, like VS Code's `files.eol: auto`. */
 const OS_EOL: Eol = typeof navigator !== 'undefined' && /^Win/.test(navigator.platform) ? '\r\n' : '\n';
@@ -72,7 +77,7 @@ export function FileTab(props: FileTabProps) {
 }
 
 /** A preview by extension, and for text files an editor with Save (Ctrl+S). */
-function TextFileTab({ project, projectName, path, focused, markdownMode = 'live', onMarkdownModeChange, wrapLines = true, onWrapLinesChange, files = FILE_DEFAULTS, onDirty, onSaver, onOpenPath }: FileTabProps) {
+function TextFileTab({ project, projectName, path, focused, markdownMode = 'live', onMarkdownModeChange, wrapLines = true, onWrapLinesChange, files = FILE_DEFAULTS, onDirty, onSaver, onOpenPath, onActions }: FileTabProps) {
   const name = relPath.basename(path);
   const markdown = previewKind(name) === 'markdown';
   const [state, setState] = useState<State>({ status: 'loading' });
@@ -248,6 +253,19 @@ function TextFileTab({ project, projectName, path, focused, markdownMode = 'live
   };
 
   useCommand(commandById('explorer.file.save'), () => void save(), { enabled: focused && active });
+  const toggleWrap = () => onWrapLinesChange?.(!wrapLines);
+  useCommand(commandById('explorer.file.wrap'), toggleWrap, { enabled: focused && active && Boolean(onWrapLinesChange) });
+  const [mdLayout, setMdLayout] = useMarkdownLayout();
+  /** The mode Ctrl+Shift+V returns to from Preview. */
+  const beforePreview = useRef<MarkdownMode>('live');
+  const setMode = (m: MarkdownMode) => {
+    if (m === markdownMode) return;
+    if (m === 'preview') beforePreview.current = markdownMode;
+    onMarkdownModeChange?.(m);
+  };
+  const modeRun = (m: MarkdownMode) => () => (m === 'preview' && markdownMode === 'preview' ? setMode(beforePreview.current) : setMode(m));
+  // Fixed order, so the hooks run the same way every render.
+  for (const m of MARKDOWN_MODES) useCommand(commandById(`explorer.markdown.${m}`), modeRun(m), { enabled: focused && mdEditor });
   const [crumbSignal, setCrumbSignal] = useState(0);
   useCommand(commandById('explorer.breadcrumbs'), () => setCrumbSignal((n) => n + 1), { enabled: focused && files.breadcrumbs });
   const listDir = useCallback(
@@ -298,6 +316,30 @@ function TextFileTab({ project, projectName, path, focused, markdownMode = 'live
     if (ok) void save({ overwrite: true });
   };
 
+  const chordOf = useChordOf();
+  const actions: TabAction[] = [];
+  if (editable && TOGGLES.has(previewKind(name))) {
+    actions.push({ id: 'preview', group: 'primary', icon: 'preview', label: t('explorer.preview'), checked: previewing, run: () => void toggleEdit() });
+  }
+  if (mdEditor) {
+    for (const m of MARKDOWN_MODES) {
+      actions.push({ id: `mode.${m}`, group: 'primary', icon: MODE_ICONS[m], label: t(`preview.mode.${m}`), hint: chordOf(`explorer.markdown.${m}`), checked: markdownMode === m, radio: true, run: () => setMode(m) });
+    }
+    if (markdownMode !== 'edit') {
+      for (const l of MARKDOWN_LAYOUTS) {
+        actions.push({ id: `layout.${l}`, group: 'menu', section: 'layout', label: `${t('explorer.layout')}: ${t(`preview.layout.${l}`)}`, checked: mdLayout === l, radio: true, run: () => setMdLayout(l) });
+      }
+    }
+  }
+  if (active && onWrapLinesChange) {
+    actions.push({ id: 'wrap', group: 'menu', section: 'view', label: t('explorer.wrap'), hint: chordOf('explorer.file.wrap'), checked: wrapLines, run: toggleWrap });
+  }
+  if (active) {
+    actions.push({ id: 'save', group: 'menu', section: 'file', label: t('explorer.save'), hint: chordOf('explorer.file.save'), disabled: !dirty || saving, run: () => void save() });
+  }
+  actions.push({ id: 'reload', group: 'menu', section: 'file', icon: 'refresh', label: t('explorer.reload'), run: () => void reload() });
+  useTabActions(actions, onActions);
+
   const status: StatusItem[] = [];
   if (content) {
     if (active && selection) status.push({ id: 'position', text: positionText(selection) });
@@ -321,31 +363,11 @@ function TextFileTab({ project, projectName, path, focused, markdownMode = 'live
   return (
     <div className="xp-file">
       {element}
-      <div className="xp-bar">
-        {files.breadcrumbs ? (
+      {files.breadcrumbs && (
+        <div className="xp-bar">
           <Breadcrumbs root={projectName} path={path} list={listDir} onPick={(e) => onOpenPath?.(e.path)} focusSignal={crumbSignal} title={`${projectName}/${path}`} />
-        ) : (
-          <span className="xp-path mono" title={`${projectName}/${path}`}>{projectName}/{path}</span>
-        )}
-        {editable && TOGGLES.has(previewKind(name)) && (
-          <button className="btn btn-sm" onClick={toggleEdit}>
-            <Icon name={previewing ? 'edit' : 'search'} /> {previewing ? t('explorer.edit') : t('explorer.preview')}
-          </button>
-        )}
-        {active && onWrapLinesChange && (
-          <button className="btn btn-ghost btn-sm" onClick={() => onWrapLinesChange(!wrapLines)} aria-pressed={wrapLines}>
-            {t('explorer.wrap')}
-          </button>
-        )}
-        {active && (
-          <button className="btn btn-primary btn-sm" onClick={() => void save()} disabled={!dirty || saving}>
-            {t('explorer.save')}
-          </button>
-        )}
-        <button className="btn btn-ghost btn-sm" onClick={reload} title={t('explorer.reload')} aria-label={t('explorer.reload')}>
-          <Icon name="refresh" />
-        </button>
-      </div>
+        </div>
+      )}
       {conflict ? (
         <PanelBanner tone="err" icon="alert" action={
           <>
@@ -364,7 +386,7 @@ function TextFileTab({ project, projectName, path, focused, markdownMode = 'live
         {state.status === 'loading' && <PanelLoading />}
         {state.status === 'error' && <ErrorBanner error={state.error} onRetry={() => void load()} />}
         {content && (mdEditor
-          ? <MarkdownEditor value={draft} onChange={setDraft} mode={markdownMode} onModeChange={(m) => onMarkdownModeChange?.(m)} wrap={wrapLines} autoFocus onSelection={setSelection} />
+          ? <MarkdownEditor value={draft} onChange={setDraft} mode={markdownMode} layout={mdLayout} wrap={wrapLines} autoFocus onSelection={setSelection} />
           : active
           ? <CodeEditor value={draft} lang={langOfFile(name)} onChange={setDraft} height="100%" wrap={wrapLines} autoFocus onSelection={setSelection} />
           : <FilePreview name={name} content={content} onImageInfo={setImage} />)}

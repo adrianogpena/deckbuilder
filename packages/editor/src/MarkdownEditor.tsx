@@ -1,5 +1,5 @@
-import { SplitView, t } from '@deckbuilder/ui';
-import { useDeferredValue, useMemo, useRef, useState } from 'react';
+import { SplitView } from '@deckbuilder/ui';
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { CodeEditor, type SelectionInfo } from './CodeEditor';
 import { markdownLive } from './markdownLive';
 import { MarkdownView } from './MarkdownView';
@@ -24,11 +24,28 @@ function readLayout(): MarkdownLayout {
   }
 }
 
+const layoutListeners = new Set<(l: MarkdownLayout) => void>();
+
+/** The markdown text column layout, kept in localStorage and shared by every editor of the page. */
+export function useMarkdownLayout(): [MarkdownLayout, (l: MarkdownLayout) => void] {
+  const [layout, setState] = useState<MarkdownLayout>(readLayout);
+  useEffect(() => {
+    layoutListeners.add(setState);
+    return () => void layoutListeners.delete(setState);
+  }, []);
+  const set = (l: MarkdownLayout) => {
+    try { localStorage.setItem(LAYOUT_KEY, l); } catch { /* storage unavailable */ }
+    for (const fn of layoutListeners) fn(l);
+  };
+  return [layout, set];
+}
+
 export interface MarkdownEditorProps {
   value: string;
   onChange(value: string): void;
+  /** The view; the host shows the switch (and the layout choice) itself. */
   mode: MarkdownMode;
-  onModeChange(mode: MarkdownMode): void;
+  layout?: MarkdownLayout;
   resolveImage?(src: string): string | null;
   autoFocus?: boolean;
   /** Wrap long lines in the editor; default on. */
@@ -36,17 +53,12 @@ export interface MarkdownEditorProps {
   onSelection?(info: SelectionInfo): void;
 }
 
-/** A markdown source editor and its rendered preview side by side, with an Edit / Split / Preview switch. */
-export function MarkdownEditor({ value, onChange, mode, onModeChange, resolveImage, autoFocus, wrap = true, onSelection }: MarkdownEditorProps) {
+/** A markdown editor in one of four views: Live (rendered while editing), Source, Split (source and preview) or Preview. */
+export function MarkdownEditor({ value, onChange, mode, layout = 'center', resolveImage, autoFocus, wrap = true, onSelection }: MarkdownEditorProps) {
   const deferred = useDeferredValue(value);
   const preview = useRef<HTMLDivElement>(null);
   const liveExt = useMemo(() => markdownLive(resolveImage), [resolveImage]);
   const [sizes, setSizes] = useState([0.5, 0.5]);
-  const [layout, setLayoutState] = useState<MarkdownLayout>(readLayout);
-  const setLayout = (l: MarkdownLayout) => {
-    setLayoutState(l);
-    try { localStorage.setItem(LAYOUT_KEY, l); } catch { /* storage unavailable */ }
-  };
 
   // Proportional: the preview sits at the same fraction of its range as the editor.
   const syncScroll = (fraction: number) => {
@@ -65,19 +77,7 @@ export function MarkdownEditor({ value, onChange, mode, onModeChange, resolveIma
   );
 
   return (
-    <div className="md-editor" data-layout={layout}>
-      <div className="md-editor-bar">
-        <div className="md-editor-modes" role="group">
-          {MARKDOWN_LAYOUTS.map((l) => (
-            <button key={l} type="button" aria-pressed={layout === l} onClick={() => setLayout(l)}>{t(`preview.layout.${l}`)}</button>
-          ))}
-        </div>
-        <div className="md-editor-modes" role="group">
-          {MARKDOWN_MODES.map((m) => (
-            <button key={m} type="button" aria-pressed={mode === m} onClick={() => onModeChange(m)}>{t(`preview.mode.${m}`)}</button>
-          ))}
-        </div>
-      </div>
+    <div className="md-editor" data-layout={layout} data-mode={mode}>
       <div className="md-editor-body">
         {mode === 'edit' || mode === 'live' ? editor
           : mode === 'preview' ? rendered

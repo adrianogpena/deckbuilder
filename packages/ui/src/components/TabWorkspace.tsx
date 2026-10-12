@@ -45,6 +45,31 @@ export interface TabTitle {
   location?: string;
 }
 
+/**
+ * An action of a tab's content, shown in its pane's tab bar while the tab is the active one:
+ * `primary` ones as icon buttons right of the tabs, `menu` ones in the "…" menu.
+ */
+export interface TabAction {
+  id: string;
+  label: string;
+  group: 'primary' | 'menu';
+  icon?: IconName;
+  /** The shortcut, shown in the tooltip or the menu. */
+  hint?: string;
+  /** A toggle (radio with `radio`): pressed icon, or check/dot in the menu. */
+  checked?: boolean;
+  radio?: boolean;
+  disabled?: boolean;
+  /** Menu actions of different sections are separated by a line. */
+  section?: string;
+  run(): void;
+}
+
+const actionKey = (list: TabAction[]) =>
+  list.map((a) => [a.id, a.label, a.group, a.icon, a.hint, a.checked, a.radio, a.disabled, a.section].join('\u0001')).join('\u0002');
+
+const withHint = (label: string, hint?: string) => (hint ? `${label} (${hint})` : label);
+
 interface TabBarProps<R> {
   pane: Pane<R>;
   focused: boolean;
@@ -52,6 +77,8 @@ interface TabBarProps<R> {
   canClosePane: boolean;
   titleOf: (route: R) => TabTitle;
   menuOf?: (route: R) => Array<ContextMenuItem | 'sep'>;
+  /** Actions of the active tab. */
+  actions: TabAction[];
   onActivate: (tabId: string) => void;
   onClose: (tabId: string) => void;
   onCloseMode: (tabId: string, mode: CloseMode) => void;
@@ -84,6 +111,25 @@ function TabBar<R>(props: TabBarProps<R>) {
     return extra.length ? [...closing, 'sep', ...extra] : closing;
   };
 
+  /** The "…" menu: the active tab's menu actions, then the pane's own. */
+  const moreItems = (): Array<ContextMenuItem | 'sep'> => {
+    const items: Array<ContextMenuItem | 'sep'> = [];
+    let section: string | undefined;
+    for (const a of props.actions.filter((x) => x.group === 'menu')) {
+      if (items.length && a.section !== section) items.push('sep');
+      section = a.section;
+      items.push({ id: a.id, label: a.label, icon: a.icon, hint: a.hint, checked: a.checked, radio: a.radio, disabled: a.disabled, run: a.run });
+    }
+    if (items.length) items.push('sep');
+    items.push(
+      { id: 'splitRight', label: t('tabs.splitRight'), icon: 'split', disabled: !props.canSplit, run: () => props.onSplit('right') },
+      { id: 'splitDown', label: t('tabs.splitDown'), icon: 'split-down', disabled: !props.canSplit, run: () => props.onSplit('down') },
+    );
+    if (props.canClosePane) items.push({ id: 'closePane', label: t('tabs.closePane'), run: props.onClosePane });
+    return items;
+  };
+  const hasHistory = Boolean(active?.back.length || active?.forward.length);
+
   const onDragOver = (e: DragEvent, index: number) => {
     if (!e.dataTransfer.types.includes(DRAG_TYPE)) return;
     e.preventDefault();
@@ -107,14 +153,16 @@ function TabBar<R>(props: TabBarProps<R>) {
       onDragLeave={() => setDropAt(null)}
       onDrop={(e) => onDrop(e, pane.tabs.length)}
     >
-      <div className="tabbar-tools">
-        <button className="btn btn-ghost btn-sm" onClick={props.onBack} disabled={!active?.back.length} title={t('tabs.back')}>
-          <Icon name="back" size={15} />
-        </button>
-        <button className="btn btn-ghost btn-sm" onClick={props.onForward} disabled={!active?.forward.length} title={t('tabs.forward')}>
-          <Icon name="forward" size={15} />
-        </button>
-      </div>
+      {hasHistory && (
+        <div className="tabbar-tools">
+          <button className="btn btn-ghost btn-sm btn-icon" onClick={props.onBack} disabled={!active?.back.length} title={t('tabs.back')}>
+            <Icon name="back" size={15} />
+          </button>
+          <button className="btn btn-ghost btn-sm btn-icon" onClick={props.onForward} disabled={!active?.forward.length} title={t('tabs.forward')}>
+            <Icon name="forward" size={15} />
+          </button>
+        </div>
+      )}
       <div className="tabs-strip" role="tablist">
         {pane.tabs.map((tab, i) => {
           const { title, tooltip, icon, tone } = titles[i];
@@ -176,17 +224,42 @@ function TabBar<R>(props: TabBarProps<R>) {
         </button>
       </div>
       <div className="tabbar-tools">
-        <button className="btn btn-ghost btn-sm" onClick={() => props.onSplit('right')} disabled={!props.canSplit} title={t('tabs.splitRight')} data-split-right>
+        {props.actions.filter((a) => a.group === 'primary').map((a) => (
+          <button
+            key={a.id}
+            className={`btn btn-ghost btn-sm btn-icon${a.checked ? ' active' : ''}`}
+            onClick={a.run}
+            disabled={a.disabled}
+            title={withHint(a.label, a.hint)}
+            aria-label={a.label}
+            aria-pressed={a.checked}
+          >
+            <Icon name={a.icon ?? 'more'} size={15} />
+          </button>
+        ))}
+        {props.actions.some((a) => a.group === 'primary') && <span className="tabbar-sep" />}
+        <button
+          className="btn btn-ghost btn-sm btn-icon"
+          onClick={(e) => props.onSplit(e.altKey ? 'down' : 'right')}
+          disabled={!props.canSplit}
+          title={t('tabs.split')}
+          aria-label={t('tabs.splitRight')}
+          data-split-right
+        >
           <Icon name="split" size={15} />
         </button>
-        <button className="btn btn-ghost btn-sm" onClick={() => props.onSplit('down')} disabled={!props.canSplit} title={t('tabs.splitDown')} data-split-down>
-          <Icon name="split-down" size={15} />
+        <button
+          className="btn btn-ghost btn-sm btn-icon"
+          title={t('tabs.more')}
+          aria-label={t('tabs.more')}
+          aria-haspopup="menu"
+          onClick={(e) => {
+            const r = e.currentTarget.getBoundingClientRect();
+            setMenu({ at: { x: r.right, y: r.bottom + 2 }, items: moreItems() });
+          }}
+        >
+          <Icon name="more" size={15} />
         </button>
-        {props.canClosePane && (
-          <button className="btn btn-ghost btn-sm" onClick={props.onClosePane} title={t('tabs.closePane')}>
-            <Icon name="close" />
-          </button>
-        )}
       </div>
       {menu && <ContextMenu at={menu.at} items={menu.items} onClose={() => setMenu(null)} />}
     </div>
@@ -237,6 +310,8 @@ export interface TabContext<R> {
   setDirty: (dirty: boolean) => void;
   /** Registers what saves the tab (resolves true when it is saved or had nothing to save); Save All and the close dialog call it. */
   setSaver: (save: (() => Promise<boolean>) | undefined) => void;
+  /** Sets the tab's actions in the tab bar (see `TabAction`); cheap to call on every render. */
+  setActions: (actions: TabAction[]) => void;
 }
 
 interface TabWorkspaceProps<R> {
@@ -256,6 +331,16 @@ interface TabWorkspaceProps<R> {
 export function TabWorkspace<R>({ layout, onChange, renderTab, titleOf, menuOf, newRoute, scope }: TabWorkspaceProps<R>) {
   const { choose, element } = useDialogs();
   const savers = useRef(new Map<string, () => Promise<boolean>>());
+  // The latest list per tab (fresh `run`s); the bar re-renders only when what it shows changes.
+  const actions = useRef(new Map<string, { list: TabAction[]; key: string }>());
+  const [, setActionsVersion] = useState(0);
+  const setActions = (tabId: string, list: TabAction[]) => {
+    const key = actionKey(list);
+    const changed = (actions.current.get(tabId)?.key ?? '') !== key;
+    if (list.length) actions.current.set(tabId, { list, key });
+    else actions.current.delete(tabId);
+    if (changed) setActionsVersion((n) => n + 1);
+  };
 
   // Handlers read the layout of the latest change, so two changes in one tick don't overwrite each other.
   const latest = useRef(layout);
@@ -318,6 +403,7 @@ export function TabWorkspace<R>({ layout, onChange, renderTab, titleOf, menuOf, 
           canClosePane={layout.panes.length > 1}
           titleOf={titleOf}
           menuOf={menuOf}
+          actions={(activeId && actions.current.get(activeId)?.list) || []}
           onActivate={(tabId) => update((l) => activate(l, pane.id, tabId))}
           onClose={closeById}
           onCloseMode={closeMode}
@@ -349,6 +435,7 @@ export function TabWorkspace<R>({ layout, onChange, renderTab, titleOf, menuOf, 
                     if (save) savers.current.set(tab.id, save);
                     else savers.current.delete(tab.id);
                   },
+                  setActions: (list) => setActions(tab.id, list),
                 })}
               </div>
             );
