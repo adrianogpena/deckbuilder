@@ -1,4 +1,4 @@
-import { lazy, Suspense, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import {
   activate,
   activeTab,
@@ -18,6 +18,7 @@ import {
   Modal,
   navigate,
   newTab,
+  openBeside,
   PageHead,
   PanelLoading,
   ResourceForm,
@@ -29,6 +30,7 @@ import {
   SplitView,
   TabWorkspace,
   useAsync,
+  useCommand,
   useDebouncedSave,
   type Layout,
   fileIconOf,
@@ -37,10 +39,12 @@ import {
 } from '@deckbuilder/ui';
 import { closeSession } from '@deckbuilder/terminal';
 import { api, type ExplorerSettings, type LogSettings, type Project, type Settings } from '../api';
+import { commandById } from '../commands';
 import { fullPath, nodeId } from '../explorer-paths';
 import { t } from '../i18n';
 import { ProjectPicker } from './explorer/ProjectPicker';
 import { useCopyPath } from './explorer/copy-path';
+import type { ProjectTreeApi } from './explorer/ProjectTree';
 import { TreePane } from './explorer/TreePane';
 
 // The editor and viewers are large; they load when the first file opens.
@@ -225,6 +229,9 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
       return { ...s, layout: addTab(s.layout, preview ? { ...tab, preview: true } : tab) };
     });
 
+  const openFileToSide = (project: string, path: string) =>
+    update((s) => ({ ...s, layout: openBeside(s.layout, newTab<Route>({ kind: 'file', project, path })) }));
+
   const openTerminal = (project: string, path: string) =>
     update((s) => {
       const target: Route = { kind: 'terminal', project, path };
@@ -316,6 +323,7 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
     const project = route.kind === 'file' ? list.find((p) => p.id === route.project) : undefined;
     if (route.kind !== 'file' || !project) return [];
     return [
+      { id: 'revealInTree', label: t('explorer.revealInTree'), icon: 'locate', run: () => revealFile(route.project, route.path) },
       { id: 'copyFullPath', label: t('explorer.copyFullPath'), icon: 'copy', run: () => copyPath(fullPath(project.path, route.path)) },
       { id: 'copyPath', label: t('explorer.copyPath'), icon: 'copy', run: () => copyPath(route.path) },
     ];
@@ -323,6 +331,35 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
 
   const shown = shownIds(state, list).flatMap((id) => list.find((p) => p.id === id) ?? []);
   const focus = shown.length > 1 ? focusedTree : 0;
+
+  const trees = useRef<Array<ProjectTreeApi | null>>([]);
+  const revealRequest = useRef<{ project: string; path: string }>();
+  const [revealTick, setRevealTick] = useState(0);
+  const active = activeTab(state.layout).route;
+  const activeFile = active.kind === 'file' ? active : undefined;
+  const shownKey = shown.map((p) => p.id).join(',');
+  const revealIn = (project: string, path: string) => {
+    const at = shown.findIndex((p) => p.id === project);
+    if (at < 0) return false;
+    trees.current[at]?.reveal(path);
+    return true;
+  };
+  const revealFile = (project: string, path: string) => {
+    revealRequest.current = { project, path };
+    if (!shown.some((p) => p.id === project)) pickProject(project, focus);
+    setRevealTick((n) => n + 1);
+  };
+  useCommand(commandById('explorer.revealInTree'), () => activeFile && revealFile(activeFile.project, activeFile.path), { enabled: !!activeFile });
+
+  useEffect(() => {
+    const request = revealRequest.current;
+    if (request) {
+      if (revealIn(request.project, request.path)) revealRequest.current = undefined;
+      return;
+    }
+    if (!files.autoReveal || !activeFile || /(^|\/)(node_modules|\.git)(\/|$)/.test(activeFile.path)) return;
+    revealIn(activeFile.project, activeFile.path);
+  }, [activeFile?.project, activeFile?.path, shownKey, revealTick, files.autoReveal]);
 
   const pickerHandlers = {
     onAdd: () => {
@@ -366,6 +403,8 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
                   expanded={state.expanded[project.id] ?? [nodeId(project.id, '')]}
                   onExpandedChange={(ids) => setExpanded(project.id, ids)}
                   onOpenFile={(p, path) => openFile(p, path)}
+                  apiRef={(h) => void (trees.current[i] = h)}
+                  onOpenFileToSide={openFileToSide}
                   onPreviewFile={files.previewTabs ? (p, path) => openFile(p, path, true) : undefined}
                   onOpenTerminal={openTerminal}
                   onMoved={moved}
@@ -410,7 +449,7 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
           renderTab={(tab, ctx) =>
             tab.route.kind === 'file' ? (
               <Suspense fallback={<PanelLoading />}>
-                <FileTab project={tab.route.project} projectName={nameOf(tab.route.project)} path={tab.route.path} focused={ctx.focused} logs={logs} onLogsChange={changeLogs} onDirty={ctx.setDirty} onSaver={ctx.setSaver} markdownMode={state.markdownMode} onMarkdownModeChange={(markdownMode) => update((s) => ({ ...s, markdownMode }))} wrapLines={state.wrapLines} onWrapLinesChange={(wrapLines) => update((s) => ({ ...s, wrapLines }))} files={files} />
+                <FileTab project={tab.route.project} projectName={nameOf(tab.route.project)} path={tab.route.path} focused={ctx.focused} logs={logs} onLogsChange={changeLogs} onDirty={ctx.setDirty} onSaver={ctx.setSaver} markdownMode={state.markdownMode} onMarkdownModeChange={(markdownMode) => update((s) => ({ ...s, markdownMode }))} wrapLines={state.wrapLines} onWrapLinesChange={(wrapLines) => update((s) => ({ ...s, wrapLines }))} files={files} onOpenPath={(p) => tab.route.kind === 'file' && openFile(tab.route.project, p, files.previewTabs)} />
               </Suspense>
             ) : tab.route.kind === 'terminal' ? (
               <Suspense fallback={<PanelLoading />}>

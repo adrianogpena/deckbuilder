@@ -42,6 +42,8 @@ export interface TreeViewProps<N> {
   onOpen?: (node: N) => void;
   /** A plain click (no Ctrl or Shift) on a row without children, before a possible double-click. */
   onPreview?: (node: N) => void;
+  /** Ctrl+Enter, or Alt+click, on a row without children. */
+  onOpenToSide?: (node: N) => void;
   onContextMenu?: (node: N, e: MouseEvent) => void;
   /** F2 or `startRename` show an inline input; Enter or leaving it commits, Escape cancels. */
   onRename?: (node: N, name: string) => void;
@@ -61,6 +63,8 @@ export interface TreeViewHandle<N = unknown> {
   /** Reloads the children of `id`, or of every loaded node; collapsed ones are dropped from the cache instead. */
   reload: (id?: string) => void;
   startRename: (id: string) => void;
+  /** Selects and scrolls to `id` once its row is there (its ancestors must be expanded); no focus change. */
+  reveal: (id: string) => void;
   /** The selected nodes in display order. */
   selection: () => N[];
 }
@@ -103,7 +107,7 @@ function RenameInput({ initial, onDone }: { initial: string; onDone: (value: str
 }
 
 function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) {
-  const { roots, idOf, labelOf, iconOf, iconToneOf, hasChildren, expanded, onExpandedChange, onOpen, onPreview, onContextMenu, onRename, onDelete, onCopy, onCut, onPaste, draggable, onDrop } = props;
+  const { roots, idOf, labelOf, iconOf, iconToneOf, hasChildren, expanded, onExpandedChange, onOpen, onPreview, onOpenToSide, onContextMenu, onRename, onDelete, onCopy, onCut, onPaste, draggable, onDrop } = props;
   const cache = useRef(new Map<string, Entry<N>>());
   const generations = useRef(new Map<string, number>());
   const [, bump] = useReducer((x: number) => x + 1, 0);
@@ -116,6 +120,7 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
   const dragged = useRef<Array<{ id: string; node: N }> | null>(null);
   const rowEls = useRef(new Map<string, HTMLDivElement>());
   const focusNext = useRef<string | null>(null);
+  const revealNext = useRef<string | null>(null);
   const typeahead = useRef({ text: '', at: 0 });
   const latest = useRef(props);
   latest.current = props;
@@ -177,7 +182,18 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
     rowEls.current.get(id)?.focus();
   });
 
+  useEffect(() => {
+    const id = revealNext.current;
+    if (id === null) return;
+    const row = rowsRef.current.find((r) => r.id === id);
+    if (!row) return;
+    revealNext.current = null;
+    select(row, false);
+    rowEls.current.get(id)?.scrollIntoView({ block: 'nearest' });
+  });
+
   const select = (row: TreeRow<N>, focus = true, extend = false) => {
+    if (row.id !== revealNext.current) revealNext.current = null;
     if (!extend) {
       anchor.current = row.id;
       setPicked(new Set());
@@ -234,6 +250,10 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
       bump();
     },
     startRename,
+    reveal(id: string) {
+      revealNext.current = id;
+      bump();
+    },
   }));
 
   const setOpen = (row: TreeRow<N>, open: boolean) => {
@@ -295,7 +315,11 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
       if (!hasChildren(current.node)) return;
       if (!expandedSet.has(current.id)) setOpen(current, true);
       else go(firstChildId(rows, current.id));
-    } else if (e.key === 'Enter') open(current);
+    } else if (e.key === 'Enter') {
+      if (e.ctrlKey && onOpenToSide) {
+        if (!hasChildren(current.node)) onOpenToSide(current.node);
+      } else open(current);
+    }
     else if (e.key === 'F2' && onRename) startRename(current.id);
     else if (e.key === 'Delete' && onDelete) onDelete(pickedRows().map((r) => r.node));
     else handled = false;
@@ -317,6 +341,17 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
     return !!d && !!onDrop && hasChildren(row.node) && !d.some((x) => isInside(rows, row.id, x.id));
   };
 
+  // The guide under the selected folder (or the folder holding the selected file) is drawn brighter.
+  const activeGuide = (() => {
+    const ids = new Set<string>();
+    if (!current) return { level: -1, ids };
+    const open = hasChildren(current.node) && expandedSet.has(current.id);
+    const owner = open ? current : rows.find((r) => r.id === current.parentId);
+    if (!owner) return { level: -1, ids };
+    for (let i = rows.indexOf(owner) + 1; i < rows.length && rows[i].depth > owner.depth; i++) ids.add(rows[i].id);
+    return { level: owner.depth, ids };
+  })();
+
   const tabStop = current?.id ?? rows[0]?.id;
 
   return (
@@ -328,6 +363,7 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
         const entry = isOpen ? cache.current.get(id) : undefined;
         const icon = iconOf?.(node);
         const iconTone = iconToneOf?.(node);
+        const guides = Array.from({ length: depth }, (_, level) => level);
         const statusIndent = { paddingLeft: (depth + 1) * INDENT + 22 };
         return (
           <Fragment key={id}>
@@ -345,6 +381,7 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
                 if (e.ctrlKey || e.metaKey) return toggle(row);
                 if (e.shiftKey) return selectRange(row);
                 select(row, false);
+                if (e.altKey && onOpenToSide && !expandable) return onOpenToSide(node);
                 if (expandable) setOpen(row, !isOpen);
                 else onPreview?.(node);
               }}
@@ -382,6 +419,9 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
                 onDrop?.(d.map((x) => x.node), node);
               }}
             >
+              {guides.map((level) => (
+                <span key={level} className={`tree-guide${level === activeGuide.level && activeGuide.ids.has(id) ? ' active' : ''}`} style={{ left: level * INDENT + 12 }} />
+              ))}
               <span className={`tree-chevron${isOpen ? ' open' : ''}`}>{expandable && <Icon name="chevron" size={14} />}</span>
               {icon && (
                 <span className={`tree-icon${iconTone ? ` tone-${iconTone}` : ''}`}>

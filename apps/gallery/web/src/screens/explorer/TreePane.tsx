@@ -1,11 +1,11 @@
-import { useState, type ReactNode } from 'react';
+import { useImperativeHandle, useRef, useState, type ReactNode } from 'react';
 import { Icon, useCommand } from '@deckbuilder/ui';
 import type { Project } from '../../api';
 import { commandById } from '../../commands';
 import { t } from '../../i18n';
 import { ProjectPicker, type ProjectPickerProps } from './ProjectPicker';
 import { ProjectSearch } from './ProjectSearch';
-import { ProjectTree, type ProjectTreeProps } from './ProjectTree';
+import { ProjectTree, type ProjectTreeApi, type ProjectTreeProps } from './ProjectTree';
 
 export interface TreePaneProps extends ProjectTreeProps, Omit<ProjectPickerProps, 'current' | 'actions'> {
   project: Project;
@@ -17,8 +17,16 @@ export interface TreePaneProps extends ProjectTreeProps, Omit<ProjectPickerProps
 }
 
 /** One sidebar tree: the project picker, and the project's tree or, while searching, its search panel. */
-export function TreePane({ focused, onFocus, actions, projects, onPick, onAdd, onEdit, onRemove, ...tree }: TreePaneProps) {
+export function TreePane({ focused, onFocus, actions, apiRef, projects, onPick, onAdd, onEdit, onRemove, ...tree }: TreePaneProps) {
   const { project } = tree;
+  const own = useRef<ProjectTreeApi>(null);
+  useImperativeHandle(apiRef, () => ({
+    newFile: () => own.current?.newFile(),
+    newFolder: () => own.current?.newFolder(),
+    refresh: () => own.current?.refresh(),
+    collapseAll: () => own.current?.collapseAll(),
+    reveal: (path) => own.current?.reveal(path),
+  }));
   const [searching, setSearching] = useState(false);
   const [signal, setSignal] = useState(0);
 
@@ -27,6 +35,7 @@ export function TreePane({ focused, onFocus, actions, projects, onPick, onAdd, o
     setSignal((n) => n + 1);
   };
   useCommand(commandById('explorer.search'), openSearch, { enabled: focused });
+  useCommand(commandById('explorer.collapseAll'), () => own.current?.collapseAll(), { enabled: focused });
 
   return (
     <div className="xp-pane" onMouseDownCapture={onFocus} onFocusCapture={onFocus}>
@@ -39,6 +48,18 @@ export function TreePane({ focused, onFocus, actions, projects, onPick, onAdd, o
         onRemove={onRemove}
         actions={
           <>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => own.current?.newFile()} title={t('explorer.newFile')} aria-label={t('explorer.newFile')}>
+              <Icon name="file-plus" />
+            </button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => own.current?.newFolder()} title={t('explorer.newFolder')} aria-label={t('explorer.newFolder')}>
+              <Icon name="folder-plus" />
+            </button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => own.current?.refresh()} title={t('explorer.refresh')} aria-label={t('explorer.refresh')}>
+              <Icon name="refresh" />
+            </button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => own.current?.collapseAll()} title={t('explorer.collapseAll')} aria-label={t('explorer.collapseAll')}>
+              <Icon name="collapse-all" />
+            </button>
             <button type="button" className="btn btn-ghost btn-sm" onClick={openSearch} title={t('explorer.search.open')} aria-label={t('explorer.search.open')}>
               <Icon name="search" />
             </button>
@@ -49,7 +70,7 @@ export function TreePane({ focused, onFocus, actions, projects, onPick, onAdd, o
       <div className="xp-pane-body">
         {searching && <ProjectSearch project={project} onOpenFile={tree.onPreviewFile ?? tree.onOpenFile} onClose={() => setSearching(false)} focusSignal={signal} />}
         <div hidden={searching}>
-          <ProjectTree {...tree} />
+          <ProjectTree {...tree} apiRef={own} />
         </div>
       </div>
     </div>

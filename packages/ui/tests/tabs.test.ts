@@ -23,6 +23,7 @@ import {
   serialize,
   singlePane,
   layoutTree,
+  openBeside,
   resizeSplit,
   splitPane,
   splitRight,
@@ -119,6 +120,17 @@ describe('splitting and moving', () => {
     expect(l.panes.length).toBe(MAX_PANES);
     expect(l.panes.flatMap((p) => p.tabs).length).toBe(6);
     expect(findTab(l, id)).toBeDefined();
+  });
+
+  test('openBeside creates a pane on the right, then reuses it', () => {
+    const { layout } = start();
+    const once = openBeside(layout, newTab(route('a')));
+    expect(once.panes.length).toBe(2);
+    expect(focusedPane(once).tabs.map((t) => t.route)).toEqual([route('a')]);
+    const back = activate(once, once.panes[0].id, once.panes[0].active);
+    const twice = openBeside(back, newTab(route('b')));
+    expect(twice.panes.length).toBe(2);
+    expect(twice.panes[1].tabs.map((t) => t.route)).toEqual([route('a'), route('b')]);
   });
 
   test('split copies the route without history', () => {

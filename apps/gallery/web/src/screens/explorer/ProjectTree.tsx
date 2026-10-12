@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from 'react';
 import {
   ContextMenu,
   type ContextMenuItem,
@@ -37,14 +37,27 @@ export interface ProjectTreeProps {
   onOpenFile(project: string, path: string): void;
   /** A single click on a file; absent: a click only selects. */
   onPreviewFile?(project: string, path: string): void;
+  /** Absent: no Open to the Side. */
+  onOpenFileToSide?(project: string, path: string): void;
   onOpenTerminal(project: string, path: string): void;
   /** A file or folder was renamed or moved. */
   onMoved(project: string, from: string, to: string): void;
   onDeleted(project: string, path: string): void;
+  apiRef?: Ref<ProjectTreeApi>;
+}
+
+/** What the sidebar header and the commands can ask of a tree. */
+export interface ProjectTreeApi {
+  newFile(): void;
+  newFolder(): void;
+  refresh(): void;
+  collapseAll(): void;
+  /** Expands the folders above `path` and selects it. */
+  reveal(path: string): void;
 }
 
 /** The lazy tree of a project's folder, with the file actions. */
-export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, onPreviewFile, onOpenTerminal, onMoved, onDeleted }: ProjectTreeProps) {
+export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, onPreviewFile, onOpenFileToSide, onOpenTerminal, onMoved, onDeleted, apiRef }: ProjectTreeProps) {
   const tree = useRef<TreeViewHandle<Node>>(null);
   const clipboard = useRef<{ mode: 'copy' | 'cut'; paths: string[] }>();
   const { confirm, prompt, element } = useDialogs();
@@ -108,6 +121,18 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
       window.removeEventListener('focus', refresh);
     };
   }, [project.id]);
+
+  const rootNode = roots[0]!;
+  const reveal = (path: string) => {
+    const missing: string[] = [];
+    for (let dir = relPath.dirname(path); ; dir = relPath.dirname(dir)) {
+      const id = nodeId(project.id, dir);
+      if (!expanded.includes(id)) missing.push(id);
+      if (dir === '') break;
+    }
+    if (missing.length) onExpandedChange([...expanded, ...missing]);
+    tree.current?.reveal(nodeId(project.id, path));
+  };
 
   const open = (node: Node) => {
     if (node.outside) return;
@@ -212,6 +237,21 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
       }
     });
 
+  const selectedDir = () => {
+    const picked = tree.current?.selection() ?? [];
+    return picked.length === 1 && !picked[0]!.outside ? picked[0]! : rootNode;
+  };
+  useImperativeHandle(apiRef, () => ({
+    newFile: () => void create('file', selectedDir()),
+    newFolder: () => void create('dir', selectedDir()),
+    refresh: () => {
+      folderFiles.current.clear();
+      tree.current?.reload();
+    },
+    collapseAll: () => onExpandedChange([nodeId(project.id, '')]),
+    reveal,
+  }));
+
   const menuItems = (node: Node, selection: Node[]): Array<ContextMenuItem | 'sep'> => {
     const disabled = !!node.outside;
     const item = (id: string, label: string, act: () => void, extra: Partial<ContextMenuItem> = {}): ContextMenuItem => ({ id, label, run: act, disabled, ...extra });
@@ -224,6 +264,7 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
     }
     return [
       ...(isDir(node) ? [] : [item('open', t('explorer.open'), () => open(node), { icon: 'file' })]),
+      ...(isDir(node) || !onOpenFileToSide ? [] : [item('openSide', t('explorer.openSide'), () => onOpenFileToSide(project.id, node.path), { icon: 'split', hint: 'Ctrl+Enter' })]),
       item('newFile', t('explorer.newFile'), () => void create('file', node), { icon: 'plus' }),
       item('newDir', t('explorer.newFolder'), () => void create('dir', node), { icon: 'folder' }),
       'sep',
@@ -266,6 +307,7 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
         expanded={expanded}
         onExpandedChange={onExpandedChange}
         onOpen={open}
+        onOpenToSide={onOpenFileToSide && ((node) => !node.outside && onOpenFileToSide(project.id, node.path))}
         onPreview={onPreviewFile && ((node) => !node.outside && onPreviewFile(project.id, node.path))}
         onContextMenu={(node, e) => setMenu({ at: { x: e.clientX, y: e.clientY }, node, selection: tree.current?.selection() ?? [node] })}
         onRename={(node, name) => void rename(node, name)}

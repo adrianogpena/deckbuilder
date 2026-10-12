@@ -4,7 +4,7 @@ import {
   prepareForSave, previewKind, type PreviewContent, type SelectionInfo,
 } from '@deckbuilder/editor';
 import {
-  type ApiError, errorOf, ErrorBanner, FILE_DEFAULTS, type FileSettings, formatBytes, Icon, PanelBanner, PanelLoading, relPath, requestBlob, StatusBar,
+  type ApiError, type BreadcrumbEntry, Breadcrumbs, errorOf, ErrorBanner, FILE_DEFAULTS, type FileSettings, formatBytes, Icon, PanelBanner, PanelLoading, relPath, requestBlob, StatusBar,
   type StatusItem, useCommand, useDialogs,
 } from '@deckbuilder/ui';
 import { api, type LogSettings, type TextEncoding } from '../../api';
@@ -37,6 +37,8 @@ export interface FileTabProps {
   /** Reports unsaved changes to the tab bar, and registers what saves the tab (see `TabContext`). */
   onDirty?: (dirty: boolean) => void;
   onSaver?: (save: (() => Promise<boolean>) | undefined) => void;
+  /** Opens another file of the project (picked in the breadcrumbs). */
+  onOpenPath?: (path: string) => void;
 }
 
 /** Line breaks of new files and of files without any: the OS's, like VS Code's `files.eol: auto`. */
@@ -70,7 +72,7 @@ export function FileTab(props: FileTabProps) {
 }
 
 /** A preview by extension, and for text files an editor with Save (Ctrl+S). */
-function TextFileTab({ project, projectName, path, focused, markdownMode = 'live', onMarkdownModeChange, wrapLines = true, onWrapLinesChange, files = FILE_DEFAULTS, onDirty, onSaver }: FileTabProps) {
+function TextFileTab({ project, projectName, path, focused, markdownMode = 'live', onMarkdownModeChange, wrapLines = true, onWrapLinesChange, files = FILE_DEFAULTS, onDirty, onSaver, onOpenPath }: FileTabProps) {
   const name = relPath.basename(path);
   const markdown = previewKind(name) === 'markdown';
   const [state, setState] = useState<State>({ status: 'loading' });
@@ -246,6 +248,17 @@ function TextFileTab({ project, projectName, path, focused, markdownMode = 'live
   };
 
   useCommand(commandById('explorer.file.save'), () => void save(), { enabled: focused && active });
+  const [crumbSignal, setCrumbSignal] = useState(0);
+  useCommand(commandById('explorer.breadcrumbs'), () => setCrumbSignal((n) => n + 1), { enabled: focused && files.breadcrumbs });
+  const listDir = useCallback(
+    async (dir: string): Promise<BreadcrumbEntry[]> =>
+      (await api.fsList(project, dir)).map((e) => ({
+        name: e.name,
+        kind: e.kind === 'dir' || e.target === 'dir' ? 'dir' : 'file',
+        path: relPath.join(dir, e.name),
+      })),
+    [project],
+  );
 
   const saveRef = useRef(save);
   saveRef.current = save;
@@ -309,7 +322,11 @@ function TextFileTab({ project, projectName, path, focused, markdownMode = 'live
     <div className="xp-file">
       {element}
       <div className="xp-bar">
-        <span className="xp-path mono" title={`${projectName}/${path}`}>{projectName}/{path}</span>
+        {files.breadcrumbs ? (
+          <Breadcrumbs root={projectName} path={path} list={listDir} onPick={(e) => onOpenPath?.(e.path)} focusSignal={crumbSignal} title={`${projectName}/${path}`} />
+        ) : (
+          <span className="xp-path mono" title={`${projectName}/${path}`}>{projectName}/{path}</span>
+        )}
         {editable && TOGGLES.has(previewKind(name)) && (
           <button className="btn btn-sm" onClick={toggleEdit}>
             <Icon name={previewing ? 'edit' : 'search'} /> {previewing ? t('explorer.edit') : t('explorer.preview')}

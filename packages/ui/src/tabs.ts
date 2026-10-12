@@ -264,6 +264,16 @@ export function splitPane<R>(layout: Layout<R>, tabId: string, side: 'right' | '
   return { panes, focused: pane.id, tree };
 }
 
+/** Adds `tab` to the pane right of the focused one (a new pane when there is none and the limit allows; else the neighbour). */
+export function openBeside<R>(layout: Layout<R>, tab: Tab<R>): Layout<R> {
+  const at = Math.max(0, layout.panes.findIndex((p) => p.id === layout.focused));
+  if (at + 1 < layout.panes.length) return addTab(layout, tab, layout.panes[at + 1].id);
+  if (layout.panes.length >= MAX_PANES) return addTab(layout, tab, layout.panes[Math.max(0, at - 1)].id);
+  const pane: Pane<R> = { id: uid('p'), tabs: [tab], active: tab.id };
+  const tree = insertNext(layoutTree(layout), layout.panes[at].id, pane.id, 'row');
+  return { panes: [...layout.panes, pane], focused: pane.id, tree };
+}
+
 export function splitRight<R>(layout: Layout<R>, tabId: string): Layout<R> {
   return splitPane(layout, tabId, 'right');
 }

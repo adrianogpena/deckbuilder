@@ -170,6 +170,18 @@ function ExplorerCard({ settings, onChange }: { settings: Settings; onChange: (p
           value={files.previewTabs}
           onChange={(previewTabs) => set({ previewTabs })}
         />
+        <OnOffField
+          label={t('settings.explorer.autoReveal')}
+          hint={t('settings.explorer.autoReveal.hint')}
+          value={files.autoReveal}
+          onChange={(autoReveal) => set({ autoReveal })}
+        />
+        <OnOffField
+          label={t('settings.explorer.breadcrumbs')}
+          hint={t('settings.explorer.breadcrumbs.hint')}
+          value={files.breadcrumbs}
+          onChange={(breadcrumbs) => set({ breadcrumbs })}
+        />
       </div>
     </section>
     </>

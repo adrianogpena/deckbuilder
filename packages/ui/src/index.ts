@@ -1,4 +1,5 @@
 export * from './components/AppearanceFields';
+export * from './components/Breadcrumbs';
 export * from './components/CommandPalette';
 export * from './components/ContextMenu';
 export * from './components/DataTable';

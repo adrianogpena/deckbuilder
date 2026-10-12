@@ -216,6 +216,9 @@ const baseEn = {
   'dialog.cancel': 'Cancel',
   'dialog.confirmDelete': 'Delete {name}?',
   'tree.rename': 'New name',
+  'breadcrumbs.label': 'Path',
+  'breadcrumbs.empty': 'Empty folder',
+  'breadcrumbs.up': 'Parent folder',
   'explorer.toggleSidebar': 'Toggle sidebar (Ctrl+B)',
 
   'keys.palette': 'Command palette',
@@ -561,6 +564,9 @@ const basePtBR: Messages<typeof baseEn> = {
   'dialog.cancel': 'Cancelar',
   'dialog.confirmDelete': 'Excluir {name}?',
   'tree.rename': 'Novo nome',
+  'breadcrumbs.label': 'Caminho',
+  'breadcrumbs.empty': 'Pasta vazia',
+  'breadcrumbs.up': 'Pasta acima',
   'explorer.toggleSidebar': 'Mostrar ou ocultar a barra lateral (Ctrl+B)',
 
   'keys.palette': 'Paleta de comandos',

@@ -13,6 +13,10 @@ export interface FileSettings {
   insertFinalNewline?: boolean;
   /** A single click on a file opens a preview tab that the next click replaces; double-click, editing or double-clicking the tab keeps it. */
   previewTabs?: boolean;
+  /** Show the active file in the Explorer tree when its tab is selected. */
+  autoReveal?: boolean;
+  /** Show the path above the editor as clickable segments. */
+  breadcrumbs?: boolean;
 }
 
 export const FILE_DEFAULTS: Required<FileSettings> = {
@@ -20,6 +24,8 @@ export const FILE_DEFAULTS: Required<FileSettings> = {
   trimTrailingWhitespace: false,
   insertFinalNewline: false,
   previewTabs: true,
+  autoReveal: true,
+  breadcrumbs: true,
 };
 
 /** `raw` with the defaults filled in; fields of the wrong type fall back to their default. */
@@ -35,5 +41,7 @@ export function validFileSettings(raw: unknown): FileSettings | null {
   if (typeof raw.trimTrailingWhitespace === 'boolean') out.trimTrailingWhitespace = raw.trimTrailingWhitespace;
   if (typeof raw.insertFinalNewline === 'boolean') out.insertFinalNewline = raw.insertFinalNewline;
   if (typeof raw.previewTabs === 'boolean') out.previewTabs = raw.previewTabs;
+  if (typeof raw.autoReveal === 'boolean') out.autoReveal = raw.autoReveal;
+  if (typeof raw.breadcrumbs === 'boolean') out.breadcrumbs = raw.breadcrumbs;
   return out;
 }
