@@ -156,6 +156,7 @@ export const ptBR: Messages<typeof en> = {
   'explorer.reload': 'Recarregar do disco',
   'explorer.sql.pickConnection': 'Escolha uma conexão',
   'explorer.sql.noConnection': 'Escolha uma conexão primeiro',
+  'explorer.sql.openWorkbench': 'Abrir no Workbench',
   'explorer.sql.close': 'Fechar resultados',
   'explorer.logRotated': 'O arquivo foi truncado ou rotacionado; exibindo desde o início de novo.',
   'explorer.logCopied': '{count} linhas copiadas',

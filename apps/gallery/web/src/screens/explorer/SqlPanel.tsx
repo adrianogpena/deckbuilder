@@ -126,5 +126,5 @@ export function useExplorerSql({ project, name, active, focused, draft, sql }: O
     );
   };
 
-  return { editor, editorProps, actions, layout };
+  return { enabled, editor, editorProps, actions, layout };
 }

@@ -323,6 +323,12 @@ function TextFileTab({ project, projectName, path, focused, preview, markdownMod
 
   const sqlUi = useExplorerSql({ project, name, active, focused, draft, sql });
   const chordOf = useChordOf();
+  const openInWorkbench = async () => {
+    if (!sql) return;
+    if (dirty && !(await save())) return;
+    sql.onWorkbenchChange({ ...sql.workbench, doc: { kind: 'file', project, path } });
+    sql.go('workbench');
+  };
   const actions: TabAction[] = [...sqlUi.actions];
   if (editable && TOGGLES.has(previewKind(name))) {
     actions.push({ id: 'preview', group: 'primary', icon: 'preview', label: t('explorer.preview'), checked: previewing, run: () => void toggleEdit() });
@@ -344,6 +350,9 @@ function TextFileTab({ project, projectName, path, focused, preview, markdownMod
     actions.push({ id: 'save', group: 'menu', section: 'file', label: t('explorer.save'), hint: chordOf('explorer.file.save'), disabled: !dirty || saving, run: () => void save() });
   }
   actions.push({ id: 'reload', group: 'menu', section: 'file', icon: 'refresh', label: t('explorer.reload'), run: () => void reload() });
+  if (sql && sqlUi.enabled) {
+    actions.push({ id: 'sql.openWorkbench', group: 'menu', section: 'file', label: t('explorer.sql.openWorkbench'), run: () => void openInWorkbench() });
+  }
   useTabActions(actions, onActions);
 
   const status: StatusItem[] = [];

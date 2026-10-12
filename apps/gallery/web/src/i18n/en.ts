@@ -154,6 +154,7 @@ export const en = {
   'explorer.reload': 'Reload from disk',
   'explorer.sql.pickConnection': 'Choose a connection',
   'explorer.sql.noConnection': 'Choose a connection first',
+  'explorer.sql.openWorkbench': 'Open in Workbench',
   'explorer.sql.close': 'Close results',
   'explorer.logRotated': 'The file was truncated or rotated; showing it from the start again.',
   'explorer.logCopied': 'Copied {count} lines',
