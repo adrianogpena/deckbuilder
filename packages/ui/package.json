@@ -7,9 +7,11 @@
     ".": "./src/index.ts",
     "./file-associations": "./src/file-associations.ts",
     "./file-settings": "./src/file-settings.ts",
+    "./fuzzy": "./src/fuzzy.ts",
     "./grid": "./src/grid.ts",
     "./keybindings": "./src/keybindings.ts",
     "./log": "./src/log.ts",
+    "./rel-path": "./src/rel-path.ts",
     "./styles.css": "./src/styles.css"
   },
   "dependencies": {

@@ -336,6 +336,9 @@ kbd {
 .pal-group { width: 92px; flex-shrink: 0; font-family: var(--font-mono); font-size: 10.5px; color: var(--text-3); text-transform: uppercase; letter-spacing: .08em; }
 .pal-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pal-item.active .pal-label { color: var(--accent-2); font-weight: 600; }
+.pal-match { color: var(--accent); font-weight: 700; }
+.pal-dir { margin-left: 8px; font-size: 11.5px; color: var(--text-3); }
+.pal-item.active .pal-match { color: inherit; }
 .pal-hint { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); }
 .pal-empty { padding: 16px; color: var(--text-3); }
 .pal-foot { display: flex; gap: 16px; padding: 10px 16px; border-top: 1px solid var(--border-soft); font-size: 11.5px; color: var(--text-3); }
@@ -552,6 +555,8 @@ kbd {
 .tree-chevron { display: grid; place-items: center; width: 16px; flex-shrink: 0; color: var(--text-3); transition: transform .12s; }
 .tree-chevron.open { transform: rotate(90deg); }
 .tree-icon, .tab-icon { display: inline-flex; flex-shrink: 0; }
+.tree-hit { background: var(--accent-soft); color: var(--accent); border-radius: 2px; font-weight: 600; }
+.tree-count { margin-left: 6px; padding: 0 6px; border-radius: 8px; background: var(--accent-soft); color: var(--accent); font-size: 10.5px; font-family: var(--font-mono); flex-shrink: 0; }
 .tree-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tree-rename { flex: 1; min-width: 0; height: 22px; padding: 0 6px; border-radius: 5px; font-size: 13px; }
 .tree-new { flex-wrap: wrap; }

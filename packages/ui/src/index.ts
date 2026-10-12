@@ -32,6 +32,8 @@ export * from './file-settings';
 export * from './file-icons';
 export * from './log';
 export * from './log-tail';
+export * from './fuzzy';
+export * from './quick-open';
 export * from './palette';
 export * from './route';
 export * from './split';

@@ -133,7 +133,7 @@ function Main({ settings, setSettings, screen, go }: MainProps) {
           }
         />
         <main className="main">{renderScreen(screen, settings, save, () => setStopped(true))}</main>
-        {palette.open && <CommandPalette items={items} onClose={() => palette.setOpen(false)} />}
+        {palette.open && <CommandPalette items={items} initialQuery={palette.initialQuery} onClose={() => palette.setOpen(false)} />}
       </div>
     </ToastProvider>
   );

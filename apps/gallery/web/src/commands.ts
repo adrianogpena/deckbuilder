@@ -1,4 +1,4 @@
-import { type CommandDef, explorerCommands, GLOBAL, paletteCommand, tabCommands } from '@deckbuilder/ui';
+import { type CommandDef, explorerCommands, GLOBAL, paletteCommand, quickOpenCommand, tabCommands } from '@deckbuilder/ui';
 import { t } from './i18n';
 import { NAV } from './nav';
 
@@ -12,12 +12,14 @@ export function commands(): CommandDef[] {
   }));
   return [
     paletteCommand(),
+    quickOpenCommand(),
     ...nav,
     { id: TOGGLE_NAV, scope: GLOBAL, label: t('keys.toggleNav'), keys: ['Ctrl+Shift+B'], inInput: true },
     ...tabCommands('tabs'),
     ...tabCommands('explorer'),
     ...tabCommands('terminal'),
     ...explorerCommands('explorer'),
+    { id: 'explorer.find', scope: 'explorer', label: t('keys.explorer.find'), keys: ['Ctrl+Alt+F'], inInput: true },
     { id: 'explorer.search', scope: 'explorer', label: t('keys.explorer.search'), keys: ['Ctrl+Shift+F'], inInput: true },
     { id: 'explorer.revealInTree', scope: 'explorer', label: t('keys.explorer.revealInTree'), keys: [] },
     { id: 'explorer.collapseAll', scope: 'explorer', label: t('keys.explorer.collapseAll'), keys: [] },

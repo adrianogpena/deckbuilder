@@ -138,6 +138,10 @@ export const en = {
   'explorer.showExcluded': 'Show excluded files and folders',
   'explorer.search.open': 'Search in this project',
   'explorer.search.close': 'Close the search',
+  'explorer.find.placeholder': 'Find in the tree (Enter: next match)',
+  'explorer.find.filter': 'Filter',
+  'explorer.find.filterHint': 'Show only matching entries',
+  'explorer.find.none': 'No match',
   'explorer.split': 'Show a second project below',
   'explorer.closeTree': 'Close this tree',
   'explorer.edit': 'Edit',
@@ -419,5 +423,6 @@ export const en = {
   'keys.markdown.preview': 'Markdown: Toggle Preview',
   'explorer.layout': 'Text column',
   'keys.explorer.search': 'Search in the project',
+  'keys.explorer.find': 'Find in the tree',
   'error.notASaveTarget': 'Choose where to save first.',
 };

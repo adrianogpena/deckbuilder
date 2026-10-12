@@ -233,6 +233,7 @@ const DEFAULT_TAIL_BYTES = 1_000_000;
 const MAX_SAVE_RANGE_BYTES = 200_000_000;
 const MAX_UPLOAD_BYTES = 200_000_000;
 const MAX_SEARCH_HITS = 5000;
+const MAX_NAME_HITS = 200_000;
 const MAX_CONTENT_BYTES = 1_000_000;
 const MAX_HITS_PER_FILE = 20;
 const SKIP_DIRS = new Set(['node_modules', '.git']);
@@ -335,7 +336,7 @@ async function contentHits(file: string, q: string): Promise<Array<{ line: numbe
  * File routes confined to the roots the app registers. The client only ever sends a root id and a
  * relative path; `resolve` turns them into a real path inside that root or refuses.
  *
- * GET `/api/fs/list|stat|read|raw|archive|search` take `root` and `path` in the query; POST
+ * GET `/api/fs/list|stat|read|raw|archive|search|names` take `root` and `path` in the query; POST
  * `/api/fs/create|write|rename|move|delete` take them in the JSON body. POST `/api/fs/upload` takes them
  * in the query and the file's bytes as the body.
  */
@@ -562,6 +563,21 @@ export function rootedFs(opts: RootedFsOptions): RootedFs {
         for await (const hit of searchTree({ abs: loc.real, rel: loc.segments.join('/') }, search, signal)) {
           await emit(hit);
           if (++count >= MAX_SEARCH_HITS) break;
+        }
+      });
+    },
+
+    // Every file and folder path below `path` (excludes applied), for Quick Open and tree find.
+    'GET /api/fs/names': async ({ req, query }) => {
+      const { root, path } = fromQuery(query);
+      const loc = await locate(root, path, true);
+      if (!(await stat(loc.real)).isDirectory()) throw notADir();
+      const search = { q: '', content: false, glob: null, exclude: parseExclude(query.get('exclude')) };
+      return ndjson(req, async (emit, signal) => {
+        let count = 0;
+        for await (const hit of searchTree({ abs: loc.real, rel: loc.segments.join('/') }, search, signal)) {
+          await emit(hit);
+          if (++count >= MAX_NAME_HITS) break;
         }
       });
     },

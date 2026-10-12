@@ -24,6 +24,8 @@ export interface FileTabProps {
   path: string;
   /** The tab is selected and its pane has the focus. */
   focused: boolean;
+  /** A preview tab keeps the focus where it was (the tree), so Delete, F2 and arrows still act on the tree. */
+  preview?: boolean;
   /** Log viewer state (highlights, bookmarks) and its change handler; only log files use them. */
   logs?: LogSettings;
   onLogsChange?: (logs: LogSettings) => void;
@@ -77,7 +79,7 @@ export function FileTab(props: FileTabProps) {
 }
 
 /** A preview by extension, and for text files an editor with Save (Ctrl+S). */
-function TextFileTab({ project, projectName, path, focused, markdownMode = 'live', onMarkdownModeChange, wrapLines = true, onWrapLinesChange, files = FILE_DEFAULTS, onDirty, onSaver, onOpenPath, onActions }: FileTabProps) {
+function TextFileTab({ project, projectName, path, focused, preview, markdownMode = 'live', onMarkdownModeChange, wrapLines = true, onWrapLinesChange, files = FILE_DEFAULTS, onDirty, onSaver, onOpenPath, onActions }: FileTabProps) {
   const name = relPath.basename(path);
   const markdown = previewKind(name) === 'markdown';
   const [state, setState] = useState<State>({ status: 'loading' });
@@ -386,9 +388,9 @@ function TextFileTab({ project, projectName, path, focused, markdownMode = 'live
         {state.status === 'loading' && <PanelLoading />}
         {state.status === 'error' && <ErrorBanner error={state.error} onRetry={() => void load()} />}
         {content && (mdEditor
-          ? <MarkdownEditor value={draft} onChange={setDraft} mode={markdownMode} layout={mdLayout} wrap={wrapLines} autoFocus onSelection={setSelection} />
+          ? <MarkdownEditor value={draft} onChange={setDraft} mode={markdownMode} layout={mdLayout} wrap={wrapLines} autoFocus={!preview} onSelection={setSelection} />
           : active
-          ? <CodeEditor value={draft} lang={langOfFile(name)} onChange={setDraft} height="100%" wrap={wrapLines} autoFocus onSelection={setSelection} />
+          ? <CodeEditor value={draft} lang={langOfFile(name)} onChange={setDraft} height="100%" wrap={wrapLines} autoFocus={!preview} onSelection={setSelection} />
           : <FilePreview name={name} content={content} onImageInfo={setImage} />)}
       </div>
       {status.length > 0 && <StatusBar items={status} />}

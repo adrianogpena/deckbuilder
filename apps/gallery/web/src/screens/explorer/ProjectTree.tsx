@@ -22,6 +22,7 @@ import { t } from '../../i18n';
 import { useCopyPath } from './copy-path';
 import type { FileUndo, UndoOp } from './file-undo';
 import { entriesOf, freeName, walkEntry } from './os-drop';
+import type { FindResult } from './tree-find';
 
 interface Node {
   project: string;
@@ -61,6 +62,8 @@ export interface ProjectTreeProps {
   compact?: boolean;
   /** File nesting patterns; absent: files are not nested. */
   nesting?: NestingPatterns;
+  /** Find in the tree: `highlight` marks matches and counts them on folders, `filter` also hides everything else. */
+  find?: { mode: 'highlight' | 'filter'; result: FindResult };
 }
 
 export interface TreeViewOptions {
@@ -76,6 +79,7 @@ const DID: Record<UndoOp['kind'], 'explorer.did.create' | 'explorer.did.rename' 
   copy: 'explorer.did.copy',
 };
 const MAX_LISTED = 10;
+const MAX_FORCED = 400;
 const UPLOAD_PARALLEL = 3;
 const LINK_FRESH_MS = 50_000;
 
@@ -90,7 +94,7 @@ export interface ProjectTreeApi {
 }
 
 /** The lazy tree of a project's folder, with the file actions. */
-export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, onPreviewFile, onOpenFileToSide, onOpenTerminal, onMoved, onDeleted, apiRef, undo, dirtyCount, view, compact, nesting }: ProjectTreeProps) {
+export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, onPreviewFile, onOpenFileToSide, onOpenTerminal, onMoved, onDeleted, apiRef, undo, dirtyCount, view, compact, nesting, find }: ProjectTreeProps) {
   const tree = useRef<TreeViewHandle<Node>>(null);
   const clipboard = useRef<{ mode: 'copy' | 'cut'; paths: string[] }>();
   const { confirm, choose, element } = useDialogs();
@@ -104,6 +108,26 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
   const outLink = useRef<{ id: string; url: string; name: string; at: number }>();
 
   const roots = useMemo<Node[]>(() => [{ project: project.id, path: '', name: project.name, kind: 'dir' }], [project.id, project.name]);
+
+  const forced = useMemo(
+    () => (find?.mode === 'filter' ? new Set([...find.result.counts.keys()].slice(0, MAX_FORCED).map((dir) => nodeId(project.id, dir))) : undefined),
+    [find, project.id],
+  );
+  const visibleOf = useMemo(() => {
+    if (find?.mode !== 'filter') return undefined;
+    const { matches, counts } = find.result;
+    const shows = (n: Node): boolean => n.path === '' || matches.has(n.path) || counts.has(n.path) || !!n.nested?.some(shows);
+    return shows;
+  }, [find]);
+  const markOf = useMemo(() => {
+    if (!find) return undefined;
+    const { matches, counts } = find.result;
+    return (n: Node) => {
+      const positions = matches.get(n.path);
+      const count = isDir(n) ? counts.get(n.path) : undefined;
+      return positions || count ? { positions: positions ?? [], count } : undefined;
+    };
+  }, [find]);
 
   const run = async (job: () => Promise<void>) => {
     try {
@@ -587,6 +611,9 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
         hasChildren={(n) => isDir(n) || !!n.nested?.length}
         isFolder={isDir}
         compact={compact}
+        visibleOf={visibleOf}
+        markOf={markOf}
+        forceExpanded={forced}
         loadChildren={loadChildren}
         expanded={expanded}
         onExpandedChange={onExpandedChange}

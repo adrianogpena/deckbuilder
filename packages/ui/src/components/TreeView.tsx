@@ -12,6 +12,7 @@ import {
   type Ref,
 } from 'react';
 import { errorMessage, errorOf, type ApiError } from '../api';
+import { highlightRuns } from '../fuzzy';
 import { t } from '../i18n';
 import type { IconName } from '../icons';
 import { firstChildId, isInside, locate, nextId, parentId, prevId, subtreeIds, visibleRows, type TreeRow } from '../tree';
@@ -88,6 +89,12 @@ export interface TreeViewProps<N> {
    * ready when the drag starts; `link` returns it then, or undefined for a row that can't leave the app.
    */
   dragOut?: { prepare: (node: N) => void; link: (node: N) => { name: string; url: string } | undefined };
+  /** Find in the tree: nodes for which this is false are left out (their parents stay when any child shows). */
+  visibleOf?: (node: N) => boolean;
+  /** Find in the tree: label character indices to highlight and, on a folder, the number of matches below it. */
+  markOf?: (node: N) => { positions: number[]; count?: number } | undefined;
+  /** Ids shown expanded, besides `expanded` (find lists the folders holding matches); their children load as usual. */
+  forceExpanded?: ReadonlySet<string>;
 }
 
 export interface TreeViewHandle<N = unknown> {
@@ -98,6 +105,15 @@ export interface TreeViewHandle<N = unknown> {
   reveal: (id: string) => void;
   /** The selected nodes in display order. */
   selection: () => N[];
+}
+
+function Marked({ text, positions }: { text: string; positions?: number[] }) {
+  if (!positions?.length) return <>{text}</>;
+  return (
+    <>
+      {highlightRuns(text, positions).map((r, i) => (r.hit ? <mark key={i} className="tree-hit">{r.text}</mark> : r.text))}
+    </>
+  );
 }
 
 function RenameInput({ initial, onDone }: { initial: string; onDone: (value: string | null) => void }) {
@@ -188,7 +204,7 @@ function NewEntryInput({ kind, depth, onSubmit, onCancel }: { kind: 'file' | 'di
 }
 
 function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) {
-  const { roots, idOf, labelOf, iconOf, iconToneOf, dimmedOf, hasChildren, isFolder = hasChildren, compact, expanded, onExpandedChange, onOpen, onPreview, onOpenToSide, onContextMenu, onRename, onDelete, onCopy, onCut, onPaste, onUndo, newEntry, draggable, onDrop, onDropFiles, dragOut } = props;
+  const { roots, idOf, labelOf, iconOf, iconToneOf, dimmedOf, hasChildren, isFolder = hasChildren, compact, expanded, visibleOf, markOf, forceExpanded, onExpandedChange, onOpen, onPreview, onOpenToSide, onContextMenu, onRename, onDelete, onCopy, onCut, onPaste, onUndo, newEntry, draggable, onDrop, onDropFiles, dragOut } = props;
   const cache = useRef(new Map<string, Entry<N>>());
   const generations = useRef(new Map<string, number>());
   const [, bump] = useReducer((x: number) => x + 1, 0);
@@ -207,13 +223,17 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
   const latest = useRef(props);
   latest.current = props;
 
-  const expandedSet = new Set(expanded);
-  const childrenOf = (id: string) => {
+  const expandedSet = new Set(forceExpanded ? [...expanded, ...forceExpanded] : expanded);
+  const loadedChildren = (id: string) => {
     const entry = cache.current.get(id);
     return entry?.status === 'error' ? undefined : entry?.children;
   };
+  const childrenOf = (id: string) => {
+    const kids = loadedChildren(id);
+    return visibleOf && kids ? kids.filter(visibleOf) : kids;
+  };
   // The parent of a pending new entry stays the last segment of its row, so the input shows right under it.
-  const rows = visibleRows(roots, childrenOf, expandedSet, idOf, compact ? { isFolder, stopAt: new Set(newEntry ? [newEntry.parentId] : []) } : undefined);
+  const rows = visibleRows(visibleOf ? roots.filter(visibleOf) : roots, childrenOf, expandedSet, idOf, compact ? { isFolder, stopAt: new Set(newEntry ? [newEntry.parentId] : []) } : undefined);
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
   const rowOf = (id: string | null) => (id === null ? undefined : rows.find((r) => r.id === id));
@@ -234,14 +254,14 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
 
   const load = (node: N, id: string) => {
     const gen = bumpGeneration(id);
-    cache.current.set(id, { status: 'loading', children: childrenOf(id) });
+    cache.current.set(id, { status: 'loading', children: loadedChildren(id) });
     bump();
     latest.current.loadChildren(node).then(
       (children) => {
         if (generations.current.get(id) !== gen) return;
         const kept = new Set(children.map(idOf));
-        const missing = (childrenOf(id) ?? []).map(idOf).filter((c) => !kept.has(c));
-        for (const gone of subtreeIds(missing, childrenOf, idOf)) {
+        const missing = (loadedChildren(id) ?? []).map(idOf).filter((c) => !kept.has(c));
+        for (const gone of subtreeIds(missing, loadedChildren, idOf)) {
           bumpGeneration(gone);
           cache.current.delete(gone);
         }
@@ -621,12 +641,13 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
                       <RenameInput initial={labelOf(c.node)} onDone={(value) => finishRename(row, c, value)} />
                     ) : (
                       <span data-seg={i} className={`tree-seg${row.chain.length > 1 && (c.id === selected || c.id === dropTarget) ? (c.id === selected ? ' active' : ' drop') : ''}`}>
-                        {labelOf(c.node)}
+                        <Marked text={labelOf(c.node)} positions={markOf?.(c.node)?.positions} />
                       </span>
                     )}
                   </Fragment>
                 ))}
               </span>
+              {markOf?.(node)?.count ? <span className="tree-count">{markOf(node)!.count}</span> : null}
             </div>
             {isOpen && newEntry?.parentId === id && <NewEntryInput key={`new-${id}`} kind={newEntry.kind} depth={depth} onSubmit={newEntry.onSubmit} onCancel={newEntry.onCancel} />}
             {entry?.status === 'loading' && !entry.children && (

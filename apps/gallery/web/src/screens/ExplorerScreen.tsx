@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import {
   activate,
   activeTab,
@@ -33,6 +33,8 @@ import {
   useCommand,
   useDebouncedSave,
   type Layout,
+  type QuickOpenFile,
+  useProvideQuickOpen,
   fileIconOf,
   fileSettingsOf,
   relPath,
@@ -45,6 +47,7 @@ import { t } from '../i18n';
 import { ProjectPicker } from './explorer/ProjectPicker';
 import { useCopyPath } from './explorer/copy-path';
 import { useFileUndo } from './explorer/file-undo';
+import { useNameIndex } from './explorer/name-index';
 import type { ProjectTreeApi } from './explorer/ProjectTree';
 import { TreePane } from './explorer/TreePane';
 
@@ -56,6 +59,23 @@ type Route = { kind: 'welcome' } | { kind: 'file'; project: string; path: string
 
 const WELCOME: Route = { kind: 'welcome' };
 const MAX_EXPANDED = 2000;
+const MAX_RECENT = 50;
+const RECENT_KEY = 'deckbuilder.recentFiles';
+
+function loadRecent(): string[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(RECENT_KEY) ?? '[]') as unknown;
+    return Array.isArray(raw) ? raw.filter((x): x is string => typeof x === 'string').slice(0, MAX_RECENT) : [];
+  } catch {
+    return [];
+  }
+}
+
+function storeRecent(ids: string[]) {
+  try {
+    localStorage.setItem(RECENT_KEY, JSON.stringify(ids));
+  } catch { /* recent files are a convenience */ }
+}
 
 const isRoute = (x: unknown): x is Route => {
   const r = x as { kind?: unknown; project?: unknown; path?: unknown; session?: unknown } | null;
@@ -339,6 +359,29 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
   const shown = shownIds(state, list).flatMap((id) => list.find((p) => p.id === id) ?? []);
   const focus = shown.length > 1 ? focusedTree : 0;
 
+  const names = useNameIndex(list, files.exclude);
+  const [recent, setRecent] = useState(loadRecent);
+  const quickFiles = useMemo<QuickOpenFile[]>(
+    () => shown.flatMap((p) => (names.entries[p.id] ?? []).filter((h) => h.kind === 'file').map((h) => ({ id: `${p.id}:${h.path}`, path: h.path, project: shown.length > 1 ? p.name : undefined }))),
+    [shown.map((p) => p.id).join(','), names.entries],
+  );
+  useProvideQuickOpen(
+    useMemo(
+      () => ({
+        files: quickFiles,
+        loading: names.loading,
+        recent,
+        onOpen: () => names.ensure(shown.map((p) => p.id)),
+        open: (file, side) => {
+          const project = file.id.slice(0, file.id.length - file.path.length - 1);
+          if (side) openFileToSide(project, file.path);
+          else openFile(project, file.path, files.previewTabs);
+        },
+      }),
+      [quickFiles, names.loading, names.ensure, recent, files.previewTabs],
+    ),
+  );
+
   const trees = useRef<Array<ProjectTreeApi | null>>([]);
   const revealRequest = useRef<{ project: string; path: string }>();
   const [revealTick, setRevealTick] = useState(0);
@@ -357,6 +400,16 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
     setRevealTick((n) => n + 1);
   };
   useCommand(commandById('explorer.revealInTree'), () => activeFile && revealFile(activeFile.project, activeFile.path), { enabled: !!activeFile });
+
+  useEffect(() => {
+    if (!activeFile) return;
+    const id = `${activeFile.project}:${activeFile.path}`;
+    setRecent((r) => {
+      const next = [id, ...r.filter((x) => x !== id)].slice(0, MAX_RECENT);
+      storeRecent(next);
+      return next;
+    });
+  }, [activeFile?.project, activeFile?.path]);
 
   useEffect(() => {
     const request = revealRequest.current;
@@ -408,6 +461,8 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
                   compact={files.compactFolders}
                   nesting={files.fileNesting ? files.nestingPatterns : undefined}
                   sort={files.sortOrder}
+                  names={names.entries[project.id]}
+                  ensureNames={() => names.ensure([project.id], 30_000)}
                   onFocus={() => setFocusedTree(i as 0 | 1)}
                   onPick={(p) => pickProject(p.id, i)}
                   {...pickerHandlers}
@@ -462,7 +517,7 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
           renderTab={(tab, ctx) =>
             tab.route.kind === 'file' ? (
               <Suspense fallback={<PanelLoading />}>
-                <FileTab project={tab.route.project} projectName={nameOf(tab.route.project)} path={tab.route.path} focused={ctx.focused} logs={logs} onLogsChange={changeLogs} onDirty={ctx.setDirty} onSaver={ctx.setSaver} onActions={ctx.setActions}markdownMode={state.markdownMode} onMarkdownModeChange={(markdownMode) => update((s) => ({ ...s, markdownMode }))} wrapLines={state.wrapLines} onWrapLinesChange={(wrapLines) => update((s) => ({ ...s, wrapLines }))} files={files} onOpenPath={(p) => tab.route.kind === 'file' && openFile(tab.route.project, p, files.previewTabs)} />
+                <FileTab project={tab.route.project} projectName={nameOf(tab.route.project)} path={tab.route.path} focused={ctx.focused} preview={tab.preview} logs={logs} onLogsChange={changeLogs} onDirty={ctx.setDirty} onSaver={ctx.setSaver} onActions={ctx.setActions}markdownMode={state.markdownMode} onMarkdownModeChange={(markdownMode) => update((s) => ({ ...s, markdownMode }))} wrapLines={state.wrapLines} onWrapLinesChange={(wrapLines) => update((s) => ({ ...s, wrapLines }))} files={files} onOpenPath={(p) => tab.route.kind === 'file' && openFile(tab.route.project, p, files.previewTabs)} />
               </Suspense>
             ) : tab.route.kind === 'terminal' ? (
               <Suspense fallback={<PanelLoading />}>

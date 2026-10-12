@@ -15,6 +15,9 @@ const baseEn = {
   'palette.navigate': 'navigate',
   'palette.open': 'run',
   'palette.close': 'close',
+  'palette.placeholderFiles': 'Search files by name (type > for commands)…',
+  'palette.loadingFiles': 'Listing files…',
+  'palette.side': 'to the side',
 
   'tabs.new': 'New tab',
   'tabs.close': 'Close tab',
@@ -225,6 +228,7 @@ const baseEn = {
   'explorer.toggleSidebar': 'Toggle sidebar (Ctrl+B)',
 
   'keys.palette': 'Command palette',
+  'keys.quickOpen': 'Quick open file',
   'keys.toggleSidebar': 'Toggle sidebar',
   'keys.tab.new': 'New tab',
   'keys.tab.close': 'Close tab',
@@ -368,6 +372,9 @@ const basePtBR: Messages<typeof baseEn> = {
   'palette.navigate': 'navegar',
   'palette.open': 'executar',
   'palette.close': 'fechar',
+  'palette.placeholderFiles': 'Buscar arquivos pelo nome (digite > para comandos)…',
+  'palette.loadingFiles': 'Listando arquivos…',
+  'palette.side': 'ao lado',
 
   'tabs.new': 'Nova aba',
   'tabs.close': 'Fechar aba',
@@ -578,6 +585,7 @@ const basePtBR: Messages<typeof baseEn> = {
   'explorer.toggleSidebar': 'Mostrar ou ocultar a barra lateral (Ctrl+B)',
 
   'keys.palette': 'Paleta de comandos',
+  'keys.quickOpen': 'Abrir arquivo',
   'keys.toggleSidebar': 'Mostrar ou ocultar a barra lateral',
   'keys.tab.new': 'Nova aba',
   'keys.tab.close': 'Fechar aba',

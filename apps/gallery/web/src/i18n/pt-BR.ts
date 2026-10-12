@@ -140,6 +140,10 @@ export const ptBR: Messages<typeof en> = {
   'explorer.showExcluded': 'Mostrar arquivos e pastas excluídos',
   'explorer.search.open': 'Buscar neste projeto',
   'explorer.search.close': 'Fechar a busca',
+  'explorer.find.placeholder': 'Procurar na árvore (Enter: próximo)',
+  'explorer.find.filter': 'Filtrar',
+  'explorer.find.filterHint': 'Mostrar só as entradas encontradas',
+  'explorer.find.none': 'Nada encontrado',
   'explorer.split': 'Mostrar um segundo projeto abaixo',
   'explorer.closeTree': 'Fechar esta árvore',
   'explorer.edit': 'Editar',
@@ -421,5 +425,6 @@ export const ptBR: Messages<typeof en> = {
   'keys.markdown.preview': 'Markdown: Alternar visualização',
   'explorer.layout': 'Coluna de texto',
   'keys.explorer.search': 'Buscar no projeto',
+  'keys.explorer.find': 'Procurar na árvore',
   'error.notASaveTarget': 'Escolha onde salvar primeiro.',
 };

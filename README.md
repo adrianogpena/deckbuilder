@@ -196,6 +196,17 @@ source directly; there is no package build step.
   (`explorer.search`) replaces the body of the tree you last clicked with a `ProjectSearch`
   panel (names, or names and content, over `/api/fs/search`); Escape cancels a running search,
   then closes the panel.
+  VS Code-style file management comes with it: preview tabs, dirty dots and close commands in the
+  tab bar (`TabWorkspace`), a status bar and toasts (`StatusBar`, `ToastProvider`), breadcrumbs,
+  undo, copy/cut/paste and drag and drop inside the tree and from and to the OS, compact folders,
+  file nesting, exclude patterns and sort orders (Settings → Explorer). **Quick Open**: Ctrl+P
+  lists the files of the shown projects ranked by `fuzzyPath` (recent files first, matched letters
+  bold, Ctrl+Enter opens to the side); typing `>` switches the same box to commands, Ctrl+K and
+  Ctrl+Shift+P open it on commands. An app offers its file list with `useProvideQuickOpen`; without
+  one the box lists commands only. The list comes from `GET /api/fs/names` (every path, excludes
+  applied). **Find in the tree**: Ctrl+Alt+F (`explorer.find`) opens a find box over the tree you
+  last clicked; matches are highlighted and folders show match counts, the Filter chip hides
+  everything else (and lists matches in folders never opened); Enter steps through the matches.
 - **A terminal**: add `@deckbuilder/terminal` (and `"lib": ["ESNext", "DOM", "DOM.Iterable", "DOM.AsyncIterable"]`
   in the app's tsconfig). Server: spread `terminalRoutes({ sessions, shell, resolveCwd, launchers })`
   (from `@deckbuilder/terminal/server`, `sessions = terminalSessions()`) into `routes`, and pass
