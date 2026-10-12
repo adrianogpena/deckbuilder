@@ -8,6 +8,7 @@ import {
 } from '@codemirror/view';
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { type Lang, languageFor, type SqlDialect, type SqlSchema } from './languages';
+import { formatSql, type SqlFormatOptions } from './sql/format';
 import { statementAt } from './sql/statements';
 import { themeExtension } from './theme';
 
@@ -43,6 +44,8 @@ export interface CodeEditorHandle {
   /** The selection if any, else the SQL statement at the cursor, else the whole document. */
   getRunText(): string;
   replaceRange(from: number, to: number, text: string): void;
+  /** Formats the selection if any, else the whole document, as one undoable change. No-op when nothing changes. */
+  format(options: SqlFormatOptions): void;
   focus(): void;
 }
 
@@ -93,6 +96,20 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(function
     getSelectionText: () => (view.current ? selectionText(view.current.state) : ''),
     getRunText: () => (view.current ? runText(view.current.state) : ''),
     replaceRange: (from, to, text) => view.current?.dispatch({ changes: { from, to, insert: text }, selection: { anchor: from + text.length } }),
+    format: (options) => {
+      const v = view.current;
+      if (!v) return;
+      const { main } = v.state.selection;
+      const from = main.empty ? 0 : main.from;
+      const to = main.empty ? v.state.doc.length : main.to;
+      const original = v.state.sliceDoc(from, to);
+      const formatted = formatSql(original, options);
+      if (formatted === original) return;
+      v.dispatch({
+        changes: { from, to, insert: formatted },
+        selection: main.empty ? { anchor: Math.min(main.head, from + formatted.length) } : { anchor: from, head: from + formatted.length },
+      });
+    },
     focus: () => view.current?.focus(),
   }), []);
 

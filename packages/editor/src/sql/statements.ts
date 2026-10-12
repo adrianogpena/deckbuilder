@@ -21,7 +21,7 @@ function words(tokens: Token[], start: number, max: number): string[] {
   return out;
 }
 
-function isPlsqlStart(tokens: Token[], start: number): boolean {
+export function isPlsqlStart(tokens: Token[], start: number): boolean {
   const w = words(tokens, start, 8);
   if (w[0] === 'begin' || w[0] === 'declare') return true;
   if (w[0] !== 'create') return false;

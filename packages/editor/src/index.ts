@@ -9,6 +9,7 @@ export * from './http-import';
 export * from './RequestEditor';
 export * from './ResponseView';
 export * from './languages';
+export { DEFAULT_FORMAT_OPTIONS, FORMAT_OPTION_META, formatSql, type FormatOptionMeta, type SqlFormatOptions } from './sql/format';
 export * from './markdown';
 export * from './MarkdownEditor';
 export * from './MarkdownView';
