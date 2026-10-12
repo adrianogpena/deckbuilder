@@ -13,7 +13,6 @@ export const en = {
   'keys.toggleNav': 'Collapse or expand the main menu',
   'nav.palette': 'Command palette (Ctrl+K)',
 
-  'home.crumb': 'Overview',
   'home.title': 'Home',
   'home.system': 'System',
   'home.version': 'Version',
@@ -26,7 +25,6 @@ export const en = {
   'home.started': 'Started',
   'home.dataDir': 'Data folder',
 
-  'settings.crumb': 'Preferences',
   'settings.title': 'Settings',
   'settings.theme': 'Theme',
   'settings.general': 'General',

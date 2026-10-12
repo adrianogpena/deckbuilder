@@ -28,14 +28,11 @@ export function Empty({ title, children }: { title: string; children?: ReactNode
   );
 }
 
-/** Page header: small mono caption above a large title, with actions on the right. */
-export function PageHead({ crumb, title, children }: { crumb: string; title: string; children?: ReactNode }) {
+/** Page header: one slim row, title left, the screen's actions right (they wrap below when they don't fit). */
+export function PageHead({ title, children }: { title: string; children?: ReactNode }) {
   return (
     <div className="content-head">
-      <div className="head-title">
-        <span className="crumb">{crumb}</span>
-        <h1>{title}</h1>
-      </div>
+      <h1>{title}</h1>
       <span className="spacer" />
       {children}
     </div>

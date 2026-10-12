@@ -5,6 +5,7 @@ import { APP } from '../../app';
 import { api, type Settings } from './api';
 import { commandById, commands, navCommandId, TOGGLE_NAV } from './commands';
 import { t } from './i18n';
+import { useZen } from './zen';
 import { NAV, SCREENS, type ScreenId } from './nav';
 import { ExplorerScreen } from './screens/ExplorerScreen';
 import { GridScreen } from './screens/GridScreen';
@@ -77,6 +78,7 @@ function Main({ settings, setSettings, screen, go }: MainProps) {
   for (const item of navItems) useCommand(commandById(navCommandId(item.id)), () => go(item.id));
   const collapsed = settings.navCollapsed ?? false;
   useCommand(commandById(TOGGLE_NAV), () => save({ navCollapsed: !collapsed }));
+  const zen = useZen();
   const keys = useKeybindings();
   const chordOf = (id: string) => (keys ? effectiveKeys(keys.defs, keys.keymap).get(id)?.[0] : undefined);
 
@@ -112,7 +114,7 @@ function Main({ settings, setSettings, screen, go }: MainProps) {
 
   return (
     <ToastProvider>
-      <div className={`app${collapsed ? ' nav-collapsed' : ''}`}>
+      <div className={`app${collapsed ? ' nav-collapsed' : ''}${zen ? ' zen' : ''}`}>
         <Sidebar
           name={APP.name}
           sections={sections}

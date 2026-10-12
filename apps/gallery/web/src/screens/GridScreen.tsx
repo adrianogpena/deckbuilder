@@ -70,7 +70,7 @@ export function GridScreen({ settings, onSave }: { settings: Settings; onSave: (
 
   return (
     <div className="content">
-      <PageHead crumb={t('grid.crumb')} title={t('nav.grid')}>
+      <PageHead title={t('nav.grid')}>
         <button className={`btn btn-sm${dirty ? ' btn-primary' : ''}`} onClick={save} disabled={!dirty}>
           {dirty && <span className="dirty-dot" aria-hidden="true" />} {t('grid.save')}
         </button>

@@ -15,7 +15,6 @@ export const ptBR: Messages<typeof en> = {
   'keys.toggleNav': 'Recolher ou expandir o menu principal',
   'nav.palette': 'Paleta de comandos (Ctrl+K)',
 
-  'home.crumb': 'Visão geral',
   'home.title': 'Início',
   'home.system': 'Sistema',
   'home.version': 'Versão',
@@ -28,7 +27,6 @@ export const ptBR: Messages<typeof en> = {
   'home.started': 'Iniciado',
   'home.dataDir': 'Pasta de dados',
 
-  'settings.crumb': 'Preferências',
   'settings.title': 'Configurações',
   'settings.theme': 'Tema',
   'settings.general': 'Geral',

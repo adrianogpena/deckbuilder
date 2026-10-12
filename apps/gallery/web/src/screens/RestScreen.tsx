@@ -191,7 +191,7 @@ export function RestScreen({ settings, onSave }: { settings: Settings; onSave: (
 
   return (
     <div className="content">
-      <PageHead crumb={t('rest.crumb')} title={t('nav.rest')}>
+      <PageHead title={t('nav.rest')}>
         <div className="row">
           <button className="btn btn-sm" onClick={() => setImporting(true)}>{t('rest.import')}</button>
           <button className="btn btn-sm" onClick={showCurl}>{t('rest.code')}</button>

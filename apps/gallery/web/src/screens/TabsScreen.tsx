@@ -65,7 +65,7 @@ function TabPage({ tab, ctx }: { tab: Tab<Route>; ctx: TabContext<Route> }) {
 
   return (
     <div className="content">
-      <PageHead crumb={t('tabs.crumb')} title={titleOf(route).title}>
+      <PageHead title={titleOf(route).title}>
         <div className="chips">
           {PAGES.map((page) => (
             <button

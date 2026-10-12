@@ -1,6 +1,6 @@
-import { useRef, useState, type DragEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react';
 import { t, type BaseKey } from '../i18n';
-import type { CommandDef } from '../keybindings';
+import { effectiveKeys, type CommandDef } from '../keybindings';
 import {
   MAX_PANES,
   activate,
@@ -30,7 +30,7 @@ import {
   type Tab,
 } from '../tabs';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
-import { useCommand } from './Keybindings';
+import { useCommand, useKeybindings } from './Keybindings';
 import { SplitView } from './SplitView';
 import { Icon, type IconName, type Tone, useDialogs } from './ui';
 
@@ -86,6 +86,11 @@ interface TabBarProps<R> {
   onNew: () => void;
   onSplit: (side: 'right' | 'down') => void;
   onClosePane: () => void;
+  /** Whether this pane is maximized (the tree and the other panes hidden). */
+  maximized: boolean;
+  onToggleMaximize: () => void;
+  /** Effective key of the maximize command, for the menu. */
+  maximizeHint?: string;
   onBack: () => void;
   onForward: () => void;
   onDropTab: (tabId: string, index: number) => void;
@@ -125,6 +130,7 @@ function TabBar<R>(props: TabBarProps<R>) {
       { id: 'splitRight', label: t('tabs.splitRight'), icon: 'split', disabled: !props.canSplit, run: () => props.onSplit('right') },
       { id: 'splitDown', label: t('tabs.splitDown'), icon: 'split-down', disabled: !props.canSplit, run: () => props.onSplit('down') },
     );
+    items.push({ id: 'maximize', label: t('tabs.maximize'), hint: props.maximizeHint, checked: props.maximized, run: props.onToggleMaximize });
     if (props.canClosePane) items.push({ id: 'closePane', label: t('tabs.closePane'), run: props.onClosePane });
     return items;
   };
@@ -188,7 +194,7 @@ function TabBar<R>(props: TabBarProps<R>) {
                 onDrop(e, i);
               }}
               onClick={() => props.onActivate(tab.id)}
-              onDoubleClick={() => props.onPin(tab.id)}
+              onDoubleClick={() => (tab.preview ? props.onPin(tab.id) : props.onToggleMaximize())}
               onContextMenu={(e) => {
                 e.preventDefault();
                 setMenu({ at: { x: e.clientX, y: e.clientY }, items: menuItems(tab, i) });
@@ -281,6 +287,8 @@ export function tabCommands(scope: string): CommandDef[] {
     desktop('prev', 'Ctrl+Shift+Tab'),
     ...Array.from({ length: 9 }, (_, i) => ({ id: `${scope}.tab.select${i + 1}`, scope, label: t('keys.tab.select', { n: i + 1 }), keys: [`Alt+${i + 1}`] })),
     { id: `${scope}.tab.saveAll`, scope, label: t('keys.tab.saveAll'), keys: ['Ctrl+Alt+S'] },
+    // VS Code uses Ctrl+K Ctrl+M; the keymap has no two-key chords.
+    { id: `${scope}.pane.maximize`, scope, label: t('keys.pane.maximize'), keys: ['Ctrl+Alt+M'] },
   ];
 }
 
@@ -290,7 +298,8 @@ export function tabCommands(scope: string): CommandDef[] {
  * changes first); Save All is bound by `TabWorkspace` only.
  */
 export function useTabKeys<R>(layout: Layout<R>, onChange: (next: Layout<R>) => void, newRoute: () => R, scope: string, onClose?: (tabId: string) => void) {
-  const [add, close, next, prev, ...select] = tabCommands(scope);
+  const [add, close, next, prev, ...rest] = tabCommands(scope);
+  const select = rest.slice(0, 9);
   useCommand(add, () => onChange(addTab(layout, newTab(newRoute()))));
   useCommand(close, () => (onClose ? onClose(activeTab(layout).id) : onChange(closeTab(layout, activeTab(layout).id, () => newTab(newRoute())))));
   useCommand(next, () => onChange(cycleTab(layout, 1)));
@@ -326,9 +335,11 @@ interface TabWorkspaceProps<R> {
   newRoute: () => R;
   /** The view id the tab shortcuts belong to (see `tabCommands`). */
   scope: string;
+  /** Told when a pane is maximized or restored, so the app can hide its own side views too. */
+  onMaximizedChange?: (maximized: boolean) => void;
 }
 
-export function TabWorkspace<R>({ layout, onChange, renderTab, titleOf, menuOf, newRoute, scope }: TabWorkspaceProps<R>) {
+export function TabWorkspace<R>({ layout, onChange, renderTab, titleOf, menuOf, newRoute, scope, onMaximizedChange }: TabWorkspaceProps<R>) {
   const { choose, element } = useDialogs();
   const savers = useRef(new Map<string, () => Promise<boolean>>());
   // The latest list per tab (fresh `run`s); the bar re-renders only when what it shows changes.
@@ -384,8 +395,22 @@ export function TabWorkspace<R>({ layout, onChange, renderTab, titleOf, menuOf, 
   const closeById = (tabId: string) => void closeMany([tabId]);
   const closeMode = (tabId: string, mode: CloseMode) => void closeMany(tabsToClose(latest.current, tabId, mode).map((x) => x.id));
 
+  // Maximize pane, like VS Code's maximize editor group: the other panes stay mounted, only hidden.
+  const [maximizedId, setMaximizedId] = useState<string | null>(null);
+  const maximized = maximizedId && layout.panes.some((p) => p.id === maximizedId) ? maximizedId : null;
+  const toggleMaximize = (paneId: string) => setMaximizedId(maximized ? null : paneId);
+  const onMaximized = useRef(onMaximizedChange);
+  onMaximized.current = onMaximizedChange;
+  useEffect(() => onMaximized.current?.(maximized !== null), [maximized]);
+  useEffect(() => () => onMaximized.current?.(false), []);
+
+  const commands = tabCommands(scope);
+  const command = (name: string) => commands.find((d) => d.id === `${scope}.${name}`)!;
+  const keys = useKeybindings();
+  const maximizeHint = keys ? effectiveKeys(keys.defs, keys.keymap).get(`${scope}.pane.maximize`)?.[0] : undefined;
   useTabKeys(layout, onChange, newRoute, scope, closeById);
-  useCommand(tabCommands(scope).at(-1)!, saveAll);
+  useCommand(command('tab.saveAll'), saveAll);
+  useCommand(command('pane.maximize'), () => toggleMaximize(layout.focused));
 
   const renderPane = (pane: Pane<R>) => {
     const paneFocused = pane.id === layout.focused;
@@ -393,7 +418,7 @@ export function TabWorkspace<R>({ layout, onChange, renderTab, titleOf, menuOf, 
     return (
       <section
         key={pane.id}
-        className={`pane${paneFocused && layout.panes.length > 1 ? ' focused' : ''}`}
+        className={`pane${paneFocused && layout.panes.length > 1 && !maximized ? ' focused' : ''}${pane.id === maximized ? ' maximized' : ''}`}
         onMouseDownCapture={() => !paneFocused && update((l) => ({ ...l, focused: pane.id }))}
       >
         <TabBar
@@ -411,6 +436,9 @@ export function TabWorkspace<R>({ layout, onChange, renderTab, titleOf, menuOf, 
           onNew={() => update((l) => addTab(l, fresh(), pane.id))}
           onSplit={(side) => update((l) => splitPane(l, activeId, side))}
           onClosePane={() => void closeMany(pane.tabs.map((x) => x.id))}
+          maximized={pane.id === maximized}
+          onToggleMaximize={() => toggleMaximize(pane.id)}
+          maximizeHint={maximizeHint}
           onBack={() => update((l) => goBack(l, activeId))}
           onForward={() => update((l) => goForward(l, activeId))}
           onDropTab={(tabId, index) =>
@@ -467,7 +495,7 @@ export function TabWorkspace<R>({ layout, onChange, renderTab, titleOf, menuOf, 
   // A single pane still sits in the root SplitView, so splitting it keeps it mounted.
   const tree = layoutTree(layout);
   return (
-    <div className="panes">
+    <div className={`panes${maximized ? ' has-maximized' : ''}`}>
       {element}
       {'pane' in tree ? (
         <SplitView key="root" direction="row" sizes={[1]} onResize={() => {}}>

@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react';
+import { Fragment, type ReactNode, type RefObject, useEffect, useRef, useState } from 'react';
 import { AppearanceFields, AUTO_SAVE, type AutoSave, SORT_ORDERS, fileSettingsOf, ZoomField, type ApiError, detectLanguage, type FileAssociation, validFileAssociations, ErrorBanner, errorMessage, errorOf, GLOBAL, isDesktop, KeybindingsEditor, LANGUAGES, Modal, PageHead, Spinner, useAsync, useKeybindings, type Language } from '@deckbuilder/ui';
 import { APP } from '../../../app';
 import { api, type BackupInfo, type EditorInfo, type ImportResult, type Settings } from '../api';
@@ -17,6 +17,7 @@ const SECTIONS = [
   { id: 'layout', label: 'settings.layout' },
   { id: 'keys', label: 'settings.keys' },
   { id: 'explorer', label: 'settings.explorer' },
+  { id: 'editor', label: 'settings.editor' },
   { id: 'files', label: 'settings.files' },
   { id: 'editors', label: 'settings.editors' },
   { id: 'terminal', label: 'settings.terminal' },
@@ -27,38 +28,123 @@ type SectionId = (typeof SECTIONS)[number]['id'];
 
 export function SettingsScreen({ settings, onChange, onQuit }: Props) {
   const [section, setSection] = useState<SectionId>('general');
+  const [query, setQuery] = useState('');
+  const body = useRef<HTMLDivElement>(null);
+  const searching = query.trim() !== '';
+  const hits = useSettingsFilter(body, searching ? query : '');
+  const render = (id: SectionId): ReactNode => {
+    switch (id) {
+      case 'general': return <GeneralSection settings={settings} onChange={onChange} onQuit={onQuit} />;
+      case 'layout':
+        return (
+          <section className="section">
+            <h4 className="mono-label">{t('settings.layout')}</h4>
+            <div className="card form">
+              <ZoomField value={settings} onChange={onChange} />
+            </div>
+          </section>
+        );
+      case 'keys': return <KeysCard settings={settings} onChange={onChange} />;
+      case 'explorer': return <ExplorerCard settings={settings} onChange={onChange} />;
+      case 'editor': return <EditorCard settings={settings} onChange={onChange} />;
+      case 'files': return <FileTypesCard value={settings.fileAssociations ?? []} onChange={(fileAssociations) => onChange({ fileAssociations })} />;
+      case 'editors': return <EditorsCard />;
+      case 'terminal': return <TerminalCard shell={settings.terminal?.shell ?? 'auto'} onShell={(shell) => onChange({ terminal: { shell } })} />;
+      case 'updates': return <UpdatesCard folder={settings.updateFolder} onFolder={(updateFolder) => onChange({ updateFolder })} />;
+      case 'backup': return <BackupCard onSettings={onChange} />;
+    }
+  };
   return (
     <div className="content">
-      <PageHead crumb={t('settings.crumb')} title={t('settings.title')} />
+      <PageHead title={t('settings.title')} />
       <div className="settings-layout">
         <nav className="settings-nav" aria-label={t('settings.title')}>
+          <input
+            className="settings-search"
+            type="search"
+            value={query}
+            placeholder={t('settings.search')}
+            aria-label={t('settings.search')}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape' && query) {
+                e.stopPropagation();
+                setQuery('');
+              }
+            }}
+          />
           {SECTIONS.map((s) => (
-            <button key={s.id} className={`settings-nav-item${section === s.id ? ' active' : ''}`} aria-current={section === s.id} onClick={() => setSection(s.id)}>
+            <button
+              key={s.id}
+              className={`settings-nav-item${!searching && section === s.id ? ' active' : ''}`}
+              aria-current={!searching && section === s.id}
+              hidden={searching && !hits.has(s.id)}
+              onClick={() => {
+                setQuery('');
+                setSection(s.id);
+              }}
+            >
               {t(s.label)}
             </button>
           ))}
         </nav>
-        <div className="scroll">
-          {section === 'general' && <GeneralSection settings={settings} onChange={onChange} onQuit={onQuit} />}
-          {section === 'layout' && (
-            <section className="section">
-              <h4 className="mono-label">{t('settings.layout')}</h4>
-              <div className="card form">
-                <ZoomField value={settings} onChange={onChange} />
-              </div>
-            </section>
-          )}
-          {section === 'keys' && <KeysCard settings={settings} onChange={onChange} />}
-          {section === 'explorer' && <ExplorerCard settings={settings} onChange={onChange} />}
-          {section === 'files' && <FileTypesCard value={settings.fileAssociations ?? []} onChange={(fileAssociations) => onChange({ fileAssociations })} />}
-          {section === 'editors' && <EditorsCard />}
-          {section === 'terminal' && <TerminalCard shell={settings.terminal?.shell ?? 'auto'} onShell={(shell) => onChange({ terminal: { shell } })} />}
-          {section === 'updates' && <UpdatesCard folder={settings.updateFolder} onFolder={(updateFolder) => onChange({ updateFolder })} />}
-          {section === 'backup' && <BackupCard onSettings={onChange} />}
+        <div className="scroll" ref={body}>
+          {searching
+            ? SECTIONS.map((s) => (
+                <div key={s.id} className="settings-group" data-section={s.id} data-title={t(s.label)}>
+                  <h3 className="settings-group-title">{t(s.label)}</h3>
+                  {render(s.id)}
+                </div>
+              ))
+            : render(section)}
+          {searching && hits.size === 0 && <p className="muted">{t('settings.search.none')}</p>}
         </div>
       </div>
     </div>
   );
+}
+
+const norm = (s: string | null | undefined) => (s ?? '').toLocaleLowerCase().replace(/\s+/g, ' ');
+
+/**
+ * Filters the rendered settings while searching, like VS Code's settings search: a `.field` row stays when its
+ * label (`.mono-label`) or description (`.muted`) holds every word; cards, sections and groups with no row left
+ * hide. A group whose title matches keeps all its rows. It works on the DOM, so the hand-written rows need no
+ * wiring, and re-runs when async cards (editors, updates, backup) fill in. Returns the sections with hits.
+ */
+function useSettingsFilter(root: RefObject<HTMLElement | null>, query: string): Set<string> {
+  const [hits, setHits] = useState<Set<string>>(() => new Set());
+  useEffect(() => {
+    const el = root.current;
+    const words = norm(query).trim().split(' ').filter(Boolean);
+    if (!el || words.length === 0) {
+      setHits((prev) => (prev.size === 0 ? prev : new Set()));
+      return;
+    }
+    const apply = () => {
+      const found = new Set<string>();
+      for (const group of el.querySelectorAll<HTMLElement>('.settings-group')) {
+        const whole = words.every((w) => norm(group.dataset.title).includes(w));
+        for (const field of group.querySelectorAll<HTMLElement>('.field')) {
+          const text = norm([...field.querySelectorAll(':scope > .mono-label, :scope > .muted')].map((n) => n.textContent).join(' '));
+          field.hidden = !(whole || words.every((w) => text.includes(w)));
+        }
+        // Innermost first, so a section sees its cards' final state.
+        for (const box of [...group.querySelectorAll<HTMLElement>('.card, .section')].reverse()) {
+          box.hidden = box.querySelector('.field') ? !box.querySelector('.field:not([hidden])') : !whole;
+        }
+        const any = whole || !!group.querySelector('.field:not([hidden])');
+        group.hidden = !any;
+        if (any && group.dataset.section) found.add(group.dataset.section);
+      }
+      setHits((prev) => (prev.size === found.size && [...found].every((s) => prev.has(s)) ? prev : found));
+    };
+    apply();
+    const observer = new MutationObserver(apply);
+    observer.observe(el, { childList: true, subtree: true, characterData: true });
+    return () => observer.disconnect();
+  }, [root, query]);
+  return hits;
 }
 
 function GeneralSection({ settings, onChange, onQuit }: Props) {
@@ -128,11 +214,10 @@ function OnOffField({ label, hint, value, onChange }: { label: string; hint: str
 }
 
 /** Saving text files, like VS Code's `files.*` settings; the Explorer's file tabs read them. */
-function ExplorerCard({ settings, onChange }: { settings: Settings; onChange: (patch: Partial<Settings>) => void }) {
+function EditorCard({ settings, onChange }: { settings: Settings; onChange: (patch: Partial<Settings>) => void }) {
   const files = fileSettingsOf(settings.files);
   const set = (patch: Partial<typeof files>) => onChange({ files: { ...files, ...patch } });
   return (
-    <>
     <section className="section">
       <h4 className="mono-label">{t('settings.explorer.saving')}</h4>
       <div className="card form">
@@ -161,6 +246,15 @@ function ExplorerCard({ settings, onChange }: { settings: Settings; onChange: (p
         />
       </div>
     </section>
+  );
+}
+
+/** How the Explorer tree and its tabs behave (`files.*` settings, shared with the file tabs). */
+function ExplorerCard({ settings, onChange }: { settings: Settings; onChange: (patch: Partial<Settings>) => void }) {
+  const files = fileSettingsOf(settings.files);
+  const set = (patch: Partial<typeof files>) => onChange({ files: { ...files, ...patch } });
+  return (
+    <>
     <section className="section">
       <h4 className="mono-label">{t('settings.explorer.tabs')}</h4>
       <div className="card form">

@@ -6,7 +6,7 @@ export interface NavItem<Id extends string = string> {
   /** Display text (already translated). */
   label: string;
   icon: IconName;
-  /** Short hint on the right, e.g. the keyboard shortcut. */
+  /** Shown in the row's tooltip, e.g. the keyboard shortcut. */
   hint?: string;
 }
 
@@ -49,11 +49,11 @@ export function Sidebar<Id extends string>({ name, sections, current, onSelect, 
                   key={item.id}
                   className={`side-item${current === item.id ? ' active' : ''}`}
                   onClick={() => onSelect(item.id)}
-                  {...(collapsed ? { title, 'aria-label': title } : {})}
+                  title={title}
+                  {...(collapsed ? { 'aria-label': title } : {})}
                 >
                   <Icon name={item.icon} size={14} />
                   {!collapsed && <span className="side-label">{item.label}</span>}
-                  {!collapsed && item.hint && <span className="side-short">{item.hint}</span>}
                 </button>
               );
             })}

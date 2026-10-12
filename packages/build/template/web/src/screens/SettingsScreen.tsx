@@ -23,7 +23,7 @@ export function SettingsScreen({ settings, onChange, onQuit }: Props) {
   const [section, setSection] = useState<SectionId>('general');
   return (
     <div className="content">
-      <PageHead crumb={t('settings.crumb')} title={t('settings.title')} />
+      <PageHead title={t('settings.title')} />
       <div className="settings-layout">
         <nav className="settings-nav" aria-label={t('settings.title')}>
           {SECTIONS.map((s) => (

@@ -19,6 +19,8 @@ export interface ExplorerProps {
   children: ReactNode;
   /** The view id the Ctrl+B command belongs to (see `explorerCommands`). */
   scope: string;
+  /** Hides the sidebar and its rail for now (Zen mode, a maximized pane) without touching `collapsed`. */
+  hidden?: boolean;
 }
 
 /** Commands of an Explorer shown in view `scope`: Ctrl+B toggles the sidebar (not while typing). */
@@ -30,14 +32,15 @@ export function explorerCommands(scope: string): CommandDef[] {
  * A resizable sidebar (min 180 px) next to a workspace. Ctrl+B or the rail button toggle the
  * sidebar. Layout only: the app owns sizes, collapsed and what the sidebar and workspace show.
  */
-export function Explorer({ sidebar, sizes, onResize, collapsed, onCollapsedChange, children, scope }: ExplorerProps) {
+export function Explorer({ sidebar, sizes, onResize, collapsed: stored, onCollapsedChange, children, scope, hidden = false }: ExplorerProps) {
   const [toggle] = explorerCommands(scope);
-  useCommand(toggle, () => onCollapsedChange(!collapsed));
+  useCommand(toggle, () => onCollapsedChange(!stored), { enabled: !hidden });
+  const collapsed = stored || hidden;
 
   // The workspace keeps its key and slot either way, so its tabs aren't remounted.
   return (
     <div className="explorer">
-      {collapsed && (
+      {collapsed && !hidden && (
         <div className="explorer-rail">
           <button className="btn btn-ghost btn-sm" onClick={() => onCollapsedChange(false)} title={t('explorer.toggleSidebar')} aria-label={t('explorer.toggleSidebar')}>
             <Icon name="sidebar" />

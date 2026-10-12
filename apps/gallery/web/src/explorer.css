@@ -86,6 +86,10 @@
 .wb-schema-cols { padding: 2px 0 4px 30px; }
 .wb-schema-cols li { display: flex; gap: 8px; font-size: 11px; line-height: 1.6; }
 .wb-schema-more { font-size: 11px; }
-.wb-bar { flex-wrap: wrap; margin-bottom: 10px; }
+.xp-watermark { display: grid; gap: 8px; margin: 28px auto 0; width: max-content; max-width: 100%; color: var(--text-2); font-size: 13px; }
+.xp-watermark > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px; align-items: center; }
+.xp-watermark dt { text-align: right; }
+.xp-watermark dd { margin: 0; }
+.wb-bar { flex-wrap: wrap; align-items: center; min-width: 0; }
 .wb-maxrows { display: flex; align-items: center; gap: 6px; font-size: 12px; }
 .wb-max { width: 96px; flex: none; }

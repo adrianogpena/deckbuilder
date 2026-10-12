@@ -44,11 +44,13 @@ import { api, type ExplorerSettings, type LogSettings, type Project, type Settin
 import { commandById } from '../commands';
 import { fullPath, nodeId } from '../explorer-paths';
 import { t } from '../i18n';
+import { setZen, useZen } from '../zen';
 import { ProjectPicker } from './explorer/ProjectPicker';
 import { useCopyPath } from './explorer/copy-path';
 import { useFileUndo } from './explorer/file-undo';
 import { useNameIndex } from './explorer/name-index';
 import type { ProjectTreeApi } from './explorer/ProjectTree';
+import { useChordOf } from './explorer/tab-actions';
 import { TreePane } from './explorer/TreePane';
 
 // The editor and viewers are large; they load when the first file opens.
@@ -168,6 +170,22 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
   const [formError, setFormError] = useState<ApiError>();
   const [actionError, setActionError] = useState<ApiError>();
   const [focusedTree, setFocusedTree] = useState<0 | 1>(0);
+  const zen = useZen();
+  const [maximized, setMaximized] = useState(false);
+  useCommand(commandById('explorer.zen'), () => setZen(!zen));
+  useEffect(() => () => setZen(false), []);
+  // Esc twice leaves Zen, as in VS Code; the first Esc still reaches whatever has the focus.
+  useEffect(() => {
+    if (!zen) return;
+    let last = -Infinity;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (e.timeStamp - last < 800) setZen(false);
+      last = e.timeStamp;
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [zen]);
   const copyPath = useCopyPath();
   const undo = useFileUndo();
 
@@ -500,6 +518,7 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
   return (
     <>
       <Explorer
+        hidden={zen || maximized}
         sidebar={sidebar}
         sizes={state.sizes}
         onResize={(sizes) => update((s) => ({ ...s, sizes }))}
@@ -514,6 +533,7 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
           menuOf={menuOf}
           newRoute={() => WELCOME}
           scope="explorer"
+          onMaximizedChange={setMaximized}
           renderTab={(tab, ctx) =>
             tab.route.kind === 'file' ? (
               <Suspense fallback={<PanelLoading />}>
@@ -549,10 +569,24 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
   );
 }
 
+/** The commands an empty editor area lists, like VS Code's watermark; keys follow the user's keymap. */
+const WATERMARK = [
+  { id: 'palette.quickOpen', label: 'explorer.watermark.quickOpen' },
+  { id: 'explorer.search', label: 'explorer.watermark.search' },
+  { id: 'explorer.toggleSidebar', label: 'explorer.watermark.tree' },
+  { id: 'palette.toggle', label: 'explorer.watermark.palette' },
+  { id: 'explorer.zen', label: 'explorer.watermark.zen' },
+] as const;
+
 function Welcome({ projects, onOpen }: { projects: Project[]; onOpen: (id: string) => void }) {
+  const chordOf = useChordOf();
+  const hints = WATERMARK.flatMap((w) => {
+    const key = chordOf(w.id);
+    return key ? [{ ...w, key }] : [];
+  });
   return (
     <div className="content">
-      <PageHead crumb={t('explorer.crumb')} title={t('explorer.welcome')} />
+      <PageHead title={t('explorer.welcome')} />
       <div className="scroll">
         <Empty title={t('explorer.welcomeTitle')}>
           <p className="muted">{t('explorer.welcomeHint')}</p>
@@ -563,6 +597,16 @@ function Welcome({ projects, onOpen }: { projects: Project[]; onOpen: (id: strin
               <button key={p.id} className="chip" onClick={() => onOpen(p.id)}>{p.name}</button>
             ))}
           </div>
+        )}
+        {hints.length > 0 && (
+          <dl className="xp-watermark">
+            {hints.map((h) => (
+              <div key={h.id}>
+                <dt>{t(h.label)}</dt>
+                <dd><kbd>{h.key}</kbd></dd>
+              </div>
+            ))}
+          </dl>
         )}
       </div>
     </div>

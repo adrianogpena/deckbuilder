@@ -271,7 +271,7 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
   return (
     <div className="content">
       {dialogs}
-      <PageHead crumb={t('workbench.crumb')} title={t('nav.workbench')} />
+      <PageHead title={t('nav.workbench')}>
       <div className="row wb-bar">
           <select value={connection ? connection.id : DEMO_SOURCE} onChange={(e) => changeSource(e.target.value)} aria-label={t('workbench.source')} title={t('workbench.source')}>
             <option value={DEMO_SOURCE}>{t('workbench.source.demo')}</option>
@@ -316,6 +316,7 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
           <button className="btn btn-sm" onClick={copyResults} disabled={tableRows.length === 0}>{t(selection.length > 0 ? 'workbench.copySelected' : 'workbench.copy')}</button>
           <span className="muted">{t('workbench.exportHint', { count: EXPORT_ROWS })}</span>
       </div>
+      </PageHead>
       {actionError && <ErrorBanner error={actionError} compact />}
       <div className="wb-body">
       {schemaOpen && (

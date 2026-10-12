@@ -199,7 +199,7 @@ source directly; there is no package build step.
   VS Code-style file management comes with it: preview tabs, dirty dots and close commands in the
   tab bar (`TabWorkspace`), a status bar and toasts (`StatusBar`, `ToastProvider`), breadcrumbs,
   undo, copy/cut/paste and drag and drop inside the tree and from and to the OS, compact folders,
-  file nesting, exclude patterns and sort orders (Settings → Explorer). **Quick Open**: Ctrl+P
+  file nesting, exclude patterns and sort orders (Settings → Explorer; the Settings search filters every row). **Quick Open**: Ctrl+P
   lists the files of the shown projects ranked by `fuzzyPath` (recent files first, matched letters
   bold, Ctrl+Enter opens to the side); typing `>` switches the same box to commands, Ctrl+K and
   Ctrl+Shift+P open it on commands. An app offers its file list with `useProvideQuickOpen`; without
@@ -207,6 +207,10 @@ source directly; there is no package build step.
   applied). **Find in the tree**: Ctrl+Alt+F (`explorer.find`) opens a find box over the tree you
   last clicked; matches are highlighted and folders show match counts, the Filter chip hides
   everything else (and lists matches in folders never opened); Enter steps through the matches.
+  **Maximize pane**: Ctrl+Alt+M, a double-click on a non-preview tab or the "…" menu hide the
+  tree and the other panes (they stay mounted; `TabWorkspace`'s `onMaximizedChange`, `Explorer`'s
+  `hidden`). **Zen mode**: Ctrl+Alt+Z (`explorer.zen`) also hides the nav and the status bars; Esc
+  twice leaves. An empty tab lists the main shortcuts from the keymap.
 - **A terminal**: add `@deckbuilder/terminal` (and `"lib": ["ESNext", "DOM", "DOM.Iterable", "DOM.AsyncIterable"]`
   in the app's tsconfig). Server: spread `terminalRoutes({ sessions, shell, resolveCwd, launchers })`
   (from `@deckbuilder/terminal/server`, `sessions = terminalSessions()`) into `routes`, and pass
@@ -316,7 +320,7 @@ source directly; there is no package build step.
   line. The client never sends a program: it comes from detection or from an override chosen in a
   server-side file dialog (saved in `editors.json`). `.cmd` scripts are refused because they would
   go through `cmd.exe`, which interprets `&`, `%` and `^` in a project path. The gallery adds the
-  entries to the Explorer's context menu and an Editors section to Settings.
+  entries to the Explorer's context menu and an External editors section to Settings.
 - **Backup**: `backupRoutes({ app, settings, stores, excludeSettings })` (from `@deckbuilder/server-mods`)
   serves `/api/backup/*`: export writes the settings and the chosen record stores to a file picked
   in the save dialog; inspect reads a file picked in the open dialog (other app ids and malformed
