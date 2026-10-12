@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { PALETTES } from '@deckbuilder/server-core/palettes';
-import { CommandPalette, detectLanguage, effectiveKeys, ErrorBanner, Icon, isDesktop, KeybindingProvider, type PaletteItem, PanelLoading, setFileAssociations, setLanguage, Sidebar, Spinner, useAsync, useCommand, useCommandPalette, useHashRoute, useHeartbeat, useKeybindings, useTheme, useZoom } from '@deckbuilder/ui';
+import { CommandPalette, detectLanguage, effectiveKeys, ErrorBanner, Icon, isDesktop, KeybindingProvider, type PaletteItem, PanelLoading, setFileAssociations, setLanguage, Sidebar, Spinner, ToastProvider, useAsync, useCommand, useCommandPalette, useHashRoute, useHeartbeat, useKeybindings, useTheme, useZoom } from '@deckbuilder/ui';
 import { APP } from '../../app';
 import { api, type Settings } from './api';
 import { commandById, commands, navCommandId, TOGGLE_NAV } from './commands';
@@ -111,29 +111,31 @@ function Main({ settings, setSettings, screen, go }: MainProps) {
   const toggleChord = chordOf(TOGGLE_NAV);
 
   return (
-    <div className={`app${collapsed ? ' nav-collapsed' : ''}`}>
-      <Sidebar
-        name={APP.name}
-        sections={sections}
-        current={screen}
-        onSelect={go}
-        collapsed={collapsed}
-        onCollapsedChange={(next) => save({ navCollapsed: next })}
-        toggleLabel={toggleChord ? `${t('keys.toggleNav')} (${toggleChord})` : t('keys.toggleNav')}
-        footer={
-          <>
-            <button className={`btn btn-ghost btn-sm${screen === 'settings' ? ' active' : ''}`} onClick={() => go('settings')} title={settingsTitle} aria-label={settingsTitle}>
-              <Icon name="settings" />
-            </button>
-            <button className="btn btn-ghost btn-sm" onClick={() => palette.setOpen(true)} title={t('nav.palette')} aria-label={t('nav.palette')}>
-              <Icon name="search" />
-            </button>
-          </>
-        }
-      />
-      <main className="main">{renderScreen(screen, settings, save, () => setStopped(true))}</main>
-      {palette.open && <CommandPalette items={items} onClose={() => palette.setOpen(false)} />}
-    </div>
+    <ToastProvider>
+      <div className={`app${collapsed ? ' nav-collapsed' : ''}`}>
+        <Sidebar
+          name={APP.name}
+          sections={sections}
+          current={screen}
+          onSelect={go}
+          collapsed={collapsed}
+          onCollapsedChange={(next) => save({ navCollapsed: next })}
+          toggleLabel={toggleChord ? `${t('keys.toggleNav')} (${toggleChord})` : t('keys.toggleNav')}
+          footer={
+            <>
+              <button className={`btn btn-ghost btn-sm${screen === 'settings' ? ' active' : ''}`} onClick={() => go('settings')} title={settingsTitle} aria-label={settingsTitle}>
+                <Icon name="settings" />
+              </button>
+              <button className="btn btn-ghost btn-sm" onClick={() => palette.setOpen(true)} title={t('nav.palette')} aria-label={t('nav.palette')}>
+                <Icon name="search" />
+              </button>
+            </>
+          }
+        />
+        <main className="main">{renderScreen(screen, settings, save, () => setStopped(true))}</main>
+        {palette.open && <CommandPalette items={items} onClose={() => palette.setOpen(false)} />}
+      </div>
+    </ToastProvider>
   );
 }
 

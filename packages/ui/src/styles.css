@@ -307,13 +307,7 @@ kbd {
 .modal-body p { margin: 0; color: var(--text-2); }
 .modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 18px 18px; }
 
-/* ---- toast / spinner */
-.toast {
-  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 60;
-  display: flex; align-items: center; gap: 8px; max-width: 70vw;
-  background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
-  padding: 10px 16px; border-radius: 10px; box-shadow: var(--shadow); animation: fade .15s ease-out;
-}
+/* ---- spinner */
 .spinner {
   display: inline-block; width: 18px; height: 18px; border-radius: 50%;
   border: 2px solid var(--border); border-top-color: var(--accent); animation: spin .7s linear infinite;
@@ -419,6 +413,22 @@ kbd {
 .panel-banner.tone-warn { background: var(--warn-soft); }
 .panel-banner.tone-err { background: var(--err-soft); }
 .panel-banner-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---- status bar */
+.status-bar { display: flex; align-items: center; gap: 2px; min-height: 24px; padding: 0 6px; border-top: 1px solid var(--border-soft); background: var(--bg-elev); color: var(--text-2); font-size: 12px; }
+.status-item { display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
+.status-action { border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.status-action:hover { background: var(--hover); color: var(--text); }
+.status-action:focus-visible { outline: 1px solid var(--accent); }
+
+/* ---- toasts */
+.toasts { position: fixed; right: 16px; bottom: 36px; z-index: 65; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; pointer-events: none; }
+.toast { pointer-events: auto; display: flex; align-items: center; gap: 8px; max-width: 420px; padding: 6px 6px 6px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); color: var(--text); font-size: 13px; box-shadow: var(--shadow); animation: toast-in .15s ease-out; }
+.toast > .icon { color: var(--ok); flex: none; }
+.toast-error { border-color: color-mix(in srgb, var(--err) 45%, var(--border)); }
+.toast-error > .icon { color: var(--err); }
+.toast-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(6px); } }
 
 /* ---- output panel */
 .output { position: relative; display: flex; flex-direction: column; gap: 8px; height: 100%; min-height: 0; }
@@ -841,7 +851,7 @@ kbd {
 .svg-body { display: flex; overflow: hidden; }
 .svg-stage { flex: 1; position: relative; overflow: hidden; cursor: grab; touch-action: none; background: var(--bg-sunken); border-radius: 6px; }
 .svg-stage.svg-light { background: #fff; }
-.svg-stage img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; user-select: none; transform-origin: center; }
+.svg-stage img { position: absolute; left: 50%; top: 50%; max-width: none; user-select: none; transform-origin: center; }
 
 .archive-bar { justify-content: space-between; align-items: center; gap: 12px; }
 .archive-summary { font-size: 12px; opacity: 0.8; }

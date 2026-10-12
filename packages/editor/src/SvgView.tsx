@@ -46,15 +46,29 @@ function parseSvg(source: string): Parsed {
 const MIN_ZOOM = 0.05;
 const MAX_ZOOM = 40;
 
+/** What an image view shows, for a status bar: natural size in px (0 until loaded) and zoom (1 = 100 %). */
+export interface ImageInfo {
+  width: number;
+  height: number;
+  zoom: number;
+}
+
+/** Pointer travel (px) below which a press counts as a click, not a pan. */
+const CLICK_SLOP = 4;
+
 /**
- * An SVG drawn by an `<img>` (its scripts never run) with wheel zoom, drag to pan, a background switch and its source.
- * Without `source` it shows any image this way (PNG, JPEG, ...).
+ * An SVG drawn by an `<img>` (its scripts never run) with zoom, drag to pan, a background switch and its source.
+ * Without `source` it shows any image this way (PNG, JPEG, ...). It opens fitted to the view (never enlarged);
+ * a click toggles fit and 100 %; the wheel and +/- (0 fits) zoom while the pointer or focus is on the image.
  */
-export function SvgView({ url, source, name }: { url: string; source?: string; name: string }) {
+export function SvgView({ url, source, name, onInfo }: { url: string; source?: string; name: string; onInfo?(info: ImageInfo): void }) {
   const [view, setView] = useState({ zoom: 1, x: 0, y: 0 });
+  const [fit, setFit] = useState(true);
+  const [natural, setNatural] = useState({ w: 0, h: 0 });
+  const [box, setBox] = useState({ w: 0, h: 0 });
   const [light, setLight] = useState(true);
   const [showSource, setShowSource] = useState(false);
-  const drag = useRef<{ x: number; y: number }>();
+  const drag = useRef<{ x: number; y: number; moved: number }>();
   const stage = useRef<HTMLDivElement>(null);
   const [hidden, setHidden] = useState<Set<number>>(new Set());
   const [showLayers, setShowLayers] = useState(false);
@@ -77,22 +91,46 @@ export function SvgView({ url, source, name }: { url: string; source?: string; n
     return () => URL.revokeObjectURL(blob);
   }, [parsed, hidden, url]);
 
-  const zoomAt = (factor: number, cx: number, cy: number) =>
-    setView((v) => {
-      const zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, v.zoom * factor));
-      const k = zoom / v.zoom;
-      return { zoom, x: cx - (cx - v.x) * k, y: cy - (cy - v.y) * k };
-    });
-  const reset = () => setView({ zoom: 1, x: 0, y: 0 });
+  // An SVG without its own size takes the size of the view.
+  const size = natural.w > 0 && natural.h > 0 ? natural : box;
+  const fitZoom = size.w > 0 && box.w > 0 ? Math.min(1, box.w / size.w, box.h / size.h) : 1;
+  const shownView = fit ? { zoom: fitZoom, x: 0, y: 0 } : view;
+
+  const zoomAt = (factor: number, cx: number, cy: number) => {
+    const from = shownView;
+    const zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, from.zoom * factor));
+    const k = zoom / from.zoom;
+    setFit(false);
+    setView({ zoom, x: cx - (cx - from.x) * k, y: cy - (cy - from.y) * k });
+  };
+  const actual = () => {
+    setFit(false);
+    setView({ zoom: 1, x: 0, y: 0 });
+  };
+  const toggle = () => (fit ? actual() : setFit(true));
+
+  useEffect(() => {
+    onInfo?.({ width: natural.w, height: natural.h, zoom: shownView.zoom });
+  }, [natural.w, natural.h, shownView.zoom]);
+
+  useEffect(() => {
+    const el = stage.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => setBox({ w: el.clientWidth, h: el.clientHeight }));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [showSource]);
 
   // A native listener: React's wheel listeners are passive, so they can't stop the page from scrolling or zooming (Ctrl+wheel in a browser tab).
+  const zoomRef = useRef(zoomAt);
+  zoomRef.current = zoomAt;
   useEffect(() => {
     const el = stage.current;
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       const r = el.getBoundingClientRect();
-      zoomAt(e.deltaY < 0 ? 1.15 : 1 / 1.15, e.clientX - r.left - r.width / 2, e.clientY - r.top - r.height / 2);
+      zoomRef.current(e.deltaY < 0 ? 1.15 : 1 / 1.15, e.clientX - r.left - r.width / 2, e.clientY - r.top - r.height / 2);
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
@@ -102,9 +140,9 @@ export function SvgView({ url, source, name }: { url: string; source?: string; n
     <div className="file-preview">
       <div className="file-preview-bar svg-bar">
         <button className="btn btn-ghost btn-sm" onClick={() => zoomAt(1 / 1.25, 0, 0)} aria-label={t('pdf.zoomOut')} title={t('pdf.zoomOut')}>−</button>
-        <span className="svg-zoom">{Math.round(view.zoom * 100)}%</span>
+        <span className="svg-zoom">{Math.round(shownView.zoom * 100)}%</span>
         <button className="btn btn-ghost btn-sm" onClick={() => zoomAt(1.25, 0, 0)} aria-label={t('pdf.zoomIn')} title={t('pdf.zoomIn')}>+</button>
-        <button className="btn btn-ghost btn-sm" onClick={reset}>{t('svg.actual')}</button>
+        <button className="btn btn-ghost btn-sm" onClick={toggle}>{fit ? '100%' : t('svg.actual')}</button>
         <button className="btn btn-ghost btn-sm" onClick={() => setLight(!light)} aria-pressed={light}>{light ? t('svg.bgLight') : t('svg.bgDark')}</button>
         {parsed && parsed.layers.length > 0 && (
           <button className="btn btn-ghost btn-sm" onClick={() => setShowLayers(!showLayers)} aria-pressed={showLayers}>
@@ -125,20 +163,46 @@ export function SvgView({ url, source, name }: { url: string; source?: string; n
           <div
             ref={stage}
             className={`svg-stage${light ? ' svg-light' : ''}`}
+            tabIndex={0}
             onPointerDown={(e) => {
-              drag.current = { x: e.clientX, y: e.clientY };
+              drag.current = { x: e.clientX, y: e.clientY, moved: 0 };
               e.currentTarget.setPointerCapture(e.pointerId);
             }}
             onPointerMove={(e) => {
               const d = drag.current;
               if (!d) return;
-              drag.current = { x: e.clientX, y: e.clientY };
-              setView((v) => ({ ...v, x: v.x + e.clientX - d.x, y: v.y + e.clientY - d.y }));
+              const dx = e.clientX - d.x;
+              const dy = e.clientY - d.y;
+              drag.current = { x: e.clientX, y: e.clientY, moved: d.moved + Math.abs(dx) + Math.abs(dy) };
+              if (drag.current.moved < CLICK_SLOP) return;
+              const from = shownView;
+              setFit(false);
+              setView({ ...from, x: from.x + dx, y: from.y + dy });
             }}
-            onPointerUp={() => (drag.current = undefined)}
-            onDoubleClick={reset}
+            onPointerUp={() => {
+              if (drag.current && drag.current.moved < CLICK_SLOP) toggle();
+              drag.current = undefined;
+            }}
+            onKeyDown={(e) => {
+              if (e.ctrlKey || e.altKey || e.metaKey) return;
+              if (e.key === '+' || e.key === '=') zoomAt(1.25, 0, 0);
+              else if (e.key === '-') zoomAt(1 / 1.25, 0, 0);
+              else if (e.key === '0') setFit(true);
+              else return;
+              e.preventDefault();
+            }}
           >
-            <img src={shown} alt={name} draggable={false} style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})` }} />
+            <img
+              src={shown}
+              alt={name}
+              draggable={false}
+              onLoad={(e) => setNatural({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
+              style={{
+                width: size.w || undefined,
+                height: size.h || undefined,
+                transform: `translate(-50%, -50%) translate(${shownView.x}px, ${shownView.y}px) scale(${shownView.zoom})`,
+              }}
+            />
           </div>
         )}
         {showLayers && !showSource && parsed && (

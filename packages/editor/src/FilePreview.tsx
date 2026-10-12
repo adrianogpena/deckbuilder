@@ -10,8 +10,10 @@ import { MarkdownView } from './MarkdownView';
 import { MediaView } from './MediaView';
 import { NotebookView } from './NotebookView';
 import { type SqliteContent, SqliteView } from './SqliteView';
+import type { ImageInfo } from './SvgView';
 import { TableView } from './TableView';
 
+export type { ImageInfo } from './SvgView';
 const SvgView = lazy(() => import('./SvgView').then((m) => ({ default: m.SvgView })));
 const PdfView = lazy(() => import('./PdfView').then((m) => ({ default: m.PdfView })));
 const FontView = lazy(() => import('./FontView').then((m) => ({ default: m.FontView })));
@@ -21,7 +23,13 @@ export type PreviewContent = { text: string; truncated?: boolean } | { binary: t
   | { bytes: Uint8Array } | { sqlite: SqliteContent; load(table: string, offset: number): Promise<SqliteContent> };
 
 /** Shows a file by its extension: rendered markdown, a JSON tree, highlighted code, a log, an image or plain text. */
-export function FilePreview({ name, content, resolveImage }: { name: string; content: PreviewContent; resolveImage?(src: string): string | null }) {
+export function FilePreview({ name, content, resolveImage, onImageInfo }: {
+  name: string;
+  content: PreviewContent;
+  resolveImage?(src: string): string | null;
+  /** An image's size and zoom, for a status bar. */
+  onImageInfo?(info: ImageInfo): void;
+}) {
   const kind = previewKind(name);
 
   if ('binary' in content) return <PanelNotice icon={<Icon name="cube" size={20} />} title={t('preview.binary')} />;
@@ -36,7 +44,7 @@ export function FilePreview({ name, content, resolveImage }: { name: string; con
   if ('url' in content) {
     if (kind === 'audio' || kind === 'video') return <MediaView url={content.url} video={kind === 'video'} />;
     if (kind !== 'svg' && kind !== 'image') return <PanelNotice icon={<Icon name="cube" size={20} />} title={t('preview.none')} message={t('preview.noneMessage')} />;
-    return <Suspense fallback={<PanelLoading />}><SvgView url={content.url} source={kind === 'svg' ? content.source : undefined} name={name} /></Suspense>;
+    return <Suspense fallback={<PanelLoading />}><SvgView url={content.url} source={kind === 'svg' ? content.source : undefined} name={name} onInfo={onImageInfo} /></Suspense>;
   }
   return (
     <div className="file-preview">

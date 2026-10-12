@@ -5,7 +5,6 @@ import {
   addTab,
   closeTab,
   type ContextMenuItem,
-  copyText,
   dialogs,
   Empty,
   errorOf,
@@ -38,6 +37,7 @@ import { api, type ExplorerSettings, type LogSettings, type Project, type Settin
 import { fullPath, nodeId } from '../explorer-paths';
 import { t } from '../i18n';
 import { ProjectPicker } from './explorer/ProjectPicker';
+import { useCopyPath } from './explorer/copy-path';
 import { TreePane } from './explorer/TreePane';
 
 // The editor and viewers are large; they load when the first file opens.
@@ -140,6 +140,7 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
   const [formError, setFormError] = useState<ApiError>();
   const [actionError, setActionError] = useState<ApiError>();
   const [focusedTree, setFocusedTree] = useState<0 | 1>(0);
+  const copyPath = useCopyPath();
 
   const persist = useDebouncedSave((s: State) =>
     onSave({
@@ -300,8 +301,8 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
     const project = route.kind === 'file' ? list.find((p) => p.id === route.project) : undefined;
     if (route.kind !== 'file' || !project) return [];
     return [
-      { id: 'copyFullPath', label: t('explorer.copyFullPath'), icon: 'copy', run: () => void copyText(fullPath(project.path, route.path)) },
-      { id: 'copyPath', label: t('explorer.copyPath'), icon: 'copy', run: () => void copyText(route.path) },
+      { id: 'copyFullPath', label: t('explorer.copyFullPath'), icon: 'copy', run: () => copyPath(fullPath(project.path, route.path)) },
+      { id: 'copyPath', label: t('explorer.copyPath'), icon: 'copy', run: () => copyPath(route.path) },
     ];
   };
 

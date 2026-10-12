@@ -1,6 +1,6 @@
 import { SplitView, t } from '@deckbuilder/ui';
 import { useDeferredValue, useMemo, useRef, useState } from 'react';
-import { CodeEditor } from './CodeEditor';
+import { CodeEditor, type SelectionInfo } from './CodeEditor';
 import { markdownLive } from './markdownLive';
 import { MarkdownView } from './MarkdownView';
 
@@ -33,10 +33,11 @@ export interface MarkdownEditorProps {
   autoFocus?: boolean;
   /** Wrap long lines in the editor; default on. */
   wrap?: boolean;
+  onSelection?(info: SelectionInfo): void;
 }
 
 /** A markdown source editor and its rendered preview side by side, with an Edit / Split / Preview switch. */
-export function MarkdownEditor({ value, onChange, mode, onModeChange, resolveImage, autoFocus, wrap = true }: MarkdownEditorProps) {
+export function MarkdownEditor({ value, onChange, mode, onModeChange, resolveImage, autoFocus, wrap = true, onSelection }: MarkdownEditorProps) {
   const deferred = useDeferredValue(value);
   const preview = useRef<HTMLDivElement>(null);
   const liveExt = useMemo(() => markdownLive(resolveImage), [resolveImage]);
@@ -55,7 +56,7 @@ export function MarkdownEditor({ value, onChange, mode, onModeChange, resolveIma
 
   const editor = (
     <CodeEditor key="editor" value={value} lang="markdown" onChange={onChange} height="100%" autoFocus={autoFocus} wrap={wrap}
-      onScroll={mode === 'split' ? syncScroll : undefined} extensions={mode === 'live' ? liveExt : undefined} />
+      onScroll={mode === 'split' ? syncScroll : undefined} extensions={mode === 'live' ? liveExt : undefined} onSelection={onSelection} />
   );
   const rendered = (
     <div key="preview" ref={preview} className="md-editor-preview">

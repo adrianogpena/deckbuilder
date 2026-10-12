@@ -30,6 +30,23 @@ export interface CodeEditorProps {
   extensions?: Extension;
   /** Wrap long lines; default off. */
   wrap?: boolean;
+  /** The cursor and selection, on load and whenever they change. */
+  onSelection?(info: SelectionInfo): void;
+}
+
+/** Where the main cursor is (1-based) and how much is selected, for a status bar. */
+export interface SelectionInfo {
+  line: number;
+  col: number;
+  /** Characters selected over all selections. */
+  selected: number;
+  selections: number;
+}
+
+export function selectionInfo(state: EditorState): SelectionInfo {
+  const { main, ranges } = state.selection;
+  const line = state.doc.lineAt(main.head);
+  return { line: line.number, col: main.head - line.from + 1, selected: ranges.reduce((n, r) => n + r.to - r.from, 0), selections: ranges.length };
 }
 
 /** Marks the transaction that loads an outside `value`, so it doesn't echo back through onChange. */
@@ -37,14 +54,14 @@ const external = Annotation.define<boolean>();
 
 /** A CodeMirror 6 editor; one view for the component's lifetime, options swapped in place. */
 export function CodeEditor({
-  value, lang, onChange, onRun, readOnly = false, placeholder, sqlDialect, sqlSchema, height, autoFocus, onScroll, extensions, wrap = false,
+  value, lang, onChange, onRun, readOnly = false, placeholder, sqlDialect, sqlSchema, height, autoFocus, onScroll, extensions, wrap = false, onSelection,
 }: CodeEditorProps) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   const compartments = useRef({ lang: new Compartment(), readOnly: new Compartment(), placeholder: new Compartment(), extra: new Compartment(), wrap: new Compartment() }).current;
   // The callbacks change every render; the view's extensions read them through this ref.
-  const handlers = useRef({ onChange, onRun, onScroll });
-  handlers.current = { onChange, onRun, onScroll };
+  const handlers = useRef({ onChange, onRun, onScroll, onSelection });
+  handlers.current = { onChange, onRun, onScroll, onSelection };
 
   useEffect(() => {
     const v = new EditorView({
@@ -83,6 +100,7 @@ export function CodeEditor({
             },
           }),
           EditorView.updateListener.of((u) => {
+            if (u.docChanged || u.selectionSet) handlers.current.onSelection?.(selectionInfo(u.state));
             if (!u.docChanged || u.transactions.some((tr) => tr.annotation(external))) return;
             handlers.current.onChange?.(u.state.doc.toString());
           }),
@@ -90,6 +108,7 @@ export function CodeEditor({
       }),
     });
     view.current = v;
+    handlers.current.onSelection?.(selectionInfo(v.state));
     if (autoFocus) v.focus();
     return () => {
       v.destroy();

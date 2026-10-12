@@ -24,6 +24,15 @@ export type Lang =
   | 'sql' | 'json' | 'shell' | 'java' | 'markdown' | 'xml' | 'text'
   | 'javascript' | 'typescript' | 'css' | 'html' | 'python' | 'yaml' | 'toml' | 'properties'
   | 'rust' | 'go' | 'c' | 'cpp' | 'csharp' | 'kotlin' | 'diff' | 'dockerfile';
+/** Display names, as VS Code's language picker shows them. */
+const LANG_LABELS: Record<Lang, string> = {
+  sql: 'SQL', json: 'JSON', shell: 'Shell Script', java: 'Java', markdown: 'Markdown', xml: 'XML', text: 'Plain Text',
+  javascript: 'JavaScript', typescript: 'TypeScript', css: 'CSS', html: 'HTML', python: 'Python', yaml: 'YAML', toml: 'TOML', properties: 'Properties',
+  rust: 'Rust', go: 'Go', c: 'C', cpp: 'C++', csharp: 'C#', kotlin: 'Kotlin', diff: 'Diff', dockerfile: 'Dockerfile',
+};
+
+export const langLabel = (lang: Lang) => LANG_LABELS[lang];
+
 export type SqlDialect = 'postgres' | 'mysql' | 'sqlite' | 'mssql' | 'plsql' | 'standard';
 /** Table name → column names, for SQL completion. */
 export type SqlSchema = Record<string, string[]>;

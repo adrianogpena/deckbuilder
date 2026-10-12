@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  type ApiError,
   ContextMenu,
   type ContextMenuItem,
-  copyText,
+  errorMessage,
   errorOf,
-  ErrorBanner,
   fileIconOf,
   folderIconOf,
   relPath,
@@ -13,10 +11,12 @@ import {
   type TreeViewHandle,
   useAsync,
   useDialogs,
+  useToast,
 } from '@deckbuilder/ui';
 import { api, type FsEntry, type Project } from '../../api';
 import { fullPath, nodeId } from '../../explorer-paths';
 import { t } from '../../i18n';
+import { useCopyPath } from './copy-path';
 
 interface Node {
   project: string;
@@ -46,7 +46,8 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
   const tree = useRef<TreeViewHandle<Node>>(null);
   const clipboard = useRef<{ mode: 'copy' | 'cut'; paths: string[] }>();
   const { confirm, prompt, element } = useDialogs();
-  const [error, setError] = useState<ApiError>();
+  const toast = useToast();
+  const copyPath = useCopyPath();
   const [menu, setMenu] = useState<{ at: { x: number; y: number }; node: Node; selection: Node[] }>();
   const editors = useAsync(() => api.editors(), []);
 
@@ -55,11 +56,10 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
   const roots = useMemo<Node[]>(() => [{ project: project.id, path: '', name: project.name, kind: 'dir' }], [project.id, project.name]);
 
   const run = async (job: () => Promise<void>) => {
-    setError(undefined);
     try {
       await job();
     } catch (err) {
-      setError(errorOf(err));
+      toast({ message: errorMessage(errorOf(err)), kind: 'error' });
     }
   };
 
@@ -234,8 +234,8 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
             item('delete', t('explorer.delete'), () => void remove(node), { icon: 'trash', hint: 'Del', danger: true }),
             'sep' as const,
           ]),
-      item('copyFullPath', t('explorer.copyFullPath'), () => void copyText(fullPath(project.path, node.path)), { icon: 'copy', disabled: false }),
-      ...(isRoot(node) ? [] : [item('copyPath', t('explorer.copyPath'), () => void copyText(node.path), { icon: 'copy', disabled: false })]),
+      item('copyFullPath', t('explorer.copyFullPath'), () => copyPath(fullPath(project.path, node.path)), { icon: 'copy', disabled: false }),
+      ...(isRoot(node) ? [] : [item('copyPath', t('explorer.copyPath'), () => copyPath(node.path), { icon: 'copy', disabled: false })]),
       'sep' as const,
       ...(isDir(node) ? [item('openTerminal', t('explorer.openTerminal'), () => onOpenTerminal(project.id, node.path), { icon: 'terminal', disabled })] : []),
       item('reveal', t('explorer.reveal'), call(() => api.fsReveal(project.id, node.path))),
@@ -252,11 +252,6 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
   return (
     <section className="xp-project">
       {element}
-      {error && (
-        <div className="xp-error">
-          <ErrorBanner error={error} compact />
-        </div>
-      )}
       <TreeView
         ref={tree}
         roots={roots}

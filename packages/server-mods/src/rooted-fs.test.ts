@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from 'bun:test';
 import { symlinkSync } from 'node:fs';
-import { mkdir, mkdtemp, readFile, realpath, rm, utimes, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readFile, realpath, rm, stat, utimes, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PlatformError } from '@deckbuilder/platform';
@@ -135,6 +135,20 @@ test('write checks the mtime, creates new files and needs the parent', async () 
   expect(await readFile(join(root, 'a', 'new.txt'), 'utf8')).toBe('n');
   expect(await fail('POST /api/fs/write', { root: 'r', path: 'missing/x.txt', text: 'x' })).toMatchObject({ code: 'fileNotFound' });
   expect(await fail('POST /api/fs/write', { root: 'r', path: 'a', text: 'x' })).toMatchObject({ code: 'notAFile' });
+});
+
+test('read marks read-only files; write refuses them unless asked to unlock', async () => {
+  const { root, call, fail } = await setup();
+  const file = join(root, 'top.txt');
+  expect(await call('GET /api/fs/read', 'root=r&path=top.txt')).not.toHaveProperty('readOnly');
+  expect(await call('GET /api/fs/read', 'root=ro&path=top.txt')).toMatchObject({ readOnly: true });
+  await chmod(file, 0o444);
+  expect(await call('GET /api/fs/read', 'root=r&path=top.txt')).toMatchObject({ readOnly: true });
+  expect(await fail('POST /api/fs/write', { root: 'r', path: 'top.txt', text: 'x' })).toMatchObject({ code: 'fileReadOnly' });
+  expect(await readFile(file, 'utf8')).toBe('top');
+  await call('POST /api/fs/write', { root: 'r', path: 'top.txt', text: 'x', unlock: true });
+  expect(await readFile(file, 'utf8')).toBe('x');
+  expect((await stat(file)).mode & 0o200).not.toBe(0);
 });
 
 test('copy', async () => {

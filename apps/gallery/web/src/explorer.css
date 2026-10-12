@@ -17,7 +17,6 @@
 .xp-head { display: flex; align-items: center; gap: 6px; padding: 8px 8px 4px; }
 .xp-search { flex: 1; min-width: 0; }
 .xp-search input { width: 100%; }
-.xp-error { padding: 4px 8px; }
 .xp-results { display: flex; flex-direction: column; padding: 4px; }
 .xp-status { display: flex; align-items: center; gap: 6px; padding: 4px 8px; font-size: 12px; }
 .xp-hit {
@@ -35,6 +34,7 @@
 .xp-path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--text-3); }
 .xp-body { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .xp-body > .code-editor { height: 100%; }
+.xp-file > .status-bar { margin: 0 -14px -14px; }
 
 .wb-pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; height: 100%; overflow: hidden; }
 .wb-test { margin-top: 10px; align-items: center; }

@@ -1,5 +1,5 @@
 import type { Dirent } from 'node:fs';
-import { cp, lstat, mkdir, readdir, realpath, stat, writeFile } from 'node:fs/promises';
+import { chmod, cp, lstat, mkdir, readdir, realpath, stat, writeFile } from 'node:fs/promises';
 import { basename, dirname, extname, isAbsolute, join, sep } from 'node:path';
 import { moveToTrash, renameWithRetry, type SaveDialogOptions, saveFileAs, writeFileAtomic } from '@deckbuilder/platform';
 import { AppError, forbidden, type Handler, invalid, ndjson, notFound, type Routes, type TailChunk } from '@deckbuilder/server-core';
@@ -130,6 +130,9 @@ async function realOf(realRoot: string, segments: string[], mustExist: boolean):
   }
   return join(realRoot, ...segments);
 }
+
+/** The owner may write the file; on Windows false means the read-only attribute is set. */
+const ownerWritable = (mode: number) => (mode & 0o200) !== 0;
 
 /** Node fs errors as the AppErrors the UI translates; anything else unchanged. */
 function fsError(err: unknown): unknown {
@@ -374,7 +377,8 @@ export function rootedFs(opts: RootedFsOptions): RootedFs {
       if (!encodingByBom(bytes) && isBinary(bytes)) return { binary: true, size: st.size, mtime };
       const truncated = st.size > maxReadBytes;
       const encoding = detectEncoding(bytes, truncated);
-      return { text: decodeText(bytes, encoding), encoding, size: st.size, mtime, truncated };
+      const text = { text: decodeText(bytes, encoding), encoding, size: st.size, mtime, truncated };
+      return loc.root.readOnly || !ownerWritable(st.mode) ? { ...text, readOnly: true } : text;
     },
 
     'GET /api/fs/tail': async ({ query }) => {
@@ -521,6 +525,11 @@ export function rootedFs(opts: RootedFsOptions): RootedFs {
         throw invalid('fileChanged', 'The file was changed on disk since it was opened.');
       }
       if (!st && !(await stat(dirname(loc.real)).then((p) => p.isDirectory(), () => false))) throw fileNotFound();
+      // Like VS Code's unlock: a read-only file is only written when the caller asks to clear the flag.
+      if (st && !ownerWritable(st.mode)) {
+        if (b.unlock !== true) throw forbidden('fileReadOnly', 'The file is read-only.');
+        await chmod(loc.real, st.mode | 0o200).catch((err) => { throw fsError(err); });
+      }
       await writeFileAtomic(loc.real, bytes);
       return described(loc.real, basename(loc.abs), loc.realRoot);
     },

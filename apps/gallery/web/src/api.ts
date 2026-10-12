@@ -146,7 +146,7 @@ export interface FsEntry {
 export type TextEncoding = 'utf8' | 'utf8bom' | 'utf16le' | 'utf16be' | 'windows1252';
 
 export type FsRead =
-  | { text: string; encoding: TextEncoding; size: number; mtime: number; truncated: boolean }
+  | { text: string; encoding: TextEncoding; size: number; mtime: number; truncated: boolean; readOnly?: true }
   | { binary: true; size: number; mtime: number };
 
 export interface SearchHit {
@@ -194,8 +194,9 @@ export const api = {
     request<TailChunk>('GET', '/api/fs/tail', { root, path, from, max }),
   fsSaveRange: (root: string, path: string, from: number) =>
     request<{ path: string | null; bytes?: number }>('POST', '/api/fs/save-range', {}, { root, path, from }),
-  fsWrite: (root: string, path: string, text: string, expectedMtime: number, encoding?: TextEncoding) =>
-    request<FsEntry>('POST', '/api/fs/write', {}, { root, path, text, expectedMtime, encoding }),
+  /** Without `expectedMtime` it overwrites a file changed on disk; `unlock` clears its read-only flag first. */
+  fsWrite: (root: string, path: string, text: string, expectedMtime: number | undefined, encoding?: TextEncoding, unlock?: boolean) =>
+    request<FsEntry>('POST', '/api/fs/write', {}, { root, path, text, expectedMtime, encoding, unlock }),
   fsRename: (root: string, path: string, name: string) => request<FsEntry>('POST', '/api/fs/rename', {}, { root, path, name }),
   fsMove: (root: string, from: string, to: string) => request<FsEntry>('POST', '/api/fs/move', {}, { root, from, to }),
   fsCopy: (root: string, from: string, to: string) => request<FsEntry>('POST', '/api/fs/copy', {}, { root, from, to }),

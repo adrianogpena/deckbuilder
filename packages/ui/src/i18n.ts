@@ -327,6 +327,7 @@ const baseEn = {
   'error.rangeStale': 'The file is shorter than the bookmark; it was rotated or cleared.',
   'error.rangeTooLarge': 'The range is too large.',
   'error.accessDenied': 'Access denied, or the file is in use.',
+  'error.fileReadOnly': 'The file is read-only.',
 };
 
 export type BaseKey = keyof typeof baseEn;
@@ -659,6 +660,7 @@ const basePtBR: Messages<typeof baseEn> = {
   'error.rangeStale': 'O arquivo é menor que o marcador; foi rotacionado ou limpo.',
   'error.rangeTooLarge': 'O intervalo é grande demais.',
   'error.accessDenied': 'Acesso negado, ou o arquivo está em uso.',
+  'error.fileReadOnly': 'O arquivo é somente leitura.',
 };
 
 export const LANGUAGES = [
