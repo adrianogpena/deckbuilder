@@ -24,7 +24,7 @@ import { type FileSettings, validFileSettings } from '@deckbuilder/ui/file-setti
 import { type LogSettings, validLogSettings } from '@deckbuilder/ui/log';
 import { APP } from '../app.ts';
 import pkg from '../package.json';
-import { dbConnections, projects, requests, resolveCwd, routes } from './routes.ts';
+import { dbConnections, openRoutes, projects, requests, resolveCwd, routes } from './routes.ts';
 
 export interface Settings extends BaseSettings {
   /** Start at Windows login (exe only). */
@@ -268,6 +268,7 @@ await runApp({
     ...terminal.routes,
   }),
   sockets: terminal.sockets,
+  unauthenticated: openRoutes,
   onQuit: () => sessions.closeAll(),
   webDir: join(import.meta.dir, '../dist/web'),
   transformIndex: themeHead(settings),

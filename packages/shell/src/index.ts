@@ -53,6 +53,8 @@ export interface RunOptions {
   routes: Routes | ((ctx: StartContext) => Routes);
   /** WebSocket routes (see `startServer`); as a function it gets the start context, like `routes`. */
   sockets?: SocketRoutes | ((ctx: StartContext) => SocketRoutes);
+  /** Routes outside the session token check (see `startServer`); as a function it gets the start context, like `routes`. */
+  unauthenticated?: Routes | ((ctx: StartContext) => Routes);
   /** Awaited first on every exit path (window close, tray Quit, `/api/quit`, idle, signals); errors are logged and ignored. */
   onQuit?: () => void | Promise<void>;
   /** Built UI folder, served when running from source; the exe serves its embedded copy instead. */
@@ -230,13 +232,14 @@ export async function runApp(opts: RunOptions): Promise<void> {
   };
 
   const sockets = typeof opts.sockets === 'function' ? opts.sockets(ctx) : opts.sockets;
+  const unauthenticated: Routes = { ...instance?.routes, ...(typeof opts.unauthenticated === 'function' ? opts.unauthenticated(ctx) : opts.unauthenticated) };
 
   let server: ReturnType<typeof startServer> | undefined;
   try {
     server = startServer({
       routes,
       sockets,
-      unauthenticated: instance?.routes,
+      unauthenticated,
       token,
       codes,
       devOrigins: dev ? [`http://localhost:${VITE_PORT}`, `http://127.0.0.1:${VITE_PORT}`] : undefined,

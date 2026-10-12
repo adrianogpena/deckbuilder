@@ -69,6 +69,16 @@ export interface TreeViewProps<N> {
   draggable?: boolean;
   /** Rows dragged (the whole selection when one of its rows is dragged) onto a row with children, never onto themselves or their descendants; `copy` when Ctrl was held. */
   onDrop?: (dragged: N[], target: N, copy: boolean) => void;
+  /**
+   * Files or folders dragged in from the OS onto a folder row (a file row means its folder, empty space the first root).
+   * Read `data.items` before the first await: the browser empties it after the event.
+   */
+  onDropFiles?: (data: DataTransfer, target: N) => void;
+  /**
+   * Dragging a single row out to the OS (Chromium's `DownloadURL`): `prepare` runs on pointer down, so an async link can be
+   * ready when the drag starts; `link` returns it then, or undefined for a row that can't leave the app.
+   */
+  dragOut?: { prepare: (node: N) => void; link: (node: N) => { name: string; url: string } | undefined };
 }
 
 export interface TreeViewHandle<N = unknown> {
@@ -169,7 +179,7 @@ function NewEntryInput({ kind, depth, onSubmit, onCancel }: { kind: 'file' | 'di
 }
 
 function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) {
-  const { roots, idOf, labelOf, iconOf, iconToneOf, hasChildren, expanded, onExpandedChange, onOpen, onPreview, onOpenToSide, onContextMenu, onRename, onDelete, onCopy, onCut, onPaste, onUndo, newEntry, draggable, onDrop } = props;
+  const { roots, idOf, labelOf, iconOf, iconToneOf, hasChildren, expanded, onExpandedChange, onOpen, onPreview, onOpenToSide, onContextMenu, onRename, onDelete, onCopy, onCut, onPaste, onUndo, newEntry, draggable, onDrop, onDropFiles, dragOut } = props;
   const cache = useRef(new Map<string, Entry<N>>());
   const generations = useRef(new Map<string, number>());
   const [, bump] = useReducer((x: number) => x + 1, 0);
@@ -400,6 +410,10 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
     if (name && name !== labelOf(row.node)) latest.current.onRename?.(row.node, name);
   };
 
+  const isFileDrag = (e: { dataTransfer: DataTransfer }) => !!onDropFiles && e.dataTransfer.types.includes('Files');
+  // The folder an OS drop on `row` lands in: the row itself when it is a folder, else the folder holding it.
+  const fileTargetOf = (row: TreeRow<N>) => (hasChildren(row.node) ? row : rows.find((r) => r.id === row.parentId));
+
   const canDrop = (row: TreeRow<N>) => {
     const d = dragged.current;
     return !!d && !!onDrop && hasChildren(row.node) && !d.some((x) => isInside(rows, row.id, x.id));
@@ -441,7 +455,34 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
   };
 
   return (
-    <div className="tree" role="tree" aria-multiselectable="true" onKeyDown={onKeyDown} onDragOver={draggable ? autoScroll : undefined}>
+    <div
+      className="tree"
+      role="tree"
+      aria-multiselectable="true"
+      onKeyDown={onKeyDown}
+      onDragOver={
+        draggable || onDropFiles
+          ? (e) => {
+              autoScroll(e);
+              if (e.defaultPrevented || !isFileDrag(e) || !rows.length) return;
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'copy';
+              if (dropTarget !== rows[0]!.id) setDropTarget(rows[0]!.id);
+            }
+          : undefined
+      }
+      onDragLeave={onDropFiles ? (e) => !e.currentTarget.contains(e.relatedTarget as Node | null) && setDropTarget(null) : undefined}
+      onDrop={
+        onDropFiles
+          ? (e) => {
+              if (e.defaultPrevented || !isFileDrag(e) || !rows.length) return;
+              e.preventDefault();
+              setDropTarget(null);
+              onDropFiles(e.dataTransfer, rows[0]!.node);
+            }
+          : undefined
+      }
+    >
       {rows.map((row) => {
         const { node, id, depth } = row;
         const expandable = hasChildren(node);
@@ -480,10 +521,13 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
                   onContextMenu(node, e);
                 })
               }
+              onPointerDown={dragOut && draggable ? () => dragOut.prepare(node) : undefined}
               onDragStart={(e) => {
                 e.dataTransfer.setData(TREE_DRAG_TYPE, id);
                 e.dataTransfer.effectAllowed = 'copyMove';
                 dragged.current = isPicked(id) ? pickedRows() : [{ id, node }];
+                const out = dragged.current.length === 1 ? dragOut?.link(node) : undefined;
+                if (out) e.dataTransfer.setData('DownloadURL', `application/octet-stream:${out.name}:${out.url}`);
               }}
               onDragEnd={() => {
                 clearHover();
@@ -491,6 +535,14 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
                 setDropTarget(null);
               }}
               onDragOver={(e) => {
+                if (isFileDrag(e)) {
+                  const target = fileTargetOf(row);
+                  if (!target) return;
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'copy';
+                  if (dropTarget !== target.id) setDropTarget(target.id);
+                  return target === row ? dragOverFolder(row) : clearHover();
+                }
                 if (!e.dataTransfer.types.includes(TREE_DRAG_TYPE) || !canDrop(row)) return;
                 e.preventDefault();
                 e.dataTransfer.dropEffect = e.ctrlKey ? 'copy' : 'move';
@@ -502,6 +554,15 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
                 if (dropTarget === id) setDropTarget(null);
               }}
               onDrop={(e) => {
+                if (isFileDrag(e)) {
+                  const target = fileTargetOf(row);
+                  clearHover();
+                  setDropTarget(null);
+                  if (!target) return;
+                  e.preventDefault();
+                  onDropFiles!(e.dataTransfer, target.node);
+                  return;
+                }
                 const d = dragged.current;
                 clearHover();
                 setDropTarget(null);

@@ -91,6 +91,20 @@ export async function requestBlob(path: string, params: QueryParams = {}): Promi
   return res.blob();
 }
 
+/** POSTs `body` (a file's bytes) as the request body with the session token header; throws RequestError like `request`. */
+export async function requestUpload<T>(path: string, params: QueryParams, body: Blob): Promise<T> {
+  const token = await session;
+  let res: Response;
+  try {
+    res = await fetch(path + qs(params), { method: 'POST', headers: { [TOKEN_HEADER]: token, 'Content-Type': 'application/octet-stream' }, body });
+  } catch {
+    throw offline();
+  }
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new RequestError(data ?? { kind: 'internal', code: 'http', params: { status: res.status }, message: `HTTP error ${res.status}` });
+  return data as T;
+}
+
 export interface DialogFilter {
   name: string;
   /** Globs such as `*.md`. */

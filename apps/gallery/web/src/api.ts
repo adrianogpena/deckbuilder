@@ -5,7 +5,7 @@ import type { BackupInspect, EditorInfo, HttpRequestSpec, HttpResponseInfo, Impo
 
 export type { EditorInfo, ImportResult, TailChunk };
 import type { SessionInfo } from '@deckbuilder/terminal';
-import { type FileAssociation, type FileSettings, type Keymap, type Language, type LogSettings, request } from '@deckbuilder/ui';
+import { type FileAssociation, type FileSettings, type Keymap, type Language, type LogSettings, request, requestUpload } from '@deckbuilder/ui';
 
 export interface Settings extends ThemeSettings {
   language?: Language;
@@ -200,6 +200,11 @@ export const api = {
   fsRename: (root: string, path: string, name: string) => request<FsEntry>('POST', '/api/fs/rename', {}, { root, path, name }),
   fsMove: (root: string, from: string, to: string, onExisting?: 'replace' | 'keepBoth') => request<FsEntry>('POST', '/api/fs/move', {}, { root, from, to, onExisting }),
   fsCopy: (root: string, from: string, to: string) => request<FsEntry>('POST', '/api/fs/copy', {}, { root, from, to }),
+  /** `path` is the file; missing folders above it are made. Without `onExisting` an existing file gives `exists`. */
+  fsUpload: (root: string, path: string, body: Blob, onExisting?: 'replace' | 'keepBoth') =>
+    requestUpload<FsEntry>('/api/fs/upload', { root, path, onExisting }, body),
+  /** A one-time link for `GET /api/fs/download`, for dragging a file out to the OS. */
+  fsDownloadTicket: (root: string, path: string) => request<{ ticket: string; name: string }>('POST', '/api/fs/download-ticket', {}, { root, path }),
   fsDelete: (root: string, paths: string[]) => request<{ ok: true }>('POST', '/api/fs/delete', {}, { root, paths }),
   fsReveal: (root: string, path: string) => request<{ ok: true }>('POST', '/api/fs/reveal', {}, { root, path }),
   fsOpen: (root: string, path: string) => request<{ ok: true }>('POST', '/api/fs/open', {}, { root, path }),

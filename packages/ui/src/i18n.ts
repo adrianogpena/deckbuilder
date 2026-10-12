@@ -345,6 +345,7 @@ const baseEn = {
   'error.notText': 'This file is not a text file.',
   'error.rangeStale': 'The file is shorter than the bookmark; it was rotated or cleared.',
   'error.rangeTooLarge': 'The range is too large.',
+  'error.uploadTooLarge': 'The file is too large to add (200 MB at most).',
   'error.accessDenied': 'Access denied, or the file is in use.',
   'error.fileReadOnly': 'The file is read-only.',
 };
@@ -697,6 +698,7 @@ const basePtBR: Messages<typeof baseEn> = {
   'error.notText': 'Este arquivo não é um arquivo de texto.',
   'error.rangeStale': 'O arquivo é menor que o marcador; foi rotacionado ou limpo.',
   'error.rangeTooLarge': 'O intervalo é grande demais.',
+  'error.uploadTooLarge': 'O arquivo é grande demais para adicionar (no máximo 200 MB).',
   'error.accessDenied': 'Acesso negado, ou o arquivo está em uso.',
   'error.fileReadOnly': 'O arquivo é somente leitura.',
 };

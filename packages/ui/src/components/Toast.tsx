@@ -8,10 +8,14 @@ export interface ToastOptions {
   action?: { label: string; run: () => void };
   /** Ms until it closes; default 4 s for info, 10 s for errors; 0 keeps it until closed. */
   timeout?: number;
+  /** A toast with the same key replaces the one on screen, in place; for progress that updates. */
+  key?: string;
 }
 
 interface Entry extends ToastOptions {
   id: number;
+  /** The React key; a replacement keeps the replaced toast's, so it updates without a new entrance. */
+  view: number;
 }
 
 /** Most toasts shown at once; a new one drops the oldest. */
@@ -27,7 +31,16 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Entry[]>([]);
   const [paused, setPaused] = useState(false);
 
-  const show = useCallback<Show>((opts) => setToasts((list) => [...list, { ...opts, id: ++toastIds }].slice(-MAX_TOASTS)), []);
+  const show = useCallback<Show>(
+    (opts) =>
+      setToasts((list) => {
+        const id = ++toastIds;
+        const at = opts.key === undefined ? -1 : list.findIndex((e) => e.key === opts.key);
+        if (at >= 0) return list.map((e, i) => (i === at ? { ...opts, id, view: e.view } : e));
+        return [...list, { ...opts, id, view: id }].slice(-MAX_TOASTS);
+      }),
+    [],
+  );
   const close = useCallback((id: number) => setToasts((list) => list.filter((e) => e.id !== id)), []);
 
   // Escape closes the newest toast, unless something else (a dialog, the editor) used the key.
@@ -46,7 +59,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={show}>
       {children}
       <div className="toasts" aria-live="polite" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
-        {toasts.map((entry) => <Toast key={entry.id} entry={entry} paused={paused} onClose={() => close(entry.id)} />)}
+        {toasts.map((entry) => <Toast key={entry.view} entry={entry} paused={paused} onClose={() => close(entry.id)} />)}
       </div>
     </ToastContext.Provider>
   );
@@ -65,6 +78,10 @@ function Toast({ entry, paused, onClose }: { entry: Entry; paused: boolean; onCl
   closeRef.current = onClose;
 
   useEffect(() => {
+    left.current = timeout;
+  }, [entry.id, timeout]);
+
+  useEffect(() => {
     if (paused || timeout <= 0) return;
     const start = Date.now();
     const timer = window.setTimeout(() => closeRef.current(), left.current);
@@ -72,7 +89,7 @@ function Toast({ entry, paused, onClose }: { entry: Entry; paused: boolean; onCl
       window.clearTimeout(timer);
       left.current -= Date.now() - start;
     };
-  }, [paused, timeout]);
+  }, [paused, timeout, entry.id]);
 
   return (
     <div className={`toast${error ? ' toast-error' : ''}`} role={error ? 'alert' : 'status'}>

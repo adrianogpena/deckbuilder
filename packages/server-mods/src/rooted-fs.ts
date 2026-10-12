@@ -2,7 +2,7 @@ import type { Dirent } from 'node:fs';
 import { chmod, cp, lstat, mkdir, readdir, realpath, stat, writeFile } from 'node:fs/promises';
 import { basename, dirname, extname, isAbsolute, join, sep } from 'node:path';
 import { moveToTrash, renameWithRetry, type SaveDialogOptions, saveFileAs, writeFileAtomic } from '@deckbuilder/platform';
-import { AppError, forbidden, type Handler, invalid, ndjson, notFound, type Routes, type TailChunk } from '@deckbuilder/server-core';
+import { AppError, forbidden, type Handler, invalid, ndjson, notFound, type Routes, socketTickets, type TailChunk } from '@deckbuilder/server-core';
 
 export type { TailChunk };
 import { listArchive } from './archive.ts';
@@ -65,6 +65,8 @@ export interface SearchHit {
 
 export interface RootedFs {
   routes: Routes;
+  /** Routes outside the session token check (`unauthenticated` of the server): `GET /api/fs/download` takes the one-time ticket from `POST /api/fs/download-ticket`. */
+  openRoutes: Routes;
   resolve(rootId: string, rel: string, opts?: { mustExist?: boolean }): Promise<Resolved>;
 }
 
@@ -184,6 +186,7 @@ const MAX_RAW_BYTES = 50_000_000;
 const MAX_TAIL_BYTES = 20_000_000;
 const DEFAULT_TAIL_BYTES = 1_000_000;
 const MAX_SAVE_RANGE_BYTES = 200_000_000;
+const MAX_UPLOAD_BYTES = 200_000_000;
 const MAX_SEARCH_HITS = 5000;
 const MAX_CONTENT_BYTES = 1_000_000;
 const MAX_HITS_PER_FILE = 20;
@@ -287,12 +290,15 @@ async function contentHits(file: string, q: string): Promise<Array<{ line: numbe
  * relative path; `resolve` turns them into a real path inside that root or refuses.
  *
  * GET `/api/fs/list|stat|read|raw|archive|search` take `root` and `path` in the query; POST
- * `/api/fs/create|write|rename|move|delete` take them in the JSON body.
+ * `/api/fs/create|write|rename|move|delete` take them in the JSON body. POST `/api/fs/upload` takes them
+ * in the query and the file's bytes as the body.
  */
 export function rootedFs(opts: RootedFsOptions): RootedFs {
   const maxReadBytes = opts.maxReadBytes ?? 5_000_000;
   const trash = opts.trash ?? moveToTrash;
   const saveAs = opts.saveAs ?? saveFileAs;
+  // The OS fetches a dragged-out file with no headers, so the URL carries a ticket instead of the session token.
+  const downloads = socketTickets<{ file: string; name: string }>({ ttlMs: 60_000 });
 
   async function locate(rootId: unknown, rel: unknown, mustExist = false) {
     const root = typeof rootId === 'string' ? (await opts.roots()).find((r) => r.id === rootId) : undefined;
@@ -519,6 +525,46 @@ export function rootedFs(opts: RootedFsOptions): RootedFs {
       return described(loc.real, basename(loc.abs), loc.realRoot);
     },
 
+    // The body is the file's bytes. `path` is the file itself; missing folders above it are created.
+    'POST /api/fs/upload': async ({ req, query }) => {
+      const { root, path } = fromQuery(query);
+      const loc = await locate(root, path);
+      writable(loc.root);
+      if (!loc.segments.length) throw badPath();
+      const onExisting = query.get('onExisting');
+      if (onExisting !== null && onExisting !== 'replace' && onExisting !== 'keepBoth') throw badRequest();
+      const tooLarge = () => invalid('uploadTooLarge', 'The file is too large (200 MB at most).');
+      if (Number(req.headers.get('content-length') ?? 0) > MAX_UPLOAD_BYTES) throw tooLarge();
+      let to = await entryPath(loc);
+      const old = await lstat(to).catch(() => null);
+      if (old) {
+        if (onExisting === null) throw exists();
+        if (onExisting === 'keepBoth') to = await freeName(to, false);
+        else if (old.isDirectory()) throw notAFile();
+        else await trash([to]).catch(fromPlatform);
+      }
+      let received = 0;
+      const capped = (req.body ?? new Blob([]).stream()).pipeThrough(
+        new TransformStream<Uint8Array, Uint8Array>({
+          transform(chunk, controller) {
+            received += chunk.byteLength;
+            if (received > MAX_UPLOAD_BYTES) throw tooLarge();
+            controller.enqueue(chunk);
+          },
+        }),
+      );
+      await writeFileAtomic(to, capped);
+      return described(to, basename(to), loc.realRoot);
+    },
+
+    'POST /api/fs/download-ticket': async ({ json }) => {
+      const b = await body(json);
+      const loc = await locate(b.root, b.path, true);
+      if (!loc.segments.length || (await stat(loc.real)).isDirectory()) throw notAFile();
+      const name = basename(loc.abs);
+      return { ticket: downloads.issue({ file: loc.real, name }), name };
+    },
+
     'POST /api/fs/write': async ({ json }) => {
       const b = await body(json);
       const loc = await locate(b.root, b.path);
@@ -630,8 +676,27 @@ export function rootedFs(opts: RootedFsOptions): RootedFs {
       }
     };
 
+  const openRoutes: Routes = {
+    'GET /api/fs/download': guard(async ({ query }) => {
+      const found = downloads.redeem(query.get('t') ?? '');
+      if (!found) throw forbidden('invalidTicket', 'Invalid or expired download link.');
+      await stat(found.file).catch((err) => {
+        throw fsError(err);
+      });
+      return new Response(Bun.file(found.file), {
+        headers: {
+          'Content-Type': 'application/octet-stream',
+          'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(found.name)}`,
+          'X-Content-Type-Options': 'nosniff',
+          'Cache-Control': 'no-store',
+        },
+      });
+    }),
+  };
+
   return {
     routes: Object.fromEntries(Object.entries(routes).map(([key, handler]) => [key, guard(handler)])),
+    openRoutes,
     resolve: async (rootId, rel, o = {}) => {
       const { root, abs, real } = await locate(rootId, rel, o.mustExist);
       return { root, abs, real };

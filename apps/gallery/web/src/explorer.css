@@ -16,6 +16,10 @@
 .xp-pane { display: flex; flex-direction: column; height: 100%; min-height: 0; }
 .xp-pane-body { flex: 1; min-height: 0; overflow: auto; }
 .xp-project { display: flex; flex-direction: column; border-top: 1px solid var(--border-soft); }
+/* The tree fills the pane, so a file dropped below the last row still lands in the project. */
+.xp-tree-wrap:not([hidden]) { display: flex; flex-direction: column; min-height: 100%; }
+.xp-project { flex: 1; }
+.xp-project > .tree { flex: 1; }
 .xp-head { display: flex; align-items: center; gap: 6px; padding: 8px 8px 4px; }
 .xp-search { flex: 1; min-width: 0; }
 .xp-search input { width: 100%; }

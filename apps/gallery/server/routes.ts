@@ -39,6 +39,9 @@ export const projects = recordStore<{ name: string; path: string }>({
 });
 const fs = rootedFs({ multiDelete: MULTI_DELETE_ENABLED, roots: async () => (await projects.list()).map((p) => ({ id: p.id, path: p.path })) });
 
+/** The file download behind dragging a file out of the tree; its link carries a one-time ticket, not the session token. */
+export const openRoutes = fs.openRoutes;
+
 /** A project folder as a terminal's working directory: `path` inside project `root`, a directory. */
 export async function resolveCwd(root: string, path: string): Promise<string> {
   const { real } = await fs.resolve(root, path, { mustExist: true });

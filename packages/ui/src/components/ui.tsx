@@ -201,6 +201,8 @@ export interface ChoiceOptions {
   body?: ReactNode;
   /** Buttons after Cancel, in order; the first one has the focus. */
   choices: Array<{ id: string; label: string; danger?: boolean }>;
+  /** A checkbox under the body; `onChange` gets its state each time it is toggled. */
+  checkbox?: { label: string; onChange: (checked: boolean) => void };
 }
 
 type DialogRequest =
@@ -228,6 +230,7 @@ function ConfirmDialog({ opts, onDone }: { opts: ConfirmOptions; onDone: (ok: bo
 }
 
 function ChoiceDialog({ opts, onDone }: { opts: ChoiceOptions; onDone: (id: string | null) => void }) {
+  const [checked, setChecked] = useState(false);
   return (
     <Modal
       title={opts.title}
@@ -244,6 +247,19 @@ function ChoiceDialog({ opts, onDone }: { opts: ChoiceOptions; onDone: (id: stri
       }
     >
       {typeof opts.body === 'string' ? <p>{opts.body}</p> : opts.body}
+      {opts.checkbox && (
+        <label className="row">
+          <input
+            type="checkbox"
+            checked={checked}
+            onChange={(e) => {
+              setChecked(e.target.checked);
+              opts.checkbox!.onChange(e.target.checked);
+            }}
+          />
+          <span>{opts.checkbox.label}</span>
+        </label>
+      )}
     </Modal>
   );
 }

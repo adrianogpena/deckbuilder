@@ -19,6 +19,7 @@ import { fullPath, nodeId } from '../../explorer-paths';
 import { t } from '../../i18n';
 import { useCopyPath } from './copy-path';
 import type { FileUndo, UndoOp } from './file-undo';
+import { entriesOf, freeName, walkEntry } from './os-drop';
 
 interface Node {
   project: string;
@@ -58,6 +59,8 @@ const DID: Record<UndoOp['kind'], 'explorer.did.create' | 'explorer.did.rename' 
   copy: 'explorer.did.copy',
 };
 const MAX_LISTED = 10;
+const UPLOAD_PARALLEL = 3;
+const LINK_FRESH_MS = 50_000;
 
 /** What the sidebar header and the commands can ask of a tree. */
 export interface ProjectTreeApi {
@@ -81,6 +84,7 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
   const editors = useAsync(() => api.editors(), []);
 
   const folderFiles = useRef(new Map<string, string[]>());
+  const outLink = useRef<{ id: string; url: string; name: string; at: number }>();
 
   const roots = useMemo<Node[]>(() => [{ project: project.id, path: '', name: project.name, kind: 'dir' }], [project.id, project.name]);
 
@@ -158,9 +162,9 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
     }
   };
 
-  const record = (op: UndoOp, name: string) => {
+  const record = (op: UndoOp, name: string, key?: string) => {
     undo.push(op);
-    toast({ message: t(DID[op.kind], { name }), action: { label: t('explorer.undo'), run: () => void undoOp(op) } });
+    toast({ key, message: t(DID[op.kind], { name }), action: { label: t('explorer.undo'), run: () => void undoOp(op) } });
   };
   const labelOf = (paths: string[]) => (paths.length === 1 ? relPath.basename(paths[0]!) : t('explorer.items', { count: paths.length }));
 
@@ -346,6 +350,103 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
       clipboard.current = undefined;
     });
 
+  /**
+   * Files and folders dragged in from the OS. A top-level name that is taken asks Skip / Keep both / Replace
+   * (once for all with the checkbox); what is inside a dropped folder is not compared. Up to UPLOAD_PARALLEL files go at once.
+   */
+  const dropFiles = (data: DataTransfer, target: Node) => {
+    const entries = entriesOf(data);
+    if (target.outside || !entries.length) return;
+    void run(async () => {
+      const dir = target.path;
+      const fold = /Windows|Mac/.test(navigator.userAgent) ? (n: string) => n.toLowerCase() : (n: string) => n;
+      const taken = new Set((await api.fsList(project.id, dir)).map((e) => fold(e.name)));
+      let all: 'skip' | 'keepBoth' | 'replace' | undefined;
+      const jobs: Array<{ name: string; tree: Awaited<ReturnType<typeof walkEntry>>; isDir: boolean }> = [];
+      for (const entry of entries) {
+        let name = entry.name;
+        if (taken.has(fold(name))) {
+          let choice = all;
+          if (!choice) {
+            let applyAll = false;
+            const picked = await choose({
+              title: t('explorer.existsTitle'),
+              body: t('explorer.existsBody', { name }),
+              choices: [
+                { id: 'keepBoth', label: t('explorer.keepBoth') },
+                { id: 'replace', label: t('explorer.replace'), danger: true },
+                { id: 'skip', label: t('explorer.skip') },
+              ],
+              checkbox: entries.length > 1 ? { label: t('explorer.applyToAll'), onChange: (v) => (applyAll = v) } : undefined,
+            });
+            if (picked !== 'keepBoth' && picked !== 'replace' && picked !== 'skip') return;
+            choice = picked;
+            if (applyAll) all = choice;
+          }
+          if (choice === 'skip') continue;
+          if (choice === 'keepBoth') name = freeName(name, entry.isDirectory, taken, fold);
+          else await api.fsDelete(project.id, [relPath.join(dir, name)]);
+        }
+        taken.add(fold(name));
+        jobs.push({ name, tree: await walkEntry(entry), isDir: entry.isDirectory });
+      }
+
+      const under = (j: (typeof jobs)[number], rel: string[]) => [dir, j.name, ...rel.slice(1)].filter(Boolean).join('/');
+      const files = jobs.flatMap((j) => j.tree.files.map((f) => ({ path: under(j, f.rel), file: f.file })));
+      const emptyDirs = jobs.flatMap((j) => j.tree.emptyDirs.map((rel) => under(j, rel)));
+      let done = 0;
+      let failed = 0;
+      let firstError: unknown;
+      const progress = () => {
+        if (files.length > 1) toast({ key: 'upload', message: t('explorer.uploading', { done, total: files.length }), timeout: 0 });
+      };
+      progress();
+      try {
+        for (const path of emptyDirs) await api.fsCreate(project.id, path, 'dir').catch((err) => { if (errorOf(err).code !== 'exists') throw err; });
+        const queue = [...files];
+        await Promise.all(
+          Array.from({ length: Math.min(UPLOAD_PARALLEL, queue.length) }, async () => {
+            for (let next = queue.shift(); next; next = queue.shift()) {
+              try {
+                await api.fsUpload(project.id, next.path, next.file);
+              } catch (err) {
+                failed++;
+                firstError ??= err;
+              }
+              done++;
+              progress();
+            }
+          }),
+        );
+      } finally {
+        reloadDir(dir);
+        expand(nodeId(project.id, dir));
+      }
+      const created = jobs.map((j) => relPath.join(dir, j.name));
+      if (failed) {
+        toast({ key: 'upload', kind: 'error', message: t('explorer.uploadFailed', { count: failed, error: errorMessage(errorOf(firstError)) }) });
+      } else if (created.length) {
+        record({ kind: 'copy', project: project.id, paths: created }, labelOf(created), 'upload');
+        if (created.length === 1 && !jobs[0]!.isDir) onOpenFile(project.id, created[0]!);
+      }
+    });
+  };
+
+  // The OS fetches a dragged-out file by URL with no headers; the link is made on pointer down so it is there at dragstart.
+  const prepareDragOut = (node: Node) => {
+    if (isDir(node) || node.outside) return;
+    const id = nodeId(project.id, node.path);
+    api.fsDownloadTicket(project.id, node.path).then(
+      ({ ticket, name }) => (outLink.current = { id, name, url: `${window.location.origin}/api/fs/download?t=${ticket}`, at: Date.now() }),
+      () => {},
+    );
+  };
+  const dragOutLink = (node: Node) => {
+    const link = outLink.current;
+    outLink.current = undefined;
+    return link && link.id === nodeId(project.id, node.path) && Date.now() - link.at < LINK_FRESH_MS ? link : undefined;
+  };
+
   const drop = (dragged: Node[], target: Node, copy: boolean) =>
     run(async () => {
       if (target.outside) return;
@@ -442,6 +543,8 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
         newEntry={creating && { parentId: nodeId(project.id, creating.dir), kind: creating.kind, onSubmit: (name) => submitNew(creating, name), onCancel: () => setCreating(undefined) }}
         draggable
         onDrop={(dragged, target, copy) => void drop(dragged, target, copy)}
+        onDropFiles={dropFiles}
+        dragOut={{ prepare: prepareDragOut, link: dragOutLink }}
       />
       {menu && <ContextMenu at={menu.at} items={menuItems(menu.node, menu.selection)} onClose={() => setMenu(undefined)} />}
     </section>

@@ -378,3 +378,59 @@ test('save-range writes nothing when cancelled and refuses stale or bad offsets'
   expect(await t.fail('POST /api/fs/save-range', { root: 'r', path: 'x.log', from: 99 })).toMatchObject({ code: 'rangeStale' });
   expect(await t.fail('POST /api/fs/save-range', { root: 'r', path: 'x.log', from: -1 })).toMatchObject({ code: 'badRequest' });
 });
+
+const uploader = (t: Awaited<ReturnType<typeof setup>>) => (query: string, body = 'x', headers: Record<string, string> = {}) =>
+  Promise.resolve(
+    t.fs.routes['POST /api/fs/upload']!({ req: new Request('http://x/', { method: 'POST', body, headers }), query: new URLSearchParams(query), json: async () => ({}) } as unknown as RouteContext),
+  ).catch((e) => e);
+
+test('upload streams the body to a new file, making missing folders', async () => {
+  const t = await setup();
+  const up = uploader(t);
+  expect(await up('root=r&path=new/deep/f.txt', 'bytes')).toMatchObject({ name: 'f.txt', kind: 'file', size: 5 });
+  expect(await readFile(join(t.root, 'new', 'deep', 'f.txt'), 'utf8')).toBe('bytes');
+  expect(await up('root=r&path=empty.txt', '')).toMatchObject({ size: 0 });
+});
+
+test('upload refuses a taken name unless asked to replace or keep both', async () => {
+  const t = await setup();
+  const upload = uploader(t);
+  expect(await upload('root=r&path=top.txt', 'new')).toMatchObject({ code: 'exists' });
+  expect(await readFile(join(t.root, 'top.txt'), 'utf8')).toBe('top');
+  expect(await upload('root=r&path=top.txt&onExisting=keepBoth', 'new')).toMatchObject({ name: 'top copy.txt' });
+  expect(await readFile(join(t.root, 'top copy.txt'), 'utf8')).toBe('new');
+  expect(await upload('root=r&path=top.txt&onExisting=replace', 'newer')).toMatchObject({ name: 'top.txt', size: 5 });
+  expect(await readFile(join(t.root, 'top.txt'), 'utf8')).toBe('newer');
+  expect(t.trashed).toEqual([[join(t.realRoot, 'top.txt')]]);
+  expect(await upload('root=r&path=a&onExisting=replace')).toMatchObject({ code: 'notAFile' });
+});
+
+test('upload stays inside a writable root and refuses a body over the cap', async () => {
+  const upload = uploader(await setup());
+  expect(await upload('root=r&path=link/x.txt')).toMatchObject({ code: 'outsideRoot' });
+  expect(await upload('root=r&path=../x.txt')).toMatchObject({ code: 'badPath' });
+  expect(await upload('root=ro&path=x.txt')).toMatchObject({ code: 'rootReadOnly' });
+  expect(await upload('root=r&path=x.txt&onExisting=bogus')).toMatchObject({ code: 'badRequest' });
+  expect(await upload('root=r&path=big.txt', 'x', { 'content-length': '200000001' })).toMatchObject({ code: 'uploadTooLarge' });
+});
+
+test('download serves a file once, for the ticket from download-ticket', async () => {
+  const t = await setup();
+  const { ticket, name } = (await t.call('POST /api/fs/download-ticket', { root: 'r', path: 'a/b.txt' })) as { ticket: string; name: string };
+  expect(name).toBe('b.txt');
+  const get = (q: string) =>
+    Promise.resolve(t.fs.openRoutes['GET /api/fs/download']!({ req: new Request('http://x/'), query: new URLSearchParams(q), json: async () => ({}) } as unknown as RouteContext));
+  const res = (await get(`t=${ticket}`)) as Response;
+  expect(await res.text()).toBe('hello\nsecond line');
+  expect(res.headers.get('content-disposition')).toContain("filename*=UTF-8''b.txt");
+  expect(await get(`t=${ticket}`).catch((e) => e)).toMatchObject({ code: 'invalidTicket' });
+  expect(await get('').catch((e) => e)).toMatchObject({ code: 'invalidTicket' });
+});
+
+test('download-ticket refuses folders, missing files and paths outside the root', async () => {
+  const t = await setup();
+  expect(await t.fail('POST /api/fs/download-ticket', { root: 'r', path: 'a' })).toMatchObject({ code: 'notAFile' });
+  expect(await t.fail('POST /api/fs/download-ticket', { root: 'r', path: '' })).toMatchObject({ code: 'notAFile' });
+  expect(await t.fail('POST /api/fs/download-ticket', { root: 'r', path: 'nope.txt' })).toMatchObject({ code: 'fileNotFound' });
+  expect(await t.fail('POST /api/fs/download-ticket', { root: 'r', path: 'link/secret.txt' })).toMatchObject({ code: 'outsideRoot' });
+});
