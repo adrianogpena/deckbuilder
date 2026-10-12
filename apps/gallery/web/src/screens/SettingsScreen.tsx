@@ -18,6 +18,7 @@ const SECTIONS = [
   { id: 'keys', label: 'settings.keys' },
   { id: 'files', label: 'settings.files' },
   { id: 'editors', label: 'settings.editors' },
+  { id: 'terminal', label: 'settings.terminal' },
   { id: 'updates', label: 'settings.updates' },
   { id: 'backup', label: 'settings.backup' },
 ] as const satisfies ReadonlyArray<{ id: string; label: MessageKey }>;
@@ -49,6 +50,7 @@ export function SettingsScreen({ settings, onChange, onQuit }: Props) {
           {section === 'keys' && <KeysCard settings={settings} onChange={onChange} />}
           {section === 'files' && <FileTypesCard value={settings.fileAssociations ?? []} onChange={(fileAssociations) => onChange({ fileAssociations })} />}
           {section === 'editors' && <EditorsCard />}
+          {section === 'terminal' && <TerminalCard shell={settings.terminal?.shell ?? 'auto'} onShell={(shell) => onChange({ terminal: { shell } })} />}
           {section === 'updates' && <UpdatesCard folder={settings.updateFolder} onFolder={(updateFolder) => onChange({ updateFolder })} />}
           {section === 'backup' && <BackupCard onSettings={onChange} />}
         </div>
@@ -197,6 +199,35 @@ function FileTypesCard({ value, onChange }: { value: FileAssociation[]; onChange
         <div className="row">
           <button className="btn btn-sm" onClick={() => setRows([...rows, { pattern: '', as: 'log' }])}>{t('settings.files.add')}</button>
         </div>
+      </div>
+    </section>
+  );
+}
+
+/** Product names of the shell ids; not translated. */
+const SHELL_NAMES: Record<string, string> = {
+  powershell: 'Windows PowerShell',
+  pwsh: 'PowerShell 7',
+  cmd: 'cmd',
+  'git-bash': 'Git Bash',
+  wsl: 'WSL',
+};
+
+function TerminalCard({ shell, onShell }: { shell: string; onShell: (shell: string) => void }) {
+  const shells = useAsync(() => api.terminalShells(), []);
+  return (
+    <section className="section">
+      <h4 className="mono-label">{t('settings.terminal')}</h4>
+      <div className="card form">
+        {shells.error && <ErrorBanner error={shells.error} onRetry={shells.reload} compact />}
+        <label className="field">
+          <span className="mono-label">{t('settings.terminal.shell')}</span>
+          <select value={shell} disabled={!shells.data} onChange={(e) => onShell(e.target.value)}>
+            <option value="auto">{t('settings.terminal.auto')}</option>
+            {shells.data?.filter((id) => id !== 'auto').map((id) => <option key={id} value={id}>{SHELL_NAMES[id] ?? id}</option>)}
+          </select>
+          <span className="muted">{t('settings.terminal.hint')}</span>
+        </label>
       </div>
     </section>
   );

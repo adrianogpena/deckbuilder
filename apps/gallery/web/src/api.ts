@@ -4,6 +4,7 @@ import type { ThemeSettings } from '@deckbuilder/server-core/palettes';
 import type { BackupInspect, EditorInfo, HttpRequestSpec, HttpResponseInfo, ImportResult, TailChunk, UpdateState } from '@deckbuilder/server-core/protocol';
 
 export type { EditorInfo, ImportResult, TailChunk };
+import type { SessionInfo } from '@deckbuilder/terminal';
 import { type FileAssociation, type Keymap, type Language, type LogSettings, request } from '@deckbuilder/ui';
 
 export interface Settings extends ThemeSettings {
@@ -30,6 +31,10 @@ export interface Settings extends ThemeSettings {
   workbench?: WorkbenchSettings;
   /** State of the REST screen; the server validates it. */
   rest?: RestSettings;
+  /** Terminal screen: the shell id new sessions start (`'auto'` when omitted); the server validates it. */
+  terminal?: { shell: string };
+  /** Layout of the Terminal screen's tabs; restored (and validated) by the screen. */
+  terminalLayout?: unknown;
 }
 
 export interface RestSettings {
@@ -225,5 +230,9 @@ export const api = {
   httpSend: (httpRequest: HttpRequestSpec, secretRef: string | undefined, signal: AbortSignal) =>
     request<HttpResponseInfo>('POST', '/api/http/send', {}, { request: httpRequest, secretRef }, { signal }),
   httpSave: (id: string) => request<{ path: string | null; bytes?: number }>('POST', '/api/http/save', {}, { id }),
+  /** Ids of the shells installed on this machine (no `'auto'`). */
+  terminalShells: () => request<string[]>('GET', '/api/terminal/shells'),
+  /** Every running terminal session, with its title and bell count. */
+  terminalSessions: () => request<SessionInfo[]>('GET', '/api/terminal/sessions'),
   echo: (text: string) => request<{ text: string; length: number; at: string }>('POST', '/api/echo', {}, { text }),
 };

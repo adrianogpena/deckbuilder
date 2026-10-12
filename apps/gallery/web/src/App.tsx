@@ -15,6 +15,8 @@ import { TabsScreen } from './screens/TabsScreen';
 // The editor and its language parsers are a separate chunk, loaded on first visit.
 const WorkbenchScreen = lazy(() => import('./screens/WorkbenchScreen').then((m) => ({ default: m.WorkbenchScreen })));
 const RestScreen = lazy(() => import('./screens/RestScreen').then((m) => ({ default: m.RestScreen })));
+// xterm.js is large too.
+const TerminalScreen = lazy(() => import('./screens/TerminalScreen').then((m) => ({ default: m.TerminalScreen })));
 
 // Retrying can't revive a used launch code or a stale token; the user has to open the app again.
 const SESSION_ERRORS = ['invalidCode', 'invalidToken'];
@@ -147,6 +149,8 @@ function renderScreen(screen: ScreenId, settings: Settings, save: (patch: Partia
       return <Suspense fallback={<PanelLoading />}><WorkbenchScreen settings={settings} onSave={save} /></Suspense>;
     case 'rest':
       return <Suspense fallback={<PanelLoading />}><RestScreen settings={settings} onSave={save} /></Suspense>;
+    case 'terminal':
+      return <Suspense fallback={<PanelLoading />}><TerminalScreen settings={settings} onSave={save} /></Suspense>;
     case 'settings':
       return <SettingsScreen settings={settings} onChange={save} onQuit={onQuit} />;
     default:

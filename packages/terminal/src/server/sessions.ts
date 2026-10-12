@@ -1,29 +1,16 @@
 import { invalid, notFound } from '@deckbuilder/server-core';
 import { SerializeAddon } from '@xterm/addon-serialize';
 import { Terminal } from '@xterm/headless';
+import type { SessionInfo } from '../protocol.ts';
 import { spawnPty, type Pty } from './pty.ts';
+
+export type { SessionInfo };
 
 export type ViewKind = 'interactive' | 'preview';
 
 export interface Sink {
   send(frame: string | Uint8Array): void;
   close(): void;
-}
-
-export interface SessionInfo {
-  id: string;
-  label: string;
-  launcher?: string;
-  meta?: Record<string, unknown>;
-  cwd: string;
-  cols: number;
-  rows: number;
-  createdAt: number;
-  exited: number | null | undefined;
-  title: string;
-  bells: number;
-  lastOutputAt: number;
-  viewers: { interactive: boolean; previews: number };
 }
 
 export interface CreateOptions {

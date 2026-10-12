@@ -16,13 +16,14 @@ import {
   type BaseSettings,
 } from '@deckbuilder/server-mods';
 import { runApp } from '@deckbuilder/shell';
+import { isShellId, terminalRoutes, terminalSessions, type ShellId } from '@deckbuilder/terminal/server';
 import { type GridItem, validGridItems } from '@deckbuilder/ui/grid';
 import { validKeymap, type Keymap } from '@deckbuilder/ui/keybindings';
 import { type FileAssociation, validFileAssociations } from '@deckbuilder/ui/file-associations';
 import { type LogSettings, validLogSettings } from '@deckbuilder/ui/log';
 import { APP } from '../app.ts';
 import pkg from '../package.json';
-import { dbConnections, projects, requests, routes } from './routes.ts';
+import { dbConnections, projects, requests, resolveCwd, routes } from './routes.ts';
 
 export interface Settings extends BaseSettings {
   /** Start at Windows login (exe only). */
@@ -52,6 +53,10 @@ export interface Settings extends BaseSettings {
   workbench?: WorkbenchSettings;
   /** REST screen: split fractions of the editor and the response. */
   rest?: RestSettings;
+  /** Terminal screen: the shell new sessions start. */
+  terminal?: { shell: ShellId };
+  /** Layout of the Terminal screen's tabs (`serialize`); the UI validates it on restore. */
+  terminalLayout?: unknown;
 }
 
 export interface RestSettings {
@@ -209,6 +214,11 @@ const settings = settingsStore<Settings>({
     if (workbench) next.workbench = workbench;
     const rest = validRest(patch.rest);
     if (rest) next.rest = rest;
+    const terminal = patch.terminal as { shell?: unknown } | undefined;
+    if (isRecord(terminal) && isShellId(terminal.shell)) next.terminal = { shell: terminal.shell };
+    if (typeof patch.terminalLayout === 'object' && patch.terminalLayout !== null && JSON.stringify(patch.terminalLayout).length < MAX_TABS_LAYOUT_BYTES) {
+      next.terminalLayout = patch.terminalLayout;
+    }
     if (typeof patch.navCollapsed === 'boolean') next.navCollapsed = patch.navCollapsed;
     const keybindings = validKeymap(patch.keybindings);
     if (keybindings) next.keybindings = keybindings;
@@ -230,6 +240,10 @@ const updater = createUpdater({
 
 const { closeToTray } = await settings.load();
 
+/** Shells of every Terminal tab; they outlive the window's sockets and end at app quit. */
+const sessions = terminalSessions();
+const terminal = terminalRoutes({ sessions, shell: async () => (await settings.load()).terminal?.shell ?? 'auto', resolveCwd });
+
 await runApp({
   app: APP,
   routes: (ctx) => ({
@@ -246,7 +260,10 @@ await runApp({
     // Machine-specific: autostart writes the Run key, updateFolder is a local or share path.
     ...backupRoutes({ app: { id: APP.id, version: pkg.version }, settings, stores: { projects, dbConnections, requests }, excludeSettings: ['autostart', 'updateFolder'] }),
     ...routes(ctx),
+    ...terminal.routes,
   }),
+  sockets: terminal.sockets,
+  onQuit: () => sessions.closeAll(),
   webDir: join(import.meta.dir, '../dist/web'),
   transformIndex: themeHead(settings),
   urlProtocol: true,

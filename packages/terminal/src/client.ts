@@ -1,6 +1,6 @@
 import { errorOf, request } from '@deckbuilder/ui';
 import { TERMINAL_SOCKET_PATH } from './protocol.ts';
-import type { SessionInfo } from './server/sessions.ts';
+import type { SessionInfo } from './protocol.ts';
 
 export type { SessionInfo };
 

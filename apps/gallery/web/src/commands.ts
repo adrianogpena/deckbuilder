@@ -16,6 +16,7 @@ export function commands(): CommandDef[] {
     { id: TOGGLE_NAV, scope: GLOBAL, label: t('keys.toggleNav'), keys: ['Ctrl+Shift+B'], inInput: true },
     ...tabCommands('tabs'),
     ...tabCommands('explorer'),
+    ...tabCommands('terminal'),
     ...explorerCommands('explorer'),
     { id: 'explorer.search', scope: 'explorer', label: t('keys.explorer.search'), keys: ['Ctrl+Shift+F'], inInput: true },
     { id: 'explorer.file.save', scope: 'explorer', label: t('keys.file.save'), keys: ['Ctrl+S'], inInput: true },

@@ -1,7 +1,7 @@
 import type { IconName } from '@deckbuilder/ui';
 import type { MessageKey } from './i18n';
 
-export const SCREENS = ['home', 'tabs', 'grid', 'explorer', 'workbench', 'rest', 'settings'] as const;
+export const SCREENS = ['home', 'tabs', 'grid', 'explorer', 'workbench', 'rest', 'terminal', 'settings'] as const;
 export type ScreenId = (typeof SCREENS)[number];
 
 export const NAV: Array<{ title: MessageKey; items: Array<{ id: ScreenId; label: MessageKey; icon: IconName }> }> = [
@@ -14,6 +14,7 @@ export const NAV: Array<{ title: MessageKey; items: Array<{ id: ScreenId; label:
       { id: 'explorer', label: 'nav.explorer', icon: 'folder' },
       { id: 'workbench', label: 'nav.workbench', icon: 'play' },
       { id: 'rest', label: 'nav.rest', icon: 'send' },
+      { id: 'terminal', label: 'nav.terminal', icon: 'terminal' },
       { id: 'settings', label: 'nav.settings', icon: 'settings' },
     ],
   },

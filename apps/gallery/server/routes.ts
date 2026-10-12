@@ -39,6 +39,13 @@ export const projects = recordStore<{ name: string; path: string }>({
 });
 const fs = rootedFs({ roots: async () => (await projects.list()).map((p) => ({ id: p.id, path: p.path })) });
 
+/** A project folder as a terminal's working directory: `path` inside project `root`, a directory. */
+export async function resolveCwd(root: string, path: string): Promise<string> {
+  const { real } = await fs.resolve(root, path, { mustExist: true });
+  if (!isDirectory(real)) throw invalid('notADirectory', 'The path is not a folder.');
+  return real;
+}
+
 /** Oracle connections of the Workbench; the password is a secret field, never returned by a route. */
 export const dbConnections = recordStore<DbConnectionFields & { password?: unknown }>({
   dir: appHome(APP.id),

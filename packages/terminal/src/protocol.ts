@@ -14,6 +14,23 @@ export type ServerControl =
 export type ClientMessage = { kind: 'input'; data: Uint8Array } | { kind: 'control'; msg: ClientControl };
 export type ServerMessage = { kind: 'output'; data: Uint8Array } | { kind: 'control'; msg: ServerControl };
 
+/** A session as `GET /api/terminal/sessions` lists it. */
+export interface SessionInfo {
+  id: string;
+  label: string;
+  launcher?: string;
+  meta?: Record<string, unknown>;
+  cwd: string;
+  cols: number;
+  rows: number;
+  createdAt: number;
+  exited: number | null | undefined;
+  title: string;
+  bells: number;
+  lastOutputAt: number;
+  viewers: { interactive: boolean; previews: number };
+}
+
 type Frame = string | ArrayBuffer | Uint8Array;
 
 export const encodeControl = (msg: ClientControl | ServerControl): string => JSON.stringify(msg);
