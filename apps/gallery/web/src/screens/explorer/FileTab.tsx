@@ -58,11 +58,13 @@ function TextFileTab({ project, projectName, path, focused, markdownMode = 'live
     blobUrl.current = undefined;
   };
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (silent = false) => {
     const gen = ++generation.current;
-    setState({ status: 'loading' });
-    setPreviewing(PREVIEW_FIRST.has(previewKind(name)));
-    setSaveError(undefined);
+    if (!silent) {
+      setState({ status: 'loading' });
+      setPreviewing(PREVIEW_FIRST.has(previewKind(name)));
+      setSaveError(undefined);
+    }
     try {
       const kind = previewKind(name);
       if (BLOB_KINDS.has(kind)) {
@@ -114,6 +116,31 @@ function TextFileTab({ project, projectName, path, focused, markdownMode = 'live
   useEffect(() => {
     if (!dirtyRef.current) void load();
   }, [load]);
+  const known = useRef<string>();
+  useEffect(() => {
+    known.current = undefined;
+    const check = async () => {
+      if (document.visibilityState !== 'visible') return;
+      try {
+        const st = await api.fsStat(project, path);
+        const stamp = `${st.mtime}:${st.size}`;
+        const prev = known.current;
+        if (prev === stamp) return;
+        if (prev !== undefined && dirtyRef.current) return;
+        known.current = stamp;
+        if (prev !== undefined) void load(true);
+      } catch {
+        // the file may be mid-write or gone; the next tick retries
+      }
+    };
+    void check();
+    const timer = window.setInterval(() => void check(), 2000);
+    window.addEventListener('focus', check);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', check);
+    };
+  }, [project, path, load]);
   useEffect(() => () => {
     generation.current++;
     revoke();

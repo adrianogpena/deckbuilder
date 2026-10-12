@@ -180,6 +180,7 @@ export const api = {
   fsArchive: (root: string, path: string) => request<ArchiveContent>('GET', '/api/fs/archive', { root, path }),
   fsSqlite: (root: string, path: string, table?: string, offset?: number) =>
     request<SqliteContent>('GET', '/api/fs/sqlite', { root, path, table, offset }),
+  fsStat: (root: string, path: string) => request<FsEntry>('GET', '/api/fs/stat', { root, path }),
   fsRead: (root: string, path: string) => request<FsRead>('GET', '/api/fs/read', { root, path }),
   fsCreate: (root: string, path: string, kind: 'file' | 'dir') => request<FsEntry>('POST', '/api/fs/create', {}, { root, path, kind }),
   fsTail: (root: string, path: string, from?: number, max?: number) =>
