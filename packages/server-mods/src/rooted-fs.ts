@@ -1,12 +1,13 @@
 import type { Dirent } from 'node:fs';
-import { cp, lstat, mkdir, readdir, realpath, rename, stat, writeFile } from 'node:fs/promises';
+import { cp, lstat, mkdir, readdir, realpath, stat, writeFile } from 'node:fs/promises';
 import { basename, dirname, extname, isAbsolute, join, sep } from 'node:path';
-import { moveToTrash, type SaveDialogOptions, saveFileAs, writeFileAtomic } from '@deckbuilder/platform';
+import { moveToTrash, renameWithRetry, type SaveDialogOptions, saveFileAs, writeFileAtomic } from '@deckbuilder/platform';
 import { AppError, forbidden, type Handler, invalid, ndjson, notFound, type Routes, type TailChunk } from '@deckbuilder/server-core';
 
 export type { TailChunk };
 import { listArchive } from './archive.ts';
 import { isBinary } from './bytes.ts';
+import { decodeText, detectEncoding, encodeText, encodingByBom, TEXT_ENCODINGS, type TextEncodingId } from './encoding.ts';
 import { fromPlatform } from './platform-errors.ts';
 import { readSqlite } from './sqlite.ts';
 
@@ -369,8 +370,11 @@ export function rootedFs(opts: RootedFsOptions): RootedFs {
       if (st.isDirectory()) throw notAFile();
       const bytes = new Uint8Array(await Bun.file(loc.real).slice(0, maxReadBytes).arrayBuffer());
       const mtime = Math.round(st.mtimeMs);
-      if (isBinary(bytes)) return { binary: true, size: st.size, mtime };
-      return { text: new TextDecoder().decode(bytes), size: st.size, mtime, truncated: st.size > maxReadBytes };
+      // UTF-16 is full of NUL bytes: its BOM is checked before the binary test.
+      if (!encodingByBom(bytes) && isBinary(bytes)) return { binary: true, size: st.size, mtime };
+      const truncated = st.size > maxReadBytes;
+      const encoding = detectEncoding(bytes, truncated);
+      return { text: decodeText(bytes, encoding), encoding, size: st.size, mtime, truncated };
     },
 
     'GET /api/fs/tail': async ({ query }) => {
@@ -505,7 +509,9 @@ export function rootedFs(opts: RootedFsOptions): RootedFs {
       const loc = await locate(b.root, b.path);
       writable(loc.root);
       const expected = b.expectedMtime ?? undefined;
-      if (typeof b.text !== 'string' || (expected !== undefined && typeof expected !== 'number')) throw badRequest();
+      const encoding = (b.encoding ?? 'utf8') as TextEncodingId;
+      if (typeof b.text !== 'string' || (expected !== undefined && typeof expected !== 'number') || !TEXT_ENCODINGS.includes(encoding)) throw badRequest();
+      const bytes = encodeText(b.text, encoding);
       const st = await stat(loc.real).catch((err) => {
         if (isMissing(err)) return null;
         throw err;
@@ -515,7 +521,7 @@ export function rootedFs(opts: RootedFsOptions): RootedFs {
         throw invalid('fileChanged', 'The file was changed on disk since it was opened.');
       }
       if (!st && !(await stat(dirname(loc.real)).then((p) => p.isDirectory(), () => false))) throw fileNotFound();
-      await writeFileAtomic(loc.real, b.text);
+      await writeFileAtomic(loc.real, bytes);
       return described(loc.real, basename(loc.abs), loc.realRoot);
     },
 
@@ -527,7 +533,7 @@ export function rootedFs(opts: RootedFsOptions): RootedFs {
       const from = await entryPath(loc);
       const to = join(dirname(from), b.name);
       await refuseExisting(from, to);
-      await rename(from, to);
+      await renameWithRetry(from, to);
       return described(to, b.name, loc.realRoot);
     },
 
@@ -544,7 +550,7 @@ export function rootedFs(opts: RootedFsOptions): RootedFs {
       }
       await refuseExisting(from, to);
       // Never copy-then-delete across volumes: that would be a permanent delete without undo.
-      await rename(from, to);
+      await renameWithRetry(from, to);
       return described(to, basename(to), dest.realRoot);
     },
 

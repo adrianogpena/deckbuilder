@@ -89,10 +89,29 @@ test('list puts folders first and marks links that leave the root', async () => 
 
 test('read gives text, truncated text or binary', async () => {
   const { root, call } = await setup({ maxReadBytes: 3 });
-  expect(await call('GET /api/fs/read', 'root=r&path=top.txt')).toEqual({ text: 'top', size: 3, mtime: expect.any(Number), truncated: false });
+  expect(await call('GET /api/fs/read', 'root=r&path=top.txt')).toEqual({ text: 'top', encoding: 'utf8', size: 3, mtime: expect.any(Number), truncated: false });
   expect(await call('GET /api/fs/read', 'root=r&path=a/b.txt')).toMatchObject({ text: 'hel', size: 17, truncated: true });
   await writeFile(join(root, 'bin.dat'), new Uint8Array([1, 0, 2]));
   expect(await call('GET /api/fs/read', 'root=r&path=bin.dat')).toMatchObject({ binary: true, size: 3 });
+});
+
+test('read and write keep the encoding: BOMs, UTF-16 and Windows-1252', async () => {
+  const { root, call, fail } = await setup();
+  const cases: Array<[string, number[], string]> = [
+    ['utf8bom', [0xef, 0xbb, 0xbf, 0x68, 0xc3, 0xa9], 'hé'],
+    ['utf16le', [0xff, 0xfe, 0x68, 0x00, 0xe9, 0x00], 'hé'],
+    ['utf16be', [0xfe, 0xff, 0x00, 0x68, 0x00, 0xe9], 'hé'],
+    ['windows1252', [0x68, 0xe9, 0x80], 'hé€'],
+  ];
+  for (const [encoding, bytes, text] of cases) {
+    await writeFile(join(root, `${encoding}.txt`), new Uint8Array(bytes));
+    expect(await call('GET /api/fs/read', `root=r&path=${encoding}.txt`)).toMatchObject({ text, encoding });
+    await call('POST /api/fs/write', { root: 'r', path: `${encoding}.txt`, text, encoding });
+    expect([...(await readFile(join(root, `${encoding}.txt`)))]).toEqual(bytes);
+  }
+  expect(await fail('POST /api/fs/write', { root: 'r', path: 'windows1252.txt', text: '日本', encoding: 'windows1252' })).toMatchObject({ code: 'unencodable' });
+  expect([...(await readFile(join(root, 'windows1252.txt')))]).toEqual([0x68, 0xe9, 0x80]);
+  expect(await fail('POST /api/fs/write', { root: 'r', path: 'top.txt', text: 'x', encoding: 'ebcdic' })).toMatchObject({ code: 'badRequest' });
 });
 
 test('raw serves the bytes with a type by extension and nosniff', async () => {

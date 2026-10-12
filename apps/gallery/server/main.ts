@@ -20,6 +20,7 @@ import { isShellId, terminalRoutes, terminalSessions, type ShellId } from '@deck
 import { type GridItem, validGridItems } from '@deckbuilder/ui/grid';
 import { validKeymap, type Keymap } from '@deckbuilder/ui/keybindings';
 import { type FileAssociation, validFileAssociations } from '@deckbuilder/ui/file-associations';
+import { type FileSettings, validFileSettings } from '@deckbuilder/ui/file-settings';
 import { type LogSettings, validLogSettings } from '@deckbuilder/ui/log';
 import { APP } from '../app.ts';
 import pkg from '../package.json';
@@ -49,6 +50,8 @@ export interface Settings extends BaseSettings {
   logs?: LogSettings;
   /** Files opened as another type: a name glob and the extension to treat them as. */
   fileAssociations?: FileAssociation[];
+  /** How text files are saved and how the Explorer shows files, checked by `validFileSettings`. */
+  files?: FileSettings;
   /** Workbench screen: split fractions and column widths. */
   workbench?: WorkbenchSettings;
   /** REST screen: split fractions of the editor and the response. */
@@ -210,6 +213,8 @@ const settings = settingsStore<Settings>({
     if (logs) next.logs = logs;
     const fileAssociations = validFileAssociations(patch.fileAssociations);
     if (fileAssociations) next.fileAssociations = fileAssociations;
+    const files = validFileSettings(patch.files);
+    if (files) next.files = files;
     const workbench = validWorkbench(patch.workbench);
     if (workbench) next.workbench = workbench;
     const rest = validRest(patch.rest);

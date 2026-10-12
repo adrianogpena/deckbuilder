@@ -5,7 +5,7 @@ import type { BackupInspect, EditorInfo, HttpRequestSpec, HttpResponseInfo, Impo
 
 export type { EditorInfo, ImportResult, TailChunk };
 import type { SessionInfo } from '@deckbuilder/terminal';
-import { type FileAssociation, type Keymap, type Language, type LogSettings, request } from '@deckbuilder/ui';
+import { type FileAssociation, type FileSettings, type Keymap, type Language, type LogSettings, request } from '@deckbuilder/ui';
 
 export interface Settings extends ThemeSettings {
   language?: Language;
@@ -27,6 +27,8 @@ export interface Settings extends ThemeSettings {
   logs?: LogSettings;
   /** Files opened as another type; the server validates it. */
   fileAssociations?: FileAssociation[];
+  /** How text files are saved and how the Explorer shows files; the server validates it. */
+  files?: FileSettings;
   /** State of the Workbench screen; the server validates it. */
   workbench?: WorkbenchSettings;
   /** State of the REST screen; the server validates it. */
@@ -140,7 +142,12 @@ export interface FsEntry {
   target?: 'file' | 'dir';
 }
 
-export type FsRead = { text: string; size: number; mtime: number; truncated: boolean } | { binary: true; size: number; mtime: number };
+/** The text encodings the server reads and writes (`TextEncodingId` of server-mods). */
+export type TextEncoding = 'utf8' | 'utf8bom' | 'utf16le' | 'utf16be' | 'windows1252';
+
+export type FsRead =
+  | { text: string; encoding: TextEncoding; size: number; mtime: number; truncated: boolean }
+  | { binary: true; size: number; mtime: number };
 
 export interface SearchHit {
   path: string;
@@ -187,8 +194,8 @@ export const api = {
     request<TailChunk>('GET', '/api/fs/tail', { root, path, from, max }),
   fsSaveRange: (root: string, path: string, from: number) =>
     request<{ path: string | null; bytes?: number }>('POST', '/api/fs/save-range', {}, { root, path, from }),
-  fsWrite: (root: string, path: string, text: string, expectedMtime: number) =>
-    request<FsEntry>('POST', '/api/fs/write', {}, { root, path, text, expectedMtime }),
+  fsWrite: (root: string, path: string, text: string, expectedMtime: number, encoding?: TextEncoding) =>
+    request<FsEntry>('POST', '/api/fs/write', {}, { root, path, text, expectedMtime, encoding }),
   fsRename: (root: string, path: string, name: string) => request<FsEntry>('POST', '/api/fs/rename', {}, { root, path, name }),
   fsMove: (root: string, from: string, to: string) => request<FsEntry>('POST', '/api/fs/move', {}, { root, from, to }),
   fsCopy: (root: string, from: string, to: string) => request<FsEntry>('POST', '/api/fs/copy', {}, { root, from, to }),

@@ -8,6 +8,7 @@ export * from './exe.ts';
 export * from './files.ts';
 export * from './home.ts';
 export * from './json-file.ts';
+export * from './rename-retry.ts';
 export * from './run.ts';
 export * from './secrets.ts';
 export * from './theme.ts';

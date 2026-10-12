@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./file-associations": "./src/file-associations.ts",
+    "./file-settings": "./src/file-settings.ts",
     "./grid": "./src/grid.ts",
     "./keybindings": "./src/keybindings.ts",
     "./log": "./src/log.ts",

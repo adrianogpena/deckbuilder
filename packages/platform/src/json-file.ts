@@ -1,5 +1,6 @@
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
+import { renameWithRetry } from './rename-retry.ts';
 
 /** Tail of each file's write queue, keyed by absolute path: writes to one file never overlap. */
 const queues = new Map<string, Promise<unknown>>();
@@ -28,7 +29,7 @@ export function writeFileAtomic(file: string, data: string | Uint8Array | Blob):
         for await (const chunk of data.stream()) out.write(chunk);
         await out.end();
       }
-      await rename(tmp, file);
+      await renameWithRetry(tmp, file);
     } catch (err) {
       await rm(tmp, { force: true });
       throw err;

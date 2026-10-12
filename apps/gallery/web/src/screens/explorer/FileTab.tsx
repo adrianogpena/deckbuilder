@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { CodeEditor, FilePreview, HEX_LIMIT, langOfFile, MarkdownEditor, type MarkdownMode, previewKind, type PreviewContent } from '@deckbuilder/editor';
-import { type ApiError, errorOf, ErrorBanner, Icon, PanelBanner, PanelLoading, relPath, requestBlob, useCommand, useDialogs } from '@deckbuilder/ui';
-import { api, type LogSettings } from '../../api';
+import {
+  applyEol, CodeEditor, detectEol, type Eol, FilePreview, HEX_LIMIT, langOfFile, MarkdownEditor, type MarkdownMode, normalizeEol, prepareForSave, previewKind,
+  type PreviewContent,
+} from '@deckbuilder/editor';
+import { type ApiError, errorOf, ErrorBanner, FILE_DEFAULTS, type FileSettings, Icon, PanelBanner, PanelLoading, relPath, requestBlob, useCommand, useDialogs } from '@deckbuilder/ui';
+import { api, type LogSettings, type TextEncoding } from '../../api';
 import { commandById } from '../../commands';
 import { t } from '../../i18n';
 import { LogTab } from './LogTab';
@@ -26,7 +29,13 @@ export interface FileTabProps {
   /** Wrap long lines in the editors (default on) and its change handler. */
   wrapLines?: boolean;
   onWrapLinesChange?: (wrap: boolean) => void;
+  /** Save behaviour (auto-save, trim, final newline). */
+  files?: Required<FileSettings>;
 }
+
+/** Line breaks of new files and of files without any: the OS's, like VS Code's `files.eol: auto`. */
+const OS_EOL: Eol = typeof navigator !== 'undefined' && /^Win/.test(navigator.platform) ? '\r\n' : '\n';
+const AUTO_SAVE_DELAY = 1000;
 
 /** Text kinds whose tab opens in the preview (the toggle switches to the editor). */
 const PREVIEW_FIRST = new Set(['table', 'notebook', 'har']);
@@ -40,7 +49,7 @@ export function FileTab(props: FileTabProps) {
 }
 
 /** A preview by extension, and for text files an editor with Save (Ctrl+S). */
-function TextFileTab({ project, projectName, path, focused, markdownMode = 'live', onMarkdownModeChange, wrapLines = true, onWrapLinesChange }: FileTabProps) {
+function TextFileTab({ project, projectName, path, focused, markdownMode = 'live', onMarkdownModeChange, wrapLines = true, onWrapLinesChange, files = FILE_DEFAULTS }: FileTabProps) {
   const name = relPath.basename(path);
   const markdown = previewKind(name) === 'markdown';
   const [state, setState] = useState<State>({ status: 'loading' });
@@ -48,6 +57,8 @@ function TextFileTab({ project, projectName, path, focused, markdownMode = 'live
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<ApiError>();
+  /** How the file is stored on disk; the editor always holds `\n` breaks. */
+  const format = useRef<{ encoding: TextEncoding; eol: Eol }>({ encoding: 'utf8', eol: OS_EOL });
   const generation = useRef(0);
   const dirtyRef = useRef(false);
   const blobUrl = useRef<string>();
@@ -95,6 +106,10 @@ function TextFileTab({ project, projectName, path, focused, markdownMode = 'live
       } else {
         const read = await api.fsRead(project, path);
         let content: PreviewContent = read;
+        if ('text' in read) {
+          format.current = { encoding: read.encoding, eol: detectEol(read.text, OS_EOL) };
+          content = { ...read, text: normalizeEol(read.text) };
+        }
         if ('binary' in read) {
           try {
             const bytes = new Uint8Array(await (await requestBlob('/api/fs/raw', { root: project, path, limit: HEX_LIMIT })).arrayBuffer());
@@ -104,7 +119,7 @@ function TextFileTab({ project, projectName, path, focused, markdownMode = 'live
           }
         }
         if (gen === generation.current) {
-          if ('text' in read) setDraft(read.text);
+          if ('text' in content) setDraft(content.text);
           setState({ status: 'ready', content, mtime: read.mtime });
         }
       }
@@ -178,9 +193,14 @@ function TextFileTab({ project, projectName, path, focused, markdownMode = 'live
     if (!dirty || saving || state.status !== 'ready') return;
     setSaving(true);
     setSaveError(undefined);
+    const typed = draft;
+    const text = prepareForSave(typed, { trim: files.trimTrailingWhitespace, finalNewline: files.insertFinalNewline, markdown });
     try {
-      const saved = await api.fsWrite(project, path, draft, state.mtime);
-      setState({ status: 'ready', content: { text: draft }, mtime: saved.mtime });
+      const saved = await api.fsWrite(project, path, applyEol(text, format.current.eol), state.mtime, format.current.encoding);
+      // Our own write is no change on disk for the poll below.
+      known.current = `${saved.mtime}:${saved.size}`;
+      setDraft((d) => (d === typed ? text : d));
+      setState({ status: 'ready', content: { text }, mtime: saved.mtime });
     } catch (err) {
       setSaveError(errorOf(err));
     } finally {
@@ -189,6 +209,22 @@ function TextFileTab({ project, projectName, path, focused, markdownMode = 'live
   };
 
   useCommand(commandById('explorer.file.save'), () => void save(), { enabled: focused && active });
+
+  const saveRef = useRef(save);
+  saveRef.current = save;
+  const conflict = saveError?.code === 'fileChanged';
+  useEffect(() => {
+    if (files.autoSave !== 'afterDelay' || !dirty || conflict) return;
+    const timer = window.setTimeout(() => void saveRef.current(), AUTO_SAVE_DELAY);
+    return () => window.clearTimeout(timer);
+  }, [draft, dirty, conflict, files.autoSave]);
+  useEffect(() => {
+    if (files.autoSave !== 'onFocusChange') return;
+    if (!focused) void saveRef.current();
+    const onBlur = () => void saveRef.current();
+    window.addEventListener('blur', onBlur);
+    return () => window.removeEventListener('blur', onBlur);
+  }, [focused, files.autoSave]);
 
   return (
     <div className="xp-file">
@@ -214,7 +250,7 @@ function TextFileTab({ project, projectName, path, focused, markdownMode = 'live
           <Icon name="refresh" />
         </button>
       </div>
-      {saveError?.code === 'fileChanged' ? (
+      {conflict ? (
         <PanelBanner tone="err" icon="alert" action={<button className="btn btn-sm" onClick={reload}>{t('explorer.reload')}</button>}>
           {t('error.fileChanged')}
         </PanelBanner>

@@ -12,4 +12,5 @@ export * from './languages';
 export * from './markdown';
 export * from './MarkdownEditor';
 export * from './MarkdownView';
+export * from './text-save';
 export * from './theme';

@@ -1,5 +1,5 @@
 import { Fragment, useState } from 'react';
-import { AppearanceFields, ZoomField, type ApiError, detectLanguage, type FileAssociation, validFileAssociations, ErrorBanner, errorMessage, errorOf, GLOBAL, isDesktop, KeybindingsEditor, LANGUAGES, Modal, PageHead, Spinner, useAsync, useKeybindings, type Language } from '@deckbuilder/ui';
+import { AppearanceFields, AUTO_SAVE, type AutoSave, fileSettingsOf, ZoomField, type ApiError, detectLanguage, type FileAssociation, validFileAssociations, ErrorBanner, errorMessage, errorOf, GLOBAL, isDesktop, KeybindingsEditor, LANGUAGES, Modal, PageHead, Spinner, useAsync, useKeybindings, type Language } from '@deckbuilder/ui';
 import { APP } from '../../../app';
 import { api, type BackupInfo, type EditorInfo, type ImportResult, type Settings } from '../api';
 import { type MessageKey, t } from '../i18n';
@@ -16,6 +16,7 @@ const SECTIONS = [
   { id: 'general', label: 'settings.general' },
   { id: 'layout', label: 'settings.layout' },
   { id: 'keys', label: 'settings.keys' },
+  { id: 'explorer', label: 'settings.explorer' },
   { id: 'files', label: 'settings.files' },
   { id: 'editors', label: 'settings.editors' },
   { id: 'terminal', label: 'settings.terminal' },
@@ -48,6 +49,7 @@ export function SettingsScreen({ settings, onChange, onQuit }: Props) {
             </section>
           )}
           {section === 'keys' && <KeysCard settings={settings} onChange={onChange} />}
+          {section === 'explorer' && <ExplorerCard settings={settings} onChange={onChange} />}
           {section === 'files' && <FileTypesCard value={settings.fileAssociations ?? []} onChange={(fileAssociations) => onChange({ fileAssociations })} />}
           {section === 'editors' && <EditorsCard />}
           {section === 'terminal' && <TerminalCard shell={settings.terminal?.shell ?? 'auto'} onShell={(shell) => onChange({ terminal: { shell } })} />}
@@ -122,6 +124,42 @@ function OnOffField({ label, hint, value, onChange }: { label: string; hint: str
       </div>
       <span className="muted">{hint}</span>
     </div>
+  );
+}
+
+/** Saving text files, like VS Code's `files.*` settings; the Explorer's file tabs read them. */
+function ExplorerCard({ settings, onChange }: { settings: Settings; onChange: (patch: Partial<Settings>) => void }) {
+  const files = fileSettingsOf(settings.files);
+  const set = (patch: Partial<typeof files>) => onChange({ files: { ...files, ...patch } });
+  return (
+    <section className="section">
+      <h4 className="mono-label">{t('settings.explorer.saving')}</h4>
+      <div className="card form">
+        <div className="field">
+          <span className="mono-label">{t('settings.explorer.autoSave')}</span>
+          <div className="chips">
+            {AUTO_SAVE.map((mode: AutoSave) => (
+              <button key={mode} className={`chip${files.autoSave === mode ? ' chip-on' : ''}`} onClick={() => set({ autoSave: mode })}>
+                {t(`settings.explorer.autoSave.${mode}`)}
+              </button>
+            ))}
+          </div>
+          <span className="muted">{t('settings.explorer.autoSave.hint')}</span>
+        </div>
+        <OnOffField
+          label={t('settings.explorer.trim')}
+          hint={t('settings.explorer.trim.hint')}
+          value={files.trimTrailingWhitespace}
+          onChange={(trimTrailingWhitespace) => set({ trimTrailingWhitespace })}
+        />
+        <OnOffField
+          label={t('settings.explorer.finalNewline')}
+          hint={t('settings.explorer.finalNewline.hint')}
+          value={files.insertFinalNewline}
+          onChange={(insertFinalNewline) => set({ insertFinalNewline })}
+        />
+      </div>
+    </section>
   );
 }
 

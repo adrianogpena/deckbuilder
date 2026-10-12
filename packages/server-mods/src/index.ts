@@ -2,6 +2,7 @@
 export * from './backup.ts';
 export * from './dialogs.ts';
 export * from './editors.ts';
+export * from './encoding.ts';
 export * from './http.ts';
 export * from './info.ts';
 export * from './platform-errors.ts';

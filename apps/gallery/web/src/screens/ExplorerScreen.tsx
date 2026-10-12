@@ -30,6 +30,7 @@ import {
   useDebouncedSave,
   type Layout,
   fileIconOf,
+  fileSettingsOf,
   relPath,
 } from '@deckbuilder/ui';
 import { closeSession } from '@deckbuilder/terminal';
@@ -154,6 +155,7 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
       },
     }),
   );
+  const files = fileSettingsOf(settings.files);
   const [logs, setLogs] = useState<LogSettings | undefined>(settings.logs);
   const saveLogs = useDebouncedSave((l: LogSettings) => onSave({ logs: l }));
   const changeLogs = (next: LogSettings) => {
@@ -391,7 +393,7 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
           renderTab={(tab, ctx) =>
             tab.route.kind === 'file' ? (
               <Suspense fallback={<PanelLoading />}>
-                <FileTab project={tab.route.project} projectName={nameOf(tab.route.project)} path={tab.route.path} focused={ctx.focused} logs={logs} onLogsChange={changeLogs} markdownMode={state.markdownMode} onMarkdownModeChange={(markdownMode) => update((s) => ({ ...s, markdownMode }))} wrapLines={state.wrapLines} onWrapLinesChange={(wrapLines) => update((s) => ({ ...s, wrapLines }))} />
+                <FileTab project={tab.route.project} projectName={nameOf(tab.route.project)} path={tab.route.path} focused={ctx.focused} logs={logs} onLogsChange={changeLogs} markdownMode={state.markdownMode} onMarkdownModeChange={(markdownMode) => update((s) => ({ ...s, markdownMode }))} wrapLines={state.wrapLines} onWrapLinesChange={(wrapLines) => update((s) => ({ ...s, wrapLines }))} files={files} />
               </Suspense>
             ) : tab.route.kind === 'terminal' ? (
               <Suspense fallback={<PanelLoading />}>
