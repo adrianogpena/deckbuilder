@@ -6,16 +6,17 @@ import { Annotation, Compartment, EditorState, type Extension, Prec } from '@cod
 import {
   drawSelection, EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers, placeholder as placeholderExt,
 } from '@codemirror/view';
-import { useEffect, useRef } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { type Lang, languageFor, type SqlDialect, type SqlSchema } from './languages';
+import { statementAt } from './sql/statements';
 import { themeExtension } from './theme';
 
 export interface CodeEditorProps {
   value: string;
   lang: Lang;
   onChange?(value: string): void;
-  /** Mod-Enter. */
-  onRun?(value: string): void;
+  /** Mod-Enter runs the statement under the cursor (or the selection); Mod-Shift-Enter runs everything. */
+  onRun?(value: string, mode: RunMode): void;
   readOnly?: boolean;
   placeholder?: string;
   sqlDialect?: SqlDialect;
@@ -32,6 +33,17 @@ export interface CodeEditorProps {
   wrap?: boolean;
   /** The cursor and selection, on load and whenever they change. */
   onSelection?(info: SelectionInfo): void;
+}
+
+export type RunMode = 'statement' | 'all';
+
+export interface CodeEditorHandle {
+  view: EditorView | null;
+  getSelectionText(): string;
+  /** The selection if any, else the SQL statement at the cursor, else the whole document. */
+  getRunText(): string;
+  replaceRange(from: number, to: number, text: string): void;
+  focus(): void;
 }
 
 /** Where the main cursor is (1-based) and how much is selected, for a status bar. */
@@ -53,15 +65,36 @@ export function selectionInfo(state: EditorState): SelectionInfo {
 const external = Annotation.define<boolean>();
 
 /** A CodeMirror 6 editor; one view for the component's lifetime, options swapped in place. */
-export function CodeEditor({
+export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(function CodeEditor({
   value, lang, onChange, onRun, readOnly = false, placeholder, sqlDialect, sqlSchema, height, autoFocus, onScroll, extensions, wrap = false, onSelection,
-}: CodeEditorProps) {
+}, ref) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   const compartments = useRef({ lang: new Compartment(), readOnly: new Compartment(), placeholder: new Compartment(), extra: new Compartment(), wrap: new Compartment() }).current;
   // The callbacks change every render; the view's extensions read them through this ref.
   const handlers = useRef({ onChange, onRun, onScroll, onSelection });
   handlers.current = { onChange, onRun, onScroll, onSelection };
+  const langRef = useRef(lang);
+  langRef.current = lang;
+
+  const selectionText = (s: EditorState) => s.selection.ranges.map((r) => s.sliceDoc(r.from, r.to)).join('\n');
+  const runText = (s: EditorState) => {
+    const selected = selectionText(s);
+    if (selected.trim()) return selected;
+    const doc = s.doc.toString();
+    if (langRef.current !== 'sql') return doc;
+    return statementAt(doc, s.selection.main.head)?.text ?? doc;
+  };
+
+  useImperativeHandle(ref, () => ({
+    get view() {
+      return view.current;
+    },
+    getSelectionText: () => (view.current ? selectionText(view.current.state) : ''),
+    getRunText: () => (view.current ? runText(view.current.state) : ''),
+    replaceRange: (from, to, text) => view.current?.dispatch({ changes: { from, to, insert: text }, selection: { anchor: from + text.length } }),
+    focus: () => view.current?.focus(),
+  }), []);
 
   useEffect(() => {
     const v = new EditorView({
@@ -69,12 +102,20 @@ export function CodeEditor({
       state: EditorState.create({
         doc: value,
         extensions: [
-          Prec.highest(keymap.of([{ key: 'Mod-Enter', run: (ed) => {
-            const onRun = handlers.current.onRun;
-            if (!onRun) return false;
-            onRun(ed.state.doc.toString());
-            return true;
-          } }])),
+          Prec.highest(keymap.of([
+            { key: 'Mod-Enter', run: (ed) => {
+              const onRun = handlers.current.onRun;
+              if (!onRun) return false;
+              onRun(runText(ed.state), 'statement');
+              return true;
+            } },
+            { key: 'Mod-Shift-Enter', run: (ed) => {
+              const onRun = handlers.current.onRun;
+              if (!onRun) return false;
+              onRun(ed.state.doc.toString(), 'all');
+              return true;
+            } },
+          ])),
           lineNumbers(),
           highlightActiveLineGutter(),
           history(),
@@ -144,6 +185,6 @@ export function CodeEditor({
   }, [value]);
 
   return <div ref={host} className="code-editor" style={height === undefined ? undefined : { height }} />;
-}
+});
 
 const readOnlyExt = (readOnly: boolean) => EditorState.readOnly.of(readOnly);
