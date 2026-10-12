@@ -5,7 +5,9 @@ import {
   errorMessage,
   errorOf,
   fileIconOf,
+  FileNesting,
   folderIconOf,
+  type NestingPatterns,
   relPath,
   TreeView,
   type TreeViewHandle,
@@ -29,6 +31,8 @@ interface Node {
   outside?: boolean;
   target?: FsEntry['target'];
   excluded?: true;
+  /** Files shown under this file (file nesting); they are in the same folder on disk. */
+  nested?: Node[];
 }
 
 const isRoot = (node: Node) => node.path === '';
@@ -53,6 +57,10 @@ export interface ProjectTreeProps {
   dirtyCount?(project: string, paths: string[]): number;
   /** Which entries the tree lists and in what order; a change reloads the tree. */
   view?: TreeViewOptions;
+  /** Folders holding a single folder share a row. */
+  compact?: boolean;
+  /** File nesting patterns; absent: files are not nested. */
+  nesting?: NestingPatterns;
 }
 
 export interface TreeViewOptions {
@@ -82,7 +90,7 @@ export interface ProjectTreeApi {
 }
 
 /** The lazy tree of a project's folder, with the file actions. */
-export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, onPreviewFile, onOpenFileToSide, onOpenTerminal, onMoved, onDeleted, apiRef, undo, dirtyCount, view }: ProjectTreeProps) {
+export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, onPreviewFile, onOpenFileToSide, onOpenTerminal, onMoved, onDeleted, apiRef, undo, dirtyCount, view, compact, nesting }: ProjectTreeProps) {
   const tree = useRef<TreeViewHandle<Node>>(null);
   const clipboard = useRef<{ mode: 'copy' | 'cut'; paths: string[] }>();
   const { confirm, choose, element } = useDialogs();
@@ -109,13 +117,18 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
     if (!expanded.includes(id)) onExpandedChange([...expanded, id]);
   };
 
+  const nester = useMemo(() => nesting && new FileNesting(nesting), [JSON.stringify(nesting)]);
+  const nestedOf = useRef(new Map<string, Node[]>());
+  const nestParent = useRef(new Map<string, string>());
+
   const loadChildren = async (node: Node): Promise<Node[]> => {
+    if (!isDir(node)) return nestedOf.current.get(nodeId(project.id, node.path)) ?? [];
     const entries = await api.fsList(project.id, node.path, view && { exclude: view.exclude, sort: view.sort, all: view.showExcluded });
     folderFiles.current.set(
       nodeId(project.id, node.path),
       entries.filter((e) => e.kind !== 'dir' && e.target !== 'dir').map((e) => e.name),
     );
-    return entries.map((e) => ({
+    const nodes = entries.map((e): Node => ({
       project: project.id,
       path: relPath.join(node.path, e.name),
       name: e.name,
@@ -124,6 +137,29 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
       target: e.target,
       excluded: e.excluded,
     }));
+    if (!nester) return nodes;
+    const byName = new Map(nodes.filter((n) => !isDir(n)).map((n) => [n.name, n]));
+    const groups = nester.nest([...byName.keys()], node.path ? relPath.basename(node.path) : project.name);
+    const hidden = new Set<string>();
+    const changed: string[] = [];
+    for (const [parent, children] of groups) {
+      const id = nodeId(project.id, relPath.join(node.path, parent));
+      const list = [...children].map((c) => byName.get(c)!);
+      for (const child of list) {
+        hidden.add(child.name);
+        nestParent.current.set(nodeId(project.id, child.path), id);
+      }
+      if (list.length) {
+        byName.get(parent)!.nested = list;
+        nestedOf.current.set(id, list);
+        changed.push(id);
+      } else {
+        nestedOf.current.delete(id);
+      }
+    }
+    // Nested files that were loaded before this reload show the new list.
+    setTimeout(() => changed.forEach((id) => tree.current?.reload(id)), 0);
+    return nodes.filter((n) => !hidden.has(n.name));
   };
 
   const iconOf = (n: Node) => {
@@ -150,7 +186,7 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
     };
   }, [project.id]);
 
-  const viewKey = view ? `${view.exclude.join('\n')}|${view.sort}|${view.showExcluded}` : '';
+  const viewKey = JSON.stringify([view, nesting]);
   const firstView = useRef(viewKey);
   useEffect(() => {
     if (firstView.current === viewKey) return;
@@ -167,6 +203,8 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
       if (!expanded.includes(id)) missing.push(id);
       if (dir === '') break;
     }
+    const holder = nestParent.current.get(nodeId(project.id, path));
+    if (holder && !expanded.includes(holder)) missing.push(holder);
     if (missing.length) onExpandedChange([...expanded, ...missing]);
     tree.current?.reveal(nodeId(project.id, path));
   };
@@ -546,7 +584,9 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
         iconOf={iconOf}
         dimmedOf={(n) => !!n.excluded}
         iconToneOf={(n) => (isDir(n) ? undefined : fileIconOf(n.name).tone)}
-        hasChildren={(n) => isDir(n)}
+        hasChildren={(n) => isDir(n) || !!n.nested?.length}
+        isFolder={isDir}
+        compact={compact}
         loadChildren={loadChildren}
         expanded={expanded}
         onExpandedChange={onExpandedChange}

@@ -1,4 +1,5 @@
 import { isRecord } from '@deckbuilder/server-core/protocol';
+import { NESTING_DEFAULTS, type NestingPatterns } from './file-nesting';
 
 export type AutoSave = 'off' | 'afterDelay' | 'onFocusChange';
 export const AUTO_SAVE: readonly AutoSave[] = ['off', 'afterDelay', 'onFocusChange'];
@@ -21,6 +22,12 @@ export interface FileSettings {
   autoReveal?: boolean;
   /** Show the path above the editor as clickable segments. */
   breadcrumbs?: boolean;
+  /** A chain of folders that each hold only one folder shows as one row (`a/b/c`). */
+  compactFolders?: boolean;
+  /** Related files (a lock file, a test) show nested under a parent file, by `nestingPatterns`. */
+  fileNesting?: boolean;
+  /** Parent glob (one `*` at most) to comma separated child patterns, which may use `${capture}`, `${basename}`, `${extname}`, `${dirname}` and a `*`. */
+  nestingPatterns?: NestingPatterns;
   /** Globs on the path from the project root (Bun.Glob syntax, so a leading double star matches at any depth); matching entries are hidden from the tree and from search. */
   exclude?: string[];
   /** How the tree orders the entries of a folder. */
@@ -34,6 +41,9 @@ export const FILE_DEFAULTS: Required<FileSettings> = {
   previewTabs: true,
   autoReveal: true,
   breadcrumbs: true,
+  compactFolders: true,
+  fileNesting: false,
+  nestingPatterns: NESTING_DEFAULTS,
   exclude: ['**/.git', '**/.DS_Store', '**/Thumbs.db'],
   sortOrder: 'default',
 };
@@ -53,6 +63,14 @@ export function validFileSettings(raw: unknown): FileSettings | null {
   if (typeof raw.previewTabs === 'boolean') out.previewTabs = raw.previewTabs;
   if (typeof raw.autoReveal === 'boolean') out.autoReveal = raw.autoReveal;
   if (typeof raw.breadcrumbs === 'boolean') out.breadcrumbs = raw.breadcrumbs;
+  if (typeof raw.compactFolders === 'boolean') out.compactFolders = raw.compactFolders;
+  if (typeof raw.fileNesting === 'boolean') out.fileNesting = raw.fileNesting;
+  if (isRecord(raw.nestingPatterns)) {
+    const entries = Object.entries(raw.nestingPatterns);
+    if (entries.length <= MAX_EXCLUDES && entries.every(([k, v]) => k.trim() !== '' && k.length <= 200 && typeof v === 'string' && v.length <= 500)) {
+      out.nestingPatterns = Object.fromEntries(entries.map(([k, v]) => [k.trim(), v as string]));
+    }
+  }
   if (Array.isArray(raw.exclude) && raw.exclude.length <= MAX_EXCLUDES && raw.exclude.every((g) => typeof g === 'string' && g.trim() !== '' && g.length <= 200)) {
     out.exclude = raw.exclude.map((g) => (g as string).trim());
   }

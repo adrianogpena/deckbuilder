@@ -556,6 +556,11 @@ kbd {
 .tree-rename { flex: 1; min-width: 0; height: 22px; padding: 0 6px; border-radius: 5px; font-size: 13px; }
 .tree-new { flex-wrap: wrap; }
 .tree-new .tree-rename { flex: 1 1 0; }
+.tree-label .tree-rename { width: 140px; max-width: 100%; vertical-align: middle; }
+.tree-label .tree-rename:only-child { width: 100%; }
+.tree-sep { opacity: .55; margin: 0 1px; }
+.tree-seg.active { text-decoration: underline; text-underline-offset: 3px; }
+.tree-seg.drop { background: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent); border-radius: 3px; }
 .tree-new .tree-rename[aria-invalid='true'] { border-color: var(--err); }
 .tree-new-error { flex-basis: 100%; padding: 2px 4px 2px 40px; color: var(--err); font-size: 12px; }
 .tree-status { color: var(--text-3); font-size: 12px; cursor: default; }

@@ -4,32 +4,62 @@
  */
 
 export interface TreeRow<N> {
+  /** The last node of `chain`: the one whose children follow the row. */
   node: N;
   depth: number;
+  /** Id of `node`. */
   id: string;
-  /** null for a top-level row. */
+  /** Id of the parent row's `node`; null for a top-level row. */
   parentId: string | null;
+  /** A compact row holds a chain of folders (each the only child of the one before); otherwise just the node. */
+  chain: Array<{ id: string; node: N }>;
 }
 
-/** Rows in display order: a node's children follow it when it is expanded and they are known. */
+export interface CompactOptions<N> {
+  isFolder: (node: N) => boolean;
+  /** Ids that end a chain even when they have a single folder child. */
+  stopAt?: ReadonlySet<string>;
+}
+
+/**
+ * Rows in display order: a node's children follow it when it is expanded and they are known.
+ * With `compact`, an expanded folder whose only child is a folder shares a row with it (`a/b/c`); top-level nodes never start a chain.
+ */
 export function visibleRows<N>(
   roots: N[],
   childrenOf: (id: string) => N[] | undefined,
   expanded: Set<string>,
   idOf: (node: N) => string,
+  compact?: CompactOptions<N>,
 ): TreeRow<N>[] {
   const rows: TreeRow<N>[] = [];
   const walk = (nodes: N[], depth: number, parentId: string | null) => {
-    for (const node of nodes) {
-      const id = idOf(node);
-      rows.push({ node, depth, id, parentId });
-      if (!expanded.has(id)) continue;
-      const children = childrenOf(id);
-      if (children) walk(children, depth + 1, id);
+    for (const first of nodes) {
+      const chain = [{ id: idOf(first), node: first }];
+      let last = chain[0];
+      while (compact && depth > 0 && expanded.has(last.id) && !compact.stopAt?.has(last.id)) {
+        const kids = childrenOf(last.id);
+        if (kids?.length !== 1 || !compact.isFolder(kids[0])) break;
+        last = { id: idOf(kids[0]), node: kids[0] };
+        chain.push(last);
+      }
+      rows.push({ node: last.node, depth, id: last.id, parentId, chain });
+      if (!expanded.has(last.id)) continue;
+      const children = childrenOf(last.id);
+      if (children) walk(children, depth + 1, last.id);
     }
   };
   walk(roots, 0, null);
   return rows;
+}
+
+/** The row holding `id` (as its node or a chain segment) and the segment's index in the chain. */
+export function locate<N>(rows: TreeRow<N>[], id: string): { row: TreeRow<N>; index: number } | undefined {
+  for (const row of rows) {
+    const index = row.chain.findIndex((c) => c.id === id);
+    if (index >= 0) return { row, index };
+  }
+  return undefined;
 }
 
 const indexOf = <N>(rows: TreeRow<N>[], id: string) => rows.findIndex((r) => r.id === id);
@@ -55,11 +85,15 @@ export function firstChildId<N>(rows: TreeRow<N>[], id: string): string | null {
   return next && next.parentId === id ? next.id : null;
 }
 
-/** `id` is `ancestor` or one of its visible descendants. */
+/** `id` is `ancestor` or one of its visible descendants; ids may be chain segments, a segment is inside the ones before it. */
 export function isInside<N>(rows: TreeRow<N>[], id: string, ancestor: string): boolean {
   const byId = new Map(rows.map((r) => [r.id, r]));
-  for (let cur: string | null = id; cur !== null; cur = byId.get(cur)?.parentId ?? null) {
-    if (cur === ancestor) return true;
+  const start = locate(rows, id);
+  if (!start) return id === ancestor;
+  if (start.row.chain.slice(0, start.index + 1).some((c) => c.id === ancestor)) return true;
+  for (let cur = start.row.parentId; cur !== null; cur = byId.get(cur)?.parentId ?? null) {
+    const row = byId.get(cur);
+    if (row?.chain.some((c) => c.id === ancestor)) return true;
   }
   return false;
 }

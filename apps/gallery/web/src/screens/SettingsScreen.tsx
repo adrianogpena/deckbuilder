@@ -187,6 +187,12 @@ function ExplorerCard({ settings, onChange }: { settings: Settings; onChange: (p
     <section className="section">
       <h4 className="mono-label">{t('settings.explorer.view')}</h4>
       <div className="card form">
+        <OnOffField
+          label={t('settings.explorer.compact')}
+          hint={t('settings.explorer.compact.hint')}
+          value={files.compactFolders}
+          onChange={(compactFolders) => set({ compactFolders })}
+        />
         <div className="field">
           <span className="mono-label">{t('settings.explorer.sort')}</span>
           <div className="chips">
@@ -198,10 +204,44 @@ function ExplorerCard({ settings, onChange }: { settings: Settings; onChange: (p
           </div>
           <span className="muted">{t('settings.explorer.sort.hint')}</span>
         </div>
+        <OnOffField
+          label={t('settings.explorer.nesting')}
+          hint={t('settings.explorer.nesting.hint')}
+          value={files.fileNesting}
+          onChange={(fileNesting) => set({ fileNesting })}
+        />
+        {files.fileNesting && <NestingField value={files.nestingPatterns} onChange={(nestingPatterns) => set({ nestingPatterns })} />}
         <ExcludeField value={files.exclude} onChange={(exclude) => set({ exclude })} />
       </div>
     </section>
     </>
+  );
+}
+
+function NestingField({ value, onChange }: { value: Record<string, string>; onChange: (next: Record<string, string>) => void }) {
+  const [text, setText] = useState(Object.entries(value).map(([k, v]) => `${k}: ${v}`).join(String.fromCharCode(10)));
+  return (
+    <div className="field">
+      <span className="mono-label">{t('settings.explorer.nesting.patterns')}</span>
+      <textarea
+        value={text}
+        rows={6}
+        spellCheck={false}
+        aria-label={t('settings.explorer.nesting.patterns')}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={() => {
+          const next: Record<string, string> = {};
+          for (const line of text.split(String.fromCharCode(10))) {
+            const at = line.indexOf(':');
+            const parent = line.slice(0, at).trim();
+            const children = line.slice(at + 1).trim();
+            if (at > 0 && parent && children) next[parent] = children;
+          }
+          onChange(next);
+        }}
+      />
+      <span className="muted">{t('settings.explorer.nesting.patterns.hint')}</span>
+    </div>
   );
 }
 

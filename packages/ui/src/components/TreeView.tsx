@@ -14,7 +14,7 @@ import {
 import { errorMessage, errorOf, type ApiError } from '../api';
 import { t } from '../i18n';
 import type { IconName } from '../icons';
-import { firstChildId, isInside, nextId, parentId, prevId, subtreeIds, visibleRows, type TreeRow } from '../tree';
+import { firstChildId, isInside, locate, nextId, parentId, prevId, subtreeIds, visibleRows, type TreeRow } from '../tree';
 import { Icon, Spinner, type Tone } from './ui';
 
 export const TREE_DRAG_TYPE = 'application/x-deckbuilder-tree';
@@ -35,6 +35,13 @@ export interface TreeViewProps<N> {
   /** The row is drawn dimmed (an excluded entry). */
   dimmedOf?: (node: N) => boolean;
   hasChildren: (node: N) => boolean;
+  /** Rows that are folders (drop targets, compactable); a row with children that is not one is a file with nested files: a click opens it, only its chevron toggles. Defaults to `hasChildren`. */
+  isFolder?: (node: N) => boolean;
+  /**
+   * A folder whose only child is a folder shares its row with it (`a/b/c`; the row acts on the last one, Left/Right move between the
+   * segments, and rename, the context menu and drops act on the selected segment). Decided for loaded children only; top-level nodes stay apart.
+   */
+  compact?: boolean;
   /** Called on the first expand of a node; the result is cached per id until `reload`. */
   loadChildren: (node: N) => Promise<N[]>;
   expanded: string[];
@@ -181,7 +188,7 @@ function NewEntryInput({ kind, depth, onSubmit, onCancel }: { kind: 'file' | 'di
 }
 
 function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) {
-  const { roots, idOf, labelOf, iconOf, iconToneOf, dimmedOf, hasChildren, expanded, onExpandedChange, onOpen, onPreview, onOpenToSide, onContextMenu, onRename, onDelete, onCopy, onCut, onPaste, onUndo, newEntry, draggable, onDrop, onDropFiles, dragOut } = props;
+  const { roots, idOf, labelOf, iconOf, iconToneOf, dimmedOf, hasChildren, isFolder = hasChildren, compact, expanded, onExpandedChange, onOpen, onPreview, onOpenToSide, onContextMenu, onRename, onDelete, onCopy, onCut, onPaste, onUndo, newEntry, draggable, onDrop, onDropFiles, dragOut } = props;
   const cache = useRef(new Map<string, Entry<N>>());
   const generations = useRef(new Map<string, number>());
   const [, bump] = useReducer((x: number) => x + 1, 0);
@@ -205,13 +212,19 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
     const entry = cache.current.get(id);
     return entry?.status === 'error' ? undefined : entry?.children;
   };
-  const rows = visibleRows(roots, childrenOf, expandedSet, idOf);
+  // The parent of a pending new entry stays the last segment of its row, so the input shows right under it.
+  const rows = visibleRows(roots, childrenOf, expandedSet, idOf, compact ? { isFolder, stopAt: new Set(newEntry ? [newEntry.parentId] : []) } : undefined);
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
   const rowOf = (id: string | null) => (id === null ? undefined : rows.find((r) => r.id === id));
-  const current = rowOf(selected);
-  const isPicked = (id: string) => id === selected || picked.has(id);
-  const pickedRows = () => rowsRef.current.filter((r) => isPicked(r.id));
+  const at = selected === null ? undefined : locate(rows, selected);
+  const current = at?.row;
+  const segment = at?.index ?? 0;
+  const isPicked = (row: TreeRow<N>) => row.chain.some((c) => c.id === selected) || picked.has(row.id);
+  const pickedRows = () => rowsRef.current.filter(isPicked);
+  // The selected segment for the current row, the row's node for the others.
+  const pickedItems = () => pickedRows().flatMap((r) => (r === current ? [r.chain[segment]] : [{ id: r.id, node: r.node }]));
+  const labelOfRow = (row: TreeRow<N>) => row.chain.map((c) => labelOf(c.node)).join('/');
 
   const bumpGeneration = (id: string) => {
     const gen = (generations.current.get(id) ?? 0) + 1;
@@ -260,28 +273,29 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
   useEffect(() => {
     const id = revealNext.current;
     if (id === null) return;
-    const row = rowsRef.current.find((r) => r.id === id);
-    if (!row) return;
+    const found = locate(rowsRef.current, id);
+    if (!found) return;
     revealNext.current = null;
-    select(row, false);
-    rowEls.current.get(id)?.scrollIntoView({ block: 'nearest' });
+    select(found.row, false, false, found.index);
+    rowEls.current.get(found.row.id)?.scrollIntoView({ block: 'nearest' });
   });
 
-  const select = (row: TreeRow<N>, focus = true, extend = false) => {
-    if (row.id !== revealNext.current) revealNext.current = null;
+  const select = (row: TreeRow<N>, focus = true, extend = false, index = row.chain.length - 1) => {
+    const { id, node } = row.chain[index];
+    if (id !== revealNext.current) revealNext.current = null;
     if (!extend) {
       anchor.current = row.id;
       setPicked(new Set());
     }
-    if (latest.current.selected === undefined) setOwnSelected(row.id);
-    if (row.id !== selected) latest.current.onSelect?.(row.node);
+    if (latest.current.selected === undefined) setOwnSelected(id);
+    if (id !== selected) latest.current.onSelect?.(node);
     if (focus) focusNext.current = row.id;
   };
 
   const startRename = (id: string) => {
-    const row = rowsRef.current.find((r) => r.id === id);
-    if (!row || !latest.current.onRename) return;
-    select(row, false);
+    const found = locate(rowsRef.current, id);
+    if (!found || !latest.current.onRename) return;
+    select(found.row, false, false, found.index);
     setRenaming(id);
   };
 
@@ -309,14 +323,14 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
   };
 
   useImperativeHandle(ref, () => ({
-    selection: () => pickedRows().map((r) => r.node),
+    selection: () => pickedItems().map((x) => x.node),
     reload(id?: string) {
       const ids = id === undefined ? [...cache.current.keys()] : [id];
       const open = new Set(latest.current.expanded);
       for (const key of ids) {
-        const row = rowsRef.current.find((r) => r.id === key);
-        if (row && open.has(key)) {
-          load(row.node, key);
+        const found = locate(rowsRef.current, key);
+        if (found && open.has(key)) {
+          load(found.row.chain[found.index].node, key);
         } else {
           bumpGeneration(key);
           cache.current.delete(key);
@@ -333,7 +347,7 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
 
   const setOpen = (row: TreeRow<N>, open: boolean) => {
     if (open === expandedSet.has(row.id)) return;
-    if (!open && selected !== null && selected !== row.id && isInside(rows, selected, row.id)) select(row);
+    if (!open && selected !== null && !row.chain.some((c) => c.id === selected) && isInside(rows, selected, row.id)) select(row);
     onExpandedChange(open ? [...expanded, row.id] : expanded.filter((x) => x !== row.id));
   };
 
@@ -347,12 +361,12 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
     const ta = typeahead.current;
     ta.text = now - ta.at > TYPEAHEAD_MS ? key.toLowerCase() : ta.text + key.toLowerCase();
     ta.at = now;
-    const at = current ? rows.indexOf(current) : -1;
+    const cur = current ? rows.indexOf(current) : -1;
     // A longer prefix may still match the current row; a new first letter moves on.
-    const from = Math.max(0, ta.text.length > 1 ? at : at + 1);
+    const from = Math.max(0, ta.text.length > 1 ? cur : cur + 1);
     for (let k = 0; k < rows.length; k++) {
       const row = rows[(from + k) % rows.length];
-      if (labelOf(row.node).toLowerCase().startsWith(ta.text)) {
+      if (labelOfRow(row).toLowerCase().startsWith(ta.text)) {
         select(row);
         return;
       }
@@ -380,24 +394,26 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
     else if (e.ctrlKey && e.key.toLowerCase() === 'a') {
       setPicked(new Set(rows.map((r) => r.id)));
       anchor.current = first.id;
-    } else if (e.ctrlKey && e.key.toLowerCase() === 'c' && onCopy) onCopy(pickedRows().map((r) => r.node));
-    else if (e.ctrlKey && e.key.toLowerCase() === 'x' && onCut) onCut(pickedRows().map((r) => r.node));
-    else if (e.ctrlKey && e.key.toLowerCase() === 'v' && onPaste) onPaste(current.node);
+    } else if (e.ctrlKey && e.key.toLowerCase() === 'c' && onCopy) onCopy(pickedItems().map((x) => x.node));
+    else if (e.ctrlKey && e.key.toLowerCase() === 'x' && onCut) onCut(pickedItems().map((x) => x.node));
+    else if (e.ctrlKey && e.key.toLowerCase() === 'v' && onPaste) onPaste(current.chain[segment].node);
     else if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'z' && onUndo) onUndo();
     else if (e.key === 'ArrowLeft') {
-      if (expandedSet.has(current.id) && hasChildren(current.node)) setOpen(current, false);
+      if (segment > 0) select(current, true, false, segment - 1);
+      else if (expandedSet.has(current.id) && hasChildren(current.node)) setOpen(current, false);
       else go(parentId(rows, current.id));
     } else if (e.key === 'ArrowRight') {
-      if (!hasChildren(current.node)) return;
-      if (!expandedSet.has(current.id)) setOpen(current, true);
+      if (segment < current.chain.length - 1) select(current, true, false, segment + 1);
+      else if (!hasChildren(current.node)) handled = false;
+      else if (!expandedSet.has(current.id)) setOpen(current, true);
       else go(firstChildId(rows, current.id));
     } else if (e.key === 'Enter') {
       if (e.ctrlKey && onOpenToSide) {
-        if (!hasChildren(current.node)) onOpenToSide(current.node);
+        if (!isFolder(current.node)) onOpenToSide(current.node);
       } else open(current);
     }
-    else if (e.key === 'F2' && onRename) startRename(current.id);
-    else if (e.key === 'Delete' && onDelete) onDelete(pickedRows().map((r) => r.node));
+    else if (e.key === 'F2' && onRename) startRename(current.chain[segment].id);
+    else if (e.key === 'Delete' && onDelete) onDelete(pickedItems().map((x) => x.node));
     else handled = false;
     if (handled) {
       e.preventDefault();
@@ -405,27 +421,37 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
     }
   };
 
-  const finishRename = (row: TreeRow<N>, value: string | null) => {
+  const finishRename = (row: TreeRow<N>, seg: { id: string; node: N }, value: string | null) => {
     setRenaming(null);
     focusNext.current = row.id;
     const name = value?.trim();
-    if (name && name !== labelOf(row.node)) latest.current.onRename?.(row.node, name);
+    if (name && name !== labelOf(seg.node)) latest.current.onRename?.(seg.node, name);
+  };
+
+  // The chain segment under the pointer, else the last one.
+  const segmentOf = (row: TreeRow<N>, e: { target: EventTarget }) => {
+    const i = Number((e.target as HTMLElement).closest?.('[data-seg]')?.getAttribute('data-seg'));
+    return { index: row.chain[i] ? i : row.chain.length - 1, ...(row.chain[i] ?? row.chain[row.chain.length - 1]) };
   };
 
   const isFileDrag = (e: { dataTransfer: DataTransfer }) => !!onDropFiles && e.dataTransfer.types.includes('Files');
-  // The folder an OS drop on `row` lands in: the row itself when it is a folder, else the folder holding it.
-  const fileTargetOf = (row: TreeRow<N>) => (hasChildren(row.node) ? row : rows.find((r) => r.id === row.parentId));
+  // The folder an OS drop on `row` lands in: the folder under the pointer when the row is one, else the folder holding it.
+  const fileTargetOf = (row: TreeRow<N>, seg: { id: string; node: N }) => {
+    if (isFolder(row.node)) return seg;
+    const parent = rows.find((r) => r.id === row.parentId);
+    return parent && { id: parent.id, node: parent.node };
+  };
 
-  const canDrop = (row: TreeRow<N>) => {
+  const canDrop = (row: TreeRow<N>, seg: { id: string }) => {
     const d = dragged.current;
-    return !!d && !!onDrop && hasChildren(row.node) && !d.some((x) => isInside(rows, row.id, x.id));
+    return !!d && !!onDrop && isFolder(row.node) && !d.some((x) => isInside(rows, seg.id, x.id));
   };
 
   // The guide under the selected folder (or the folder holding the selected file) is drawn brighter.
   const activeGuide = (() => {
     const ids = new Set<string>();
     if (!current) return { level: -1, ids };
-    const open = hasChildren(current.node) && expandedSet.has(current.id);
+    const open = hasChildren(current.node) && expandedSet.has(current.id) && segment === current.chain.length - 1;
     const owner = open ? current : rows.find((r) => r.id === current.parentId);
     if (!owner) return { level: -1, ids };
     for (let i = rows.indexOf(owner) + 1; i < rows.length && rows[i].depth > owner.depth; i++) ids.add(rows[i].id);
@@ -501,33 +527,35 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
               role="treeitem"
               aria-level={depth + 1}
               aria-expanded={expandable ? isOpen : undefined}
-              aria-selected={isPicked(id)}
+              aria-selected={isPicked(row)}
               tabIndex={id === tabStop ? 0 : -1}
-              className={`tree-row${isPicked(id) ? ' selected' : ''}${id === dropTarget ? ' drop-target' : ''}${dimmedOf?.(node) ? ' dim' : ''}`}
+              className={`tree-row${isPicked(row) ? ' selected' : ''}${id === dropTarget ? ' drop-target' : ''}${dimmedOf?.(node) ? ' dim' : ''}`}
               style={{ paddingLeft: depth * INDENT + 4 }}
               draggable={draggable && renaming !== id}
               onClick={(e) => {
                 if (e.ctrlKey || e.metaKey) return toggle(row);
                 if (e.shiftKey) return selectRange(row);
-                select(row, false);
-                if (e.altKey && onOpenToSide && !expandable) return onOpenToSide(node);
-                if (expandable) setOpen(row, !isOpen);
-                else onPreview?.(node);
+                select(row, false, false, segmentOf(row, e).index);
+                const folder = isFolder(node);
+                if (e.altKey && onOpenToSide && !folder) return onOpenToSide(node);
+                if (expandable && (folder || (e.target as HTMLElement).closest('.tree-chevron'))) setOpen(row, !isOpen);
+                else if (!folder) onPreview?.(node);
               }}
-              onDoubleClick={() => !expandable && onOpen?.(node)}
+              onDoubleClick={() => !isFolder(node) && onOpen?.(node)}
               onContextMenu={
                 onContextMenu &&
                 ((e) => {
                   e.preventDefault();
-                  if (!isPicked(id)) select(row, false);
-                  onContextMenu(node, e);
+                  const seg = segmentOf(row, e);
+                  if (!isPicked(row) || (pickedRows().length === 1 && seg.id !== selected)) select(row, false, false, seg.index);
+                  onContextMenu(seg.node, e);
                 })
               }
               onPointerDown={dragOut && draggable ? () => dragOut.prepare(node) : undefined}
               onDragStart={(e) => {
                 e.dataTransfer.setData(TREE_DRAG_TYPE, id);
                 e.dataTransfer.effectAllowed = 'copyMove';
-                dragged.current = isPicked(id) ? pickedRows() : [{ id, node }];
+                dragged.current = isPicked(row) ? pickedItems() : [{ id, node }];
                 const out = dragged.current.length === 1 ? dragOut?.link(node) : undefined;
                 if (out) e.dataTransfer.setData('DownloadURL', `application/octet-stream:${out.name}:${out.url}`);
               }}
@@ -537,27 +565,29 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
                 setDropTarget(null);
               }}
               onDragOver={(e) => {
+                const seg = segmentOf(row, e);
                 if (isFileDrag(e)) {
-                  const target = fileTargetOf(row);
+                  const target = fileTargetOf(row, seg);
                   if (!target) return;
                   e.preventDefault();
                   e.dataTransfer.dropEffect = 'copy';
                   if (dropTarget !== target.id) setDropTarget(target.id);
-                  return target === row ? dragOverFolder(row) : clearHover();
+                  return target === seg ? dragOverFolder(row) : clearHover();
                 }
-                if (!e.dataTransfer.types.includes(TREE_DRAG_TYPE) || !canDrop(row)) return;
+                if (!e.dataTransfer.types.includes(TREE_DRAG_TYPE) || !canDrop(row, seg)) return;
                 e.preventDefault();
                 e.dataTransfer.dropEffect = e.ctrlKey ? 'copy' : 'move';
-                if (dropTarget !== id) setDropTarget(id);
+                if (dropTarget !== seg.id) setDropTarget(seg.id);
                 dragOverFolder(row);
               }}
               onDragLeave={() => {
                 if (hoverTimer.current?.id === id) clearHover();
-                if (dropTarget === id) setDropTarget(null);
+                if (row.chain.some((c) => c.id === dropTarget)) setDropTarget(null);
               }}
               onDrop={(e) => {
+                const seg = segmentOf(row, e);
                 if (isFileDrag(e)) {
-                  const target = fileTargetOf(row);
+                  const target = fileTargetOf(row, seg);
                   clearHover();
                   setDropTarget(null);
                   if (!target) return;
@@ -568,10 +598,10 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
                 const d = dragged.current;
                 clearHover();
                 setDropTarget(null);
-                if (!d || !canDrop(row)) return;
+                if (!d || !canDrop(row, seg)) return;
                 e.preventDefault();
                 dragged.current = null;
-                onDrop?.(d.map((x) => x.node), node, e.ctrlKey);
+                onDrop?.(d.map((x) => x.node), seg.node, e.ctrlKey);
               }}
             >
               {guides.map((level) => (
@@ -583,11 +613,20 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
                   <Icon name={icon} size={15} />
                 </span>
               )}
-              {renaming === id ? (
-                <RenameInput initial={labelOf(node)} onDone={(value) => finishRename(row, value)} />
-              ) : (
-                <span className="tree-label">{labelOf(node)}</span>
-              )}
+              <span className="tree-label">
+                {row.chain.map((c, i) => (
+                  <Fragment key={c.id}>
+                    {i > 0 && <span className="tree-sep">/</span>}
+                    {renaming === c.id ? (
+                      <RenameInput initial={labelOf(c.node)} onDone={(value) => finishRename(row, c, value)} />
+                    ) : (
+                      <span data-seg={i} className={`tree-seg${row.chain.length > 1 && (c.id === selected || c.id === dropTarget) ? (c.id === selected ? ' active' : ' drop') : ''}`}>
+                        {labelOf(c.node)}
+                      </span>
+                    )}
+                  </Fragment>
+                ))}
+              </span>
             </div>
             {isOpen && newEntry?.parentId === id && <NewEntryInput key={`new-${id}`} kind={newEntry.kind} depth={depth} onSubmit={newEntry.onSubmit} onCancel={newEntry.onCancel} />}
             {entry?.status === 'loading' && !entry.children && (
