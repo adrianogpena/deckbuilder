@@ -183,3 +183,20 @@ export function validKeymap(raw: unknown): Keymap | null {
   }
   return out;
 }
+
+/** A container attribute: `data-keys="own"` keeps keys pressed inside it from app commands. */
+export const OWN_KEYS_ATTR = 'data-keys';
+/** Space-separated command ids that still fire inside a `data-keys="own"` container. */
+export const ALLOW_KEYS_ATTR = 'data-keys-allow';
+
+interface Closest {
+  closest(selector: string): { getAttribute(name: string): string | null } | null;
+}
+
+/** Whether a key event's target sits in a `data-keys="own"` container that doesn't allow command `id`. */
+export function ownsKey(target: unknown, id: string): boolean {
+  if (!target || typeof (target as Closest).closest !== 'function') return false;
+  const owner = (target as Closest).closest(`[${OWN_KEYS_ATTR}="own"]`);
+  if (!owner) return false;
+  return !(owner.getAttribute(ALLOW_KEYS_ATTR) ?? '').split(/\s+/).includes(id);
+}

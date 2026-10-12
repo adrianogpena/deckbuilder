@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, type MutableRefObject, type ReactNode } from 'react';
 import { isDesktop } from '../api';
 import { isTyping } from '../hooks';
-import { chordOf, firesInInput, resolve, type CommandDef, type Keymap } from '../keybindings';
+import { chordOf, firesInInput, ownsKey, resolve, type CommandDef, type Keymap } from '../keybindings';
 import { isModalOpen } from './ui';
 
 interface Handler {
@@ -25,7 +25,7 @@ interface Registry extends KeybindingsValue {
 const Ctx = createContext<Registry | null>(null);
 
 function blocked(e: KeyboardEvent, def: CommandDef, chord: string): boolean {
-  return (isTyping(e) && !firesInInput(def, chord)) || (isModalOpen() && !def.inModal);
+  return ownsKey(e.target, def.id) || (isTyping(e) && !firesInInput(def, chord)) || (isModalOpen() && !def.inModal);
 }
 
 /**

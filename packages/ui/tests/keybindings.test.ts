@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { GLOBAL, chordOf, conflictsOf, effectiveKeys, normalizeChord, resolve, usesOf, validKeymap, type CommandDef, type KeyLike } from '../src/keybindings.ts';
+import { GLOBAL, chordOf, conflictsOf, effectiveKeys, normalizeChord, ownsKey, resolve, usesOf, validKeymap, type CommandDef, type KeyLike } from '../src/keybindings.ts';
 
 const ev = (key: string, code: string, mods: Partial<KeyLike> = {}): KeyLike => ({ key, code, ctrlKey: false, altKey: false, shiftKey: false, metaKey: false, ...mods });
 const def = (id: string, scope: string, keys: string[], extra: Partial<CommandDef> = {}): CommandDef => ({ id, scope, label: id, keys, ...extra });
@@ -142,3 +142,27 @@ describe('validKeymap', () => {
     expect(validKeymap(Object.fromEntries(Array.from({ length: 300 }, (_, i) => [`c${i}`, []])))).not.toBeNull();
   });
 });
+
+describe('ownsKey', () => {
+  const inside = (attrs: Record<string, string> | null) => ({
+    closest: (sel: string) => (attrs && sel === '[data-keys="own"]' ? { getAttribute: (n: string) => attrs[n] ?? null } : null),
+  });
+
+  test('skips commands from inside a data-keys="own" container', () => {
+    expect(ownsKey(inside({ 'data-keys': 'own' }), 'nav.explorer')).toBe(true);
+  });
+
+  test('lets allowlisted commands through', () => {
+    const t = inside({ 'data-keys': 'own', 'data-keys-allow': 'palette.toggle  app.quit' });
+    expect(ownsKey(t, 'palette.toggle')).toBe(false);
+    expect(ownsKey(t, 'app.quit')).toBe(false);
+    expect(ownsKey(t, 'tabs.close')).toBe(true);
+  });
+
+  test('ignores targets outside a container or without closest', () => {
+    expect(ownsKey(inside(null), 'nav.explorer')).toBe(false);
+    expect(ownsKey(null, 'nav.explorer')).toBe(false);
+    expect(ownsKey({ addEventListener() {} }, 'nav.explorer')).toBe(false);
+  });
+});
+

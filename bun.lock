@@ -117,8 +117,23 @@
       "dependencies": {
         "@deckbuilder/platform": "workspace:*",
         "@deckbuilder/server-core": "workspace:*",
+        "@deckbuilder/ui": "workspace:*",
+        "@xterm/addon-fit": "^0.11.0",
         "@xterm/addon-serialize": "^0.14.0",
+        "@xterm/addon-unicode11": "^0.9.0",
+        "@xterm/addon-web-links": "^0.12.0",
         "@xterm/headless": "^6.0.0",
+        "@xterm/xterm": "^6.0.0",
+      },
+      "devDependencies": {
+        "@types/react": "^18.3.12",
+        "@types/react-dom": "^18.3.1",
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
+      },
+      "peerDependencies": {
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
       },
     },
     "packages/ui": {
@@ -475,9 +490,17 @@
 
     "@vitejs/plugin-react": ["@vitejs/plugin-react@4.7.0", "", { "dependencies": { "@babel/core": "^7.28.0", "@babel/plugin-transform-react-jsx-self": "^7.27.1", "@babel/plugin-transform-react-jsx-source": "^7.27.1", "@rolldown/pluginutils": "1.0.0-beta.27", "@types/babel__core": "^7.20.5", "react-refresh": "^0.17.0" }, "peerDependencies": { "vite": "^4.2.0 || ^5.0.0 || ^6.0.0 || ^7.0.0" } }, "sha512-gUu9hwfWvvEDBBmgtAowQCojwZmJ5mcLn3aufeCsitijs3+f2NsrPtlAWIR6OPiqljl96GVCUbLe0HyqIpVaoA=="],
 
+    "@xterm/addon-fit": ["@xterm/addon-fit@0.11.0", "", {}, "sha512-jYcgT6xtVYhnhgxh3QgYDnnNMYTcf8ElbxxFzX0IZo+vabQqSPAjC3c1wJrKB5E19VwQei89QCiZZP86DCPF7g=="],
+
     "@xterm/addon-serialize": ["@xterm/addon-serialize@0.14.0", "", {}, "sha512-uteyTU1EkrQa2Ux6P/uFl2fzmXI46jy5uoQMKEOM0fKTyiW7cSn0WrFenHm5vO5uEXX/GpwW/FgILvv3r0WbkA=="],
 
+    "@xterm/addon-unicode11": ["@xterm/addon-unicode11@0.9.0", "", {}, "sha512-FxDnYcyuXhNl+XSqGZL/t0U9eiNb/q3EWT5rYkQT/zuig8Gz/VagnQANKHdDWFM2lTMk9ly0EFQxxxtZUoRetw=="],
+
+    "@xterm/addon-web-links": ["@xterm/addon-web-links@0.12.0", "", {}, "sha512-4Smom3RPyVp7ZMYOYDoC/9eGJJJqYhnPLGGqJ6wOBfB8VxPViJNSKdgRYb8NpaM6YSelEKbA2SStD7lGyqaobw=="],
+
     "@xterm/headless": ["@xterm/headless@6.0.0", "", {}, "sha512-5Yj1QINYCyzrZtf8OFIHi47iQtI+0qYFPHmouEfG8dHNxbZ9Tb9YGSuLcsEwj9Z+OL75GJqPyJbyoFer80a2Hw=="],
+
+    "@xterm/xterm": ["@xterm/xterm@6.0.0", "", {}, "sha512-TQwDdQGtwwDt+2cgKDLn0IRaSxYu1tSUjgKarSDkUM0ZNiSRXFpjxEsvc/Zgc5kq5omJ+V0a8/kIM2WD3sMOYg=="],
 
     "baseline-browser-mapping": ["baseline-browser-mapping@2.11.27", "", { "bin": { "baseline-browser-mapping": "dist/cli.cjs" } }, "sha512-ElY12DaROGuan+lMmZ8Cvo/ZUbXPe7Enc/9VU/b1T3Kp4dwytRcNdR8DoSJN5SNJT/CuvcCA0DHDVmMOCePdRQ=="],
 
