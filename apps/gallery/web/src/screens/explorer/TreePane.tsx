@@ -47,7 +47,7 @@ export function TreePane({ focused, onFocus, actions, projects, onPick, onAdd, o
         }
       />
       <div className="xp-pane-body">
-        {searching && <ProjectSearch project={project} onOpenFile={tree.onOpenFile} onClose={() => setSearching(false)} focusSignal={signal} />}
+        {searching && <ProjectSearch project={project} onOpenFile={tree.onPreviewFile ?? tree.onOpenFile} onClose={() => setSearching(false)} focusSignal={signal} />}
         <div hidden={searching}>
           <ProjectTree {...tree} />
         </div>

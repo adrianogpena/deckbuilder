@@ -4,7 +4,9 @@ import {
   activate,
   addTab,
   closeTab,
+  closeTabs,
   cycleTab,
+  distinguishingFolders,
   findTab,
   focusedPane,
   goBack,
@@ -14,6 +16,10 @@ import {
   newTab,
   restore,
   selectIndex,
+  setDirty,
+  setPreview,
+  pinTab,
+  tabsToClose,
   serialize,
   singlePane,
   layoutTree,
@@ -353,5 +359,79 @@ describe('split tree', () => {
     const tree = l.tree;
     l = activate(addTab(l, newTab(route('x'))), l.panes[0].id, id);
     expect(l.tree).toEqual(tree);
+  });
+});
+
+describe('dirty and preview tabs', () => {
+  function three(): { layout: Layout<Route>; ids: string[] } {
+    const a = newTab(route('a'));
+    const b = newTab(route('b'));
+    const c = newTab(route('c'));
+    return { layout: addTab(addTab(singlePane(a), b), c), ids: [a.id, b.id, c.id] };
+  }
+
+  test('setDirty marks a tab and editing pins a preview tab', () => {
+    const { layout, ids } = three();
+    const preview = setPreview(layout, ids[1], true);
+    expect(findTab(preview, ids[1])?.preview).toBe(true);
+    const dirty = setDirty(preview, ids[1], true);
+    expect(findTab(dirty, ids[1])).toMatchObject({ dirty: true });
+    expect(findTab(dirty, ids[1])?.preview).toBeUndefined();
+    expect(setDirty(dirty, ids[1], true)).toBe(dirty);
+    expect(findTab(setDirty(dirty, ids[1], false), ids[1])?.dirty).toBe(false);
+  });
+
+  test('pinTab clears the preview flag', () => {
+    const { layout, ids } = three();
+    const pinned = pinTab(setPreview(layout, ids[0], true), ids[0]);
+    expect(findTab(pinned, ids[0])?.preview).toBeUndefined();
+    expect(pinTab(layout, ids[0])).toBe(layout);
+  });
+
+  test('close modes pick tabs of the pane', () => {
+    const { layout, ids } = three();
+    const dirty = setDirty(layout, ids[1], true);
+    const pick = (mode: Parameters<typeof tabsToClose>[2]) => tabsToClose(dirty, ids[1], mode).map((t) => t.id);
+    expect(pick('others')).toEqual([ids[0], ids[2]]);
+    expect(pick('right')).toEqual([ids[2]]);
+    expect(pick('saved')).toEqual([ids[0], ids[2]]);
+    expect(pick('all')).toEqual(ids);
+  });
+
+  test('closeTabs closes several and leaves the fallback when none remain', () => {
+    const { layout, ids } = three();
+    expect(closeTabs(layout, [ids[0], ids[2]], fallback).panes[0].tabs.map((t) => t.id)).toEqual([ids[1]]);
+    const none = closeTabs(layout, ids, fallback);
+    expect(none.panes[0].tabs.map((t) => t.route)).toEqual([route('home')]);
+  });
+
+  test('preview is serialized, dirty is not', () => {
+    const { layout, ids } = three();
+    const l = setDirty(setPreview(layout, ids[0], true), ids[1], true);
+    const back = restore(JSON.parse(JSON.stringify(serialize(l))), isRoute);
+    expect(back?.panes[0].tabs.map((t) => t.preview)).toEqual([true, undefined, undefined]);
+    expect(back?.panes[0].tabs.some((t) => t.dirty)).toBe(false);
+  });
+});
+
+describe('distinguishingFolders', () => {
+  test('unique titles need no folder', () => {
+    expect(distinguishingFolders([{ title: 'a.ts', location: 'p/src' }, { title: 'b.ts', location: 'p/src' }])).toEqual([undefined, undefined]);
+  });
+
+  test('same titles get the shortest distinguishing suffix', () => {
+    const items = [
+      { title: 'index.ts', location: 'p/ui/src' },
+      { title: 'index.ts', location: 'p/server/src' },
+      { title: 'main.ts', location: 'p/ui/src' },
+    ];
+    expect(distinguishingFolders(items)).toEqual(['ui/src', 'server/src', undefined]);
+    expect(distinguishingFolders([{ title: 'x', location: 'p/a/src' }, { title: 'x', location: 'p/b/src' }])).toEqual(['a/src', 'b/src']);
+    expect(distinguishingFolders([{ title: 'x', location: 'p/a' }, { title: 'x', location: 'q' }])).toEqual(['a', 'q']);
+  });
+
+  test('tabs without a location or in the same folder are left alone', () => {
+    expect(distinguishingFolders([{ title: 'x' }, { title: 'x', location: 'p' }])).toEqual([undefined, undefined]);
+    expect(distinguishingFolders([{ title: 'x', location: 'p' }, { title: 'x', location: 'p' }])).toEqual([undefined, undefined]);
   });
 });

@@ -132,6 +132,7 @@ function ExplorerCard({ settings, onChange }: { settings: Settings; onChange: (p
   const files = fileSettingsOf(settings.files);
   const set = (patch: Partial<typeof files>) => onChange({ files: { ...files, ...patch } });
   return (
+    <>
     <section className="section">
       <h4 className="mono-label">{t('settings.explorer.saving')}</h4>
       <div className="card form">
@@ -160,6 +161,18 @@ function ExplorerCard({ settings, onChange }: { settings: Settings; onChange: (p
         />
       </div>
     </section>
+    <section className="section">
+      <h4 className="mono-label">{t('settings.explorer.tabs')}</h4>
+      <div className="card form">
+        <OnOffField
+          label={t('settings.explorer.previewTabs')}
+          hint={t('settings.explorer.previewTabs.hint')}
+          value={files.previewTabs}
+          onChange={(previewTabs) => set({ previewTabs })}
+        />
+      </div>
+    </section>
+    </>
   );
 }
 

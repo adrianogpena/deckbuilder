@@ -35,6 +35,8 @@ export interface ProjectTreeProps {
   expanded: string[];
   onExpandedChange(ids: string[]): void;
   onOpenFile(project: string, path: string): void;
+  /** A single click on a file; absent: a click only selects. */
+  onPreviewFile?(project: string, path: string): void;
   onOpenTerminal(project: string, path: string): void;
   /** A file or folder was renamed or moved. */
   onMoved(project: string, from: string, to: string): void;
@@ -42,7 +44,7 @@ export interface ProjectTreeProps {
 }
 
 /** The lazy tree of a project's folder, with the file actions. */
-export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, onOpenTerminal, onMoved, onDeleted }: ProjectTreeProps) {
+export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, onPreviewFile, onOpenTerminal, onMoved, onDeleted }: ProjectTreeProps) {
   const tree = useRef<TreeViewHandle<Node>>(null);
   const clipboard = useRef<{ mode: 'copy' | 'cut'; paths: string[] }>();
   const { confirm, prompt, element } = useDialogs();
@@ -264,6 +266,7 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
         expanded={expanded}
         onExpandedChange={onExpandedChange}
         onOpen={open}
+        onPreview={onPreviewFile && ((node) => !node.outside && onPreviewFile(project.id, node.path))}
         onContextMenu={(node, e) => setMenu({ at: { x: e.clientX, y: e.clientY }, node, selection: tree.current?.selection() ?? [node] })}
         onRename={(node, name) => void rename(node, name)}
         onDelete={(nodes) => nodes.length === 1 && void remove(nodes[0]!)}

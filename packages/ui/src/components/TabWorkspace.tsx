@@ -7,17 +7,23 @@ import {
   activeTab,
   addTab,
   closeTab,
+  closeTabs,
   cycleTab,
+  distinguishingFolders,
   findTab,
   goBack,
   goForward,
   moveTab,
   navigate,
   newTab,
+  pinTab,
   selectIndex,
+  setDirty,
+  tabsToClose,
   layoutTree,
   resizeSplit,
   splitPane,
+  type CloseMode,
   type Layout,
   type Pane,
   type SplitNode,
@@ -26,7 +32,7 @@ import {
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { useCommand } from './Keybindings';
 import { SplitView } from './SplitView';
-import { Icon, type IconName, type Tone } from './ui';
+import { Icon, type IconName, type Tone, useDialogs } from './ui';
 
 const DRAG_TYPE = 'application/x-deckbuilder-tab';
 
@@ -35,6 +41,8 @@ export interface TabTitle {
   tooltip?: string;
   icon?: IconName;
   tone?: Tone;
+  /** The folder of the tab's item, `/`-separated: shown dimmed after the title when another tab of the pane has the same title. */
+  location?: string;
 }
 
 interface TabBarProps<R> {
@@ -46,6 +54,8 @@ interface TabBarProps<R> {
   menuOf?: (route: R) => Array<ContextMenuItem | 'sep'>;
   onActivate: (tabId: string) => void;
   onClose: (tabId: string) => void;
+  onCloseMode: (tabId: string, mode: CloseMode) => void;
+  onPin: (tabId: string) => void;
   onNew: () => void;
   onSplit: (side: 'right' | 'down') => void;
   onClosePane: () => void;
@@ -59,6 +69,20 @@ function TabBar<R>(props: TabBarProps<R>) {
   const [dropAt, setDropAt] = useState<number | null>(null);
   const [menu, setMenu] = useState<{ at: { x: number; y: number }; items: Array<ContextMenuItem | 'sep'> } | null>(null);
   const active = pane.tabs.find((x) => x.id === pane.active) ?? pane.tabs[0];
+  const titles = pane.tabs.map((tab) => titleOf(tab.route));
+  const folders = distinguishingFolders(titles);
+
+  const menuItems = (tab: Tab<R>, i: number): Array<ContextMenuItem | 'sep'> => {
+    const closing: ContextMenuItem[] = [
+      { id: 'close', label: t('tabs.menu.close'), run: () => props.onClose(tab.id) },
+      { id: 'closeOthers', label: t('tabs.menu.closeOthers'), disabled: pane.tabs.length < 2, run: () => props.onCloseMode(tab.id, 'others') },
+      { id: 'closeRight', label: t('tabs.menu.closeRight'), disabled: i === pane.tabs.length - 1, run: () => props.onCloseMode(tab.id, 'right') },
+      { id: 'closeSaved', label: t('tabs.menu.closeSaved'), disabled: pane.tabs.every((x) => x.dirty), run: () => props.onCloseMode(tab.id, 'saved') },
+      { id: 'closeAll', label: t('tabs.menu.closeAll'), run: () => props.onCloseMode(tab.id, 'all') },
+    ];
+    const extra = props.menuOf?.(tab.route) ?? [];
+    return extra.length ? [...closing, 'sep', ...extra] : closing;
+  };
 
   const onDragOver = (e: DragEvent, index: number) => {
     if (!e.dataTransfer.types.includes(DRAG_TYPE)) return;
@@ -93,13 +117,14 @@ function TabBar<R>(props: TabBarProps<R>) {
       </div>
       <div className="tabs-strip" role="tablist">
         {pane.tabs.map((tab, i) => {
-          const { title, tooltip, icon, tone } = titleOf(tab.route);
+          const { title, tooltip, icon, tone } = titles[i];
+          const folder = folders[i];
           return (
             <div
               key={tab.id}
               role="tab"
               aria-selected={tab.id === pane.active}
-              className={`tab-chip${tab.id === pane.active ? ' active' : ''}${dropAt === i ? ' drop-before' : ''}`}
+              className={`tab-chip${tab.id === pane.active ? ' active' : ''}${tab.preview ? ' preview' : ''}${tab.dirty ? ' dirty' : ''}${dropAt === i ? ' drop-before' : ''}`}
               title={tooltip ?? title}
               draggable
               onDragStart={(e) => {
@@ -115,11 +140,10 @@ function TabBar<R>(props: TabBarProps<R>) {
                 onDrop(e, i);
               }}
               onClick={() => props.onActivate(tab.id)}
+              onDoubleClick={() => props.onPin(tab.id)}
               onContextMenu={(e) => {
-                const items = props.menuOf?.(tab.route);
-                if (!items?.length) return;
                 e.preventDefault();
-                setMenu({ at: { x: e.clientX, y: e.clientY }, items });
+                setMenu({ at: { x: e.clientX, y: e.clientY }, items: menuItems(tab, i) });
               }}
               onMouseDown={(e) => e.button === 1 && e.preventDefault()}
               onAuxClick={(e) => e.button === 1 && props.onClose(tab.id)}
@@ -129,7 +153,10 @@ function TabBar<R>(props: TabBarProps<R>) {
                     <Icon name={icon} size={13} />
                   </span>
                 )}
-                <span className="tab-title">{title}</span>
+                <span className="tab-title">
+                  {title}
+                  {folder && <span className="tab-dir">{folder}</span>}
+                </span>
               <button
                 className="tab-close"
                 title={t('tabs.close')}
@@ -138,6 +165,7 @@ function TabBar<R>(props: TabBarProps<R>) {
                   props.onClose(tab.id);
                 }}
               >
+                {tab.dirty && <span className="tab-dot" aria-label={t('tabs.unsaved')}>●</span>}
                 <Icon name="close" size={12} />
               </button>
             </div>
@@ -168,7 +196,8 @@ function TabBar<R>(props: TabBarProps<R>) {
 /**
  * Commands of a tab workspace shown in view `scope`: Alt+1..9 select a tab of the focused pane;
  * Ctrl+T, Ctrl+W and Ctrl+Tab / Ctrl+Shift+Tab only in the native window (Edge and Chrome keep
- * them in browser and app mode).
+ * them in browser and app mode). Ctrl+Alt+S saves every tab with unsaved changes (VS Code's
+ * Ctrl+K S needs a two-key chord, which the keymap doesn't have).
  */
 export function tabCommands(scope: string): CommandDef[] {
   const desktop = (name: string, key: string): CommandDef => ({ id: `${scope}.tab.${name}`, scope, label: t(`keys.tab.${name}` as BaseKey), keys: [key], desktopOnly: true });
@@ -178,17 +207,19 @@ export function tabCommands(scope: string): CommandDef[] {
     desktop('next', 'Ctrl+Tab'),
     desktop('prev', 'Ctrl+Shift+Tab'),
     ...Array.from({ length: 9 }, (_, i) => ({ id: `${scope}.tab.select${i + 1}`, scope, label: t('keys.tab.select', { n: i + 1 }), keys: [`Alt+${i + 1}`] })),
+    { id: `${scope}.tab.saveAll`, scope, label: t('keys.tab.saveAll'), keys: ['Ctrl+Alt+S'] },
   ];
 }
 
 /**
  * Binds `tabCommands(scope)` to the layout. `TabWorkspace` installs these itself; call this only
- * for a layout shown another way.
+ * for a layout shown another way. `onClose` replaces the plain close of Ctrl+W (to ask about unsaved
+ * changes first); Save All is bound by `TabWorkspace` only.
  */
-export function useTabKeys<R>(layout: Layout<R>, onChange: (next: Layout<R>) => void, newRoute: () => R, scope: string) {
+export function useTabKeys<R>(layout: Layout<R>, onChange: (next: Layout<R>) => void, newRoute: () => R, scope: string, onClose?: (tabId: string) => void) {
   const [add, close, next, prev, ...select] = tabCommands(scope);
   useCommand(add, () => onChange(addTab(layout, newTab(newRoute()))));
-  useCommand(close, () => onChange(closeTab(layout, activeTab(layout).id, () => newTab(newRoute()))));
+  useCommand(close, () => (onClose ? onClose(activeTab(layout).id) : onChange(closeTab(layout, activeTab(layout).id, () => newTab(newRoute())))));
   useCommand(next, () => onChange(cycleTab(layout, 1)));
   useCommand(prev, () => onChange(cycleTab(layout, -1)));
   // Always nine, so the hook order is fixed.
@@ -202,6 +233,10 @@ export interface TabContext<R> {
   focused: boolean;
   /** Shows another route in this tab; the previous one stays reachable with Back. */
   navigate: (route: R) => void;
+  /** Reports whether the tab has unsaved changes; closing it then asks Save / Don't Save / Cancel. */
+  setDirty: (dirty: boolean) => void;
+  /** Registers what saves the tab (resolves true when it is saved or had nothing to save); Save All and the close dialog call it. */
+  setSaver: (save: (() => Promise<boolean>) | undefined) => void;
 }
 
 interface TabWorkspaceProps<R> {
@@ -219,7 +254,8 @@ interface TabWorkspaceProps<R> {
 }
 
 export function TabWorkspace<R>({ layout, onChange, renderTab, titleOf, menuOf, newRoute, scope }: TabWorkspaceProps<R>) {
-  useTabKeys(layout, onChange, newRoute, scope);
+  const { choose, element } = useDialogs();
+  const savers = useRef(new Map<string, () => Promise<boolean>>());
 
   // Handlers read the layout of the latest change, so two changes in one tick don't overwrite each other.
   const latest = useRef(layout);
@@ -230,7 +266,41 @@ export function TabWorkspace<R>({ layout, onChange, renderTab, titleOf, menuOf, 
     onChange(next);
   };
   const fresh = () => newTab(newRoute());
-  const closeById = (tabId: string) => update((l) => closeTab(l, tabId, fresh));
+
+  /** Saves the tabs one after another; false as soon as one fails (its own banner says why). */
+  const saveTabs = async (tabIds: string[]) => {
+    for (const id of tabIds) {
+      if (!(await savers.current.get(id)?.())) return false;
+    }
+    return true;
+  };
+  const saveAll = () => void saveTabs(latest.current.panes.flatMap((p) => p.tabs.filter((x) => x.dirty).map((x) => x.id)));
+
+  /** Closes the tabs, first asking once about the ones with unsaved changes; Cancel or a failed save keeps them all open. */
+  const closeMany = async (tabIds: string[]) => {
+    const dirty = tabIds.flatMap((id) => {
+      const tab = findTab(latest.current, id);
+      return tab?.dirty ? [tab] : [];
+    });
+    if (dirty.length) {
+      const choice = await choose({
+        title: t('tabs.unsavedTitle'),
+        body: dirty.length === 1 ? t('tabs.unsavedOne', { name: titleOf(dirty[0].route).title }) : t('tabs.unsavedMany', { count: dirty.length }),
+        choices: [
+          { id: 'save', label: t('tabs.save') },
+          { id: 'discard', label: t('tabs.dontSave'), danger: true },
+        ],
+      });
+      if (!choice) return;
+      if (choice === 'save' && !(await saveTabs(dirty.map((x) => x.id)))) return;
+    }
+    update((l) => closeTabs(l, tabIds.filter((id) => findTab(l, id)), fresh));
+  };
+  const closeById = (tabId: string) => void closeMany([tabId]);
+  const closeMode = (tabId: string, mode: CloseMode) => void closeMany(tabsToClose(latest.current, tabId, mode).map((x) => x.id));
+
+  useTabKeys(layout, onChange, newRoute, scope, closeById);
+  useCommand(tabCommands(scope).at(-1)!, saveAll);
 
   const renderPane = (pane: Pane<R>) => {
     const paneFocused = pane.id === layout.focused;
@@ -250,11 +320,11 @@ export function TabWorkspace<R>({ layout, onChange, renderTab, titleOf, menuOf, 
           menuOf={menuOf}
           onActivate={(tabId) => update((l) => activate(l, pane.id, tabId))}
           onClose={closeById}
+          onCloseMode={closeMode}
+          onPin={(tabId) => update((l) => pinTab(l, tabId))}
           onNew={() => update((l) => addTab(l, fresh(), pane.id))}
           onSplit={(side) => update((l) => splitPane(l, activeId, side))}
-          onClosePane={() =>
-            update((l) => pane.tabs.reduce((next, tab) => closeTab(next, tab.id, fresh), l))
-          }
+          onClosePane={() => void closeMany(pane.tabs.map((x) => x.id))}
           onBack={() => update((l) => goBack(l, activeId))}
           onForward={() => update((l) => goForward(l, activeId))}
           onDropTab={(tabId, index) =>
@@ -274,6 +344,11 @@ export function TabWorkspace<R>({ layout, onChange, renderTab, titleOf, menuOf, 
                   visible,
                   focused: visible && paneFocused,
                   navigate: (route) => update((l) => (findTab(l, tab.id) ? navigate(l, tab.id, route) : l)),
+                  setDirty: (dirty) => Boolean(findTab(latest.current, tab.id)?.dirty) !== dirty && update((l) => setDirty(l, tab.id, dirty)),
+                  setSaver: (save) => {
+                    if (save) savers.current.set(tab.id, save);
+                    else savers.current.delete(tab.id);
+                  },
                 })}
               </div>
             );
@@ -306,6 +381,7 @@ export function TabWorkspace<R>({ layout, onChange, renderTab, titleOf, menuOf, 
   const tree = layoutTree(layout);
   return (
     <div className="panes">
+      {element}
       {'pane' in tree ? (
         <SplitView key="root" direction="row" sizes={[1]} onResize={() => {}}>
           {renderNode(tree, [])}

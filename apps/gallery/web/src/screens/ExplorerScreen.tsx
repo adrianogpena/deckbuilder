@@ -3,6 +3,8 @@ import {
   activate,
   activeTab,
   addTab,
+  focusedPane,
+  pinTab,
   closeTab,
   type ContextMenuItem,
   dialogs,
@@ -21,6 +23,7 @@ import {
   ResourceForm,
   restore,
   serialize,
+  setPreview,
   singlePane,
   Spinner,
   SplitView,
@@ -199,16 +202,27 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
     update((s) => ({ ...s, trees: shownIds(s, list).slice(0, 1) }));
   };
 
-  const openFile = (project: string, path: string) =>
+  /** Opens a file; `preview` opens it in the pane's preview tab, which a later preview replaces. An already open file is only shown (and kept open unless `preview`). */
+  const openFile = (project: string, path: string, preview = false) =>
     update((s) => {
       const target: Route = { kind: 'file', project, path };
       for (const pane of s.layout.panes) {
         const same = pane.tabs.find((x) => x.route.kind === 'file' && x.route.project === project && x.route.path === path);
-        if (same) return { ...s, layout: activate(s.layout, pane.id, same.id) };
+        if (same) {
+          const shown = activate(s.layout, pane.id, same.id);
+          return { ...s, layout: preview ? shown : pinTab(shown, same.id) };
+        }
       }
+      const pane = focusedPane(s.layout);
+      const slot = preview ? pane.tabs.find((x) => x.preview) : undefined;
+      if (slot) return { ...s, layout: activate(navigate(s.layout, slot.id, target, { replace: true }), pane.id, slot.id) };
       const current = activeTab(s.layout);
-      const layout = current.route.kind === 'welcome' ? navigate(s.layout, current.id, target, { replace: true }) : addTab(s.layout, newTab(target));
-      return { ...s, layout };
+      if (current.route.kind === 'welcome') {
+        const layout = navigate(s.layout, current.id, target, { replace: true });
+        return { ...s, layout: preview ? setPreview(layout, current.id, true) : layout };
+      }
+      const tab = newTab(target);
+      return { ...s, layout: addTab(s.layout, preview ? { ...tab, preview: true } : tab) };
     });
 
   const openTerminal = (project: string, path: string) =>
@@ -294,6 +308,7 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
         : {
           title: relPath.basename(route.path),
           tooltip: `${nameOf(route.project)}/${route.path}`,
+          location: [nameOf(route.project), relPath.dirname(route.path)].filter(Boolean).join('/'),
           ...fileIconOf(relPath.basename(route.path)),
         };
 
@@ -350,7 +365,8 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
                   {...pickerHandlers}
                   expanded={state.expanded[project.id] ?? [nodeId(project.id, '')]}
                   onExpandedChange={(ids) => setExpanded(project.id, ids)}
-                  onOpenFile={openFile}
+                  onOpenFile={(p, path) => openFile(p, path)}
+                  onPreviewFile={files.previewTabs ? (p, path) => openFile(p, path, true) : undefined}
                   onOpenTerminal={openTerminal}
                   onMoved={moved}
                   onDeleted={deleted}
@@ -394,7 +410,7 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
           renderTab={(tab, ctx) =>
             tab.route.kind === 'file' ? (
               <Suspense fallback={<PanelLoading />}>
-                <FileTab project={tab.route.project} projectName={nameOf(tab.route.project)} path={tab.route.path} focused={ctx.focused} logs={logs} onLogsChange={changeLogs} markdownMode={state.markdownMode} onMarkdownModeChange={(markdownMode) => update((s) => ({ ...s, markdownMode }))} wrapLines={state.wrapLines} onWrapLinesChange={(wrapLines) => update((s) => ({ ...s, wrapLines }))} files={files} />
+                <FileTab project={tab.route.project} projectName={nameOf(tab.route.project)} path={tab.route.path} focused={ctx.focused} logs={logs} onLogsChange={changeLogs} onDirty={ctx.setDirty} onSaver={ctx.setSaver} markdownMode={state.markdownMode} onMarkdownModeChange={(markdownMode) => update((s) => ({ ...s, markdownMode }))} wrapLines={state.wrapLines} onWrapLinesChange={(wrapLines) => update((s) => ({ ...s, wrapLines }))} files={files} />
               </Suspense>
             ) : tab.route.kind === 'terminal' ? (
               <Suspense fallback={<PanelLoading />}>

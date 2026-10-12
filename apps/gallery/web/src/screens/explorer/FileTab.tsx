@@ -34,6 +34,9 @@ export interface FileTabProps {
   onWrapLinesChange?: (wrap: boolean) => void;
   /** Save behaviour (auto-save, trim, final newline). */
   files?: Required<FileSettings>;
+  /** Reports unsaved changes to the tab bar, and registers what saves the tab (see `TabContext`). */
+  onDirty?: (dirty: boolean) => void;
+  onSaver?: (save: (() => Promise<boolean>) | undefined) => void;
 }
 
 /** Line breaks of new files and of files without any: the OS's, like VS Code's `files.eol: auto`. */
@@ -67,7 +70,7 @@ export function FileTab(props: FileTabProps) {
 }
 
 /** A preview by extension, and for text files an editor with Save (Ctrl+S). */
-function TextFileTab({ project, projectName, path, focused, markdownMode = 'live', onMarkdownModeChange, wrapLines = true, onWrapLinesChange, files = FILE_DEFAULTS }: FileTabProps) {
+function TextFileTab({ project, projectName, path, focused, markdownMode = 'live', onMarkdownModeChange, wrapLines = true, onWrapLinesChange, files = FILE_DEFAULTS, onDirty, onSaver }: FileTabProps) {
   const name = relPath.basename(path);
   const markdown = previewKind(name) === 'markdown';
   const [state, setState] = useState<State>({ status: 'loading' });
@@ -216,9 +219,10 @@ function TextFileTab({ project, projectName, path, focused, markdownMode = 'live
     if (await confirmDiscard()) void load();
   };
 
-  /** `overwrite` skips the changed-on-disk check; `unlock` clears the file's read-only flag first. */
-  const save = async (opts: { overwrite?: boolean; unlock?: boolean } = {}) => {
-    if (!dirty || saving || state.status !== 'ready') return;
+  /** `overwrite` skips the changed-on-disk check; `unlock` clears the file's read-only flag first. Resolves true when the file is saved or had nothing to save. */
+  const save = async (opts: { overwrite?: boolean; unlock?: boolean } = {}): Promise<boolean> => {
+    if (!dirty) return true;
+    if (saving || state.status !== 'ready') return false;
     setSaving(true);
     setSaveError(undefined);
     const typed = draft;
@@ -232,8 +236,10 @@ function TextFileTab({ project, projectName, path, focused, markdownMode = 'live
       setDisk((d) => ({ size: saved.size, readOnly: opts.unlock ? false : d.readOnly }));
       setDraft((d) => (d === typed ? text : d));
       setState({ status: 'ready', content: { text }, mtime: saved.mtime });
+      return true;
     } catch (err) {
       setSaveError(errorOf(err));
+      return false;
     } finally {
       setSaving(false);
     }
@@ -243,6 +249,20 @@ function TextFileTab({ project, projectName, path, focused, markdownMode = 'live
 
   const saveRef = useRef(save);
   saveRef.current = save;
+  const onDirtyRef = useRef(onDirty);
+  onDirtyRef.current = onDirty;
+  const onSaverRef = useRef(onSaver);
+  onSaverRef.current = onSaver;
+  useEffect(() => {
+    onDirtyRef.current?.(dirty);
+  }, [dirty]);
+  useEffect(() => {
+    onSaverRef.current?.(() => saveRef.current());
+    return () => {
+      onSaverRef.current?.(undefined);
+      onDirtyRef.current?.(false);
+    };
+  }, []);
   const conflict = saveError?.code === 'fileChanged';
   const lockedFile = saveError?.code === 'fileReadOnly';
   // Both wait for the user's choice; auto-save would only repeat the error.

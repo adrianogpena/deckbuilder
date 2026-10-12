@@ -11,12 +11,15 @@ export interface FileSettings {
   trimTrailingWhitespace?: boolean;
   /** End the file with a line break on save. */
   insertFinalNewline?: boolean;
+  /** A single click on a file opens a preview tab that the next click replaces; double-click, editing or double-clicking the tab keeps it. */
+  previewTabs?: boolean;
 }
 
 export const FILE_DEFAULTS: Required<FileSettings> = {
   autoSave: 'off',
   trimTrailingWhitespace: false,
   insertFinalNewline: false,
+  previewTabs: true,
 };
 
 /** `raw` with the defaults filled in; fields of the wrong type fall back to their default. */
@@ -31,5 +34,6 @@ export function validFileSettings(raw: unknown): FileSettings | null {
   if (AUTO_SAVE.includes(raw.autoSave as AutoSave)) out.autoSave = raw.autoSave as AutoSave;
   if (typeof raw.trimTrailingWhitespace === 'boolean') out.trimTrailingWhitespace = raw.trimTrailingWhitespace;
   if (typeof raw.insertFinalNewline === 'boolean') out.insertFinalNewline = raw.insertFinalNewline;
+  if (typeof raw.previewTabs === 'boolean') out.previewTabs = raw.previewTabs;
   return out;
 }

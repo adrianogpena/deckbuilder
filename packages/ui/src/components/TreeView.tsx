@@ -40,6 +40,8 @@ export interface TreeViewProps<N> {
   onSelect?: (node: N) => void;
   /** Enter on any row, double-click on a row without children. */
   onOpen?: (node: N) => void;
+  /** A plain click (no Ctrl or Shift) on a row without children, before a possible double-click. */
+  onPreview?: (node: N) => void;
   onContextMenu?: (node: N, e: MouseEvent) => void;
   /** F2 or `startRename` show an inline input; Enter or leaving it commits, Escape cancels. */
   onRename?: (node: N, name: string) => void;
@@ -101,7 +103,7 @@ function RenameInput({ initial, onDone }: { initial: string; onDone: (value: str
 }
 
 function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) {
-  const { roots, idOf, labelOf, iconOf, iconToneOf, hasChildren, expanded, onExpandedChange, onOpen, onContextMenu, onRename, onDelete, onCopy, onCut, onPaste, draggable, onDrop } = props;
+  const { roots, idOf, labelOf, iconOf, iconToneOf, hasChildren, expanded, onExpandedChange, onOpen, onPreview, onContextMenu, onRename, onDelete, onCopy, onCut, onPaste, draggable, onDrop } = props;
   const cache = useRef(new Map<string, Entry<N>>());
   const generations = useRef(new Map<string, number>());
   const [, bump] = useReducer((x: number) => x + 1, 0);
@@ -344,6 +346,7 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
                 if (e.shiftKey) return selectRange(row);
                 select(row, false);
                 if (expandable) setOpen(row, !isOpen);
+                else onPreview?.(node);
               }}
               onDoubleClick={() => !expandable && onOpen?.(node)}
               onContextMenu={

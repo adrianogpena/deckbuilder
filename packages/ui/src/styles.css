@@ -366,6 +366,13 @@ kbd {
   content: ""; position: absolute; left: 10px; right: 10px; top: -1px; height: 2px; border-radius: 0 0 2px 2px; background: var(--accent);
 }
 .tab-chip.drop-before { box-shadow: inset 2px 0 0 var(--accent); }
+.tab-chip.preview .tab-title { font-style: italic; }
+.tab-dir { margin-left: 8px; font-weight: 400; font-size: 11.5px; color: var(--text-3); }
+.tab-dot { display: none; font-size: 11px; line-height: 1; }
+.tab-chip.dirty .tab-dot { display: block; }
+.tab-chip.dirty .tab-close .icon { display: none; }
+.tab-chip.dirty:hover .tab-dot { display: none; }
+.tab-chip.dirty:hover .tab-close .icon { display: block; }
 .tab-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; font-weight: 500; }
 .tab-close {
   border: 0; background: transparent; color: var(--text-3); width: 20px; height: 20px; border-radius: 5px;

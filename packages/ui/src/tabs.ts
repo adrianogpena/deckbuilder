@@ -9,6 +9,10 @@ export interface Tab<R> {
   route: R;
   back: R[];
   forward: R[];
+  /** The tab has unsaved changes (set by the tab's content, never persisted). */
+  dirty?: boolean;
+  /** A preview tab: italic, replaced by the next preview. Absent means pinned. */
+  preview?: boolean;
 }
 
 export interface Pane<R> {
@@ -121,6 +125,48 @@ export function navigate<R>(layout: Layout<R>, tabId: string, route: R, opts: { 
     if (opts.replace) return { ...t, route };
     return { ...t, route, back: [...t.back, t.route].slice(-MAX_HISTORY), forward: [] };
   });
+}
+
+/** Marks a tab dirty or clean; editing pins a preview tab. */
+export function setDirty<R>(layout: Layout<R>, tabId: string, dirty: boolean): Layout<R> {
+  const tab = findTab(layout, tabId);
+  if (!tab || Boolean(tab.dirty) === dirty) return layout;
+  return mapTab(layout, tabId, ({ preview: _preview, ...rest }) => ({ ...rest, dirty, ...(!dirty && tab.preview ? { preview: true } : {}) }));
+}
+
+/** Makes a tab a preview tab, or a regular one. */
+export function setPreview<R>(layout: Layout<R>, tabId: string, preview: boolean): Layout<R> {
+  if (Boolean(findTab(layout, tabId)?.preview) === preview) return layout;
+  return mapTab(layout, tabId, ({ preview: _preview, ...rest }) => (preview ? { ...rest, preview: true } : rest));
+}
+
+/** Turns a preview tab into a regular one. */
+export function pinTab<R>(layout: Layout<R>, tabId: string): Layout<R> {
+  return setPreview(layout, tabId, false);
+}
+
+export type CloseMode = 'others' | 'right' | 'saved' | 'all';
+
+/** The tabs of the pane holding `tabId` that a close command removes. */
+export function tabsToClose<R>(layout: Layout<R>, tabId: string, mode: CloseMode): Tab<R>[] {
+  const pane = layout.panes.find((p) => p.tabs.some((x) => x.id === tabId));
+  if (!pane) return [];
+  const at = pane.tabs.findIndex((x) => x.id === tabId);
+  switch (mode) {
+    case 'others':
+      return pane.tabs.filter((x) => x.id !== tabId);
+    case 'right':
+      return pane.tabs.slice(at + 1);
+    case 'saved':
+      return pane.tabs.filter((x) => !x.dirty);
+    case 'all':
+      return pane.tabs;
+  }
+}
+
+/** Closes several tabs in order; see `closeTab`. */
+export function closeTabs<R>(layout: Layout<R>, tabIds: string[], fallback: () => Tab<R>): Layout<R> {
+  return tabIds.reduce((next, id) => closeTab(next, id, fallback), layout);
 }
 
 export function goBack<R>(layout: Layout<R>, tabId: string): Layout<R> {
@@ -271,7 +317,7 @@ export function selectIndex<R>(layout: Layout<R>, index: number): Layout<R> {
 export function serialize<R>(layout: Layout<R>): unknown {
   return {
     focused: layout.focused,
-    panes: layout.panes.map((p) => ({ id: p.id, active: p.active, tabs: p.tabs.map((t) => ({ id: t.id, route: t.route })) })),
+    panes: layout.panes.map((p) => ({ id: p.id, active: p.active, tabs: p.tabs.map((t) => ({ id: t.id, route: t.route, ...(t.preview ? { preview: true } : {}) })) })),
     ...(layout.tree ? { tree: layout.tree } : {}),
   };
 }
@@ -311,12 +357,12 @@ function restoreTree(raw: unknown, savedIds: unknown[], kept: string[]): SplitNo
 
 export function restore<R>(raw: unknown, isRoute: (x: unknown) => x is R): Layout<R> | null {
   try {
-    const data = raw as { focused: string; tree?: unknown; panes: Array<{ id: string; active: string; tabs: Array<{ id: string; route: unknown }> }> };
+    const data = raw as { focused: string; tree?: unknown; panes: Array<{ id: string; active: string; tabs: Array<{ id: string; route: unknown; preview?: unknown }> }> };
     const panes: Pane<R>[] = data.panes
       .map((p): Pane<R> => {
         const tabs: Tab<R>[] = p.tabs
           .filter((t) => typeof t.id === 'string' && isRoute(t.route))
-          .map((t) => ({ id: t.id, route: t.route as R, back: [], forward: [] }));
+          .map((t) => ({ id: t.id, route: t.route as R, back: [], forward: [], ...(t.preview === true ? { preview: true } : {}) }));
         return { id: p.id, tabs, active: tabs.some((t) => t.id === p.active) ? p.active : tabs[0]?.id ?? '' };
       })
       .filter((p) => typeof p.id === 'string' && p.tabs.length > 0)
@@ -328,4 +374,25 @@ export function restore<R>(raw: unknown, isRoute: (x: unknown) => x is R): Layou
   } catch {
     return null;
   }
+}
+
+/**
+ * For each tab, the shortest folder suffix that tells it apart from the other tabs with the same
+ * title (`index.ts` in `ui/src` and in `server/src` → `ui/src`, `server/src`); undefined for a tab
+ * whose title is unique or that has no `location` (its folder, `/`-separated).
+ */
+export function distinguishingFolders(items: Array<{ title: string; location?: string }>): Array<string | undefined> {
+  const segs = items.map((x) => (x.location ?? '').split('/').filter(Boolean));
+  return items.map((item, i) => {
+    if (item.location === undefined) return undefined;
+    const same = items.flatMap((other, j) => (other.title === item.title && other.location !== undefined ? [j] : []));
+    const places = new Set(same.map((j) => segs[j].join('/')));
+    if (places.size < 2) return undefined;
+    const most = Math.max(...same.map((j) => segs[j].length));
+    for (let n = 1; n <= most; n++) {
+      const suffixes = new Set([...places].map((p) => p.split('/').filter(Boolean).slice(-n).join('/')));
+      if (suffixes.size === places.size) return segs[i].slice(-n).join('/');
+    }
+    return segs[i].join('/');
+  });
 }

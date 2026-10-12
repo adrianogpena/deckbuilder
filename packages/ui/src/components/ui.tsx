@@ -196,9 +196,17 @@ export interface PromptOptions {
   validate?(value: string): string | null;
 }
 
+export interface ChoiceOptions {
+  title: string;
+  body?: ReactNode;
+  /** Buttons after Cancel, in order; the first one has the focus. */
+  choices: Array<{ id: string; label: string; danger?: boolean }>;
+}
+
 type DialogRequest =
   | { id: number; kind: 'confirm'; opts: ConfirmOptions; resolve: (ok: boolean) => void }
-  | { id: number; kind: 'prompt'; opts: PromptOptions; resolve: (value: string | null) => void };
+  | { id: number; kind: 'prompt'; opts: PromptOptions; resolve: (value: string | null) => void }
+  | { id: number; kind: 'choice'; opts: ChoiceOptions; resolve: (id: string | null) => void };
 
 function ConfirmDialog({ opts, onDone }: { opts: ConfirmOptions; onDone: (ok: boolean) => void }) {
   return (
@@ -211,6 +219,27 @@ function ConfirmDialog({ opts, onDone }: { opts: ConfirmOptions; onDone: (ok: bo
           <button className={`btn ${opts.danger ? 'btn-danger' : 'btn-primary'}`} onClick={() => onDone(true)} autoFocus={!opts.danger}>
             {opts.okLabel ?? t('dialog.ok')}
           </button>
+        </>
+      }
+    >
+      {typeof opts.body === 'string' ? <p>{opts.body}</p> : opts.body}
+    </Modal>
+  );
+}
+
+function ChoiceDialog({ opts, onDone }: { opts: ChoiceOptions; onDone: (id: string | null) => void }) {
+  return (
+    <Modal
+      title={opts.title}
+      onClose={() => onDone(null)}
+      footer={
+        <>
+          <button className="btn" onClick={() => onDone(null)}>{t('dialog.cancel')}</button>
+          {opts.choices.map((c, i) => (
+            <button key={c.id} className={`btn ${c.danger ? 'btn-danger' : i === 0 ? 'btn-primary' : ''}`} onClick={() => onDone(c.id)} autoFocus={i === 0}>
+              {c.label}
+            </button>
+          ))}
         </>
       }
     >
@@ -255,12 +284,14 @@ function PromptDialog({ opts, onDone }: { opts: PromptOptions; onDone: (value: s
 let dialogIds = 0;
 
 /**
- * Promise-based confirm and prompt dialogs. Render `element` once in the component; both resolve
- * on OK, Cancel or Escape (confirm → false, prompt → null), also when the component unmounts.
+ * Promise-based confirm, prompt and choice dialogs. Render `element` once in the component; all
+ * resolve on OK, Cancel or Escape (confirm → false, prompt and choice → null), also when the
+ * component unmounts.
  */
 export function useDialogs(): {
   confirm: (opts: ConfirmOptions) => Promise<boolean>;
   prompt: (opts: PromptOptions) => Promise<string | null>;
+  choose: (opts: ChoiceOptions) => Promise<string | null>;
   element: ReactNode;
 } {
   const [queue, setQueue] = useState<DialogRequest[]>([]);
@@ -287,11 +318,15 @@ export function useDialogs(): {
   const confirm = useCallback((opts: ConfirmOptions) => new Promise<boolean>((resolve) => push({ id: ++dialogIds, kind: 'confirm', opts, resolve })), [push]);
   const prompt = useCallback((opts: PromptOptions) => new Promise<string | null>((resolve) => push({ id: ++dialogIds, kind: 'prompt', opts, resolve })), [push]);
 
+  const choose = useCallback((opts: ChoiceOptions) => new Promise<string | null>((resolve) => push({ id: ++dialogIds, kind: 'choice', opts, resolve })), [push]);
+
   const req = queue[0];
   const element = !req ? null : req.kind === 'confirm'
     ? <ConfirmDialog key={req.id} opts={req.opts} onDone={(ok) => settle(req, ok)} />
-    : <PromptDialog key={req.id} opts={req.opts} onDone={(value) => settle(req, value)} />;
-  return { confirm, prompt, element };
+    : req.kind === 'choice'
+      ? <ChoiceDialog key={req.id} opts={req.opts} onDone={(id) => settle(req, id)} />
+      : <PromptDialog key={req.id} opts={req.opts} onDone={(value) => settle(req, value)} />;
+  return { confirm, prompt, choose, element };
 }
 
 export type { IconName } from '../icons';
