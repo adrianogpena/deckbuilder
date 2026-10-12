@@ -190,7 +190,7 @@ export function terminalSessions({ spawn = spawnPty, max = 20, now = Date.now }:
     e.viewers.push(viewer);
     e.term.write('', () => {
       if (!e.viewers.includes(viewer)) return;
-      sink.send(e.serializer.serialize());
+      sink.send(new TextEncoder().encode(e.serializer.serialize()));
       if (e.title) sink.send(control({ type: 'title', title: e.title }));
       if (e.exited !== undefined) {
         sink.send(control({ type: 'exit', code: e.exited }));
