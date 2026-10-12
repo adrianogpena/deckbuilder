@@ -82,6 +82,8 @@ export interface WorkbenchSettings {
   results?: ResultFormat;
   /** SQL formatter options; the editor package owns their meaning. */
   format?: Record<string, string | number | boolean>;
+  /** The document the Workbench edits; the default script of the connection when omitted. */
+  doc?: { kind: 'default' } | { kind: 'file'; project: string; path: string };
 }
 
 export interface ExplorerSettings {
@@ -210,6 +212,16 @@ function validWorkbench(raw: unknown): WorkbenchSettings | null {
       format[key] = v;
     }
     out.format = format;
+  }
+  if (r.doc !== undefined) {
+    const d = r.doc as unknown;
+    if (!isRecord(d)) return null;
+    if (d.kind === 'default') out.doc = { kind: 'default' };
+    else if (d.kind === 'file') {
+      if (typeof d.project !== 'string' || !/^[\w-]{1,64}$/.test(d.project)) return null;
+      if (typeof d.path !== 'string' || d.path.length < 1 || d.path.length > 4096) return null;
+      out.doc = { kind: 'file', project: d.project, path: d.path };
+    } else return null;
   }
   return out;
 }

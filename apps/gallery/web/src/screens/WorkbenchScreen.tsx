@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CodeEditor } from '@deckbuilder/editor';
+import { CodeEditor, type CodeEditorHandle, type RunMode, splitStatements } from '@deckbuilder/editor';
 import {
   type ApiError,
   Badge,
@@ -18,16 +18,18 @@ import {
   toCsv,
   toTsv,
   useAsync,
+  useCommand,
   useDebouncedSave,
   useDialogs,
   useStream,
 } from '@deckbuilder/ui';
 import { api, withWorkbenchDefaults, type DbColumn, type DbSchemaTable, type DbStatus, type DemoRow, type ResultFormat, type Settings, type WorkbenchSettings } from '../api';
+import { commandById } from '../commands';
 import { t } from '../i18n';
 import { Connections } from './workbench/Connections';
 import { SchemaPanel } from './workbench/SchemaPanel';
 
-const SAMPLE = 'select * from rows;';
+const SAVE_DELAY = 500;
 const DEMO_SOURCE = 'demo';
 const MANAGE = '::manage';
 const ROW_COUNT = 50_000;
@@ -76,7 +78,8 @@ const isTruncatedMarker = (item: unknown) => typeof item === 'object' && item !=
 
 export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSave: (patch: Partial<Settings>) => void }) {
   const [state, setState] = useState<WorkbenchSettings>(() => withWorkbenchDefaults(settings.workbench));
-  const [query, setQuery] = useState(SAMPLE);
+  const [query, setQuery] = useState('');
+  const [docError, setDocError] = useState<ApiError>();
   const [lines, setLines] = useState<OutputLine[]>([]);
   const [actionError, setActionError] = useState<ApiError>();
   const [selection, setSelection] = useState<string[]>([]);
@@ -91,6 +94,7 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
   const cancelled = useRef(false);
   const reported = useRef(0);
   const wasRunning = useRef(false);
+  const editor = useRef<CodeEditorHandle>(null);
 
   const persist = useDebouncedSave((next: WorkbenchSettings) => onSave({ workbench: next }));
   const latest = useRef(state);
@@ -103,6 +107,77 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
 
   const connection = state.source && state.source !== DEMO_SOURCE ? connections.data?.find((c) => c.id === state.source) : undefined;
   const db = connection?.id;
+  const doc = state.doc ?? { kind: 'default' as const };
+  const docKey = doc.kind === 'file' ? `file:${doc.project}:${doc.path}` : db ? `db:${db}` : '';
+  const docName = doc.kind === 'file' ? (doc.path.split(/[\\/]/).pop() ?? doc.path) : '';
+
+  // The edited document: loaded when `docKey` changes, saved after a pause; a pending save is flushed before the switch.
+  const docWrite = useRef<((text: string) => Promise<void>) | undefined>();
+  const pendingText = useRef<string>();
+  const lastText = useRef('');
+  const loaded = useRef(false);
+  const saveTimer = useRef<number>();
+  const queue = useRef<Promise<void>>(Promise.resolve());
+  const flushDoc = () => {
+    window.clearTimeout(saveTimer.current);
+    const text = pendingText.current;
+    pendingText.current = undefined;
+    const write = docWrite.current;
+    if (text !== undefined && write) queue.current = queue.current.then(() => write(text));
+  };
+  const edit = (text: string) => {
+    setQuery(text);
+    if (!loaded.current || !docWrite.current || text === lastText.current) return;
+    lastText.current = text;
+    pendingText.current = text;
+    window.clearTimeout(saveTimer.current);
+    saveTimer.current = window.setTimeout(flushDoc, SAVE_DELAY);
+  };
+  useEffect(() => {
+    let live = true;
+    loaded.current = false;
+    docWrite.current = undefined;
+    lastText.current = '';
+    setQuery('');
+    setDocError(undefined);
+    const ready = (text: string, write: (text: string) => Promise<void>) => {
+      if (!live) return;
+      lastText.current = text;
+      docWrite.current = write;
+      loaded.current = true;
+      setQuery(text);
+    };
+    const failed = (err: unknown) => {
+      if (live) setDocError(errorOf(err));
+    };
+    if (doc.kind === 'file') {
+      const { project, path } = doc;
+      api.fsRead(project, path).then((read) => {
+        if (!('text' in read) || read.truncated) throw new Error(t('workbench.doc.notText', { name: docName }));
+        let mtime = read.mtime;
+        const crlf = read.text.includes('\r\n');
+        let stopped = false;
+        ready(read.text.replace(/\r\n/g, '\n'), async (text) => {
+          if (stopped) return;
+          try {
+            mtime = (await api.fsWrite(project, path, crlf ? text.replace(/\n/g, '\r\n') : text, mtime, read.encoding)).mtime;
+          } catch (err) {
+            if (errorOf(err).code === 'fileChanged') stopped = true;
+            failed(err);
+          }
+        });
+      }, failed);
+    } else if (db) {
+      api.dbScript(db).then((text) => ready(text, (next) => api.dbScriptSave(db, next).then(() => undefined, failed)), failed);
+    }
+    return () => {
+      live = false;
+      flushDoc();
+      docWrite.current = undefined;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [docKey]);
+
   const maxRows = state.maxRows ?? DEFAULT_MAX_ROWS;
   const schemaOpen = !!db && !!state.schema;
   // Loaded (which connects) as soon as a database is chosen, panel open or not: the editor completes from it.
@@ -151,28 +226,35 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
     reported.current = 0;
     setActionError(undefined);
     setSelection([]);
-    log(t('workbench.log.start', { query: query.trim() }));
   };
 
-  const runDemo = () => {
+  const runDemo = (sql: string) => {
     begin();
+    log(t('workbench.log.start', { query: sql.trim() }));
     setShown({ kind: 'demo' });
     rows.start('/api/demo/rows', { count: ROW_COUNT });
   };
 
-  const runDb = async (id: string) => {
+  /** Runs the statements in order, each logged; stops at the first error. Only the last result set is shown. */
+  const runDb = async (id: string, statements: string[]) => {
     begin();
     setStarting(true);
     try {
-      const result = await api.dbRun(id, query, maxRows);
-      if (result.kind === 'rows') {
-        setShown({ kind: 'db', run: result.run, columns: result.columns });
-        rows.start('/api/db/rows', { run: result.run });
-      } else {
-        setShown({ kind: 'none' });
-        log(result.rowsAffected === undefined ? t('workbench.log.executed') : t('workbench.log.affected', { count: result.rowsAffected }), 'ok');
-        refreshStatus(id);
+      for (const [i, sql] of statements.entries()) {
+        log(t('workbench.log.start', { query: sql.trim() }));
+        const last = i === statements.length - 1;
+        const result = await api.dbRun(id, sql, maxRows);
+        if (result.kind === 'rows' && last) {
+          setShown({ kind: 'db', run: result.run, columns: result.columns });
+          rows.start('/api/db/rows', { run: result.run });
+        } else if (result.kind === 'rows') {
+          log(t('workbench.log.executed'), 'ok');
+        } else {
+          if (last) setShown({ kind: 'none' });
+          log(result.rowsAffected === undefined ? t('workbench.log.executed') : t('workbench.log.affected', { count: result.rowsAffected }), 'ok');
+        }
       }
+      refreshStatus(id);
     } catch (err) {
       fail(err);
       refreshStatus(id);
@@ -181,11 +263,20 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
     }
   };
 
-  const run = () => {
+  const execute = (text: string, mode: RunMode) => {
     if (rows.running || starting) return;
-    if (db) void runDb(db);
-    else runDemo();
+    if (!db) {
+      runDemo(text);
+      return;
+    }
+    const statements = mode === 'all' ? splitStatements(text).map((s) => s.text) : [text];
+    if (statements.length === 0 || statements.every((s) => !s.trim())) return;
+    void runDb(db, statements);
   };
+  const run = () => execute(editor.current?.getRunText() ?? query, 'statement');
+  const runAll = () => execute(query, 'all');
+  const format = () => editor.current?.format(withWorkbenchDefaults(settings.workbench).format);
+  useCommand(commandById('workbench.format'), format);
   const cancel = () => {
     cancelled.current = true;
     rows.cancel();
@@ -256,7 +347,7 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
 
   const pickTable = (table: DbSchemaTable, tableOwner: string) => {
     const quote = (name: string) => (/^[A-Z][A-Z0-9_$#]*$/.test(name) ? name : `"${name}"`);
-    setQuery(`select * from ${quote(tableOwner)}.${quote(table.name)}`);
+    edit(`select * from ${quote(tableOwner)}.${quote(table.name)}`);
   };
 
   const changeSource = (value: string) => {
@@ -294,6 +385,10 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
           <button className="btn btn-primary btn-sm" data-run onClick={run} disabled={busy}>
             <Icon name="play" /> {t('workbench.run')}
           </button>
+          <button className="btn btn-sm" onClick={runAll} disabled={busy} title={t('workbench.runAll.title')}>
+            <Icon name="play" /> {t('workbench.runAll')}
+          </button>
+          <button className="btn btn-sm" onClick={format}>{t('workbench.format')}</button>
           {rows.running && <button className="btn btn-sm" onClick={cancel}>{t('workbench.cancel')}</button>}
           {db && (
             <>
@@ -308,10 +403,17 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
           )}
           <button className="btn btn-sm" onClick={exportCsv} disabled={tableRows.length === 0}>{t('workbench.export')}</button>
           <button className="btn btn-sm" onClick={copyResults} disabled={tableRows.length === 0}>{t(selection.length > 0 ? 'workbench.copySelected' : 'workbench.copy')}</button>
+          {doc.kind === 'file' && (
+            <>
+              <span className="muted" title={doc.path}>{t('workbench.doc.file', { name: docName })}</span>
+              <button className="btn btn-sm" onClick={() => update(() => ({ doc: { kind: 'default' } }))}>{t('workbench.doc.default')}</button>
+            </>
+          )}
           <span className="muted">{t('workbench.exportHint', { count: EXPORT_ROWS })}</span>
       </div>
       </PageHead>
       {actionError && <ErrorBanner error={actionError} compact />}
+      {docError && <ErrorBanner error={docError} compact />}
       <div className="wb-body">
       {schemaOpen && (
         <SchemaPanel
@@ -330,7 +432,7 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
         onResize={(s) => update((cur) => ({ sizes: { ...(cur.sizes ?? sizes), main: [s[0], s[1]] } }))}
       >
         <div key="editor" className="wb-pane">
-          <CodeEditor value={query} lang="sql" sqlDialect="plsql" sqlSchema={sqlSchema} onChange={setQuery} onRun={run} height="100%" />
+          <CodeEditor ref={editor} value={query} lang="sql" sqlDialect="plsql" sqlSchema={sqlSchema} onChange={edit} onRun={execute} height="100%" />
         </div>
         <div key="results" className="wb-pane">
           <SplitView

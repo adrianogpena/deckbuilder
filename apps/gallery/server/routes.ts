@@ -1,5 +1,6 @@
 import { statSync } from 'node:fs';
-import { basename, isAbsolute } from 'node:path';
+import { readFile } from 'node:fs/promises';
+import { basename, isAbsolute, join } from 'node:path';
 import { appHome, createToaster, openWithDefault, pickFile, revealInFolder, saveFileAs, secretStore, writeFileAtomic } from '@deckbuilder/platform';
 import type { HttpRequestDraft } from '@deckbuilder/editor/http';
 import { dbRoutes, dbSessions, parseOracleUrl, validConnection, type DbConnectionFields } from '@deckbuilder/db';
@@ -58,8 +59,13 @@ export const dbConnections = recordStore<DbConnectionFields & { password?: unkno
   validate: (input) => validConnection(input),
 });
 const sessions = dbSessions();
+const scriptFile = (id: string) => join(appHome(APP.id), 'workbench', `${id}.sql`);
 const dbApi = dbRoutes({
   sessions,
+  scripts: {
+    read: (id) => readFile(scriptFile(id), 'utf8').catch((err: NodeJS.ErrnoException) => (err.code === 'ENOENT' ? '' : Promise.reject(err))),
+    write: (id, text) => writeFileAtomic(scriptFile(id), text),
+  },
   async credentials(id) {
     const record = await dbConnections.get(id).catch((err: unknown) => {
       if (err instanceof AppError && err.kind === 'notfound') return null;

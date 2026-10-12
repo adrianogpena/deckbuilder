@@ -14,4 +14,5 @@ export * from './markdown';
 export * from './MarkdownEditor';
 export * from './MarkdownView';
 export * from './text-save';
+export { splitStatements, statementAt, type Statement } from './sql/statements';
 export * from './theme';

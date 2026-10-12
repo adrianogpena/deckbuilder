@@ -6,6 +6,8 @@ export interface DbRoutesOptions {
   sessions: DbSessions;
   /** Server-side lookup of a connection record: null when `id` is unknown. Never expose the result. */
   credentials: (id: string) => Promise<DbCredentials | null>;
+  /** The Workbench's default script of a connection id: `read` gives '' when there is none yet. */
+  scripts: { read: (id: string) => Promise<string>; write: (id: string, text: string) => Promise<void> };
 }
 
 const MAX_SQL = 1_000_000;
@@ -20,7 +22,7 @@ const badRequest = () => invalid('badRequest', 'Invalid request.');
  * The Workbench's database API: `POST /api/db/test|connect|run|commit|rollback|disconnect`,
  * `GET /api/db/rows?run=` (NDJSON of row arrays), `GET /api/db/schema?id=&owner=` and `GET /api/db/status?id=`.
  */
-export function dbRoutes({ sessions, credentials }: DbRoutesOptions): Routes {
+export function dbRoutes({ sessions, credentials, scripts }: DbRoutesOptions): Routes {
   function idOf(value: unknown): string {
     if (typeof value !== 'string' || !ID.test(value)) throw badRequest();
     return value;
@@ -87,6 +89,14 @@ export function dbRoutes({ sessions, credentials }: DbRoutesOptions): Routes {
       const owner = query.get('owner') || undefined;
       if (owner !== undefined && !OWNER.test(owner)) throw badRequest();
       return sessions.schema(id, await lookup(id), owner);
+    },
+    'GET /api/db/script': async ({ query }) => ({ text: await scripts.read(idOf(query.get('id'))) }),
+    'PUT /api/db/script': async ({ query, json }) => {
+      const id = idOf(query.get('id'));
+      const { text } = await body(json);
+      if (typeof text !== 'string' || text.length > MAX_SQL) throw badRequest();
+      await scripts.write(id, text);
+      return { ok: true };
     },
     'GET /api/db/status': ({ query }) => sessions.status(idOf(query.get('id'))),
   };

@@ -24,6 +24,7 @@ export function commands(): CommandDef[] {
     { id: 'explorer.breadcrumbs', scope: 'explorer', label: t('keys.explorer.breadcrumbs'), keys: ['Ctrl+Shift+.', 'Ctrl+Shift+>'], inInput: true },
     // VS Code's Zen mode is Ctrl+K Z; the keymap has no two-key chords.
     { id: 'explorer.zen', scope: 'explorer', label: t('keys.explorer.zen'), keys: ['Ctrl+Alt+Z'], inInput: true },
+    { id: 'workbench.format', scope: 'workbench', label: t('keys.workbench.format'), keys: ['Alt+Shift+F'], inInput: true },
     { id: 'explorer.file.save', scope: 'explorer', label: t('keys.file.save'), keys: ['Ctrl+S'], inInput: true },
     { id: 'explorer.file.wrap', scope: 'explorer', label: t('keys.file.wrap'), keys: ['Alt+Z'], inInput: true },
     // VS Code opens the preview to the side with Ctrl+K V; the keymap has no two-key chords.

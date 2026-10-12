@@ -69,7 +69,11 @@ export interface WorkbenchSettings {
   results: ResultFormat;
   /** SQL formatter options. */
   format: SqlFormatOptions;
+  /** The document the editor edits: the connection's default script (also when omitted) or a project file. */
+  doc?: WorkbenchDoc;
 }
+
+export type WorkbenchDoc = { kind: 'default' } | { kind: 'file'; project: string; path: string };
 
 export const DEFAULT_WORKBENCH_SETTINGS: Pick<WorkbenchSettings, 'explorerProjects' | 'explorerConnections' | 'results' | 'format'> = {
   explorerProjects: [],
@@ -267,6 +271,8 @@ export const api = {
   dbCommit: (id: string) => request<DbStatus>('POST', '/api/db/commit', {}, { id }),
   dbRollback: (id: string) => request<DbStatus>('POST', '/api/db/rollback', {}, { id }),
   dbDisconnect: (id: string) => request<DbStatus>('POST', '/api/db/disconnect', {}, { id }),
+  dbScript: (id: string) => request<{ text: string }>('GET', '/api/db/script', { id }).then((r) => r.text),
+  dbScriptSave: (id: string, text: string) => request<{ ok: true }>('PUT', '/api/db/script', { id }, { text }),
   dbStatus: (id: string) => request<DbStatus>('GET', '/api/db/status', { id }),
   requests: () => request<SavedRequest[]>('GET', '/api/requests'),
   createRequest: (input: Record<string, unknown>) => request<SavedRequest>('POST', '/api/requests', {}, input),
