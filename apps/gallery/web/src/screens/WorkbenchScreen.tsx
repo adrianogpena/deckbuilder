@@ -1,99 +1,44 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { CodeEditor, type CodeEditorHandle, type RunMode, splitStatements } from '@deckbuilder/editor';
+import { useEffect, useRef, useState } from 'react';
+import { CodeEditor, type CodeEditorHandle } from '@deckbuilder/editor';
 import {
   type ApiError,
   Badge,
-  DataTable,
-  type DataTableColumn,
   errorMessage,
   errorOf,
   ErrorBanner,
   Icon,
-  type OutputLine,
-  OutputPanel,
   PageHead,
   SplitView,
   copyText,
-  formatCell,
   toCsv,
   toTsv,
   useAsync,
   useCommand,
   useDebouncedSave,
   useDialogs,
-  useStream,
 } from '@deckbuilder/ui';
-import { api, withWorkbenchDefaults, type DbColumn, type DbSchemaTable, type DbStatus, type DemoRow, type ResultFormat, type Settings, type WorkbenchSettings } from '../api';
+import { api, withWorkbenchDefaults, type DbSchemaTable, type Settings, type WorkbenchSettings } from '../api';
 import { commandById } from '../commands';
 import { t } from '../i18n';
 import { Connections } from './workbench/Connections';
 import { SchemaPanel } from './workbench/SchemaPanel';
+import { DEFAULT_RESULTS, SqlResults } from './workbench/SqlResults';
+import { useSqlRunner } from './workbench/useSqlRunner';
+import { useSqlSchema } from './workbench/useSqlSchema';
 
 const SAVE_DELAY = 500;
 const DEMO_SOURCE = 'demo';
 const MANAGE = '::manage';
-const ROW_COUNT = 50_000;
-const MAX_STREAM_ITEMS = 100_001;
-const DEFAULT_MAX_ROWS = 1000;
 const EXPORT_ROWS = 10_000;
-const PROGRESS_EVERY = 10_000;
 const DEFAULT_MAIN: [number, number] = [0.3, 0.7];
-const DEFAULT_RESULTS: [number, number] = [0.65, 0.35];
-const BANNER_CODES = ['dbLogin', 'dbUnreachable'];
-
-interface TableRow {
-  key: string;
-  cells: unknown[];
-}
-
-/** What the table shows: nothing yet, the demo rows, or the columns of one database result. */
-type Shown = { kind: 'none' } | { kind: 'demo' } | { kind: 'db'; run: string; columns: DbColumn[] };
-
-const demoColumns = (): DataTableColumn<TableRow>[] => [
-  { id: 'id', label: 'id', width: 80, value: (r) => r.cells[0], align: 'right' },
-  { id: 'name', label: 'name', width: 200, value: (r) => r.cells[1] },
-  { id: 'amount', label: 'amount', width: 120, value: (r) => r.cells[2], align: 'right' },
-  { id: 'date', label: 'date', width: 140, value: (r) => r.cells[3] },
-];
-
-const dbTableColumns = (columns: DbColumn[], format: ResultFormat): DataTableColumn<TableRow>[] =>
-  columns.map((c, i) => {
-    const cell = (r: TableRow) => formatCell(r.cells[i], c.type, format, c.timestamp ? 'timestamp' : 'date');
-    return {
-      id: `c${i}`,
-      label: c.name,
-      width: c.type === 'number' ? 120 : 160,
-      value: (r) => r.cells[i],
-      render: (r) => {
-        const { text, dim } = cell(r);
-        return dim ? <span className="dtable-null">{text}</span> : text;
-      },
-      copy: (r) => cell(r).text,
-      align: c.type === 'number' ? 'right' : 'left',
-    };
-  });
-
-const demoCells = (r: DemoRow) => [r.id, r.name, r.amount, r.date];
-const isTruncatedMarker = (item: unknown) => typeof item === 'object' && item !== null && !Array.isArray(item) && '$truncated' in item;
 
 export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSave: (patch: Partial<Settings>) => void }) {
   const [state, setState] = useState<WorkbenchSettings>(() => withWorkbenchDefaults(settings.workbench));
   const [query, setQuery] = useState('');
   const [docError, setDocError] = useState<ApiError>();
-  const [lines, setLines] = useState<OutputLine[]>([]);
-  const [actionError, setActionError] = useState<ApiError>();
-  const [selection, setSelection] = useState<string[]>([]);
-  const [shown, setShown] = useState<Shown>({ kind: 'none' });
-  const [starting, setStarting] = useState(false);
-  const [status, setStatus] = useState<DbStatus>();
   const [managing, setManaging] = useState(false);
-  const [owner, setOwner] = useState<string>();
-  const rows = useStream<unknown>({ maxItems: MAX_STREAM_ITEMS });
   const connections = useAsync(() => api.dbConnections(), []);
   const { confirm, element: dialogs } = useDialogs();
-  const cancelled = useRef(false);
-  const reported = useRef(0);
-  const wasRunning = useRef(false);
   const editor = useRef<CodeEditorHandle>(null);
 
   const persist = useDebouncedSave((next: WorkbenchSettings) => onSave({ workbench: next }));
@@ -108,6 +53,7 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
   const connection = state.source && state.source !== DEMO_SOURCE ? connections.data?.find((c) => c.id === state.source) : undefined;
   const db = connection?.id;
   const doc = state.doc ?? { kind: 'default' as const };
+  const runner = useSqlRunner(db, state);
   const docKey = doc.kind === 'file' ? `file:${doc.project}:${doc.path}` : db ? `db:${db}` : '';
   const docName = doc.kind === 'file' ? (doc.path.split(/[\\/]/).pop() ?? doc.path) : '';
 
@@ -178,129 +124,23 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [docKey]);
 
-  const maxRows = state.maxRows ?? DEFAULT_MAX_ROWS;
   const schemaOpen = !!db && !!state.schema;
   // Loaded (which connects) as soon as a database is chosen, panel open or not: the editor completes from it.
-  const schema = useAsync(() => (db ? api.dbSchema(db, owner) : Promise.resolve(undefined)), [db, owner]);
-  const sqlSchema = useMemo(() => {
-    const out: Record<string, string[]> = {};
-    for (const table of schema.data?.tables ?? []) out[table.name] = table.columns.map((c) => c.name);
-    return out;
-  }, [schema.data]);
-
-  const log = (text: string, tone?: OutputLine['tone']) => setLines((l) => [...l, { text, tone, at: Date.now() }]);
-
-  const truncated = rows.items.length > 0 && isTruncatedMarker(rows.items[rows.items.length - 1]);
-  const tableRows = useMemo<TableRow[]>(() => {
-    if (shown.kind === 'none') return [];
-    const body = truncated ? rows.items.slice(0, -1) : rows.items;
-    return body.map((item, i) => ({ key: String(i), cells: shown.kind === 'demo' ? demoCells(item as DemoRow) : (item as unknown[]) }));
-  }, [rows.items, shown, truncated]);
-
-  const cols = useMemo(() => (shown.kind === 'db' ? dbTableColumns(shown.columns, state.results) : demoColumns()), [shown, state.results]);
-
-  const refreshStatus = (id: string) => {
-    api.dbStatus(id).then(setStatus, () => {});
-  };
-
-  useEffect(() => {
-    setStatus(undefined);
-    if (db) refreshStatus(db);
-  }, [db]);
+  const { schema, loading: schemaLoading, error: schemaError, setOwner, reload: reloadSchema, sqlSchema } = useSqlSchema(db);
 
   // The panel shows its own state; closed, the log tells why completions are missing.
   useEffect(() => {
-    if (db && !schema.loading) refreshStatus(db);
-    if (schema.error && !schemaOpen) log(t('workbench.log.schemaFailed', { message: errorMessage(schema.error) }), 'err');
+    if (!schemaLoading) runner.refreshStatus();
+    if (schemaError && !schemaOpen) runner.log(t('workbench.log.schemaFailed', { message: errorMessage(schemaError) }), 'err');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [schema.loading, schema.error]);
+  }, [schemaLoading, schemaError]);
 
-  const fail = (err: unknown) => {
-    const error = errorOf(err);
-    log(errorMessage(error), 'err');
-    if (error.code && BANNER_CODES.includes(error.code)) setActionError(error);
-  };
-
-  const begin = () => {
-    cancelled.current = false;
-    reported.current = 0;
-    setActionError(undefined);
-    setSelection([]);
-  };
-
-  const runDemo = (sql: string) => {
-    begin();
-    log(t('workbench.log.start', { query: sql.trim() }));
-    setShown({ kind: 'demo' });
-    rows.start('/api/demo/rows', { count: ROW_COUNT });
-  };
-
-  /** Runs the statements in order, each logged; stops at the first error. Only the last result set is shown. */
-  const runDb = async (id: string, statements: string[]) => {
-    begin();
-    setStarting(true);
-    try {
-      for (const [i, sql] of statements.entries()) {
-        log(t('workbench.log.start', { query: sql.trim() }));
-        const last = i === statements.length - 1;
-        const result = await api.dbRun(id, sql, maxRows);
-        if (result.kind === 'rows' && last) {
-          setShown({ kind: 'db', run: result.run, columns: result.columns });
-          rows.start('/api/db/rows', { run: result.run });
-        } else if (result.kind === 'rows') {
-          log(t('workbench.log.executed'), 'ok');
-        } else {
-          if (last) setShown({ kind: 'none' });
-          log(result.rowsAffected === undefined ? t('workbench.log.executed') : t('workbench.log.affected', { count: result.rowsAffected }), 'ok');
-        }
-      }
-      refreshStatus(id);
-    } catch (err) {
-      fail(err);
-      refreshStatus(id);
-    } finally {
-      setStarting(false);
-    }
-  };
-
-  const execute = (text: string, mode: RunMode) => {
-    if (rows.running || starting) return;
-    if (!db) {
-      runDemo(text);
-      return;
-    }
-    const statements = mode === 'all' ? splitStatements(text).map((s) => s.text) : [text];
-    if (statements.length === 0 || statements.every((s) => !s.trim())) return;
-    void runDb(db, statements);
-  };
-  const run = () => execute(editor.current?.getRunText() ?? query, 'statement');
-  const runAll = () => execute(query, 'all');
+  const run = () => runner.run(editor.current?.getRunText() ?? query, 'statement');
+  const runAll = () => runner.run(query, 'all');
   const format = () => editor.current?.format(withWorkbenchDefaults(settings.workbench).format);
   useCommand(commandById('workbench.format'), format);
-  const cancel = () => {
-    cancelled.current = true;
-    rows.cancel();
-  };
 
-  // Progress lines every 10 000 rows, then one line when the stream ends.
-  useEffect(() => {
-    while (rows.running && tableRows.length >= reported.current + PROGRESS_EVERY) {
-      reported.current += PROGRESS_EVERY;
-      log(t('workbench.log.progress', { count: reported.current }));
-    }
-    if (wasRunning.current && !rows.running) {
-      if (cancelled.current) log(t('workbench.log.cancelled', { count: tableRows.length }), 'warn');
-      else if (rows.error) fail(rows.error);
-      else {
-        log(t('workbench.log.done', { count: tableRows.length }), 'ok');
-        if (truncated) log(t('workbench.log.truncated', { count: tableRows.length }), 'warn');
-      }
-      if (db) refreshStatus(db);
-    }
-    wasRunning.current = rows.running;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tableRows.length, rows.running]);
-
+  const { cols, tableRows, selection, log, setActionError, shown, status } = runner;
   const exportCols = () => cols.map((c) => ({ label: c.label, value: c.value }));
 
   const exportCsv = async () => {
@@ -322,27 +162,9 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
     else log(t('workbench.log.copyFailed'), 'err');
   };
 
-  const finishTransaction = async (op: 'commit' | 'rollback') => {
-    if (!db) return;
-    setActionError(undefined);
-    try {
-      setStatus(await (op === 'commit' ? api.dbCommit(db) : api.dbRollback(db)));
-      log(t(op === 'commit' ? 'workbench.log.committed' : 'workbench.log.rolledBack'), 'ok');
-    } catch (err) {
-      fail(err);
-    }
-  };
-
   const disconnect = async () => {
-    if (!db) return;
     if (status?.pending && !(await confirm({ title: t('workbench.tx.disconnect'), body: t('workbench.tx.disconnectConfirm'), okLabel: t('workbench.tx.disconnect'), danger: true }))) return;
-    cancel();
-    try {
-      setStatus(await api.dbDisconnect(db));
-      log(t('workbench.log.disconnected'), 'ok');
-    } catch (err) {
-      fail(err);
-    }
+    await runner.disconnect();
   };
 
   const pickTable = (table: DbSchemaTable, tableOwner: string) => {
@@ -355,17 +177,14 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
       setManaging(true);
       return;
     }
-    cancel();
-    setActionError(undefined);
-    setSelection([]);
-    setShown({ kind: 'none' });
+    runner.reset();
     setOwner(undefined);
     update(() => ({ source: value }));
   };
 
   const sizes = state.sizes ?? { main: DEFAULT_MAIN, results: DEFAULT_RESULTS };
   const demoWidths = shown.kind !== 'db';
-  const busy = rows.running || starting;
+  const { busy, starting } = runner;
 
   return (
     <div className="content">
@@ -389,15 +208,15 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
             <Icon name="play" /> {t('workbench.runAll')}
           </button>
           <button className="btn btn-sm" onClick={format}>{t('workbench.format')}</button>
-          {rows.running && <button className="btn btn-sm" onClick={cancel}>{t('workbench.cancel')}</button>}
+          {runner.running && <button className="btn btn-sm" onClick={runner.cancel}>{t('workbench.cancel')}</button>}
           {db && (
             <>
               <button className="btn btn-sm" onClick={() => update((cur) => ({ schema: !cur.schema }))} aria-pressed={!!state.schema}>
                 <Icon name="table" /> {t('workbench.schema')}
               </button>
               {status?.pending && <Badge tone="warn">{t('workbench.tx.pending')}</Badge>}
-              <button className="btn btn-sm" onClick={() => finishTransaction('commit')} disabled={!status?.connected || starting}>{t('workbench.tx.commit')}</button>
-              <button className="btn btn-sm" onClick={() => finishTransaction('rollback')} disabled={!status?.connected || starting}>{t('workbench.tx.rollback')}</button>
+              <button className="btn btn-sm" onClick={runner.commit} disabled={!status?.connected || starting}>{t('workbench.tx.commit')}</button>
+              <button className="btn btn-sm" onClick={runner.rollback} disabled={!status?.connected || starting}>{t('workbench.tx.rollback')}</button>
               <button className="btn btn-sm" onClick={disconnect} disabled={!status?.connected || starting}>{t('workbench.tx.disconnect')}</button>
             </>
           )}
@@ -412,16 +231,16 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
           <span className="muted">{t('workbench.exportHint', { count: EXPORT_ROWS })}</span>
       </div>
       </PageHead>
-      {actionError && <ErrorBanner error={actionError} compact />}
+      {runner.actionError && <ErrorBanner error={runner.actionError} compact />}
       {docError && <ErrorBanner error={docError} compact />}
       <div className="wb-body">
       {schemaOpen && (
         <SchemaPanel
-          schema={schema.data}
-          loading={schema.loading}
-          error={schema.error}
+          schema={schema}
+          loading={schemaLoading}
+          error={schemaError}
           onOwner={setOwner}
-          onReload={schema.reload}
+          onReload={reloadSchema}
           onPick={pickTable}
         />
       )}
@@ -432,31 +251,16 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
         onResize={(s) => update((cur) => ({ sizes: { ...(cur.sizes ?? sizes), main: [s[0], s[1]] } }))}
       >
         <div key="editor" className="wb-pane">
-          <CodeEditor ref={editor} value={query} lang="sql" sqlDialect="plsql" sqlSchema={sqlSchema} onChange={edit} onRun={execute} height="100%" />
+          <CodeEditor ref={editor} value={query} lang="sql" sqlDialect="plsql" sqlSchema={sqlSchema} onChange={edit} onRun={runner.run} height="100%" />
         </div>
         <div key="results" className="wb-pane">
-          <SplitView
-            direction="row"
-            sizes={[sizes.results[0], sizes.results[1]]}
-            defaultSizes={DEFAULT_RESULTS}
-            onResize={(s) => update((cur) => ({ sizes: { ...(cur.sizes ?? sizes), results: [s[0], s[1]] } }))}
-          >
-            <div key="table" className="wb-pane">
-              <DataTable
-                key={shown.kind === 'db' ? shown.run : 'demo'}
-                columns={cols}
-                rows={tableRows}
-                rowKey={(r) => r.key}
-                selection={selection}
-                onSelectionChange={setSelection}
-                widths={demoWidths ? state.widths : undefined}
-                onWidthsChange={demoWidths ? (widths) => update(() => ({ widths })) : undefined}
-              />
-            </div>
-            <div key="output" className="wb-pane">
-              <OutputPanel lines={lines} onClear={() => setLines([])} />
-            </div>
-          </SplitView>
+          <SqlResults
+            runner={runner}
+            sizes={sizes.results}
+            onSizes={(results) => update((cur) => ({ sizes: { ...(cur.sizes ?? sizes), results } }))}
+            widths={demoWidths ? state.widths : undefined}
+            onWidths={demoWidths ? (widths) => update(() => ({ widths })) : undefined}
+          />
         </div>
       </SplitView>
       </div>
