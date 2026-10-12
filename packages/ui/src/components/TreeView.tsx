@@ -32,6 +32,8 @@ export interface TreeViewProps<N> {
   labelOf: (node: N) => string;
   iconOf?: (node: N) => IconName;
   iconToneOf?: (node: N) => Tone | undefined;
+  /** The row is drawn dimmed (an excluded entry). */
+  dimmedOf?: (node: N) => boolean;
   hasChildren: (node: N) => boolean;
   /** Called on the first expand of a node; the result is cached per id until `reload`. */
   loadChildren: (node: N) => Promise<N[]>;
@@ -179,7 +181,7 @@ function NewEntryInput({ kind, depth, onSubmit, onCancel }: { kind: 'file' | 'di
 }
 
 function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) {
-  const { roots, idOf, labelOf, iconOf, iconToneOf, hasChildren, expanded, onExpandedChange, onOpen, onPreview, onOpenToSide, onContextMenu, onRename, onDelete, onCopy, onCut, onPaste, onUndo, newEntry, draggable, onDrop, onDropFiles, dragOut } = props;
+  const { roots, idOf, labelOf, iconOf, iconToneOf, dimmedOf, hasChildren, expanded, onExpandedChange, onOpen, onPreview, onOpenToSide, onContextMenu, onRename, onDelete, onCopy, onCut, onPaste, onUndo, newEntry, draggable, onDrop, onDropFiles, dragOut } = props;
   const cache = useRef(new Map<string, Entry<N>>());
   const generations = useRef(new Map<string, number>());
   const [, bump] = useReducer((x: number) => x + 1, 0);
@@ -501,7 +503,7 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
               aria-expanded={expandable ? isOpen : undefined}
               aria-selected={isPicked(id)}
               tabIndex={id === tabStop ? 0 : -1}
-              className={`tree-row${isPicked(id) ? ' selected' : ''}${id === dropTarget ? ' drop-target' : ''}`}
+              className={`tree-row${isPicked(id) ? ' selected' : ''}${id === dropTarget ? ' drop-target' : ''}${dimmedOf?.(node) ? ' dim' : ''}`}
               style={{ paddingLeft: depth * INDENT + 4 }}
               draggable={draggable && renaming !== id}
               onClick={(e) => {

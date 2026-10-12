@@ -3,6 +3,10 @@ import { isRecord } from '@deckbuilder/server-core/protocol';
 export type AutoSave = 'off' | 'afterDelay' | 'onFocusChange';
 export const AUTO_SAVE: readonly AutoSave[] = ['off', 'afterDelay', 'onFocusChange'];
 
+export type SortOrder = 'default' | 'mixed' | 'filesFirst' | 'type' | 'modified';
+export const SORT_ORDERS: readonly SortOrder[] = ['default', 'mixed', 'filesFirst', 'type', 'modified'];
+const MAX_EXCLUDES = 100;
+
 /** How text files are saved, like VS Code's `files.*` settings. Omitted fields take `FILE_DEFAULTS`. */
 export interface FileSettings {
   /** Save a changed file after a delay, or when its tab or the window loses focus. */
@@ -17,6 +21,10 @@ export interface FileSettings {
   autoReveal?: boolean;
   /** Show the path above the editor as clickable segments. */
   breadcrumbs?: boolean;
+  /** Globs on the path from the project root (Bun.Glob syntax, so a leading double star matches at any depth); matching entries are hidden from the tree and from search. */
+  exclude?: string[];
+  /** How the tree orders the entries of a folder. */
+  sortOrder?: SortOrder;
 }
 
 export const FILE_DEFAULTS: Required<FileSettings> = {
@@ -26,6 +34,8 @@ export const FILE_DEFAULTS: Required<FileSettings> = {
   previewTabs: true,
   autoReveal: true,
   breadcrumbs: true,
+  exclude: ['**/.git', '**/.DS_Store', '**/Thumbs.db'],
+  sortOrder: 'default',
 };
 
 /** `raw` with the defaults filled in; fields of the wrong type fall back to their default. */
@@ -43,5 +53,9 @@ export function validFileSettings(raw: unknown): FileSettings | null {
   if (typeof raw.previewTabs === 'boolean') out.previewTabs = raw.previewTabs;
   if (typeof raw.autoReveal === 'boolean') out.autoReveal = raw.autoReveal;
   if (typeof raw.breadcrumbs === 'boolean') out.breadcrumbs = raw.breadcrumbs;
+  if (Array.isArray(raw.exclude) && raw.exclude.length <= MAX_EXCLUDES && raw.exclude.every((g) => typeof g === 'string' && g.trim() !== '' && g.length <= 200)) {
+    out.exclude = raw.exclude.map((g) => (g as string).trim());
+  }
+  if (SORT_ORDERS.includes(raw.sortOrder as SortOrder)) out.sortOrder = raw.sortOrder as SortOrder;
   return out;
 }

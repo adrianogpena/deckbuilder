@@ -140,6 +140,8 @@ export interface FsEntry {
   outside?: true;
   /** What a link inside the project points to. */
   target?: 'file' | 'dir';
+  /** Matches an exclude glob; only listed when the tree shows excluded entries. */
+  excluded?: true;
 }
 
 /** The text encodings the server reads and writes (`TextEncodingId` of server-mods). */
@@ -183,7 +185,14 @@ export const api = {
   createProject: (input: Record<string, unknown>) => request<Project>('POST', '/api/projects', {}, input),
   updateProject: (id: string, input: Record<string, unknown>) => request<Project>('PUT', '/api/projects', { id }, input),
   deleteProject: (id: string) => request<{ ok: true }>('DELETE', '/api/projects', { id }),
-  fsList: (root: string, path: string) => request<{ entries: FsEntry[] }>('GET', '/api/fs/list', { root, path }).then((r) => r.entries),
+  fsList: (root: string, path: string, view?: { exclude?: string[]; sort?: string; all?: boolean }) =>
+    request<{ entries: FsEntry[] }>('GET', '/api/fs/list', {
+      root,
+      path,
+      exclude: view?.exclude && JSON.stringify(view.exclude),
+      sort: view?.sort,
+      all: view?.all ? '1' : undefined,
+    }).then((r) => r.entries),
   fsArchive: (root: string, path: string) => request<ArchiveContent>('GET', '/api/fs/archive', { root, path }),
   fsSqlite: (root: string, path: string, table?: string, offset?: number) =>
     request<SqliteContent>('GET', '/api/fs/sqlite', { root, path, table, offset }),

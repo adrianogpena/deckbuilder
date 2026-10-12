@@ -1,5 +1,5 @@
 import { Fragment, useState } from 'react';
-import { AppearanceFields, AUTO_SAVE, type AutoSave, fileSettingsOf, ZoomField, type ApiError, detectLanguage, type FileAssociation, validFileAssociations, ErrorBanner, errorMessage, errorOf, GLOBAL, isDesktop, KeybindingsEditor, LANGUAGES, Modal, PageHead, Spinner, useAsync, useKeybindings, type Language } from '@deckbuilder/ui';
+import { AppearanceFields, AUTO_SAVE, type AutoSave, SORT_ORDERS, fileSettingsOf, ZoomField, type ApiError, detectLanguage, type FileAssociation, validFileAssociations, ErrorBanner, errorMessage, errorOf, GLOBAL, isDesktop, KeybindingsEditor, LANGUAGES, Modal, PageHead, Spinner, useAsync, useKeybindings, type Language } from '@deckbuilder/ui';
 import { APP } from '../../../app';
 import { api, type BackupInfo, type EditorInfo, type ImportResult, type Settings } from '../api';
 import { type MessageKey, t } from '../i18n';
@@ -184,7 +184,42 @@ function ExplorerCard({ settings, onChange }: { settings: Settings; onChange: (p
         />
       </div>
     </section>
+    <section className="section">
+      <h4 className="mono-label">{t('settings.explorer.view')}</h4>
+      <div className="card form">
+        <div className="field">
+          <span className="mono-label">{t('settings.explorer.sort')}</span>
+          <div className="chips">
+            {SORT_ORDERS.map((order) => (
+              <button key={order} className={`chip${files.sortOrder === order ? ' chip-on' : ''}`} onClick={() => set({ sortOrder: order })}>
+                {t(`settings.explorer.sort.${order}`)}
+              </button>
+            ))}
+          </div>
+          <span className="muted">{t('settings.explorer.sort.hint')}</span>
+        </div>
+        <ExcludeField value={files.exclude} onChange={(exclude) => set({ exclude })} />
+      </div>
+    </section>
     </>
+  );
+}
+
+function ExcludeField({ value, onChange }: { value: string[]; onChange: (next: string[]) => void }) {
+  const [text, setText] = useState(value.join('\n'));
+  return (
+    <div className="field">
+      <span className="mono-label">{t('settings.explorer.exclude')}</span>
+      <textarea
+        value={text}
+        rows={4}
+        spellCheck={false}
+        aria-label={t('settings.explorer.exclude')}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={() => onChange(text.split('\n').map((l) => l.trim()).filter(Boolean))}
+      />
+      <span className="muted">{t('settings.explorer.exclude.hint')}</span>
+    </div>
   );
 }
 

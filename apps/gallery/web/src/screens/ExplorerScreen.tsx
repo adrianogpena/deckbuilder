@@ -404,6 +404,8 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
                   project={project}
                   projects={list}
                   focused={focus === i}
+                  exclude={files.exclude}
+                  sort={files.sortOrder}
                   onFocus={() => setFocusedTree(i as 0 | 1)}
                   onPick={(p) => pickProject(p.id, i)}
                   {...pickerHandlers}

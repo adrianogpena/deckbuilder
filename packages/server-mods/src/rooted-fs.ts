@@ -52,6 +52,51 @@ export interface FsEntry {
   outside?: true;
   /** What a link inside the root points to. */
   target?: 'file' | 'dir';
+  /** Matches an exclude glob; set only when the list asked for all entries. */
+  excluded?: true;
+}
+
+export const LIST_SORTS = ['default', 'mixed', 'filesFirst', 'type', 'modified'] as const;
+export type ListSort = (typeof LIST_SORTS)[number];
+
+/** The `exclude` query value (a JSON array of globs) as matchers; anything malformed gives none. */
+export function parseExclude(raw: string | null): Bun.Glob[] {
+  if (!raw) return [];
+  try {
+    const list: unknown = JSON.parse(raw);
+    if (!Array.isArray(list)) return [];
+    return list.filter((g): g is string => typeof g === 'string' && g !== '' && g.length <= 200).slice(0, 100).map((g) => new Bun.Glob(g));
+  } catch {
+    return [];
+  }
+}
+
+const extOf = (name: string) => {
+  const i = name.lastIndexOf('.');
+  return i > 0 ? name.slice(i + 1).toLowerCase() : '';
+};
+
+/** Orders the entries of one folder like VS Code's `explorer.sortOrder`; names compare with the collator. */
+export function sortEntries(entries: FsEntry[], sort: ListSort): void {
+  const isDir = (e: FsEntry) => e.kind === 'dir' || e.target === 'dir';
+  const byName = (a: FsEntry, b: FsEntry) => collator.compare(a.name, b.name);
+  const dirsFirst = (a: FsEntry, b: FsEntry) => Number(isDir(b)) - Number(isDir(a));
+  switch (sort) {
+    case 'mixed':
+      entries.sort(byName);
+      break;
+    case 'filesFirst':
+      entries.sort((a, b) => -dirsFirst(a, b) || byName(a, b));
+      break;
+    case 'type':
+      entries.sort((a, b) => dirsFirst(a, b) || (isDir(a) ? 0 : collator.compare(extOf(a.name), extOf(b.name))) || byName(a, b));
+      break;
+    case 'modified':
+      entries.sort((a, b) => dirsFirst(a, b) || b.mtime - a.mtime || byName(a, b));
+      break;
+    default:
+      entries.sort((a, b) => dirsFirst(a, b) || byName(a, b));
+  }
 }
 
 export interface SearchHit {
@@ -232,7 +277,7 @@ const RAW_TYPES: Record<string, string> = {
  */
 export async function* searchTree(
   start: { abs: string; rel: string },
-  query: { q: string; content: boolean; glob: Bun.Glob | null },
+  query: { q: string; content: boolean; glob: Bun.Glob | null; exclude?: Bun.Glob[] },
   signal: AbortSignal,
 ): AsyncGenerator<SearchHit> {
   const q = query.q.toLowerCase();
@@ -251,6 +296,7 @@ export async function* searchTree(
       if (signal.aborted) return;
       if (d.isSymbolicLink() || SKIP_DIRS.has(d.name) || !(d.isDirectory() || d.isFile())) continue;
       const rel = dir.rel ? `${dir.rel}/${d.name}` : d.name;
+      if (query.exclude?.some((g) => g.match(rel))) continue;
       const abs = join(dir.abs, d.name);
       if (nameMatches(d.name)) yield { path: rel, kind: d.isDirectory() ? 'dir' : 'file' };
       if (d.isDirectory()) queue.push({ abs, rel });
@@ -369,11 +415,18 @@ export function rootedFs(opts: RootedFsOptions): RootedFs {
       const loc = await locate(root, path, true);
       if (!(await stat(loc.real)).isDirectory()) throw notADir();
       const names = await readdir(loc.real);
-      const entries = (await Promise.all(names.map((name) => describe(join(loc.real, name), name, loc.realRoot)))).filter(
+      let entries = (await Promise.all(names.map((name) => describe(join(loc.real, name), name, loc.realRoot)))).filter(
         (e): e is FsEntry => e !== null,
       );
-      const isDir = (e: FsEntry) => e.kind === 'dir' || e.target === 'dir';
-      entries.sort((a, b) => Number(isDir(b)) - Number(isDir(a)) || collator.compare(a.name, b.name));
+      const exclude = parseExclude(query.get('exclude'));
+      if (exclude.length) {
+        const prefix = loc.segments.length ? `${loc.segments.join('/')}/` : '';
+        const hit = (e: FsEntry) => exclude.some((g) => g.match(prefix + e.name));
+        if (query.get('all') === '1') for (const e of entries) hit(e) && (e.excluded = true);
+        else entries = entries.filter((e) => !hit(e));
+      }
+      const sort = query.get('sort');
+      sortEntries(entries, LIST_SORTS.includes(sort as ListSort) ? (sort as ListSort) : 'default');
       return { entries };
     },
 
@@ -503,7 +556,7 @@ export function rootedFs(opts: RootedFsOptions): RootedFs {
       const loc = await locate(root, path, true);
       if (!(await stat(loc.real)).isDirectory()) throw notADir();
       const glob = query.get('glob') ? new Bun.Glob(query.get('glob')!) : null;
-      const search = { q: query.get('q') ?? '', content: query.get('content') === '1', glob };
+      const search = { q: query.get('q') ?? '', content: query.get('content') === '1', glob, exclude: parseExclude(query.get('exclude')) };
       return ndjson(req, async (emit, signal) => {
         let count = 0;
         for await (const hit of searchTree({ abs: loc.real, rel: loc.segments.join('/') }, search, signal)) {

@@ -28,6 +28,7 @@ interface Node {
   kind: FsEntry['kind'];
   outside?: boolean;
   target?: FsEntry['target'];
+  excluded?: true;
 }
 
 const isRoot = (node: Node) => node.path === '';
@@ -50,6 +51,14 @@ export interface ProjectTreeProps {
   undo: FileUndo;
   /** How many of these project paths (or files under them) are open with unsaved changes. */
   dirtyCount?(project: string, paths: string[]): number;
+  /** Which entries the tree lists and in what order; a change reloads the tree. */
+  view?: TreeViewOptions;
+}
+
+export interface TreeViewOptions {
+  exclude: string[];
+  sort: string;
+  showExcluded: boolean;
 }
 
 const DID: Record<UndoOp['kind'], 'explorer.did.create' | 'explorer.did.rename' | 'explorer.did.move' | 'explorer.did.copy'> = {
@@ -73,7 +82,7 @@ export interface ProjectTreeApi {
 }
 
 /** The lazy tree of a project's folder, with the file actions. */
-export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, onPreviewFile, onOpenFileToSide, onOpenTerminal, onMoved, onDeleted, apiRef, undo, dirtyCount }: ProjectTreeProps) {
+export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, onPreviewFile, onOpenFileToSide, onOpenTerminal, onMoved, onDeleted, apiRef, undo, dirtyCount, view }: ProjectTreeProps) {
   const tree = useRef<TreeViewHandle<Node>>(null);
   const clipboard = useRef<{ mode: 'copy' | 'cut'; paths: string[] }>();
   const { confirm, choose, element } = useDialogs();
@@ -101,7 +110,7 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
   };
 
   const loadChildren = async (node: Node): Promise<Node[]> => {
-    const entries = await api.fsList(project.id, node.path);
+    const entries = await api.fsList(project.id, node.path, view && { exclude: view.exclude, sort: view.sort, all: view.showExcluded });
     folderFiles.current.set(
       nodeId(project.id, node.path),
       entries.filter((e) => e.kind !== 'dir' && e.target !== 'dir').map((e) => e.name),
@@ -113,6 +122,7 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
       kind: e.kind,
       outside: e.outside,
       target: e.target,
+      excluded: e.excluded,
     }));
   };
 
@@ -139,6 +149,15 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
       window.removeEventListener('focus', refresh);
     };
   }, [project.id]);
+
+  const viewKey = view ? `${view.exclude.join('\n')}|${view.sort}|${view.showExcluded}` : '';
+  const firstView = useRef(viewKey);
+  useEffect(() => {
+    if (firstView.current === viewKey) return;
+    firstView.current = viewKey;
+    folderFiles.current.clear();
+    tree.current?.reload();
+  }, [viewKey]);
 
   const rootNode = roots[0]!;
   const reveal = (path: string) => {
@@ -525,6 +544,7 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
         idOf={(n) => nodeId(n.project, n.path)}
         labelOf={(n) => (n.outside ? `${n.name} (${t('explorer.outside')})` : n.name)}
         iconOf={iconOf}
+        dimmedOf={(n) => !!n.excluded}
         iconToneOf={(n) => (isDir(n) ? undefined : fileIconOf(n.name).tone)}
         hasChildren={(n) => isDir(n)}
         loadChildren={loadChildren}

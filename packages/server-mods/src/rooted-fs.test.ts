@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PlatformError } from '@deckbuilder/platform';
 import type { RouteContext } from '@deckbuilder/server-core';
-import { type FsEntry, rootedFs, searchTree } from './rooted-fs.ts';
+import { type FsEntry, parseExclude, rootedFs, searchTree, sortEntries } from './rooted-fs.ts';
 
 const dirs: string[] = [];
 afterEach(async () => {
@@ -433,4 +433,28 @@ test('download-ticket refuses folders, missing files and paths outside the root'
   expect(await t.fail('POST /api/fs/download-ticket', { root: 'r', path: '' })).toMatchObject({ code: 'notAFile' });
   expect(await t.fail('POST /api/fs/download-ticket', { root: 'r', path: 'nope.txt' })).toMatchObject({ code: 'fileNotFound' });
   expect(await t.fail('POST /api/fs/download-ticket', { root: 'r', path: 'link/secret.txt' })).toMatchObject({ code: 'outsideRoot' });
+});
+
+test('exclude globs match the path at any depth', () => {
+  const globs = parseExclude(JSON.stringify(['**/.git', 'dist/*.map']));
+  expect(globs.some((g) => g.match('.git'))).toBe(true);
+  expect(globs.some((g) => g.match('a/b/.git'))).toBe(true);
+  expect(globs.some((g) => g.match('dist/x.map'))).toBe(true);
+  expect(globs.some((g) => g.match('src/x.map'))).toBe(false);
+  expect(parseExclude('nope')).toEqual([]);
+});
+
+test('sortEntries orders by the chosen mode', () => {
+  const e = (name: string, kind: 'file' | 'dir', mtime: number): FsEntry => ({ name, kind, size: 0, mtime });
+  const make = () => [e('b.txt', 'file', 1), e('a.md', 'file', 3), e('z', 'dir', 2), e('c.md', 'file', 2)];
+  const names = (sort: Parameters<typeof sortEntries>[1]) => {
+    const list = make();
+    sortEntries(list, sort);
+    return list.map((x) => x.name);
+  };
+  expect(names('default')).toEqual(['z', 'a.md', 'b.txt', 'c.md']);
+  expect(names('mixed')).toEqual(['a.md', 'b.txt', 'c.md', 'z']);
+  expect(names('filesFirst')).toEqual(['a.md', 'b.txt', 'c.md', 'z']);
+  expect(names('type')).toEqual(['z', 'a.md', 'c.md', 'b.txt']);
+  expect(names('modified')).toEqual(['z', 'a.md', 'c.md', 'b.txt']);
 });

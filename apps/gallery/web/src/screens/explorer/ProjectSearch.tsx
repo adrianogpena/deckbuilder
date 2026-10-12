@@ -7,6 +7,8 @@ const MAX_HITS = 500;
 
 export interface ProjectSearchProps {
   project: Project;
+  /** Globs of entries search skips. */
+  exclude?: string[];
   onOpenFile(project: string, path: string): void;
   onClose(): void;
   /** Focuses and selects the input each time it changes (and on mount). */
@@ -14,7 +16,7 @@ export interface ProjectSearchProps {
 }
 
 /** Search box and results over one project's files (names, or names and content). */
-export function ProjectSearch({ project, onOpenFile, onClose, focusSignal }: ProjectSearchProps) {
+export function ProjectSearch({ project, exclude, onOpenFile, onClose, focusSignal }: ProjectSearchProps) {
   const input = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState('');
   const [content, setContent] = useState(false);
@@ -29,7 +31,7 @@ export function ProjectSearch({ project, onOpenFile, onClose, focusSignal }: Pro
   const start = (q: string, withContent: boolean) => {
     if (!q.trim()) return;
     setSearched(true);
-    search.start('/api/fs/search', { root: project.id, path: '', q: q.trim(), content: withContent ? '1' : undefined });
+    search.start('/api/fs/search', { root: project.id, path: '', q: q.trim(), content: withContent ? '1' : undefined, exclude: exclude?.length ? JSON.stringify(exclude) : undefined });
   };
 
   const close = () => {
