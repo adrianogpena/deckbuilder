@@ -22,6 +22,68 @@ export function cellText(value: unknown): string {
   return String(value);
 }
 
+export interface ResultFormat {
+  /** Shown for a null cell. */
+  nullText: string;
+  /** Pattern for DATE columns; tokens `yyyy MM dd HH mm ss SSS`. */
+  dateFormat: string;
+  /** A DATE at 00:00:00 shows its date part only. */
+  hideMidnight: boolean;
+  /** Pattern for TIMESTAMP columns; same tokens. */
+  timestampFormat: string;
+  /** Group the integer digits of numbers by thousands. */
+  thousandsSeparator: boolean;
+}
+
+export const DEFAULT_RESULT_FORMAT: ResultFormat = {
+  nullText: '',
+  dateFormat: 'yyyy-MM-dd HH:mm:ss',
+  hideMidnight: false,
+  timestampFormat: 'yyyy-MM-dd HH:mm:ss.SSS',
+  thousandsSeparator: false,
+};
+
+export type FormatColumnType = 'number' | 'text' | 'date' | 'binary';
+
+const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,9}))?)?(?:Z|[+-]\d{2}:?\d{2})?$/;
+const PLAIN_NUMBER = /^([+-]?)(\d+)(\.\d*)?$/;
+
+/** The date part of a pattern: everything before the first time token, without trailing separators. */
+function dateOnly(pattern: string): string {
+  const i = pattern.search(/HH|mm|ss|SSS/);
+  return (i < 0 ? pattern : pattern.slice(0, i)).replace(/[\s:T.,-]+$/, '');
+}
+
+function formatDate(m: RegExpExecArray, pattern: string): string {
+  const [, yyyy, MM, dd, HH = '00', mm = '00', ss = '00', frac = ''] = m;
+  const parts: Record<string, string> = { yyyy: yyyy!, MM: MM!, dd: dd!, HH, mm, ss, SSS: frac.padEnd(3, '0').slice(0, 3) };
+  return pattern.replace(/yyyy|MM|dd|HH|mm|ss|SSS/g, (token) => parts[token]!);
+}
+
+/** Display text of one result cell; `dim` marks a null. `temporal` tells a TIMESTAMP column from a DATE one. */
+export function formatCell(
+  value: unknown,
+  type: FormatColumnType,
+  format: ResultFormat,
+  temporal: 'date' | 'timestamp' = 'date',
+): { text: string; dim: boolean } {
+  if (value === null || value === undefined) return { text: format.nullText, dim: true };
+  const text = cellText(value);
+  if (type === 'date' && typeof value === 'string') {
+    const m = ISO_DATE.exec(value);
+    if (m) {
+      const midnight = (m[4] ?? '00') === '00' && (m[5] ?? '00') === '00' && (m[6] ?? '00') === '00';
+      if (temporal === 'date' && format.hideMidnight && midnight) return { text: formatDate(m, dateOnly(format.dateFormat)), dim: false };
+      return { text: formatDate(m, temporal === 'timestamp' ? format.timestampFormat : format.dateFormat), dim: false };
+    }
+  }
+  if (type === 'number' && format.thousandsSeparator && (typeof value === 'string' || typeof value === 'number')) {
+    const m = PLAIN_NUMBER.exec(text);
+    if (m) return { text: `${m[1]}${m[2]!.replace(/\B(?=(\d{3})+$)/g, ',')}${m[3] ?? ''}`, dim: false };
+  }
+  return { text, dim: false };
+}
+
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 
 const missing = (v: unknown) => v === null || v === undefined;

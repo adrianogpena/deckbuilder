@@ -12,6 +12,7 @@
     "./keybindings": "./src/keybindings.ts",
     "./log": "./src/log.ts",
     "./rel-path": "./src/rel-path.ts",
+    "./table": "./src/table.ts",
     "./styles.css": "./src/styles.css"
   },
   "dependencies": {

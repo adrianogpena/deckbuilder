@@ -1,7 +1,8 @@
-import { Fragment, type ReactNode, type RefObject, useEffect, useRef, useState } from 'react';
+import { Fragment, type ReactNode, type RefObject, useEffect, useMemo, useRef, useState } from 'react';
+import { FORMAT_OPTION_META, formatSql, type FormatOptionMeta } from '@deckbuilder/editor';
 import { AppearanceFields, AUTO_SAVE, type AutoSave, SORT_ORDERS, fileSettingsOf, ZoomField, type ApiError, detectLanguage, type FileAssociation, validFileAssociations, ErrorBanner, errorMessage, errorOf, GLOBAL, isDesktop, KeybindingsEditor, LANGUAGES, Modal, PageHead, Spinner, useAsync, useKeybindings, type Language } from '@deckbuilder/ui';
 import { APP } from '../../../app';
-import { api, type BackupInfo, type EditorInfo, type ImportResult, type Settings } from '../api';
+import { api, type BackupInfo, type EditorInfo, type Project, type ImportResult, type ResultFormat, type Settings, type SqlFormatOptions, type WorkbenchSettings, withWorkbenchDefaults } from '../api';
 import { type MessageKey, t } from '../i18n';
 import { NAV } from '../nav';
 
@@ -17,6 +18,7 @@ const SECTIONS = [
   { id: 'layout', label: 'settings.layout' },
   { id: 'keys', label: 'settings.keys' },
   { id: 'explorer', label: 'settings.explorer' },
+  { id: 'workbench', label: 'settings.workbench' },
   { id: 'editor', label: 'settings.editor' },
   { id: 'files', label: 'settings.files' },
   { id: 'editors', label: 'settings.editors' },
@@ -46,6 +48,7 @@ export function SettingsScreen({ settings, onChange, onQuit }: Props) {
         );
       case 'keys': return <KeysCard settings={settings} onChange={onChange} />;
       case 'explorer': return <ExplorerCard settings={settings} onChange={onChange} />;
+      case 'workbench': return <WorkbenchCard settings={settings} onChange={onChange} />;
       case 'editor': return <EditorCard settings={settings} onChange={onChange} />;
       case 'files': return <FileTypesCard value={settings.fileAssociations ?? []} onChange={(fileAssociations) => onChange({ fileAssociations })} />;
       case 'editors': return <EditorsCard />;
@@ -308,6 +311,202 @@ function ExplorerCard({ settings, onChange }: { settings: Settings; onChange: (p
         <ExcludeField value={files.exclude} onChange={(exclude) => set({ exclude })} />
       </div>
     </section>
+    </>
+  );
+}
+
+const MAX_ROWS_LIMIT = 100_000;
+const DEFAULT_MAX_ROWS = 1000;
+
+const FORMAT_GROUPS: ReadonlyArray<{ id: string; keys: ReadonlyArray<keyof SqlFormatOptions> }> = [
+  { id: 'case', keys: ['keywordCase', 'functionCase'] },
+  { id: 'select', keys: ['columnsPerLine', 'newlineAfterSelect', 'singleColumnInline'] },
+  { id: 'conditions', keys: ['conditionPerLine', 'andOrPosition', 'joinConditionOnNewLine', 'spaceAroundOperators'] },
+  { id: 'subqueries', keys: ['caseLayout', 'caseMaxWidth', 'subqueryNewlineAfterParen', 'subqueryCloseParenOnOwnLine'] },
+  { id: 'statements', keys: ['indent', 'groupOrderListPerLine', 'fromTablesPerLine', 'setItemsPerLine', 'blankLineBetweenStatements'] },
+];
+
+const FORMAT_SAMPLE =
+  "select e.id, e.name, lower(d.title) as dept, case when e.salary > 5000 then 'high' else 'low' end as band from employees e join departments d on d.id = e.dept_id where e.active = 1 and d.region in (select region from regions where code = 'EU') order by e.name;\nupdate employees set salary = salary * 1.1, updated = sysdate where dept_id = 10;";
+
+function NumberField({ label, value, min, max, onChange }: { label: string; value: number; min: number; max?: number; onChange: (n: number) => void }) {
+  const [text, setText] = useState(String(value));
+  return (
+    <label className="field">
+      <span className="mono-label">{label}</span>
+      <input
+        type="number"
+        min={min}
+        max={max}
+        value={text}
+        onChange={(e) => {
+          setText(e.target.value);
+          const n = Number(e.target.value);
+          if (e.target.value !== '' && Number.isInteger(n) && n >= min && (max === undefined || n <= max)) onChange(n);
+        }}
+        onBlur={() => setText(String(value))}
+      />
+    </label>
+  );
+}
+
+function TextField({ label, value, onChange }: { label: string; value: string; onChange: (text: string) => void }) {
+  return (
+    <label className="field">
+      <span className="mono-label">{label}</span>
+      <input value={value} spellCheck={false} onChange={(e) => onChange(e.target.value)} />
+    </label>
+  );
+}
+
+/** Allowed projects as a short list with remove buttons, and a searchable "add" list for the rest. */
+function ProjectsField({ projects, error, onRetry, value, onChange }: {
+  projects: Project[] | undefined;
+  error: ApiError | undefined;
+  onRetry: () => void;
+  value: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const [adding, setAdding] = useState(false);
+  const [query, setQuery] = useState('');
+  const allowed = projects?.filter((p) => value.includes(p.id)) ?? [];
+  const q = norm(query);
+  const candidates = projects?.filter((p) => !value.includes(p.id) && (!q || norm(p.name).includes(q) || norm(p.path).includes(q))) ?? [];
+  const add = (id: string) => {
+    onChange([...value, id]);
+    setAdding(false);
+    setQuery('');
+  };
+  return (
+    <div className="field">
+      <span className="mono-label">{t('settings.workbench.projects')}</span>
+      {error && <ErrorBanner error={error} onRetry={onRetry} compact />}
+      {!projects && !error && <Spinner small />}
+      {projects?.length === 0 && <span className="muted">{t('settings.workbench.projects.none')}</span>}
+      {projects && allowed.length === 0 && projects.length > 0 && <span className="muted">{t('settings.workbench.projects.empty')}</span>}
+      {allowed.map((p) => (
+        <div key={p.id} className="check-row">
+          <span>{p.name}</span>
+          <button className="btn btn-sm" onClick={() => onChange(value.filter((id) => id !== p.id))}>{t('settings.workbench.projects.remove')}</button>
+        </div>
+      ))}
+      {projects && projects.length > allowed.length && (adding ? (
+        <>
+          <input autoFocus value={query} placeholder={t('settings.workbench.projects.search')} spellCheck={false} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && setAdding(false)} />
+          <div className="project-add-list">
+            {candidates.length === 0 && <span className="muted">{t('settings.workbench.projects.noMatch')}</span>}
+            {candidates.map((p) => (
+              <button key={p.id} className="menu-item" onClick={() => add(p.id)}>
+                <span className="menu-label">{p.name}</span>
+                <span className="muted">{p.path}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      ) : (
+        <button className="btn btn-sm" style={{ alignSelf: 'flex-start' }} onClick={() => setAdding(true)}>{t('settings.workbench.projects.add')}</button>
+      ))}
+      <span className="muted">{t('settings.workbench.projects.hint')}</span>
+    </div>
+  );
+}
+
+/** Which projects run SQL from the Explorer, how result cells read, and the SQL formatter options with a live preview. */
+function WorkbenchCard({ settings, onChange }: { settings: Settings; onChange: (patch: Partial<Settings>) => void }) {
+  const projects = useAsync(() => api.projects(), []);
+  const wb = withWorkbenchDefaults(settings.workbench);
+  const set = (patch: Partial<WorkbenchSettings>) => onChange({ workbench: { ...wb, ...patch } });
+  const setResults = (patch: Partial<ResultFormat>) => set({ results: { ...wb.results, ...patch } });
+  const setFormat = (patch: Partial<SqlFormatOptions>) => set({ format: { ...wb.format, ...patch } });
+  const preview = useMemo(() => {
+    try {
+      return formatSql(FORMAT_SAMPLE, wb.format);
+    } catch {
+      return FORMAT_SAMPLE;
+    }
+  }, [wb.format]);
+  const valueLabel = (v: string | number) => (typeof v === 'number' ? String(v) : t(`settings.workbench.value.${v}` as MessageKey));
+  const formatField = (meta: FormatOptionMeta) => {
+    const label = t(`settings.workbench.format.${meta.key}` as MessageKey);
+    const value = wb.format[meta.key];
+    if (meta.kind === 'boolean') {
+      return <OnOffField key={meta.key} label={label} hint="" value={value as boolean} onChange={(v) => setFormat({ [meta.key]: v })} />;
+    }
+    if (meta.kind === 'number') {
+      return <NumberField key={meta.key} label={label} value={value as number} min={meta.min ?? 1} onChange={(n) => setFormat({ [meta.key]: n })} />;
+    }
+    return (
+      <div key={meta.key} className="field">
+        <span className="mono-label">{label}</span>
+        <div className="chips">
+          {meta.values?.map((v) => (
+            <button key={v} className={`chip${value === v ? ' chip-on' : ''}`} onClick={() => setFormat({ [meta.key]: v })}>
+              {valueLabel(v)}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  };
+  return (
+    <>
+      <section className="section">
+        <h4 className="mono-label">{t('settings.workbench.sql')}</h4>
+        <div className="card form">
+          <ProjectsField
+            projects={projects.data}
+            error={projects.error}
+            onRetry={projects.reload}
+            value={wb.explorerProjects}
+            onChange={(explorerProjects) => set({ explorerProjects })}
+          />
+          <NumberField
+            key={wb.maxRows ?? DEFAULT_MAX_ROWS}
+            label={t('settings.workbench.maxRows')}
+            value={wb.maxRows ?? DEFAULT_MAX_ROWS}
+            min={1}
+            max={MAX_ROWS_LIMIT}
+            onChange={(maxRows) => set({ maxRows })}
+          />
+        </div>
+      </section>
+      <section className="section">
+        <h4 className="mono-label">{t('settings.workbench.results')}</h4>
+        <div className="card form">
+          <TextField label={t('settings.workbench.results.nullText')} value={wb.results.nullText} onChange={(nullText) => setResults({ nullText })} />
+          <TextField label={t('settings.workbench.results.dateFormat')} value={wb.results.dateFormat} onChange={(dateFormat) => setResults({ dateFormat })} />
+          <OnOffField
+            label={t('settings.workbench.results.hideMidnight')}
+            hint={t('settings.workbench.results.hideMidnight.hint')}
+            value={wb.results.hideMidnight}
+            onChange={(hideMidnight) => setResults({ hideMidnight })}
+          />
+          <TextField label={t('settings.workbench.results.timestampFormat')} value={wb.results.timestampFormat} onChange={(timestampFormat) => setResults({ timestampFormat })} />
+          <OnOffField
+            label={t('settings.workbench.results.thousands')}
+            hint={t('settings.workbench.results.hint')}
+            value={wb.results.thousandsSeparator}
+            onChange={(thousandsSeparator) => setResults({ thousandsSeparator })}
+          />
+        </div>
+      </section>
+      {FORMAT_GROUPS.map((group) => (
+        <section key={group.id} className="section">
+          <h4 className="mono-label">{t(`settings.workbench.group.${group.id}` as MessageKey)}</h4>
+          <div className="card form">
+            {group.keys.map((key) => formatField(FORMAT_OPTION_META.find((m) => m.key === key)!))}
+          </div>
+        </section>
+      ))}
+      <section className="section">
+        <h4 className="mono-label">{t('settings.workbench.preview')}</h4>
+        <div className="card form">
+          <div className="field">
+            <span className="muted">{t('settings.workbench.preview.hint')}</span>
+            <pre className="mono">{preview}</pre>
+          </div>
+        </div>
+      </section>
     </>
   );
 }

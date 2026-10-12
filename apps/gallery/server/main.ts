@@ -18,6 +18,7 @@ import {
 import { runApp } from '@deckbuilder/shell';
 import { isShellId, terminalRoutes, terminalSessions, type ShellId } from '@deckbuilder/terminal/server';
 import { type GridItem, validGridItems } from '@deckbuilder/ui/grid';
+import type { ResultFormat } from '@deckbuilder/ui/table';
 import { validKeymap, type Keymap } from '@deckbuilder/ui/keybindings';
 import { type FileAssociation, validFileAssociations } from '@deckbuilder/ui/file-associations';
 import { type FileSettings, validFileSettings } from '@deckbuilder/ui/file-settings';
@@ -73,6 +74,14 @@ export interface WorkbenchSettings {
   source?: string;
   /** Most rows a database query returns, 1 to 100 000. */
   maxRows?: number;
+  /** Project ids allowed to run SQL from the Explorer. */
+  explorerProjects?: string[];
+  /** Last connection id used per project id. */
+  explorerConnections?: Record<string, string>;
+  /** How result cells are shown and copied. */
+  results?: ResultFormat;
+  /** SQL formatter options; the editor package owns their meaning. */
+  format?: Record<string, string | number | boolean>;
   /** The schema sidebar is open. */
   schema?: boolean;
 }
@@ -170,6 +179,38 @@ function validWorkbench(raw: unknown): WorkbenchSettings | null {
   }
   if (r.schema !== undefined) {
     if (typeof r.schema !== 'boolean') return null;
+  if (r.explorerProjects !== undefined) {
+    if (!Array.isArray(r.explorerProjects) || r.explorerProjects.length > 1000 || !r.explorerProjects.every((id) => typeof id === 'string' && /^[\w-]{1,64}$/.test(id))) return null;
+    out.explorerProjects = [...r.explorerProjects];
+  }
+  if (r.explorerConnections !== undefined) {
+    if (!isRecord(r.explorerConnections)) return null;
+    const byProject: Record<string, string> = {};
+    for (const [project, id] of Object.entries(r.explorerConnections)) {
+      if (!/^[\w-]{1,64}$/.test(project) || typeof id !== 'string' || !/^[\w-]{1,64}$/.test(id)) return null;
+      byProject[project] = id;
+    }
+    out.explorerConnections = byProject;
+  }
+  if (r.results !== undefined) {
+    const x = r.results as Partial<ResultFormat> | null;
+    if (!isRecord(x)) return null;
+    const { nullText, dateFormat, hideMidnight, timestampFormat, thousandsSeparator } = x;
+    if (typeof nullText !== 'string' || nullText.length > 64) return null;
+    if (typeof dateFormat !== 'string' || dateFormat.length > 64) return null;
+    if (typeof timestampFormat !== 'string' || timestampFormat.length > 64) return null;
+    if (typeof hideMidnight !== 'boolean' || typeof thousandsSeparator !== 'boolean') return null;
+    out.results = { nullText, dateFormat, hideMidnight, timestampFormat, thousandsSeparator };
+  }
+  if (r.format !== undefined) {
+    if (!isRecord(r.format)) return null;
+    const format: Record<string, string | number | boolean> = {};
+    for (const [key, v] of Object.entries(r.format)) {
+      if (!/^\w{1,40}$/.test(key) || (typeof v !== 'string' && typeof v !== 'boolean' && !(typeof v === 'number' && Number.isFinite(v)))) return null;
+      format[key] = v;
+    }
+    out.format = format;
+  }
     out.schema = r.schema;
   }
   return out;

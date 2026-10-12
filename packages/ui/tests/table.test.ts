@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { cellText, nextSort, select, sortRows, toCsv, toTsv, visibleRange } from '../src/table.ts';
+import { cellText, DEFAULT_RESULT_FORMAT, formatCell, nextSort, select, sortRows, toCsv, toTsv, visibleRange } from '../src/table.ts';
 
 describe('cellText', () => {
   test('formats each kind of value', () => {
@@ -131,5 +131,42 @@ describe('select', () => {
   test('range without a usable anchor acts as single', () => {
     expect(select({ keys: [], anchor: null }, 'c', keys, 'range')).toEqual({ keys: ['c'], anchor: 'c' });
     expect(select({ keys: ['z'], anchor: 'z' }, 'c', keys, 'range')).toEqual({ keys: ['c'], anchor: 'c' });
+  });
+});
+
+describe('formatCell', () => {
+  const fmt = { ...DEFAULT_RESULT_FORMAT };
+
+  test('null shows the null text, dimmed', () => {
+    expect(formatCell(null, 'text', fmt)).toEqual({ text: '', dim: true });
+    expect(formatCell(null, 'text', { ...fmt, nullText: '(null)' })).toEqual({ text: '(null)', dim: true });
+  });
+
+  test('dates and timestamps follow their patterns', () => {
+    expect(formatCell('2024-03-05T07:08:09', 'date', fmt).text).toBe('2024-03-05 07:08:09');
+    expect(formatCell('2024-03-05T07:08:09.12', 'date', fmt, 'timestamp').text).toBe('2024-03-05 07:08:09.120');
+    expect(formatCell('2024-03-05T07:08:09', 'date', { ...fmt, dateFormat: 'dd/MM/yyyy HH:mm' }).text).toBe('05/03/2024 07:08');
+  });
+
+  test('hideMidnight shows only the date of a DATE at midnight', () => {
+    const hide = { ...fmt, hideMidnight: true };
+    expect(formatCell('2024-03-05T00:00:00', 'date', hide).text).toBe('2024-03-05');
+    expect(formatCell('2024-03-05T00:00:01', 'date', hide).text).toBe('2024-03-05 00:00:01');
+    expect(formatCell('2024-03-05T00:00:00', 'date', hide, 'timestamp').text).toBe('2024-03-05 00:00:00.000');
+  });
+
+  test('thousands separators work on the digits, keeping sign and decimals', () => {
+    const on = { ...fmt, thousandsSeparator: true };
+    expect(formatCell('1234567.8900', 'number', on).text).toBe('1,234,567.8900');
+    expect(formatCell('-1234', 'number', on).text).toBe('-1,234');
+    expect(formatCell('123', 'number', on).text).toBe('123');
+    expect(formatCell('12345678901234567890123', 'number', on).text).toBe('12,345,678,901,234,567,890,123');
+    expect(formatCell('1E+25', 'number', on).text).toBe('1E+25');
+    expect(formatCell('1234', 'number', fmt).text).toBe('1234');
+  });
+
+  test('other values pass through', () => {
+    expect(formatCell('not a date', 'date', fmt).text).toBe('not a date');
+    expect(formatCell('1234', 'text', { ...fmt, thousandsSeparator: true }).text).toBe('1234');
   });
 });

@@ -14,6 +14,7 @@ import {
   PageHead,
   SplitView,
   copyText,
+  formatCell,
   toCsv,
   toTsv,
   useAsync,
@@ -21,7 +22,7 @@ import {
   useDialogs,
   useStream,
 } from '@deckbuilder/ui';
-import { api, type DbColumn, type DbSchemaTable, type DbStatus, type DemoRow, type Settings, type WorkbenchSettings } from '../api';
+import { api, withWorkbenchDefaults, type DbColumn, type DbSchemaTable, type DbStatus, type DemoRow, type ResultFormat, type Settings, type WorkbenchSettings } from '../api';
 import { t } from '../i18n';
 import { Connections } from './workbench/Connections';
 import { SchemaPanel } from './workbench/SchemaPanel';
@@ -32,7 +33,6 @@ const MANAGE = '::manage';
 const ROW_COUNT = 50_000;
 const MAX_STREAM_ITEMS = 100_001;
 const DEFAULT_MAX_ROWS = 1000;
-const MAX_ROWS_LIMIT = 100_000;
 const EXPORT_ROWS = 10_000;
 const PROGRESS_EVERY = 10_000;
 const DEFAULT_MAIN: [number, number] = [0.3, 0.7];
@@ -54,20 +54,28 @@ const demoColumns = (): DataTableColumn<TableRow>[] => [
   { id: 'date', label: 'date', width: 140, value: (r) => r.cells[3] },
 ];
 
-const dbTableColumns = (columns: DbColumn[]): DataTableColumn<TableRow>[] =>
-  columns.map((c, i) => ({
-    id: `c${i}`,
-    label: c.name,
-    width: c.type === 'number' ? 120 : 160,
-    value: (r) => r.cells[i],
-    align: c.type === 'number' ? 'right' : 'left',
-  }));
+const dbTableColumns = (columns: DbColumn[], format: ResultFormat): DataTableColumn<TableRow>[] =>
+  columns.map((c, i) => {
+    const cell = (r: TableRow) => formatCell(r.cells[i], c.type, format, c.timestamp ? 'timestamp' : 'date');
+    return {
+      id: `c${i}`,
+      label: c.name,
+      width: c.type === 'number' ? 120 : 160,
+      value: (r) => r.cells[i],
+      render: (r) => {
+        const { text, dim } = cell(r);
+        return dim ? <span className="dtable-null">{text}</span> : text;
+      },
+      copy: (r) => cell(r).text,
+      align: c.type === 'number' ? 'right' : 'left',
+    };
+  });
 
 const demoCells = (r: DemoRow) => [r.id, r.name, r.amount, r.date];
 const isTruncatedMarker = (item: unknown) => typeof item === 'object' && item !== null && !Array.isArray(item) && '$truncated' in item;
 
 export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSave: (patch: Partial<Settings>) => void }) {
-  const [state, setState] = useState<WorkbenchSettings>(settings.workbench ?? {});
+  const [state, setState] = useState<WorkbenchSettings>(() => withWorkbenchDefaults(settings.workbench));
   const [query, setQuery] = useState(SAMPLE);
   const [lines, setLines] = useState<OutputLine[]>([]);
   const [actionError, setActionError] = useState<ApiError>();
@@ -86,7 +94,7 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
 
   const persist = useDebouncedSave((next: WorkbenchSettings) => onSave({ workbench: next }));
   const latest = useRef(state);
-  const update = (patch: (s: WorkbenchSettings) => WorkbenchSettings) => {
+  const update = (patch: (s: WorkbenchSettings) => Partial<WorkbenchSettings>) => {
     const next = { ...latest.current, ...patch(latest.current) };
     latest.current = next;
     setState(next);
@@ -114,7 +122,7 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
     return body.map((item, i) => ({ key: String(i), cells: shown.kind === 'demo' ? demoCells(item as DemoRow) : (item as unknown[]) }));
   }, [rows.items, shown, truncated]);
 
-  const cols = useMemo(() => (shown.kind === 'db' ? dbTableColumns(shown.columns) : demoColumns()), [shown]);
+  const cols = useMemo(() => (shown.kind === 'db' ? dbTableColumns(shown.columns, state.results) : demoColumns()), [shown, state.results]);
 
   const refreshStatus = (id: string) => {
     api.dbStatus(id).then(setStatus, () => {});
@@ -219,7 +227,7 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
   const copyResults = async () => {
     const chosen = new Set(selection);
     const picked = selection.length > 0 ? tableRows.filter((r) => chosen.has(r.key)) : tableRows;
-    if (await copyText(toTsv(exportCols(), picked))) log(t('workbench.log.copied', { count: picked.length }), 'ok');
+    if (await copyText(toTsv(cols.map((c) => ({ label: c.label, value: c.copy ?? c.value })), picked))) log(t('workbench.log.copied', { count: picked.length }), 'ok');
     else log(t('workbench.log.copyFailed'), 'err');
   };
 
@@ -289,20 +297,6 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
           {rows.running && <button className="btn btn-sm" onClick={cancel}>{t('workbench.cancel')}</button>}
           {db && (
             <>
-              <label className="wb-maxrows">
-                <span className="muted">{t('workbench.maxRows')}</span>
-                <input
-                  className="wb-max"
-                  type="number"
-                  min={1}
-                  max={MAX_ROWS_LIMIT}
-                  value={maxRows}
-                  onChange={(e) => {
-                    const n = Number(e.target.value);
-                    if (Number.isInteger(n) && n >= 1 && n <= MAX_ROWS_LIMIT) update(() => ({ maxRows: n }));
-                  }}
-                />
-              </label>
               <button className="btn btn-sm" onClick={() => update((cur) => ({ schema: !cur.schema }))} aria-pressed={!!state.schema}>
                 <Icon name="table" /> {t('workbench.schema')}
               </button>

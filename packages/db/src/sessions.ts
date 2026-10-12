@@ -37,6 +37,8 @@ export type DbColumnType = 'number' | 'text' | 'date' | 'binary';
 export interface DbColumn {
   name: string;
   type: DbColumnType;
+  /** A TIMESTAMP column (also reported as type `date`). */
+  timestamp?: boolean;
 }
 
 export type DbRunResult =
@@ -246,7 +248,7 @@ export function dbSessions(opts: DbSessionsOptions = {}): DbSessions {
           outFormat: oracledb.OUT_FORMAT_ARRAY,
           fetchTypeHandler,
         });
-        const columns = (r.metaData ?? []).map((m) => ({ name: m.name, type: columnType(m.dbType?.name) }));
+        const columns = (r.metaData ?? []).map((m) => ({ name: m.name, type: columnType(m.dbType?.name), ...(m.dbType?.name?.startsWith('DB_TYPE_TIMESTAMP') ? { timestamp: true } : {}) }));
         if (!r.resultSet) return { kind: 'done' };
         const result = { run: randomUUID(), rs: r.resultSet, streaming: false, maxRows: Math.min(Math.max(runOpts.maxRows ?? maxRows, 1), maxRows) };
         s.result = result;

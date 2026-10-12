@@ -19,6 +19,8 @@ export interface DataTableColumn<T> {
   value: (row: T) => unknown;
   /** Custom cell content; the value still drives sorting and copying. */
   render?: (row: T) => ReactNode;
+  /** Text copied for the cell instead of the value. */
+  copy?: (row: T) => string;
   /** Header click sorts; true when omitted. */
   sortable?: boolean;
 }
@@ -125,7 +127,7 @@ export function DataTable<T>({
   const copySelection = async () => {
     const chosen = sorted.filter((row) => selected.has(rowKey(row)));
     if (chosen.length === 0) return;
-    if (!(await copyText(toTsv(columns, chosen)))) return;
+    if (!(await copyText(toTsv(columns.map((c) => ({ label: c.label, value: c.copy ?? c.value })), chosen)))) return;
     setCopied(true);
     clearTimeout(copiedTimer.current);
     copiedTimer.current = setTimeout(() => setCopied(false), COPIED_MS);

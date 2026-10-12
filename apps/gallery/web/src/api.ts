@@ -1,11 +1,11 @@
-import type { ArchiveContent, SqliteContent } from '@deckbuilder/editor';
+import { DEFAULT_FORMAT_OPTIONS, type ArchiveContent, type SqliteContent, type SqlFormatOptions } from '@deckbuilder/editor';
 import type { HttpRequestDraft } from '@deckbuilder/editor/http';
 import type { ThemeSettings } from '@deckbuilder/server-core/palettes';
 import type { BackupInspect, EditorInfo, HttpRequestSpec, HttpResponseInfo, ImportResult, TailChunk, UpdateState } from '@deckbuilder/server-core/protocol';
 
 export type { EditorInfo, ImportResult, TailChunk };
 import type { SessionInfo } from '@deckbuilder/terminal';
-import { type FileAssociation, type FileSettings, type Keymap, type Language, type LogSettings, request, requestUpload } from '@deckbuilder/ui';
+import { DEFAULT_RESULT_FORMAT, type FileAssociation, type FileSettings, type Keymap, type Language, type LogSettings, type ResultFormat, request, requestUpload } from '@deckbuilder/ui';
 
 export interface Settings extends ThemeSettings {
   language?: Language;
@@ -30,7 +30,7 @@ export interface Settings extends ThemeSettings {
   /** How text files are saved and how the Explorer shows files; the server validates it. */
   files?: FileSettings;
   /** State of the Workbench screen; the server validates it. */
-  workbench?: WorkbenchSettings;
+  workbench?: Partial<WorkbenchSettings>;
   /** State of the REST screen; the server validates it. */
   rest?: RestSettings;
   /** Terminal screen: the shell id new sessions start (`'auto'` when omitted); the server validates it. */
@@ -50,7 +50,7 @@ export interface SavedRequest {
   auth?: { hasSecret: true };
 }
 
-export type { LogSettings };
+export type { LogSettings, ResultFormat, SqlFormatOptions };
 
 
 export interface WorkbenchSettings {
@@ -61,8 +61,32 @@ export interface WorkbenchSettings {
   /** Most rows a database query returns. */
   maxRows?: number;
   /** The schema sidebar is open. */
+  /** Project ids allowed to run SQL from the Explorer. */
+  explorerProjects: string[];
+  /** Last connection id used per project id. */
+  explorerConnections: Record<string, string>;
+  /** How result cells are shown and copied; exports stay raw. */
+  results: ResultFormat;
+  /** SQL formatter options. */
+  format: SqlFormatOptions;
   schema?: boolean;
 }
+export const DEFAULT_WORKBENCH_SETTINGS: Pick<WorkbenchSettings, 'explorerProjects' | 'explorerConnections' | 'results' | 'format'> = {
+  explorerProjects: [],
+  explorerConnections: {},
+  results: DEFAULT_RESULT_FORMAT,
+  format: DEFAULT_FORMAT_OPTIONS,
+};
+
+/** The stored workbench state with every missing field filled from the defaults. */
+export const withWorkbenchDefaults = (raw?: Partial<WorkbenchSettings>): WorkbenchSettings => ({
+  ...raw,
+  explorerProjects: raw?.explorerProjects ?? DEFAULT_WORKBENCH_SETTINGS.explorerProjects,
+  explorerConnections: raw?.explorerConnections ?? DEFAULT_WORKBENCH_SETTINGS.explorerConnections,
+  results: { ...DEFAULT_RESULT_FORMAT, ...raw?.results },
+  format: { ...DEFAULT_FORMAT_OPTIONS, ...raw?.format },
+});
+
 
 export interface DemoRow {
   id: number;
@@ -88,6 +112,8 @@ export interface DbStatus {
 
 export interface DbColumn {
   name: string;
+  /** A TIMESTAMP column (also reported as type `date`). */
+  timestamp?: boolean;
   type: 'number' | 'text' | 'date' | 'binary';
 }
 
