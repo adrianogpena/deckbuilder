@@ -5,7 +5,7 @@ import { appHome, createToaster, openWithDefault, pickFile, revealInFolder, save
 import type { HttpRequestDraft } from '@deckbuilder/editor/http';
 import { dbRoutes, dbSessions, parseOracleUrl, validConnection, type DbConnectionFields } from '@deckbuilder/db';
 import { AppError, forbidden, invalid, isRecord, ndjson, type Routes } from '@deckbuilder/server-core';
-import { dialogRoutes, editorRoutes, fromPlatform, httpExecutor, httpRoutes, pickedPaths, recordRoutes, recordStore, restTabsRoutes, rootedFs, validateDraft } from '@deckbuilder/server-mods';
+import { dialogRoutes, editorRoutes, fromPlatform, httpExecutor, gitRoutes, httpRoutes, pickedPaths, recordRoutes, recordStore, restTabsRoutes, rootedFs, validateDraft } from '@deckbuilder/server-mods';
 import type { StartContext } from '@deckbuilder/shell';
 import { APP, MULTI_DELETE_ENABLED } from '../app.ts';
 
@@ -38,7 +38,8 @@ export const projects = recordStore<{ name: string; path: string }>({
     return { name: trimmed, path };
   },
 });
-const fs = rootedFs({ multiDelete: MULTI_DELETE_ENABLED, roots: async () => (await projects.list()).map((p) => ({ id: p.id, path: p.path })) });
+const projectRoots = async () => (await projects.list()).map((p) => ({ id: p.id, path: p.path }));
+const fs = rootedFs({ multiDelete: MULTI_DELETE_ENABLED, roots: projectRoots });
 
 /** The file download behind dragging a file out of the tree; its link carries a one-time ticket, not the session token. */
 export const openRoutes = fs.openRoutes;
@@ -188,6 +189,7 @@ export const routes = (ctx: StartContext): Routes => ({
   ...dbApi,
   ...recordRoutes(requests, '/api/requests'),
   ...restTabsRoutes({ dir: appHome(APP.id) }),
+  ...gitRoutes({ roots: projectRoots }),
   // The target comes from the save dialog on this side; the client never names a path.
   'POST /api/requests/save-curl': async ({ json }) => {
     const { text } = await json<{ text?: unknown }>();

@@ -166,3 +166,49 @@ export interface ImportResult {
 export type BackupInspect =
   | { token: null }
   | { token: string; appVersion: string; exportedAt: string; settings: boolean; stores: Array<{ name: string; count: number; known: boolean }> };
+
+/** One side of a file's git state: the porcelain v2 status letter, `.` unchanged, `?` untracked. */
+export type GitCode = '.' | 'M' | 'T' | 'A' | 'D' | 'R' | 'C' | 'U' | '?';
+
+/** A changed file, root-relative; one both staged and modified appears twice, once per group. */
+export interface GitFile {
+  path: string;
+  origPath?: string;
+  index: GitCode;
+  worktree: GitCode;
+  group: 'staged' | 'unstaged' | 'untracked' | 'conflict';
+}
+
+/** `GET /api/git/status`. */
+export interface GitStatus {
+  branch: string;
+  upstream?: string;
+  ahead: number;
+  behind: number;
+  files: GitFile[];
+}
+
+/** One entry of `GET /api/git/repos`. */
+export interface GitRepoInfo {
+  root: string;
+  repo: boolean;
+  branch?: string;
+  upstream?: string;
+  ahead?: number;
+  behind?: number;
+  error?: string;
+}
+
+/** `GET /api/git/file`: a file at HEAD or in the index. */
+export interface GitFileContent {
+  text?: string;
+  binary?: boolean;
+  tooLarge?: boolean;
+  missing?: boolean;
+}
+
+/** `GET /api/git/diff`. */
+export interface GitDiff {
+  text: string;
+  truncated: boolean;
+}

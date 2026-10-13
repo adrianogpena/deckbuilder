@@ -1,0 +1,198 @@
+import { runWithTimeout, type Runner } from '@deckbuilder/platform';
+import {
+  AppError,
+  invalid,
+  notFound,
+  type GitCode,
+  type GitDiff,
+  type GitFile,
+  type GitFileContent,
+  type GitRepoInfo,
+  type GitStatus,
+  type Routes,
+} from '@deckbuilder/server-core';
+import { isBinary } from './bytes.ts';
+import { badPath, segmentsOf, type FsRoot } from './rooted-fs.ts';
+
+export interface GitRoutesOptions {
+  /** The registered roots; the same function the gallery passes to `rootedFs`. */
+  roots: () => Promise<FsRoot[]>;
+  /** Runs a command: `runWithTimeout` from platform, a fake in tests. */
+  run?: Runner;
+}
+
+const STATUS_TIMEOUT_MS = 10_000;
+const QUICK_TIMEOUT_MS = 5_000;
+const MAX_FILE_BYTES = 2_000_000;
+const MAX_DIFF_CHARS = 1_000_000;
+
+const gitMissing = () => new AppError('internal', 'gitMissing', 'Git was not found on PATH.');
+const notARepo = () => invalid('notARepo', 'This folder is not in a Git repository.');
+const gitTimeout = () => new AppError('internal', 'gitTimeout', 'Git took too long to answer.');
+const gitFailed = (stderr: string) => {
+  if (/dubious ownership/i.test(stderr)) {
+    return new AppError('internal', 'gitDubiousOwnership', 'Git refuses this folder: its owner differs. Add it to safe.directory.', { detail: stderr.trim() });
+  }
+  return new AppError('internal', 'gitFailed', stderr.trim().split(/\r?\n/)[0] || 'Git failed.', { detail: stderr.trim() });
+};
+
+export interface PorcelainStatus {
+  branch: string;
+  upstream?: string;
+  ahead: number;
+  behind: number;
+  files: GitFile[];
+}
+
+/** Parses `git status --porcelain=v2 -z --branch` output; paths stay as git prints them (repo-relative). */
+export function parsePorcelainV2(text: string): PorcelainStatus {
+  const out: PorcelainStatus = { branch: '', ahead: 0, behind: 0, files: [] };
+  const tokens = text.split('\0');
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i]!;
+    if (!t) continue;
+    if (t.startsWith('# ')) {
+      const space = t.indexOf(' ', 2);
+      const key = space < 0 ? t.slice(2) : t.slice(2, space);
+      const value = space < 0 ? '' : t.slice(space + 1);
+      if (key === 'branch.head') out.branch = value;
+      else if (key === 'branch.upstream') out.upstream = value;
+      else if (key === 'branch.ab') {
+        const m = /^\+(\d+) -(\d+)$/.exec(value);
+        if (m) {
+          out.ahead = Number(m[1]);
+          out.behind = Number(m[2]);
+        }
+      }
+    } else if (t[0] === '1') {
+      const f = t.split(' ');
+      addEntry(out.files, f[1]!, t.split(' ').slice(8).join(' '));
+    } else if (t[0] === '2') {
+      const path = t.split(' ').slice(9).join(' ');
+      const origPath = tokens[++i] ?? '';
+      addEntry(out.files, t.split(' ')[1]!, path, origPath);
+    } else if (t[0] === 'u') {
+      const path = t.split(' ').slice(10).join(' ');
+      out.files.push({ path, index: 'U', worktree: 'U', group: 'conflict' });
+    } else if (t[0] === '?') {
+      out.files.push({ path: t.slice(2), index: '?', worktree: '?', group: 'untracked' });
+    }
+  }
+  return out;
+}
+
+function addEntry(files: GitFile[], xy: string, path: string, origPath?: string): void {
+  const index = xy[0] as GitCode;
+  const worktree = xy[1] as GitCode;
+  const base = origPath ? { path, origPath } : { path };
+  if (index !== '.') files.push({ ...base, index, worktree, group: 'staged' });
+  if (worktree !== '.') files.push({ ...base, index, worktree, group: 'unstaged' });
+}
+
+let gitOnPath: boolean | undefined;
+const defaultRun: Runner = (cmd, timeoutMs) => {
+  gitOnPath ??= Bun.which('git') !== null;
+  if (!gitOnPath) throw gitMissing();
+  return runWithTimeout(cmd, timeoutMs);
+};
+
+/**
+ * Read-only Git routes over the registered roots: `GET /api/git/repos|status|file|diff`. The client
+ * sends a root id and a root-relative path; every call runs `git -C <root>` with the path after `--`
+ * (or inside a `HEAD:` / `:` revision), so no client string is ever an option.
+ */
+export function gitRoutes(opts: GitRoutesOptions): Routes {
+  const run = opts.run ?? defaultRun;
+
+  async function git(root: FsRoot, args: string[], timeoutMs = QUICK_TIMEOUT_MS) {
+    let result;
+    try {
+      result = await run(['git', '--no-optional-locks', '-c', 'core.quotepath=off', '-C', root.path, ...args], timeoutMs);
+    } catch (e) {
+      throw e instanceof AppError ? e : gitMissing();
+    }
+    if (result.kind === 'timeout') throw gitTimeout();
+    return result;
+  }
+
+  /** Stdout of a call that must succeed. */
+  async function gitOut(root: FsRoot, args: string[], timeoutMs?: number): Promise<string> {
+    const r = await git(root, args, timeoutMs);
+    if (r.code !== 0) throw /not a git repository/i.test(r.stderr) ? notARepo() : gitFailed(r.stderr);
+    return r.stdout;
+  }
+
+  async function findRoot(id: unknown): Promise<FsRoot> {
+    const root = typeof id === 'string' ? (await opts.roots()).find((r) => r.id === id) : undefined;
+    if (!root) throw notFound('rootNotFound', 'This folder is no longer registered or no longer exists.');
+    return root;
+  }
+
+  /** The folder's path inside its repo, `sub/dir/` or empty at the top. */
+  async function prefixOf(root: FsRoot): Promise<string> {
+    const out = await gitOut(root, ['rev-parse', '--show-toplevel', '--show-prefix']);
+    return (out.split(/\r?\n/)[1] ?? '').trim();
+  }
+
+  function filePath(query: URLSearchParams): string {
+    const segments = segmentsOf(query.get('path') ?? '');
+    if (!segments.length) throw badPath();
+    return segments.join('/');
+  }
+
+  async function status(root: FsRoot, untracked: boolean): Promise<GitStatus> {
+    const args = ['status', '--porcelain=v2', '-z', '--branch', untracked ? '--untracked-files=all' : '--untracked-files=no', '--', '.'];
+    const parsed = parsePorcelainV2(await gitOut(root, args, STATUS_TIMEOUT_MS));
+    if (!untracked) return { ...parsed, files: [] };
+    const prefix = await prefixOf(root);
+    const strip = (p: string) => (prefix && p.startsWith(prefix) ? p.slice(prefix.length) : p);
+    const files = parsed.files.map((f) => ({ ...f, path: strip(f.path), ...(f.origPath !== undefined && { origPath: strip(f.origPath) }) }));
+    return { ...parsed, files };
+  }
+
+  return {
+    'GET /api/git/repos': async () => {
+      const roots = await opts.roots();
+      return Promise.all(
+        roots.map(async (root): Promise<GitRepoInfo> => {
+          try {
+            const { branch, upstream, ahead, behind } = await status(root, false);
+            return { root: root.id, repo: true, branch, ...(upstream !== undefined && { upstream }), ahead, behind };
+          } catch (e) {
+            if (e instanceof AppError && e.code === 'notARepo') return { root: root.id, repo: false };
+            return { root: root.id, repo: false, error: e instanceof Error ? e.message : String(e) };
+          }
+        }),
+      );
+    },
+
+    'GET /api/git/status': async ({ query }) => status(await findRoot(query.get('root')), true),
+
+    'GET /api/git/file': async ({ query }) => {
+      const root = await findRoot(query.get('root'));
+      const path = filePath(query);
+      const from = query.get('from');
+      if (from !== 'head' && from !== 'index') throw invalid('badRequest', 'Invalid request.');
+      const prefix = await prefixOf(root);
+      const rev = `${from === 'head' ? 'HEAD' : ''}:${prefix}${path}`;
+      const size = await git(root, ['cat-file', '-s', rev]);
+      if (size.code !== 0) {
+        if (/not a git repository/i.test(size.stderr)) throw notARepo();
+        if (/dubious ownership/i.test(size.stderr)) throw gitFailed(size.stderr);
+        return { missing: true } satisfies GitFileContent;
+      }
+      if (Number(size.stdout.trim()) > MAX_FILE_BYTES) return { tooLarge: true } satisfies GitFileContent;
+      const text = await gitOut(root, ['show', rev]);
+      if (isBinary(new TextEncoder().encode(text.slice(0, 8192)))) return { binary: true } satisfies GitFileContent;
+      return { text } satisfies GitFileContent;
+    },
+
+    'GET /api/git/diff': async ({ query }) => {
+      const root = await findRoot(query.get('root'));
+      const path = filePath(query);
+      const args = ['diff', ...(query.get('staged') === '1' ? ['--cached'] : []), '--no-color', '--', path];
+      const text = await gitOut(root, args);
+      return (text.length > MAX_DIFF_CHARS ? { text: text.slice(0, MAX_DIFF_CHARS), truncated: true } : { text, truncated: false }) satisfies GitDiff;
+    },
+  };
+}

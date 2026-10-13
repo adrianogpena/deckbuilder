@@ -115,7 +115,7 @@ export interface RootedFs {
   resolve(rootId: string, rel: string, opts?: { mustExist?: boolean }): Promise<Resolved>;
 }
 
-const badPath = () => invalid('badPath', 'Invalid path.');
+export const badPath = () => invalid('badPath', 'Invalid path.');
 const badRequest = () => invalid('badRequest', 'Invalid request.');
 const MAX_DELETE_PATHS = 1000;
 const outsideRoot = () => forbidden('outsideRoot', 'This path leads outside the project folder.');
@@ -139,7 +139,7 @@ function badSegment(segment: string): boolean {
 }
 
 /** The segments of a client path: relative, split on `/` and `\`, `.` and empty segments dropped. */
-function segmentsOf(rel: unknown): string[] {
+export function segmentsOf(rel: unknown): string[] {
   if (typeof rel !== 'string' || rel.includes('\0') || /^[\\/]/.test(rel) || /^[a-zA-Z]:/.test(rel)) throw badPath();
   const segments = rel.split(/[\\/]/).filter((s) => s !== '' && s !== '.');
   if (segments.some(badSegment)) throw badPath();
