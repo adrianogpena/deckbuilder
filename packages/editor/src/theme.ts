@@ -7,10 +7,10 @@ import { tags } from '@lezer/highlight';
 
 export const editorTheme = EditorView.theme({
   // Fills its host when the host has a height, else grows with the content.
-  '&': { height: '100%', backgroundColor: 'var(--bg-sunken)', color: 'var(--text)', fontSize: '12.5px' },
+  '&': { height: '100%', backgroundColor: 'var(--bg-sunken)', color: 'var(--text)', fontSize: 'var(--editor-font-size, 12.5px)' },
   '&.cm-focused': { outline: 'none' },
-  '.cm-scroller': { overflow: 'auto', fontFamily: 'var(--font-mono)', lineHeight: '1.55' },
-  '.cm-content': { caretColor: 'var(--accent)' },
+  '.cm-scroller': { overflow: 'auto', fontFamily: 'var(--font-mono)', lineHeight: 'var(--editor-line-height, 1.55)' },
+  '.cm-content': { caretColor: 'var(--accent)', fontVariantLigatures: 'var(--editor-ligatures, normal)' },
   '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--accent)' },
   '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection':
     { backgroundColor: 'color-mix(in srgb, var(--accent) 35%, transparent)' },

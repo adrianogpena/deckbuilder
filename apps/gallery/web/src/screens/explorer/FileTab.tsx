@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   applyEol, CodeEditor, detectEol, type Eol, FilePreview, HEX_LIMIT, type ImageInfo, langLabel, langOfFile, MARKDOWN_LAYOUTS, MARKDOWN_MODES, MarkdownEditor,
   type MarkdownMode, normalizeEol, prepareForSave, previewKind, type PreviewContent, type SelectionInfo, useMarkdownLayout,
+  useEditorOptions,
 } from '@deckbuilder/editor';
 import {
   type ApiError, type BreadcrumbEntry, Breadcrumbs, errorOf, ErrorBanner, FILE_DEFAULTS, type FileSettings, formatBytes, Icon, type IconName, PanelBanner, PanelLoading,
@@ -82,7 +83,8 @@ export function FileTab(props: FileTabProps) {
 }
 
 /** A preview by extension, and for text files an editor with Save (Ctrl+S). */
-function TextFileTab({ project, projectName, path, focused, preview, markdownMode = 'live', onMarkdownModeChange, wrapLines = true, onWrapLinesChange, files = FILE_DEFAULTS, onDirty, onSaver, onOpenPath, onActions, sql }: FileTabProps) {
+function TextFileTab({ project, projectName, path, focused, preview, markdownMode = 'live', onMarkdownModeChange, wrapLines: wrapLinesProp, onWrapLinesChange, files = FILE_DEFAULTS, onDirty, onSaver, onOpenPath, onActions, sql }: FileTabProps) {
+  const wrapLines = wrapLinesProp ?? useEditorOptions()?.wordWrap ?? true;
   const name = relPath.basename(path);
   const markdown = previewKind(name) === 'markdown';
   const [state, setState] = useState<State>({ status: 'loading' });

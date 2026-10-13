@@ -3,7 +3,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { attachSession, closeSession, isSessionGone, openSession, socketUrl, type TerminalCwd, type TerminalLaunch } from './client.ts';
 import { terminalKeyAction } from './keys.ts';
 import { decodeServerMessage, encodeControl } from './protocol.ts';
-import { createXtermView, type XtermView } from './xterm-view.ts';
+import { useTerminalOptions } from './terminalOptions.ts';
+import { createXtermView, type TerminalOptions, type XtermView } from './xterm-view.ts';
 import './terminal.css';
 
 /** Server close codes (see `terminalRoutes`). */
@@ -24,6 +25,8 @@ export interface TerminalPaneProps {
   /** App commands whose keys still work while the terminal has focus; default: the command palette. */
   appKeys?: CommandDef[];
   fontSize?: number;
+  /** Look and behavior preferences; without it the app-wide ones (TerminalOptionsContext), else the built-in defaults. */
+  options?: TerminalOptions;
   onSession?: (id: string) => void;
   onExit?: (code: number | null) => void;
   onTitle?: (title: string) => void;
@@ -59,6 +62,11 @@ export function TerminalPane(props: TerminalPaneProps) {
   latest.current = props;
   const [status, setStatus] = useState<Status>({ kind: 'connecting' });
   const controller = useRef<Controller | null>(null);
+  const viewRef = useRef<XtermView | null>(null);
+  const contextOptions = useTerminalOptions();
+  const options = props.options ?? contextOptions;
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
 
   const kb = useKeybindings();
   const appKeys = useMemo(() => props.appKeys ?? [paletteCommand()], [props.appKeys]);
@@ -82,6 +90,7 @@ export function TerminalPane(props: TerminalPaneProps) {
     const view: XtermView = createXtermView(host, {
       readOnly: preview,
       fontSize: latest.current.fontSize,
+      options: optionsRef.current,
       onKey: (e) => {
         if (preview || e.type !== 'keydown') return true;
         switch (terminalKeyAction(e, view.hasSelection(), appChords.current)) {
@@ -98,6 +107,7 @@ export function TerminalPane(props: TerminalPaneProps) {
       },
     });
 
+    viewRef.current = view;
     const send = (data: string | Uint8Array) => {
       if (ws?.readyState === WebSocket.OPEN) ws.send(data);
     };
@@ -234,9 +244,14 @@ export function TerminalPane(props: TerminalPaneProps) {
       ws?.close();
       ws = null;
       controller.current = null;
+      viewRef.current = null;
       view.dispose();
     };
   }, [preview]);
+
+  useEffect(() => {
+    if (options) viewRef.current?.setOptions(options);
+  }, [options]);
 
   // A new `session` prop (not the one this pane just opened and reported) switches sessions.
   useEffect(() => {

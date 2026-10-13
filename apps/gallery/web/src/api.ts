@@ -17,6 +17,8 @@ export interface Settings extends ThemeSettings {
   autostart: boolean;
   /** Tray icon; read at startup. */
   closeToTray: boolean;
+  /** Settings reopens on the last page shown (until the app restarts). */
+  rememberSettingsPage: boolean;
   updateFolder: string;
   /** Layout of the Tabs screen; restored (and validated) by the screen. */
   tabsLayout?: unknown;
@@ -35,9 +37,50 @@ export interface Settings extends ThemeSettings {
   /** State of the REST screen; the server validates it. */
   rest?: RestSettings;
   /** Terminal screen: the shell id new sessions start (`'auto'` when omitted); the server validates it. */
-  terminal?: { shell: string };
+  terminal?: TerminalSettings & { shell?: string };
+  /** Fonts, editor font metrics and motion; the server validates it. */
+  appearance?: AppearanceSettings;
+  /** How text editors behave; the server validates it. */
+  editor?: EditorSettings;
   /** Layout of the Terminal screen's tabs; restored (and validated) by the screen. */
   terminalLayout?: unknown;
+}
+
+export interface AppearanceSettings {
+  uiFontFamily?: string;
+  editorFontFamily?: string;
+  /** Pixels, 8 to 32. */
+  editorFontSize?: number;
+  /** Multiple of the font size, 1 to 3. */
+  editorLineHeight?: number;
+  editorLigatures?: boolean;
+  reduceMotion?: boolean;
+}
+
+export interface EditorSettings {
+  /** Width of a tab character in columns, 1 to 8. */
+  tabSize?: number;
+  insertSpaces?: boolean;
+  wordWrap?: boolean;
+  lineNumbers?: boolean;
+  highlightActiveLine?: boolean;
+  renderWhitespace?: 'none' | 'selection' | 'all';
+  bracketMatching?: boolean;
+  autoCloseBrackets?: boolean;
+  cursorStyle?: 'line' | 'block' | 'underline';
+  cursorBlink?: boolean;
+}
+
+export interface TerminalSettings {
+  fontFamily?: string;
+  /** Pixels, 8 to 32. */
+  fontSize?: number;
+  cursorStyle?: 'block' | 'bar' | 'underline';
+  cursorBlink?: boolean;
+  /** Lines kept, 100 to 100 000. */
+  scrollback?: number;
+  copyOnSelect?: boolean;
+  rightClickPaste?: boolean;
 }
 
 export interface RestSettings {

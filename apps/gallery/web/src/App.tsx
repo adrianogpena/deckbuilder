@@ -1,10 +1,13 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PALETTES } from '@deckbuilder/server-core/palettes';
 import { CommandPalette, detectLanguage, effectiveKeys, ErrorBanner, Icon, isDesktop, KeybindingProvider, type PaletteItem, PanelLoading, setFileAssociations, setLanguage, Sidebar, Spinner, ToastProvider, useAsync, useCommand, useCommandPalette, useHashRoute, useHeartbeat, useKeybindings, useTheme, useZoom } from '@deckbuilder/ui';
+import { EditorOptionsContext } from '@deckbuilder/editor';
+import { TerminalOptionsContext } from '@deckbuilder/terminal/options';
 import { APP } from '../../app';
 import { api, type Settings } from './api';
 import { commandById, commands, KEYS_COMMAND, navCommandId, SETTINGS_COMMAND } from './commands';
 import { t } from './i18n';
+import { appearanceSettingsOf, editorSettingsOf, terminalSettingsOf } from './settings';
 import { useZen } from './zen';
 import { NAV, SCREENS, type ScreenId } from './nav';
 import { ExplorerScreen } from './screens/ExplorerScreen';
@@ -84,6 +87,20 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
 
   const { kind } = useTheme(settings);
   useZoom(settings.zoom);
+  const appearance = appearanceSettingsOf(settings);
+  const editorOptions = useMemo(() => editorSettingsOf(settings), [settings.editor]);
+  const terminalOptions = useMemo(() => terminalSettingsOf(settings), [settings.terminal]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const set = (name: string, value: string | undefined) => (value ? root.style.setProperty(name, value) : root.style.removeProperty(name));
+    set('--font-sans', appearance.uiFontFamily.trim());
+    set('--font-mono', appearance.editorFontFamily.trim());
+    set('--editor-font-size', appearance.editorFontSize ? `${appearance.editorFontSize}px` : undefined);
+    set('--editor-line-height', appearance.editorLineHeight ? String(appearance.editorLineHeight) : undefined);
+    set('--editor-ligatures', appearance.editorLigatures ? 'normal' : 'none');
+    root.dataset.reduceMotion = String(appearance.reduceMotion);
+  }, [appearance.uiFontFamily, appearance.editorFontFamily, appearance.editorFontSize, appearance.editorLineHeight, appearance.editorLigatures, appearance.reduceMotion]);
 
   useEffect(() => {
     const item = NAV.flatMap((s) => s.items).find((i) => i.id === screen);
@@ -139,6 +156,8 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
 
   return (
     <ToastProvider>
+      <EditorOptionsContext.Provider value={editorOptions}>
+      <TerminalOptionsContext.Provider value={terminalOptions}>
       <div className={`app nav-collapsed${zen ? ' zen' : ''}`}>
         <Sidebar
           name={APP.name}
@@ -163,6 +182,8 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
         )}
         {palette.open && <CommandPalette items={items} initialQuery={palette.initialQuery} onClose={() => palette.setOpen(false)} />}
       </div>
+      </TerminalOptionsContext.Provider>
+      </EditorOptionsContext.Provider>
     </ToastProvider>
   );
 }

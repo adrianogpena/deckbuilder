@@ -15,7 +15,7 @@ import {
   registerDefaultSections,
   settingsFromOptionMeta,
 } from '@deckbuilder/ui';
-import type { Settings } from './api';
+import type { AppearanceSettings, EditorSettings, Settings, TerminalSettings } from './api';
 import { COPY_FORMATS, type CopyFormat } from './screens/workbench/copy-format';
 
 export const settingsRegistry = createSettingsRegistry<Settings>();
@@ -99,7 +99,62 @@ const resultBool = (key: 'hideMidnight' | 'thousandsSeparator', order: number, l
   set: (s, v) => withWorkbench(s, { results: { ...DEFAULT_RESULT_FORMAT, ...s.workbench?.results, [key]: v } satisfies ResultFormat }),
 });
 
+type Group = 'appearance' | 'editor' | 'terminal';
+
+type FieldDef =
+  | { kind: 'boolean'; default: boolean }
+  | { kind: 'string'; default: string }
+  | { kind: 'number'; default: number; min: number; max: number }
+  | { kind: 'enum'; default: string; values: readonly string[] };
+
+const groupField = (group: Group, key: string, order: number, def: FieldDef): SettingDef<Settings> => {
+  const read = (s: Settings) => (s[group] as Record<string, unknown> | undefined)?.[key] ?? def.default;
+  const set = (s: Settings, v: unknown): Partial<Settings> => ({ [group]: { ...s[group], [key]: v } });
+  return {
+    id: `${group}.${key}`,
+    section: [group],
+    order,
+    label: `settings.${group}.${key}`,
+    description: `settings.${group}.${key}.hint`,
+    ...def,
+    get: read,
+    set,
+  } as unknown as SettingDef<Settings>;
+};
+
+const MONO_FONT = "'Geist Mono','Cascadia Code',Consolas,monospace";
+const bool = (default_: boolean): FieldDef => ({ kind: 'boolean', default: default_ });
+const str = (default_: string): FieldDef => ({ kind: 'string', default: default_ });
+const num = (default_: number, min: number, max: number): FieldDef => ({ kind: 'number', default: default_, min, max });
+const oneOf = (default_: string, values: readonly string[]): FieldDef => ({ kind: 'enum', default: default_, values });
+
 settingsRegistry.registerSettings([
+  groupField('appearance', 'uiFontFamily', 100, str("'Geist', 'Segoe UI', system-ui, sans-serif")),
+  groupField('appearance', 'editorFontFamily', 110, str(MONO_FONT)),
+  groupField('appearance', 'editorFontSize', 120, num(12.5, 8, 32)),
+  groupField('appearance', 'editorLineHeight', 130, num(1.55, 1, 3)),
+  groupField('appearance', 'editorLigatures', 140, bool(false)),
+  groupField('appearance', 'reduceMotion', 150, bool(false)),
+
+  groupField('editor', 'tabSize', 100, num(4, 1, 8)),
+  groupField('editor', 'insertSpaces', 110, bool(true)),
+  groupField('editor', 'wordWrap', 120, bool(true)),
+  groupField('editor', 'lineNumbers', 130, bool(true)),
+  groupField('editor', 'highlightActiveLine', 140, bool(true)),
+  groupField('editor', 'renderWhitespace', 150, oneOf('none', ['none', 'selection', 'all'])),
+  groupField('editor', 'bracketMatching', 160, bool(true)),
+  groupField('editor', 'autoCloseBrackets', 170, bool(true)),
+  groupField('editor', 'cursorStyle', 180, oneOf('line', ['line', 'block', 'underline'])),
+  groupField('editor', 'cursorBlink', 190, bool(true)),
+
+  groupField('terminal', 'fontFamily', 100, str(MONO_FONT)),
+  groupField('terminal', 'fontSize', 110, num(13, 8, 32)),
+  groupField('terminal', 'cursorStyle', 120, oneOf('block', ['block', 'bar', 'underline'])),
+  groupField('terminal', 'cursorBlink', 130, bool(true)),
+  groupField('terminal', 'scrollback', 140, num(5000, 100, 100_000)),
+  groupField('terminal', 'copyOnSelect', 150, bool(false)),
+  groupField('terminal', 'rightClickPaste', 160, bool(false)),
+
   {
     id: 'general.autostart',
     kind: 'boolean',
@@ -121,6 +176,17 @@ settingsRegistry.registerSettings([
     default: false,
     get: (s) => s.closeToTray,
     set: (_, closeToTray) => ({ closeToTray }),
+  },
+  {
+    id: 'general.rememberSettingsPage',
+    kind: 'boolean',
+    section: general,
+    order: 30,
+    label: 'settings.rememberPage',
+    description: 'settings.rememberPage.hint',
+    default: true,
+    get: (s) => s.rememberSettingsPage ?? true,
+    set: (_, rememberSettingsPage) => ({ rememberSettingsPage }),
   },
 
   fileEnum('autoSave', editor, 10, 'settings.explorer.autoSave', AUTO_SAVE),
@@ -177,3 +243,15 @@ settingsRegistry.registerSettings([
     set: (s, format) => withWorkbench(s, { format }),
   }),
 ]);
+
+/** The appearance settings with their defaults filled in. */
+export const appearanceSettingsOf = (s: Settings): Required<AppearanceSettings> => ({ ...settingDefaults<Required<AppearanceSettings>>('appearance'), ...s.appearance });
+
+/** The editor settings with their defaults filled in. */
+export const editorSettingsOf = (s: Settings): Required<EditorSettings> => ({ ...settingDefaults<Required<EditorSettings>>('editor'), ...s.editor });
+
+/** The terminal look and behavior settings (not the shell) with their defaults filled in. */
+export const terminalSettingsOf = (s: Settings): Required<TerminalSettings> => {
+  const { shell: _shell, ...fields } = s.terminal ?? {};
+  return { ...settingDefaults<Required<TerminalSettings>>('terminal'), ...fields };
+};

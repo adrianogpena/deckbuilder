@@ -1,12 +1,11 @@
-import { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap } from '@codemirror/autocomplete';
+import { autocompletion, closeBracketsKeymap, completionKeymap } from '@codemirror/autocomplete';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
-import { bracketMatching, indentOnInput } from '@codemirror/language';
+import { indentOnInput } from '@codemirror/language';
 import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
 import { Annotation, Compartment, EditorState, type Extension, Prec } from '@codemirror/state';
-import {
-  drawSelection, EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers, placeholder as placeholderExt,
-} from '@codemirror/view';
+import { EditorView, keymap, placeholder as placeholderExt } from '@codemirror/view';
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
+import { type EditorOptions, editorOptionsExtension, useEditorOptions } from './editorOptions';
 import { type Lang, languageFor, type SqlDialect, type SqlSchema } from './languages';
 import { formatSql, type SqlFormatOptions } from './sql/format';
 import { statementAt } from './sql/statements';
@@ -34,6 +33,8 @@ export interface CodeEditorProps {
   wrap?: boolean;
   /** The cursor and selection, on load and whenever they change. */
   onSelection?(info: SelectionInfo): void;
+  /** Editor preferences; without it the app-wide ones (EditorOptionsContext), else the built-in defaults. */
+  options?: EditorOptions;
 }
 
 export type RunMode = 'statement' | 'all';
@@ -69,11 +70,14 @@ const external = Annotation.define<boolean>();
 
 /** A CodeMirror 6 editor; one view for the component's lifetime, options swapped in place. */
 export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(function CodeEditor({
-  value, lang, onChange, onRun, readOnly = false, placeholder, sqlDialect, sqlSchema, height, autoFocus, onScroll, extensions, wrap = false, onSelection,
+  value, lang, onChange, onRun, readOnly = false, placeholder, sqlDialect, sqlSchema, height, autoFocus, onScroll, extensions, wrap = false, onSelection, options,
 }, ref) {
+  const contextOptions = useEditorOptions();
+  const optionsExt = editorOptionsExtension(options ?? contextOptions);
+  const optionsKey = JSON.stringify(options ?? contextOptions ?? null);
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
-  const compartments = useRef({ lang: new Compartment(), readOnly: new Compartment(), placeholder: new Compartment(), extra: new Compartment(), wrap: new Compartment() }).current;
+  const compartments = useRef({ lang: new Compartment(), readOnly: new Compartment(), placeholder: new Compartment(), extra: new Compartment(), options: new Compartment(), wrap: new Compartment() }).current;
   // The callbacks change every render; the view's extensions read them through this ref.
   const handlers = useRef({ onChange, onRun, onScroll, onSelection });
   handlers.current = { onChange, onRun, onScroll, onSelection };
@@ -133,15 +137,10 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(function
               return true;
             } },
           ])),
-          lineNumbers(),
-          highlightActiveLineGutter(),
+          compartments.options.of(optionsExt),
           history(),
-          drawSelection(),
           indentOnInput(),
-          bracketMatching(),
-          closeBrackets(),
           autocompletion(),
-          highlightActiveLine(),
           highlightSelectionMatches(),
           keymap.of([...closeBracketsKeymap, ...defaultKeymap, ...searchKeymap, ...historyKeymap, ...completionKeymap, indentWithTab]),
           compartments.lang.of(languageFor(lang, { sqlDialect, sqlSchema })),
@@ -182,6 +181,10 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(function
   useEffect(() => {
     view.current?.dispatch({ effects: compartments.wrap.reconfigure(wrap ? EditorView.lineWrapping : []) });
   }, [wrap]);
+
+  useEffect(() => {
+    view.current?.dispatch({ effects: compartments.options.reconfigure(optionsExt) });
+  }, [optionsKey]);
 
   useEffect(() => {
     view.current?.dispatch({ effects: compartments.extra.reconfigure(extensions ?? []) });

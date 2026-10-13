@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { editorSettingsOf } from '../settings';
 import {
   activate,
   activeTab,
@@ -104,7 +105,7 @@ interface State {
   layout: Layout<Route>;
 }
 
-function initialState(saved: ExplorerSettings | undefined): State {
+function initialState(saved: ExplorerSettings | undefined, defaultWrap: boolean): State {
   const expanded: Record<string, string[]> = {};
   for (const [id, ids] of Object.entries(saved?.expanded ?? {})) {
     if (Array.isArray(ids)) expanded[id] = ids.filter((x): x is string => typeof x === 'string');
@@ -117,7 +118,7 @@ function initialState(saved: ExplorerSettings | undefined): State {
     trees: Array.isArray(saved?.trees) ? saved.trees.filter((x): x is string => typeof x === 'string').slice(0, 2) : [],
     treeSizes: saved?.treeSizes,
     markdownMode: MARKDOWN_MODES.includes(saved?.markdownMode as MarkdownMode) ? saved!.markdownMode! : 'live',
-    wrapLines: saved?.wrapLines !== false,
+    wrapLines: saved?.wrapLines ?? defaultWrap,
     sqlSizes: saved?.sqlSizes,
     layout: restore(saved?.tabs, isRoute) ?? singlePane(newTab<Route>(WELCOME)),
   };
@@ -167,7 +168,7 @@ const idsUnder = (project: string, path: string) => (id: string) => id.startsWit
 export function ExplorerScreen({ settings, onSave, go }: { settings: Settings; onSave: (patch: Partial<Settings>) => void; go: (screen: ScreenId) => void }) {
   const projects = useAsync(() => api.projects(), []);
   const list = projects.data ?? [];
-  const [state, setState] = useState(() => initialState(settings.explorer));
+  const [state, setState] = useState(() => initialState(settings.explorer, editorSettingsOf(settings).wordWrap));
   const latest = useRef(state);
   const [form, setForm] = useState<{ project?: Project }>();
   const [formError, setFormError] = useState<ApiError>();

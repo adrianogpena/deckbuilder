@@ -32,6 +32,8 @@ export interface Settings extends BaseSettings {
   autostart: boolean;
   /** Tray icon, so closing the window keeps the app running; read at startup. */
   closeToTray: boolean;
+  /** The Settings modal reopens on the last page shown (kept in memory by the UI). */
+  rememberSettingsPage: boolean;
   /**
    * Folder `deckbuilder release --to` publishes to; empty: GitHub releases when `APP.repo` is set,
    * else no update checks. Set only through the folder dialog of `POST /api/settings/update-folder`.
@@ -55,8 +57,12 @@ export interface Settings extends BaseSettings {
   workbench?: WorkbenchSettings;
   /** REST screen: split fractions of the editor and the response. */
   rest?: RestSettings;
-  /** Terminal screen: the shell new sessions start. */
-  terminal?: { shell: ShellId };
+  /** Terminal: the shell new sessions start, plus look and behavior, checked by `validTerminal`. */
+  terminal?: Record<string, string | number | boolean> & { shell?: ShellId };
+  /** Fonts, editor font metrics and motion, checked by `validGroup`. */
+  appearance?: Record<string, string | number | boolean>;
+  /** How text editors behave, checked by `validGroup`. */
+  editor?: Record<string, string | number | boolean>;
   /** Layout of the Terminal screen's tabs (`serialize`); the UI validates it on restore. */
   terminalLayout?: unknown;
 }
@@ -250,16 +256,78 @@ function validRest(raw: unknown): RestSettings | null {
   return out;
 }
 
+type FieldSpec = 'boolean' | 'string' | readonly [min: number, max: number] | readonly string[];
+
+const APPEARANCE_SPEC: Record<string, FieldSpec> = {
+  uiFontFamily: 'string',
+  editorFontFamily: 'string',
+  editorFontSize: [8, 32],
+  editorLineHeight: [1, 3],
+  editorLigatures: 'boolean',
+  reduceMotion: 'boolean',
+};
+const EDITOR_SPEC: Record<string, FieldSpec> = {
+  tabSize: [1, 8],
+  insertSpaces: 'boolean',
+  wordWrap: 'boolean',
+  lineNumbers: 'boolean',
+  highlightActiveLine: 'boolean',
+  renderWhitespace: ['none', 'selection', 'all'],
+  bracketMatching: 'boolean',
+  autoCloseBrackets: 'boolean',
+  cursorStyle: ['line', 'block', 'underline'],
+  cursorBlink: 'boolean',
+};
+const TERMINAL_SPEC: Record<string, FieldSpec> = {
+  fontFamily: 'string',
+  fontSize: [8, 32],
+  cursorStyle: ['block', 'bar', 'underline'],
+  cursorBlink: 'boolean',
+  scrollback: [100, 100_000],
+  copyOnSelect: 'boolean',
+  rightClickPaste: 'boolean',
+};
+
+/** A copy of `raw` when every key is in `spec` and its value fits, else null. */
+function validGroup(raw: unknown, spec: Record<string, FieldSpec>): Record<string, string | number | boolean> | null {
+  if (!isRecord(raw)) return null;
+  const out: Record<string, string | number | boolean> = {};
+  for (const [key, v] of Object.entries(raw)) {
+    const s = spec[key];
+    if (s === undefined) return null;
+    if (s === 'boolean') {
+      if (typeof v !== 'boolean') return null;
+    } else if (s === 'string') {
+      if (typeof v !== 'string' || v.length > 300) return null;
+    } else if (typeof s[0] === 'number') {
+      if (typeof v !== 'number' || !Number.isFinite(v) || v < s[0] || v > (s[1] as number)) return null;
+    } else if (typeof v !== 'string' || !(s as readonly string[]).includes(v)) return null;
+    out[key] = v;
+  }
+  return out;
+}
+
+/** The terminal group: a valid `shell` id plus the fields of `TERMINAL_SPEC`. */
+function validTerminal(raw: unknown): Settings['terminal'] | null {
+  if (!isRecord(raw)) return null;
+  const { shell, ...rest } = raw;
+  if (shell !== undefined && !isShellId(shell)) return null;
+  const fields = validGroup(rest, TERMINAL_SPEC);
+  if (!fields) return null;
+  return shell === undefined ? fields : { ...fields, shell };
+}
+
 const dataDir = appHome(APP.id);
 const autostart = createAutostart({ name: APP.name });
 /** The folder the update-folder dialog returned; `apply` takes it once. */
 const pickedUpdateFolder = pickedPaths({ max: 1 });
 const settings = settingsStore<Settings>({
   dir: dataDir,
-  defaults: { theme: 'dark', autostart: false, closeToTray: false, updateFolder: '' },
+  defaults: { theme: 'dark', autostart: false, closeToTray: false, rememberSettingsPage: true, updateFolder: '' },
   apply(patch, next) {
     if (typeof patch.autostart === 'boolean') next.autostart = patch.autostart;
     if (typeof patch.closeToTray === 'boolean') next.closeToTray = patch.closeToTray;
+    if (typeof patch.rememberSettingsPage === 'boolean') next.rememberSettingsPage = patch.rememberSettingsPage;
     // A client may only clear it: a typed path could be any UNC share.
     if (patch.updateFolder === '' || (typeof patch.updateFolder === 'string' && pickedUpdateFolder.take(patch.updateFolder))) {
       next.updateFolder = patch.updateFolder;
@@ -281,8 +349,12 @@ const settings = settingsStore<Settings>({
     if (workbench) next.workbench = workbench;
     const rest = validRest(patch.rest);
     if (rest) next.rest = rest;
-    const terminal = patch.terminal as { shell?: unknown } | undefined;
-    if (isRecord(terminal) && isShellId(terminal.shell)) next.terminal = { shell: terminal.shell };
+    const terminal = validTerminal(patch.terminal);
+    if (terminal) next.terminal = terminal;
+    const appearance = validGroup(patch.appearance, APPEARANCE_SPEC);
+    if (appearance) next.appearance = appearance;
+    const editor = validGroup(patch.editor, EDITOR_SPEC);
+    if (editor) next.editor = editor;
     if (typeof patch.terminalLayout === 'object' && patch.terminalLayout !== null && JSON.stringify(patch.terminalLayout).length < MAX_TABS_LAYOUT_BYTES) {
       next.terminalLayout = patch.terminalLayout;
     }

@@ -123,6 +123,9 @@ function searchSchema(flat: FlatNode[], query: string, settings: Settings): Map<
   return found;
 }
 
+/** The section last shown; lives until the app restarts. */
+let lastSection: string | undefined;
+
 /**
  * Settings as VS Code opens them: a modal editor over the current screen, closed with Escape or a click outside.
  * The nav is the schema's section tree; a parent shows its own settings and its children's. Keyboard › Shortcuts
@@ -131,10 +134,17 @@ function searchSchema(flat: FlatNode[], query: string, settings: Settings): Map<
  */
 export function SettingsModal({ settings, onChange, onQuit, onClose, initialSection }: Props & { onClose: () => void; initialSection?: string }) {
   const flat = useMemo(() => flatten(settingsRegistry.sectionTree()), []);
-  const [section, setSection] = useState(initialSection ?? flat[0]?.key ?? 'general');
+  const [startSection] = useState(() => {
+    const remembered = settings.rememberSettingsPage !== false && lastSection && flat.some((f) => f.key === lastSection) ? lastSection : undefined;
+    return initialSection ?? remembered;
+  });
+  const [section, setSection] = useState(startSection ?? flat[0]?.key ?? 'general');
+  useEffect(() => {
+    lastSection = section;
+  }, [section]);
   // The initial section's ancestors start expanded, so the nav shows it.
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => {
-    const path = initialSection?.split('.') ?? [];
+    const path = startSection?.split('.') ?? [];
     return new Set(path.slice(0, -1).map((_, i) => path.slice(0, i + 1).join('.')));
   });
   const [query, setQuery] = useState('');
@@ -162,11 +172,14 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
       case 'general': return <GeneralSection settings={draft} onChange={change} onQuit={onQuit} />;
       case 'appearance':
         return (
-          <section className="section">
-            <div className="card form">
-              <AppearanceFields value={draft} onChange={change} />
-            </div>
-          </section>
+          <>
+            <section className="section">
+              <div className="card form">
+                <AppearanceFields value={draft} onChange={change} />
+              </div>
+            </section>
+            <SettingRows ids={groupIds('appearance')} settings={draft} onChange={change} />
+          </>
         );
       case 'window':
         return (
@@ -176,14 +189,26 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
             </div>
           </section>
         );
-      case 'editor': return <EditorCard settings={draft} onChange={change} />;
+      case 'editor':
+        return (
+          <>
+            <EditorCard settings={draft} onChange={change} />
+            <SettingRows ids={groupIds('editor')} settings={draft} onChange={change} />
+          </>
+        );
       case 'editor.fileTypes': return <FileTypesCard value={draft.fileAssociations ?? []} onChange={(fileAssociations) => change({ fileAssociations })} />;
       case 'editor.externalEditors': return <EditorsCard />;
       case 'explorer': return <ExplorerCard settings={draft} onChange={change} />;
       case 'workbench': return <WorkbenchCard settings={draft} onChange={change} />;
       case 'workbench.results': return <ResultsCard settings={draft} onChange={change} />;
       case 'workbench.sqlFormatter': return <FormatterCard settings={draft} onChange={change} />;
-      case 'terminal': return <TerminalCard shell={draft.terminal?.shell ?? 'auto'} onShell={(shell) => change({ terminal: { shell } })} />;
+      case 'terminal':
+        return (
+          <>
+            <TerminalCard shell={draft.terminal?.shell ?? 'auto'} onShell={(shell) => change({ terminal: { ...draft.terminal, shell } })} />
+            <SettingRows ids={groupIds('terminal')} settings={draft} onChange={change} />
+          </>
+        );
       case 'keyboard.shortcuts': return <ShortcutsSection settings={settings} onChange={onChange} />;
       case 'system.updates': return <UpdatesCard folder={draft.updateFolder} onFolder={(updateFolder) => change({ updateFolder })} />;
       case 'system.backup': return (
@@ -409,6 +434,8 @@ function SettingField({ def, settings, onChange }: { def: SettingDef<Settings>; 
 }
 
 /** Schema settings as one card of rows (search results, sections with no screen of their own). */
+const groupIds = (group: string) => settingsRegistry.settingsIn([group]).filter((d) => d.id.startsWith(`${group}.`)).map((d) => d.id);
+
 function SettingRows({ ids, settings, onChange }: { ids: string[]; settings: Settings; onChange: Change }) {
   return (
     <section className="section">
@@ -436,6 +463,7 @@ function GeneralSection({ settings, onChange, onQuit }: Props) {
         </label>
         <Row id="general.autostart" settings={settings} onChange={onChange} />
         <Row id="general.closeToTray" settings={settings} onChange={onChange} />
+        <Row id="general.rememberSettingsPage" settings={settings} onChange={onChange} />
       </div>
       {(!isDesktop || settings.closeToTray) && <GeneralCard onQuit={onQuit} />}
     </>
