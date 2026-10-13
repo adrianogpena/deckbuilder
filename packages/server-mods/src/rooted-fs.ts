@@ -1,5 +1,5 @@
 import type { Dirent } from 'node:fs';
-import { chmod, cp, lstat, mkdir, readdir, realpath, stat, writeFile } from 'node:fs/promises';
+import { chmod, cp, lstat, mkdir, readdir, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import { basename, dirname, extname, isAbsolute, join, sep } from 'node:path';
 import { moveToTrash, renameWithRetry, type SaveDialogOptions, saveFileAs, writeFileAtomic } from '@deckbuilder/platform';
 import { AppError, forbidden, type Handler, invalid, ndjson, notFound, type Routes, socketTickets, type TailChunk } from '@deckbuilder/server-core';
@@ -526,8 +526,10 @@ export function rootedFs(opts: RootedFsOptions): RootedFs {
       const offset = Number(query.get('offset') ?? 0);
       try {
         return readSqlite(loc.real, query.get('table'), Number.isFinite(offset) ? offset : 0);
-      } catch {
-        throw invalid('notSqlite', 'The file is not a readable SQLite database.');
+      } catch (err) {
+        const code = (err as { code?: string })?.code;
+        if (code === 'SQLITE_NOTADB' || code?.startsWith('SQLITE_CORRUPT')) throw invalid('notSqlite', 'The file is not a readable SQLite database.');
+        throw fsError(err);
       }
     },
 
@@ -606,11 +608,12 @@ export function rootedFs(opts: RootedFsOptions): RootedFs {
       if (Number(req.headers.get('content-length') ?? 0) > MAX_UPLOAD_BYTES) throw tooLarge();
       let to = await entryPath(loc);
       const old = await lstat(to).catch(() => null);
+      let replaced = false;
       if (old) {
         if (onExisting === null) throw exists();
         if (onExisting === 'keepBoth') to = await freeName(to, false);
         else if (old.isDirectory()) throw notAFile();
-        else await trash([to]).catch(fromPlatform);
+        else replaced = true;
       }
       let received = 0;
       const capped = (req.body ?? new Blob([]).stream()).pipeThrough(
@@ -622,7 +625,17 @@ export function rootedFs(opts: RootedFsOptions): RootedFs {
           },
         }),
       );
-      await writeFileAtomic(to, capped);
+      if (replaced) {
+        // The old file goes to the bin only once the new bytes are fully on disk.
+        const staged = `${to}.upload-${crypto.randomUUID()}`;
+        try {
+          await writeFileAtomic(staged, capped);
+          await trash([to]).catch(fromPlatform);
+          await renameWithRetry(staged, to);
+        } finally {
+          await rm(staged, { force: true }).catch(() => {});
+        }
+      } else await writeFileAtomic(to, capped);
       return described(to, basename(to), loc.realRoot);
     },
 

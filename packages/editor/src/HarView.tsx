@@ -1,6 +1,5 @@
-import { PanelBanner, t } from '@deckbuilder/ui';
+import { formatBytes, PanelBanner, t } from '@deckbuilder/ui';
 import { useMemo, useState } from 'react';
-import { formatBytes } from './http';
 import { DataGrid } from './TableView';
 import { compareCells } from './table';
 

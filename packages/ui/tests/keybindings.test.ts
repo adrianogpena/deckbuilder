@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { GLOBAL, chordOf, conflictsOf, effectiveKeys, firesInInput, normalizeChord, ownsKey, resolve, startsOf, usesOf, validKeymap, type CommandDef, type KeyLike } from '../src/keybindings.ts';
+import { GLOBAL, chordOf, conflictsOf, effectiveKeys, firesInInput, normalizeChord, ownsKey, resolve, startsOf, validKeymap, type CommandDef, type KeyLike } from '../src/keybindings.ts';
 
 const ev = (key: string, code: string, mods: Partial<KeyLike> = {}): KeyLike => ({ key, code, ctrlKey: false, altKey: false, shiftKey: false, metaKey: false, ...mods });
 const def = (id: string, scope: string, keys: string[], extra: Partial<CommandDef> = {}): CommandDef => ({ id, scope, label: id, keys, ...extra });
@@ -124,14 +124,6 @@ describe('conflictsOf', () => {
   test('an unbound command no longer conflicts', () => {
     const defs = [def('g', GLOBAL, ['Ctrl+K']), def('v', 'one', ['Ctrl+K'])];
     expect(conflictsOf(defs, { v: [] })).toEqual([]);
-  });
-});
-
-describe('usesOf', () => {
-  test('lists the commands bound to a chord in any scope', () => {
-    const defs = [def('a', GLOBAL, ['Ctrl+A']), def('b', 'v', ['Ctrl+B']), def('c', 'w', ['Ctrl+B'])];
-    expect(usesOf('Ctrl+B', defs, {}).map((d) => d.id)).toEqual(['b', 'c']);
-    expect(usesOf('Ctrl+B', defs, { b: [] }).map((d) => d.id)).toEqual(['c']);
   });
 });
 

@@ -125,18 +125,6 @@ export function statusTone(status: number): 'ok' | 'info' | 'warn' | 'err' {
   return 'err';
 }
 
-export function formatBytes(n: number): string {
-  if (n < 1000) return `${n} B`;
-  const units = ['kB', 'MB', 'GB'];
-  let value = n;
-  let i = -1;
-  do {
-    value /= 1000;
-    i++;
-  } while (value >= 1000 && i < units.length - 1);
-  return `${value >= 100 ? Math.round(value) : Math.round(value * 10) / 10} ${units[i]}`;
-}
-
 export function formatMs(n: number): string {
   if (n < 1000) return `${Math.round(n)} ms`;
   const s = n / 1000;

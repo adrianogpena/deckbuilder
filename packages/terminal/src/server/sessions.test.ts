@@ -219,3 +219,37 @@ describe('session info', () => {
     expect(reg.list()[0]).toMatchObject({ label: 'renamed', meta: { a: 1 } });
   });
 });
+
+describe('session reaping', () => {
+  test('an exited session is removed once its last viewer detaches', async () => {
+    const { reg, ptys, make } = setup();
+    const s = make();
+    const sink = new FakeSink();
+    reg.attach(s.id, sink, 'interactive');
+    ptys[0]!.end(0);
+    await settle();
+    expect(reg.list()).toHaveLength(1);
+    reg.detach(s.id, sink);
+    expect(reg.list()).toHaveLength(0);
+  });
+
+  test('exited sessions without viewers do not count toward the limit', () => {
+    const { ptys, make } = setup({ max: 1 });
+    make();
+    ptys[0]!.end(0);
+    expect(() => make()).not.toThrow();
+  });
+
+  test('output that overflows the terminal closes the session', () => {
+    const { reg, ptys, make } = setup();
+    make();
+    const sink = new FakeSink();
+    reg.attach(reg.list()[0]!.id, sink, 'interactive');
+    const big = new Uint8Array(1 << 20).fill(65);
+    expect(() => {
+      for (let i = 0; i < 80; i++) ptys[0]!.emit(new TextDecoder().decode(big));
+    }).not.toThrow();
+    expect(reg.list()).toHaveLength(0);
+    expect(sink.closed).toBe(true);
+  });
+});

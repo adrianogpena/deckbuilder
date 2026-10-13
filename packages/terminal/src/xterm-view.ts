@@ -53,6 +53,7 @@ export function createXtermView(el: HTMLElement, opts: XtermViewOptions = {}): X
     cursorBlink: !opts.readOnly,
     scrollback: 5000,
     theme: tokenTheme(),
+    linkHandler: { activate: (_e, uri) => window.open(uri, '_blank', 'noopener'), allowNonHttpProtocols: false },
   });
   const fitAddon = new FitAddon();
   term.loadAddon(fitAddon);

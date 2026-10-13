@@ -50,7 +50,7 @@ export function useAsync<T>(fn: () => Promise<T>, deps: unknown[], intervalMs = 
     setData(undefined);
     setError(undefined);
     run(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Deps are deliberately partial.
   }, deps);
 
   useEffect(() => {
@@ -59,7 +59,7 @@ export function useAsync<T>(fn: () => Promise<T>, deps: unknown[], intervalMs = 
       if (document.visibilityState === 'visible') run(true);
     }, intervalMs);
     return () => window.clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Deps are deliberately partial.
   }, [intervalMs, ...deps]);
 
   const reload = useCallback(() => run(false), [run]);

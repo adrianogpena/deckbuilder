@@ -1,4 +1,4 @@
-import { invalid, notFound, socketTickets, type Routes, type SocketData, type SocketRoutes } from '@deckbuilder/server-core';
+import { AppError, invalid, notFound, socketTickets, type Routes, type SocketData, type SocketRoutes } from '@deckbuilder/server-core';
 import type { ServerWebSocket } from 'bun';
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -132,8 +132,13 @@ export function terminalRoutes(opts: TerminalRoutesOptions): { routes: Routes; s
         sinks.set(ws, { session, sink });
         try {
           sessions.attach(session, sink, view);
-        } catch {
+        } catch (e) {
           sinks.delete(ws);
+          if (!(e instanceof AppError) || e.code !== 'terminalSession') {
+            console.error('terminal attach failed', e);
+            ws.close(1011, 'error');
+            return;
+          }
           ws.close(1008, 'noSession');
         }
       },

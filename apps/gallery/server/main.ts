@@ -326,8 +326,8 @@ function validGroup(raw: unknown, spec: Record<string, FieldSpec>): Record<strin
   if (!isRecord(raw)) return null;
   const out: Record<string, string | number | boolean> = {};
   for (const [key, v] of Object.entries(raw)) {
-    const s = spec[key];
-    if (s === undefined) return null;
+    if (!Object.hasOwn(spec, key)) return null;
+    const s = spec[key]!;
     if (s === 'boolean') {
       if (typeof v !== 'boolean') return null;
     } else if (s === 'string') {

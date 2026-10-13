@@ -103,6 +103,7 @@ export function terminalSessions({ spawn = spawnPty, max = 20, now = Date.now }:
   }
 
   function create(opts: CreateOptions): Session {
+    if (entries.size >= max) reapExited();
     if (entries.size >= max) throw invalid('terminalLimit', 'Too many terminal sessions', { max });
     checkMeta(opts.meta);
     const pty = spawn(opts.cmd, opts.cwd, opts.cols, opts.rows, opts.env);
@@ -146,7 +147,11 @@ export function terminalSessions({ spawn = spawnPty, max = 20, now = Date.now }:
       const chunk = data.slice();
       e.lastOutputAt = now();
       // Viewers get the bytes after the replay state has parsed them, so an attach never sees a gap.
-      term.write(chunk, () => broadcast(e, chunk));
+      try {
+        term.write(chunk, () => broadcast(e, chunk));
+      } catch {
+        close(e.id);
+      }
     });
     pty.onExit((code) => {
       if (e.exited !== undefined) return;
@@ -189,7 +194,13 @@ export function terminalSessions({ spawn = spawnPty, max = 20, now = Date.now }:
 
   function detach(id: string, sink: Sink): void {
     const e = entries.get(id);
-    if (e) e.viewers = e.viewers.filter((v) => v.sink !== sink);
+    if (!e) return;
+    e.viewers = e.viewers.filter((v) => v.sink !== sink);
+    if (e.exited !== undefined && e.viewers.length === 0) close(id);
+  }
+
+  function reapExited(): void {
+    for (const e of [...entries.values()]) if (e.exited !== undefined && e.viewers.length === 0) close(e.id);
   }
 
   const isInteractive = (e: Entry, sink: Sink) => interactive(e)?.sink === sink;

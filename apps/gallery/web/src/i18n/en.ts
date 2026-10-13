@@ -549,6 +549,7 @@ export const en = {
   'workbench.conn.empty': 'No connections yet',
   'workbench.conn.name': 'Name',
   'workbench.conn.url': 'URL',
+  'workbench.conn.passwordRequired': 'Enter the password again when the URL or user changes.',
   'workbench.conn.urlHint': 'Accepted: oracle:thin:@host:1521/SERVICE, jdbc:oracle:thin:@host:1521/SERVICE, host:1521/SERVICE and the SID form @host:1521:SID.',
   'workbench.conn.user': 'User',
   'workbench.conn.password': 'Password',

@@ -94,6 +94,8 @@ export function startServer(opts: ServerOptions) {
   return Bun.serve<SocketData>({
     hostname: '127.0.0.1',
     port: opts.port ?? 0,
+    // Above the 200 MB upload cap in rooted-fs, so that cap (not Bun's 128 MiB default) is what answers.
+    maxRequestBodySize: 256 * 1024 * 1024,
     websocket: {
       open: (ws) => socketFor(ws).open(ws, ws.data.data),
       message: (ws, msg) => socketFor(ws).message(ws, msg),
@@ -146,7 +148,10 @@ export function startServer(opts: ServerOptions) {
 function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body ?? null), {
     status,
-    headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' },
+    headers: { 'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff',
+    },
   });
 }
 

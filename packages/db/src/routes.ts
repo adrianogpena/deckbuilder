@@ -50,7 +50,11 @@ export function dbRoutes({ sessions, credentials, scripts }: DbRoutesOptions): R
       let password = '';
       if (typeof b.password === 'string') password = b.password;
       else if (b.password !== undefined) throw badRequest();
-      else if (b.id !== undefined) password = (await lookup(idOf(b.id))).password;
+      else if (b.id !== undefined) {
+        const saved = await lookup(idOf(b.id));
+        if (saved.connectString !== connectString || saved.user !== user) throw badRequest();
+        password = saved.password;
+      }
       if (password.length > MAX_PASSWORD) throw badRequest();
       await sessions.test({ connectString, user, password });
       return { ok: true };

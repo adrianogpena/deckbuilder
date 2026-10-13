@@ -71,11 +71,6 @@ export function frontmatterTable(entries: [string, string][]): HTMLTableElement 
   return table;
 }
 
-/** Length of the frontmatter block, 0 if there is none. */
-export function frontmatterLength(md: string): number {
-  return frontmatter(md)?.length ?? 0;
-}
-
 const BLOCKED_ATTR = 'data-md-blocked';
 
 /** Markdown (GFM) to sanitized HTML. Needs a DOM (DOMPurify): browser only. */
@@ -107,8 +102,8 @@ export function renderMarkdown(md: string, opts: MarkdownOptions = {}): string {
       // HTML only: SVG/MathML links and images escape the A/IMG policies above.
       USE_PROFILES: { html: true },
       // Media and <picture> sources would load remote URLs past imagePolicy.
-      FORBID_TAGS: ['style', 'iframe', 'form', 'object', 'embed', 'video', 'audio', 'source', 'track', 'picture'],
-      FORBID_ATTR: ['style'],
+      FORBID_TAGS: ['style', 'iframe', 'form', 'object', 'embed', 'video', 'audio', 'source', 'track', 'picture', 'input', 'button'],
+      FORBID_ATTR: ['style', 'ping', 'download', 'formaction', 'background', 'id', 'name'],
       RETURN_DOM_FRAGMENT: true,
     });
   } finally {

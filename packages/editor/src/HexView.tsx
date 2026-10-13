@@ -1,6 +1,5 @@
-import { PanelBanner, t } from '@deckbuilder/ui';
+import { formatBytes, PanelBanner, t } from '@deckbuilder/ui';
 import { useMemo } from 'react';
-import { formatBytes } from './http';
 import { hexRows } from './table';
 
 /** Bytes the hex view asks for; a longer file shows only its start. */

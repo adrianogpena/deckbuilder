@@ -99,7 +99,7 @@ export function useSqlRunner(
     refreshStatus();
     window.addEventListener('focus', refreshStatus);
     return () => window.removeEventListener('focus', refreshStatus);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Deps are deliberately partial.
   }, [db]);
 
   const fail = (err: unknown) => {
@@ -201,7 +201,7 @@ export function useSqlRunner(
       refreshStatus();
     }
     wasRunning.current = rows.running;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Deps are deliberately partial.
   }, [tableRows.length, rows.running]);
 
   const finishTransaction = async (op: 'commit' | 'rollback') => {

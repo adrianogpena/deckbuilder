@@ -1,8 +1,8 @@
 import type { HttpResponseInfo } from '@deckbuilder/server-core/protocol';
-import { type ApiError, Badge, CopyButton, ErrorBanner, Icon, JsonTree, PanelBanner, PanelNotice, Spinner, t } from '@deckbuilder/ui';
+import { type ApiError, Badge, CopyButton, ErrorBanner, formatBytes, Icon, JsonTree, PanelBanner, PanelNotice, Spinner, t } from '@deckbuilder/ui';
 import { useMemo, useState } from 'react';
 import { CodeView } from './CodeView';
-import { bodyView, formatBytes, formatMs, statusTone } from './http';
+import { bodyView, formatMs, statusTone } from './http';
 
 export interface ResponseViewProps {
   response?: HttpResponseInfo;

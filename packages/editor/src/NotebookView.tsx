@@ -21,7 +21,7 @@ interface Cell {
 }
 
 const join = (v: string | string[] | undefined) => (Array.isArray(v) ? v.join('') : v ?? '');
-// eslint-disable-next-line no-control-regex
+// Matches the ESC control character of ANSI color codes.
 const ANSI = /\u001b\[[0-9;]*m/g;
 
 function OutputView({ output }: { output: Output }) {

@@ -49,6 +49,10 @@ export function MarkdownView({ markdown, resolveImage }: { markdown: string; res
 
   const onClick = async (e: MouseEvent<HTMLDivElement>) => {
     const button = e.target as HTMLElement;
+    if (button.closest('a[href^="#"]')) {
+      e.preventDefault();
+      return;
+    }
     if (!button.classList.contains('md-code-copy')) return;
     const code = button.parentElement?.querySelector('code') ?? button.parentElement;
     if (!code || !(await copyText(code.textContent ?? ''))) return;

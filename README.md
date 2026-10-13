@@ -131,7 +131,7 @@ source directly; there is no package build step.
   dispatch them from one listener: the current screen's (`scope`) commands win over global ones and
   a `Keymap` (`{ [id]: chords }`, `[]` unbinds) overrides the defaults; without a provider each
   command listens on its default keys. The pure model (`chordOf`, `normalizeChord`, `resolve`,
-  `conflictsOf`, `usesOf`, `validKeymap` for server-side settings validation) is in
+  `conflictsOf`, `validKeymap` for server-side settings validation) is in
   `@deckbuilder/ui/keybindings`. Package commands come from `paletteCommand()`,
   `tabCommands(scope)` and `explorerCommands(scope)`; list them in `defs`. Keys a focused widget
   handles itself (editor, tree and table navigation, dialogs) aren't commands.

@@ -54,7 +54,7 @@ export function SplitView({ direction, sizes, defaultSizes, min = [], onResize, 
     });
     observer.observe(el);
     return () => observer.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Deps are deliberately partial.
   }, [row]);
 
   const move = (index: number, deltaPx: number) => {

@@ -119,7 +119,7 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
       flushDoc();
       docWrite.current = undefined;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Deps are deliberately partial.
   }, [docKey]);
 
   const schemaOpen = !!db && !!state.schema;
@@ -130,7 +130,7 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
   useEffect(() => {
     if (!schemaLoading) runner.refreshStatus();
     if (schemaError && !schemaOpen) runner.log(t('workbench.log.schemaFailed', { message: errorMessage(schemaError) }), 'err');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Deps are deliberately partial.
   }, [schemaLoading, schemaError]);
 
   const run = () => runner.run(editor.current?.getRunText() ?? query, 'statement');

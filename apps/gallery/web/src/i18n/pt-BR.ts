@@ -551,6 +551,7 @@ export const ptBR: Messages<typeof en> = {
   'workbench.conn.empty': 'Nenhuma conexão ainda',
   'workbench.conn.name': 'Nome',
   'workbench.conn.url': 'URL',
+  'workbench.conn.passwordRequired': 'Informe a senha novamente ao alterar a URL ou o usuario.',
   'workbench.conn.urlHint': 'Aceitos: oracle:thin:@host:1521/SERVICO, jdbc:oracle:thin:@host:1521/SERVICO, host:1521/SERVICO e a forma com SID @host:1521:SID.',
   'workbench.conn.user': 'Usuário',
   'workbench.conn.password': 'Senha',

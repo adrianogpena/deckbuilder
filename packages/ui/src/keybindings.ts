@@ -207,12 +207,6 @@ export function startsOf(steps: string, scope: string, defs: CommandDef[], keyma
   );
 }
 
-/** The commands a chord is bound to, in any scope. */
-export function usesOf(chordText: string, defs: CommandDef[], keymap: Keymap): CommandDef[] {
-  const keys = effectiveKeys(defs, keymap);
-  return defs.filter((d) => keys.get(d.id)?.includes(chordText));
-}
-
 /** The command a chord runs in a view: the view's own first, then a global one. */
 export function resolve(chordText: string, scope: string, defs: CommandDef[], keymap: Keymap, { desktop = true }: { desktop?: boolean } = {}): CommandDef | null {
   const keys = effectiveKeys(defs, keymap);

@@ -26,8 +26,17 @@ export function Connections({ onClose, onChanged }: { onClose: () => void; onCha
     setMode({ kind: 'form', item });
   };
 
+  const needsPassword = (values: Record<string, unknown>) => {
+    const item = mode.kind === 'form' ? mode.item : undefined;
+    return !!item && (values.url !== item.url || values.user !== item.user) && !values.password;
+  };
+
   const submit = async (values: Record<string, unknown>) => {
     setError(undefined);
+    if (needsPassword(values)) {
+      setError({ code: 'badRequest', message: t('workbench.conn.passwordRequired') } as ApiError);
+      return;
+    }
     try {
       if (mode.kind === 'form' && mode.item) await api.updateDbConnection(mode.item.id, values);
       else await api.createDbConnection(values);
@@ -50,8 +59,12 @@ export function Connections({ onClose, onChanged }: { onClose: () => void; onCha
   };
 
   const test = async (values: Record<string, unknown>) => {
-    setTesting(true);
     setTested(undefined);
+    if (needsPassword(values)) {
+      setTested({ code: 'badRequest', message: t('workbench.conn.passwordRequired') } as ApiError);
+      return;
+    }
+    setTesting(true);
     try {
       await api.dbTest(mode.kind === 'form' && mode.item ? { ...values, id: mode.item.id } : values);
       setTested('ok');

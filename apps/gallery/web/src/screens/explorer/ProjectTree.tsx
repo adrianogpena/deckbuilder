@@ -407,9 +407,17 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
           }
           toast({ message: t('explorer.undone', { what: t(DID[op.kind], { name: labelOf(op.paths) }) }) });
         } else {
-          for (const m of [...op.moves].reverse()) {
-            await api.fsMove(op.project, m.to, m.from);
-            onMoved(op.project, m.to, m.from);
+          const pending = [...op.moves].reverse();
+          try {
+            while (pending.length) {
+              const m = pending[0]!;
+              await api.fsMove(op.project, m.to, m.from);
+              onMoved(op.project, m.to, m.from);
+              pending.shift();
+            }
+          } catch (err) {
+            if (pending.length) undo.push({ ...op, moves: pending.reverse() });
+            throw err;
           }
           toast({ message: t('explorer.undone', { what: t(DID[op.kind], { name: labelOf(op.moves.map((m) => m.to)) }) }) });
         }
@@ -452,9 +460,10 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
       const fold = /Windows|Mac/.test(navigator.userAgent) ? (n: string) => n.toLowerCase() : (n: string) => n;
       const taken = new Set((await api.fsList(project.id, dir)).map((e) => fold(e.name)));
       let all: 'skip' | 'keepBoth' | 'replace' | undefined;
-      const jobs: Array<{ name: string; tree: Awaited<ReturnType<typeof walkEntry>>; isDir: boolean }> = [];
+      const jobs: Array<{ name: string; tree: Awaited<ReturnType<typeof walkEntry>>; isDir: boolean; replace?: string }> = [];
       for (const entry of entries) {
         let name = entry.name;
+        let replace: string | undefined;
         if (taken.has(fold(name))) {
           let choice = all;
           if (!choice) {
@@ -475,10 +484,10 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
           }
           if (choice === 'skip') continue;
           if (choice === 'keepBoth') name = freeName(name, entry.isDirectory, taken, fold);
-          else await api.fsDelete(project.id, [relPath.join(dir, name)]);
+          else replace = relPath.join(dir, name);
         }
         taken.add(fold(name));
-        jobs.push({ name, tree: await walkEntry(entry), isDir: entry.isDirectory });
+        jobs.push({ name, tree: await walkEntry(entry), isDir: entry.isDirectory, replace });
       }
 
       const under = (j: (typeof jobs)[number], rel: string[]) => [dir, j.name, ...rel.slice(1)].filter(Boolean).join('/');
@@ -492,6 +501,8 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
       };
       progress();
       try {
+        // Replaced names are removed only now, after every prompt and folder read succeeded.
+        for (const j of jobs) if (j.replace) await api.fsDelete(project.id, [j.replace]);
         for (const path of emptyDirs) await api.fsCreate(project.id, path, 'dir').catch((err) => { if (errorOf(err).code !== 'exists') throw err; });
         const queue = [...files];
         await Promise.all(
