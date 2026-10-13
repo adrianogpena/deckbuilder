@@ -207,3 +207,43 @@ export function resetPatch<S>(setting: SettingDef<S>, settings: S): Partial<S> |
   if (setting.kind === 'custom') return undefined;
   return (setting.set as (s: S, v: unknown) => Partial<S>)(settings, setting.default);
 }
+
+/** A settings search split like VS Code's: `@modified` and `@id:<id>` filters, and the free text left over. */
+export interface SettingsQuery {
+  text: string;
+  /** Only settings that differ from their default. */
+  modified: boolean;
+  /** Only these exact ids (any of them); empty means no id filter. */
+  ids: string[];
+}
+
+const MODIFIED_TAG = '@modified';
+const ID_TAG = '@id:';
+
+/** Parses a settings search into its filters and free text. The filters AND with the text. */
+export function parseSettingsQuery(query: string): SettingsQuery {
+  let modified = false;
+  const ids: string[] = [];
+  const rest: string[] = [];
+  for (const token of query.split(/\s+/).filter(Boolean)) {
+    const lower = token.toLowerCase();
+    if (lower === MODIFIED_TAG) modified = true;
+    else if (lower.startsWith(ID_TAG)) {
+      const id = token.slice(ID_TAG.length);
+      if (id && !ids.includes(id)) ids.push(id);
+    } else rest.push(token);
+  }
+  return { text: rest.join(' '), modified, ids };
+}
+
+/** Adds `@modified` to a settings search, or removes it when present. */
+export function toggleModifiedFilter(query: string): string {
+  const tokens = query.split(/\s+/).filter(Boolean);
+  const kept = tokens.filter((t) => t.toLowerCase() !== MODIFIED_TAG);
+  return (kept.length === tokens.length ? [MODIFIED_TAG, ...kept] : kept).join(' ');
+}
+
+/** A description as rendered: each `#setting.id#` link becomes the target's label (or its bare id). */
+export function settingDescriptionText(description: string, labelOf: (id: string) => string | undefined): string {
+  return description.replace(/#([\w.-]+)#/g, (_, id: string) => labelOf(id) ?? id);
+}

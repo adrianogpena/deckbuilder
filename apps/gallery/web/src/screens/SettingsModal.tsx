@@ -1,12 +1,12 @@
-import { type CSSProperties, Fragment, type ReactNode, useMemo, useRef, useState } from 'react';
+import { type CSSProperties, Fragment, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { CodeView, formatSql } from '@deckbuilder/editor';
-import { AppearanceFields, SettingRow, fileSettingsOf, ZoomField, type ApiError, detectLanguage, type FileAssociation, validFileAssociations, ErrorBanner, errorMessage, errorOf, GLOBAL, isDesktop, KeybindingsEditor, LANGUAGES, Modal, Spinner, useAsync, useKeybindings, type Language, type SettingDef, type SettingsSectionNode, sectionKey } from '@deckbuilder/ui';
+import { AppearanceFields, SettingItem, SettingLinksProvider, type SettingLinks, SettingRow, useRevealSetting, useRovingList, SETTING_ROW_CONTROLS,fileSettingsOf, ZoomField, type ApiError, detectLanguage, type FileAssociation, validFileAssociations, ErrorBanner, errorMessage, errorOf, GLOBAL, isDesktop, KeybindingsEditor, LANGUAGES, isModified, resetPatch, Modal, parseSettingsQuery, settingDescriptionText, toggleModifiedFilter, Spinner, useAsync, useKeybindings, type Language, type SettingDef, type SettingsSectionNode, sectionKey } from '@deckbuilder/ui';
 import { APP } from '../../../app';
 import { NAV } from '../nav';
 import { api, type BackupInfo, type EditorInfo, type Project, type ImportResult, type Settings, type SqlFormatOptions, withWorkbenchDefaults } from '../api';
 import { type MessageKey, t } from '../i18n';
 import { en } from '../i18n/en';
-import { settingsRegistry } from '../settings';
+import { settingDefault, settingsRegistry } from '../settings';
 
 interface Props {
   settings: Settings;
@@ -50,23 +50,72 @@ interface SectionHit {
   ids: string[];
 }
 
+/** How the screen reads and writes the custom (hand-rendered) schema settings. */
+const CUSTOM: Record<string, { get: (s: Settings) => unknown; set: (s: Settings, value: unknown) => Partial<Settings> }> = {
+  'files.nestingPatterns': {
+    get: (s) => fileSettingsOf(s.files).nestingPatterns,
+    set: (s, v) => ({ files: { ...fileSettingsOf(s.files), nestingPatterns: v as Record<string, string> } }),
+  },
+  'files.exclude': {
+    get: (s) => fileSettingsOf(s.files).exclude,
+    set: (s, v) => ({ files: { ...fileSettingsOf(s.files), exclude: v as string[] } }),
+  },
+  'workbench.explorerProjects': {
+    get: (s) => withWorkbenchDefaults(s.workbench).explorerProjects,
+    set: (s, v) => ({ workbench: { ...withWorkbenchDefaults(s.workbench), explorerProjects: v as string[] } }),
+  },
+};
+
+/** Whether the screen can read and reset the setting (every non-custom one, and the custom ones in `CUSTOM`). */
+const handled = (def: SettingDef<Settings>): boolean => def.kind !== 'custom' || Object.hasOwn(CUSTOM, def.id);
+
+/** A setting's value in `s`. */
+const valueOf = (def: SettingDef<Settings>, s: Settings): unknown => (def.kind === 'custom' ? CUSTOM[def.id]?.get(s) : def.get(s));
+
+/** The patch that sets every one of `defs` back to its default, built on `s`. */
+function defaultsPatch(defs: SettingDef<Settings>[], s: Settings): Partial<Settings> {
+  let acc = s;
+  let patch: Partial<Settings> = {};
+  for (const def of defs) {
+    const p = def.kind === 'custom' ? CUSTOM[def.id]?.set(acc, def.default) : resetPatch(def, acc);
+    if (!p) continue;
+    acc = { ...acc, ...p };
+    patch = { ...patch, ...p };
+  }
+  return patch;
+}
+
+/** A setting's translated label, or the id when it has none. */
+const labelOf = (id: string): string | undefined => {
+  const def = settingsRegistry.setting(id);
+  return def && tr(def.label, id);
+};
+
 /**
- * Searches the schema like VS Code's settings search: a setting matches when its label, description or id holds
- * every word; a section whose label matches (or sits under one that does) shows whole. Returns the sections with hits.
+ * Searches the schema like VS Code's settings search: a setting matches when its label, rendered description or id
+ * holds every word; a section whose label matches (or sits under one that does) shows whole. `@modified` and
+ * `@id:<id>` filters AND with the words; while one is on, a matching section shows only its filtered schema rows,
+ * since hand-written fields have no schema entry to filter. Returns the sections with hits.
  */
-function searchSchema(flat: FlatNode[], query: string): Map<string, SectionHit> {
-  const words = norm(query).trim().split(' ').filter(Boolean);
+function searchSchema(flat: FlatNode[], query: string, settings: Settings): Map<string, SectionHit> {
+  const { text, modified, ids: only } = parseSettingsQuery(query);
+  const words = norm(text).trim().split(' ').filter(Boolean);
+  const filtered = modified || only.length > 0;
   const found = new Map<string, SectionHit>();
-  if (words.length === 0) return found;
-  const wholeKeys: string[] = [];
+  if (words.length === 0 && !filtered) return found;
+  const labelKeys: string[] = [];
   for (const { node, key } of flat) {
-    const whole = words.every((w) => norm(sectionLabel(node)).includes(w)) || wholeKeys.some((k) => isUnder(key, k));
-    if (whole) wholeKeys.push(key);
+    const labelHit = words.length > 0 && (words.every((w) => norm(sectionLabel(node)).includes(w)) || labelKeys.some((k) => isUnder(key, k)));
+    if (labelHit) labelKeys.push(key);
+    const whole = labelHit && !filtered;
     const ids = settingsRegistry
       .settingsIn(node.path)
       .filter((s) => {
-        const text = norm([tr(s.label), tr(s.description), s.id].join(' '));
-        return whole || words.every((w) => text.includes(w));
+        if (modified && !isModified(s, settings)) return false;
+        if (only.length > 0 && !only.includes(s.id)) return false;
+        if (labelHit) return true;
+        const hay = norm([tr(s.label), settingDescriptionText(tr(s.description), labelOf), s.id].join(' '));
+        return words.every((w) => hay.includes(w));
       })
       .map((s) => s.id);
     if (whole || ids.length > 0) found.set(key, { whole, ids });
@@ -78,6 +127,7 @@ function searchSchema(flat: FlatNode[], query: string): Map<string, SectionHit> 
  * Settings as VS Code opens them: a modal editor over the current screen, closed with Escape or a click outside.
  * The nav is the schema's section tree; a parent shows its own settings and its children's. Keyboard › Shortcuts
  * holds the keybindings editor, which has its own filter; `initialSection` opens a section directly.
+ * Changes stay a draft until Apply or Ok; closing with changes asks whether to save them. The Shortcuts page and a backup import save at once.
  */
 export function SettingsModal({ settings, onChange, onQuit, onClose, initialSection }: Props & { onClose: () => void; initialSection?: string }) {
   const flat = useMemo(() => flatten(settingsRegistry.sectionTree()), []);
@@ -88,20 +138,33 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
     return new Set(path.slice(0, -1).map((_, i) => path.slice(0, i + 1).join('.')));
   });
   const [query, setQuery] = useState('');
+  const [pending, setPending] = useState<Partial<Settings>>({});
+  const draft = useMemo<Settings>(() => ({ ...settings, ...pending }), [settings, pending]);
+  const change: Change = (patch) => setPending((p) => ({ ...p, ...patch }));
+  const dirty = Object.keys(pending).length > 0;
+  const apply = () => {
+    if (!dirty) return;
+    onChange(pending);
+    setPending({});
+  };
+  // Closing (Ok, X, Escape, backdrop) with unsaved changes asks first.
+  const [asking, setAsking] = useState(false);
+  const requestClose = () => (dirty ? setAsking(true) : onClose());
   const body = useRef<HTMLDivElement>(null);
   const searching = query.trim() !== '';
-  const hits = useMemo(() => searchSchema(flat, query), [flat, query]);
+  const hits = useMemo(() => searchSchema(flat, query, draft), [flat, query, draft]);
+  const modifiedOnly = parseSettingsQuery(query).modified;
   const deepCount = (key: string) => [...hits].reduce((n, [k, h]) => (isUnder(k, key) ? n + h.ids.length : n), 0);
   const total = [...hits.values()].reduce((n, h) => n + h.ids.length, 0);
 
   const render = (key: string): ReactNode => {
     switch (key) {
-      case 'general': return <GeneralSection settings={settings} onChange={onChange} onQuit={onQuit} />;
+      case 'general': return <GeneralSection settings={draft} onChange={change} onQuit={onQuit} />;
       case 'appearance':
         return (
           <section className="section">
             <div className="card form">
-              <AppearanceFields value={settings} onChange={onChange} />
+              <AppearanceFields value={draft} onChange={change} />
             </div>
           </section>
         );
@@ -109,26 +172,33 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
         return (
           <section className="section">
             <div className="card form">
-              <ZoomField value={settings} onChange={onChange} />
+              <ZoomField value={draft} onChange={change} />
             </div>
           </section>
         );
-      case 'editor': return <EditorCard settings={settings} onChange={onChange} />;
-      case 'editor.fileTypes': return <FileTypesCard value={settings.fileAssociations ?? []} onChange={(fileAssociations) => onChange({ fileAssociations })} />;
+      case 'editor': return <EditorCard settings={draft} onChange={change} />;
+      case 'editor.fileTypes': return <FileTypesCard value={draft.fileAssociations ?? []} onChange={(fileAssociations) => change({ fileAssociations })} />;
       case 'editor.externalEditors': return <EditorsCard />;
-      case 'explorer': return <ExplorerCard settings={settings} onChange={onChange} />;
-      case 'workbench': return <WorkbenchCard settings={settings} onChange={onChange} />;
-      case 'workbench.results': return <ResultsCard settings={settings} onChange={onChange} />;
-      case 'workbench.sqlFormatter': return <FormatterCard settings={settings} onChange={onChange} />;
-      case 'terminal': return <TerminalCard shell={settings.terminal?.shell ?? 'auto'} onShell={(shell) => onChange({ terminal: { shell } })} />;
+      case 'explorer': return <ExplorerCard settings={draft} onChange={change} />;
+      case 'workbench': return <WorkbenchCard settings={draft} onChange={change} />;
+      case 'workbench.results': return <ResultsCard settings={draft} onChange={change} />;
+      case 'workbench.sqlFormatter': return <FormatterCard settings={draft} onChange={change} />;
+      case 'terminal': return <TerminalCard shell={draft.terminal?.shell ?? 'auto'} onShell={(shell) => change({ terminal: { shell } })} />;
       case 'keyboard.shortcuts': return <ShortcutsSection settings={settings} onChange={onChange} />;
-      case 'system.updates': return <UpdatesCard folder={settings.updateFolder} onFolder={(updateFolder) => onChange({ updateFolder })} />;
-      case 'system.backup': return <BackupCard onSettings={onChange} />;
+      case 'system.updates': return <UpdatesCard folder={draft.updateFolder} onFolder={(updateFolder) => change({ updateFolder })} />;
+      case 'system.backup': return (
+        <BackupCard
+          onSettings={(next) => {
+            setPending({});
+            onChange(next);
+          }}
+        />
+      );
       default: {
         // Sections other packages or apps add: their schema rows.
         const path = key.split('.');
         const defs = settingsRegistry.settingsIn(path);
-        return defs.length > 0 ? <SettingRows ids={defs.map((d) => d.id)} settings={settings} onChange={onChange} /> : null;
+        return defs.length > 0 ? <SettingRows ids={defs.map((d) => d.id)} settings={draft} onChange={change} /> : null;
       }
     }
   };
@@ -149,11 +219,49 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
       ? [...hits.keys()].some((k) => isUnder(k, f.key))
       : f.node.path.slice(0, -1).every((_, i) => expanded.has(sectionKey(f.node.path.slice(0, i + 1))));
   const selected = flat.find((f) => f.key === section) ?? flat[0];
+  // A node has unsaved changes when a setting in it (or under it) differs in the draft from the saved settings.
+  const unsaved = (path: readonly string[]) =>
+    dirty && settingsRegistry.settingsIn(path, true).some((s) => handled(s) && !deepEqual(valueOf(s, draft), valueOf(s, settings)));
+  // Reset restores the defaults of the page shown: the selected section and its children.
+  const pageDefs = selected && !searching ? settingsRegistry.settingsIn(selected.node.path, true).filter(handled) : [];
+  const canReset = pageDefs.some((d) => !deepEqual(valueOf(d, draft), d.default));
+  const footer = selected?.key === 'keyboard.shortcuts' && !searching ? undefined : (
+    <>
+      <button className="btn btn-sm" disabled={!canReset} onClick={() => change(defaultsPatch(pageDefs, draft))}>{t('settings.footer.reset')}</button>
+      <button className="btn btn-sm" disabled={!dirty} onClick={apply}>{t('settings.footer.apply')}</button>
+      <button
+        className="btn btn-sm btn-primary"
+        onClick={requestClose}
+      >
+        {t('settings.footer.ok')}
+      </button>
+    </>
+  );
+  // `#setting.id#` links in descriptions: open the target's section (unless search already shows it), then its row.
+  const reveal = useRevealSetting(body);
+  // Up/Down/Home/End/PageUp/PageDown between rows; Enter or F2 into a row's control, Escape back to the row.
+  useRovingList(body, '[data-setting]', { control: SETTING_ROW_CONTROLS });
+  const links = useMemo<SettingLinks>(() => ({
+    labelOf,
+    onNavigate: (id) => {
+      const def = settingsRegistry.setting(id);
+      if (!def) return;
+      const hit = hits.get(sectionKey(def.section));
+      if (!hit || !(hit.whole || hit.ids.includes(id))) {
+        setQuery('');
+        setSection(sectionKey(def.section));
+        setExpanded((prev) => new Set([...prev, ...def.section.slice(0, -1).map((_, i) => sectionKey(def.section.slice(0, i + 1)))]));
+      }
+      reveal(id);
+    },
+  }), [hits, reveal]);
 
   return (
-    <Modal title={t('settings.title')} onClose={onClose} large>
+    <Modal title={t('settings.title')} onClose={requestClose} footer={footer} large>
+      <SettingLinksProvider value={links}>
       <div className="settings-layout">
         <nav className="settings-nav" aria-label={t('settings.title')}>
+          <div className="settings-nav-search-box">
           <input
             className="settings-search settings-nav-search"
             type="search"
@@ -175,6 +283,19 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
               }
             }}
           />
+          <button
+            type="button"
+            className="settings-nav-filter"
+            title={t('settings.search.modified')}
+            aria-label={t('settings.search.modified')}
+            aria-pressed={modifiedOnly}
+            onClick={() => setQuery(toggleModifiedFilter)}
+          >
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" aria-hidden="true">
+              <path d="M2 3h12l-4.5 5.5V13l-3 1.5V8.5z" />
+            </svg>
+          </button>
+          </div>
           {searching && <span className="settings-count">{t(total === 1 ? 'settings.search.count.one' : 'settings.search.count', { n: total })}</span>}
           {flat.filter(visible).map((f) => {
             const parent = f.node.children.length > 0;
@@ -203,6 +324,9 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
                   ▶
                 </span>
                 {sectionLabel(f.node)}
+                {unsaved(f.node.path) && (
+                  <span className="settings-nav-modified" title={t('settings.row.modified')} aria-label={t('settings.row.modified')} />
+                )}
                 {searching && <span className="settings-nav-count">{deepCount(f.key)}</span>}
               </button>
             );
@@ -215,7 +339,7 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
                 return (
                   <div key={f.key} className="settings-group" data-section={f.key}>
                     <h3 className="settings-group-title">{f.trail.join(' › ')}</h3>
-                    {hit.whole ? render(f.key) : <SettingRows ids={hit.ids} settings={settings} onChange={onChange} />}
+                    {hit.whole ? render(f.key) : <SettingRows ids={hit.ids} settings={draft} onChange={change} />}
                   </div>
                 );
               })
@@ -239,6 +363,30 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
           )}
         </div>
       </div>
+      </SettingLinksProvider>
+      {asking && (
+        <Modal
+          title={t('settings.unsaved.title')}
+          onClose={() => setAsking(false)}
+          footer={
+            <>
+              <button className="btn" onClick={() => setAsking(false)} autoFocus>{t('settings.unsaved.cancel')}</button>
+              <button className="btn" onClick={onClose}>{t('settings.unsaved.discard')}</button>
+              <button
+                className="btn btn-primary"
+                onClick={() => {
+                  apply();
+                  onClose();
+                }}
+              >
+                {t('settings.unsaved.save')}
+              </button>
+            </>
+          }
+        >
+          <p>{t('settings.unsaved.message')}</p>
+        </Modal>
+      )}
     </Modal>
   );
 }
@@ -419,15 +567,30 @@ function ProjectsField({ projects, error, onRetry, value, onChange }: {
 function ProjectsRow({ settings, onChange }: { settings: Settings; onChange: Change }) {
   const projects = useAsync(() => api.projects(), []);
   const wb = withWorkbenchDefaults(settings.workbench);
+  const id = 'workbench.explorerProjects';
+  const fallback = settingDefault<string[]>(id);
+  const save = (explorerProjects: string[]) => onChange({ workbench: { ...wb, explorerProjects } });
   return (
-    <ProjectsField
-      projects={projects.data}
-      error={projects.error}
-      onRetry={projects.reload}
-      value={wb.explorerProjects}
-      onChange={(explorerProjects) => onChange({ workbench: { ...wb, explorerProjects } })}
-    />
+    <SettingItem id={id} modified={!deepEqual(wb.explorerProjects, fallback)}>
+      <ProjectsField
+        projects={projects.data}
+        error={projects.error}
+        onRetry={projects.reload}
+        value={wb.explorerProjects}
+        onChange={save}
+      />
+    </SettingItem>
   );
+}
+
+/** Structural equality for JSON-like values (arrays, plain objects, primitives). */
+function deepEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  const ka = Object.keys(a);
+  const kb = Object.keys(b);
+  return ka.length === kb.length && ka.every((k) => Object.hasOwn(b, k) && deepEqual((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]));
 }
 
 /** Which projects run SQL from the Explorer, and how many rows a run fetches. */
@@ -490,12 +653,33 @@ function FormatterCard({ settings, onChange }: { settings: Settings; onChange: C
   );
 }
 
+/**
+ * For a field that edits `value` as local text: runs `resync` when `value` changes from outside (a page Reset) while
+ * the returned textarea ref is not focused, so the text shows the new value.
+ */
+function useResync(value: unknown, resync: () => void) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  const key = JSON.stringify(value);
+  const run = useRef(resync);
+  run.current = resync;
+  useEffect(() => {
+    if (document.activeElement !== ref.current) run.current();
+  }, [key]);
+  return ref;
+}
+
 function NestingField({ value, onChange }: { value: Record<string, string>; onChange: (next: Record<string, string>) => void }) {
-  const [text, setText] = useState(Object.entries(value).map(([k, v]) => `${k}: ${v}`).join(String.fromCharCode(10)));
+  const toText = (v: Record<string, string>) => Object.entries(v).map(([k, c]) => `${k}: ${c}`).join(String.fromCharCode(10));
+  const [text, setText] = useState(toText(value));
+  const area = useResync(value, () => setText(toText(value)));
+  const id = 'files.nestingPatterns';
+  const fallback = settingDefault<Record<string, string>>(id);
   return (
+    <SettingItem id={id} modified={!deepEqual(value, fallback)}>
     <div className="field">
       <span className="mono-label">{t('settings.explorer.nesting.patterns')}</span>
       <textarea
+        ref={area}
         value={text}
         rows={6}
         spellCheck={false}
@@ -514,15 +698,21 @@ function NestingField({ value, onChange }: { value: Record<string, string>; onCh
       />
       <span className="muted">{t('settings.explorer.nesting.patterns.hint')}</span>
     </div>
+    </SettingItem>
   );
 }
 
 function ExcludeField({ value, onChange }: { value: string[]; onChange: (next: string[]) => void }) {
   const [text, setText] = useState(value.join('\n'));
+  const area = useResync(value, () => setText(value.join('\n')));
+  const id = 'files.exclude';
+  const fallback = settingDefault<string[]>(id);
   return (
+    <SettingItem id={id} modified={!deepEqual(value, fallback)}>
     <div className="field">
       <span className="mono-label">{t('settings.explorer.exclude')}</span>
       <textarea
+        ref={area}
         value={text}
         rows={4}
         spellCheck={false}
@@ -532,6 +722,7 @@ function ExcludeField({ value, onChange }: { value: string[]; onChange: (next: s
       />
       <span className="muted">{t('settings.explorer.exclude.hint')}</span>
     </div>
+    </SettingItem>
   );
 }
 

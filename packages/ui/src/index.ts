@@ -45,3 +45,4 @@ export * from './tabs';
 export * from './theme';
 export * from './tree';
 export * from './rel-path';
+export * from './roving-list';

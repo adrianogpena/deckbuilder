@@ -1,11 +1,82 @@
-import { useState } from 'react';
+import { createContext, Fragment, type ReactNode, type RefObject, useContext, useEffect, useState } from 'react';
 import { tryT } from '../i18n';
-import type { SettingDef } from '../settings-schema';
+import { isModified, type SettingDef } from '../settings-schema';
 
 const tr = (key: string): string => tryT(key) ?? key;
 
+/** Resolves `#setting.id#` links in descriptions: the target's label, and what a click does. */
+export interface SettingLinks {
+  /** The translated label of a setting, or undefined for an unknown id. */
+  labelOf: (id: string) => string | undefined;
+  onNavigate: (id: string) => void;
+}
+
+const SettingLinksContext = createContext<SettingLinks | null>(null);
+
+/** Gives every `SettingDescription` below it (the schema rows too) its links. */
+export const SettingLinksProvider = SettingLinksContext.Provider;
+
+const LINK = /#([\w.-]+)#/;
+
+/**
+ * A setting description where `#setting.id#` renders as a link showing the target's label, like VS Code. Lookup and
+ * navigation come from the props, else from `SettingLinksProvider`; an unknown id renders as plain text.
+ */
+export function SettingDescription({ text, labelOf, onNavigate }: { text: string; labelOf?: SettingLinks['labelOf']; onNavigate?: SettingLinks['onNavigate'] }) {
+  const links = useContext(SettingLinksContext);
+  const label = labelOf ?? links?.labelOf;
+  const go = onNavigate ?? links?.onNavigate;
+  const parts = text.split(LINK);
+  if (parts.length === 1) return <>{text}</>;
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (i % 2 === 0) return <Fragment key={i}>{part}</Fragment>;
+        const name = label?.(part);
+        if (!name) return <Fragment key={i}>{part}</Fragment>;
+        if (!go) return <Fragment key={i}>{name}</Fragment>;
+        return (
+          <button
+            key={i}
+            type="button"
+            className="setting-link"
+            title={part}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              go(part);
+            }}
+          >
+            {name}
+          </button>
+        );
+      })}
+    </>
+  );
+}
+
+/** What focusing a setting row (`[data-setting]`) focuses: its first control. */
+export const SETTING_ROW_CONTROLS = ':is(input, select, textarea, button)';
+
+/**
+ * Returns `reveal(id)`: once the row of setting `id` (`data-setting`) renders under `root`, it scrolls into view and
+ * its first control takes focus. Call it after switching the page that holds the row.
+ */
+export function useRevealSetting(root: RefObject<HTMLElement | null>): (id: string) => void {
+  const [pending, setPending] = useState<string | null>(null);
+  useEffect(() => {
+    if (!pending) return;
+    setPending(null);
+    const row = root.current?.querySelector<HTMLElement>(`[data-setting="${CSS.escape(pending)}"]`);
+    if (!row) return;
+    row.scrollIntoView({ block: 'center' });
+    (row.querySelector<HTMLElement>(SETTING_ROW_CONTROLS) ?? row).focus({ preventScroll: true });
+  });
+  return setPending;
+}
+
 /** A boolean as one tick-box row: label on the left, checkbox on the right edge, description below the label. */
-export function OnOffField({ label, hint, value, onChange }: { label: string; hint: string; value: boolean; onChange: (on: boolean) => void }) {
+export function OnOffField({ label, hint, value, onChange }: { label: string; hint: ReactNode; value: boolean; onChange: (on: boolean) => void }) {
   return (
     <label className="field setting-check">
       <span className="mono-label">{label}</span>
@@ -48,7 +119,7 @@ export function TextField({ label, value, onChange }: { label: string; value: st
 /** Enum as chips; `optionLabel` maps a value to its text (default: the value itself). */
 export function EnumField<V extends string | number>({ label, hint, value, values, optionLabel, onChange }: {
   label: string;
-  hint?: string;
+  hint?: ReactNode;
   value: V;
   values: readonly V[];
   optionLabel?: (value: V) => string;
@@ -76,8 +147,27 @@ export function EnumField<V extends string | number>({ label, hint, value, value
  */
 export function SettingRow<S>({ def, settings, onChange }: { def: SettingDef<S>; settings: S; onChange: (patch: Partial<S>) => void }) {
   if (def.kind === 'custom') return null;
+  return (
+    <SettingItem id={def.id} modified={isModified(def, settings)}>
+      <SettingControl def={def} settings={settings} onChange={onChange} />
+    </SettingItem>
+  );
+}
+
+/** The frame of one setting row, like VS Code's settings editor: a bar at the left edge while the value differs from its default. */
+export function SettingItem({ id, modified, children }: { id: string; modified: boolean; children: ReactNode }) {
+  return (
+    <div className={`setting-item${modified ? ' modified' : ''}`} data-setting={id}>
+      {modified && <span className="setting-modified" title={tryT('settings.row.modified') ?? 'Modified'} />}
+      {children}
+    </div>
+  );
+}
+
+function SettingControl<S>({ def, settings, onChange }: { def: SettingDef<S>; settings: S; onChange: (patch: Partial<S>) => void }) {
+  if (def.kind === 'custom') return null;
   const label = tr(def.label);
-  const hint = def.description ? tr(def.description) : '';
+  const hint = def.description ? <SettingDescription text={tr(def.description)} /> : null;
   switch (def.kind) {
     case 'boolean':
       return <OnOffField label={label} hint={hint} value={def.get(settings)} onChange={(v) => onChange(def.set(settings, v))} />;
