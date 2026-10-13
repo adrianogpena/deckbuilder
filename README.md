@@ -143,7 +143,7 @@ source directly; there is no package build step.
   `settings.keybindings` (the settings route validates it with `validKeymap`). The provider re-reads
   the keymap, so changes apply at once. See the gallery's and the template's `KeysModal.tsx`.
 - **Settings and keybindings modals**: `<Modal title onClose large>` is VS Code's modal editor (80% of
-  the window, up to 1400x900, maximize button). Settings (Ctrl+,) and Keyboard shortcuts (Ctrl+Alt+K,
+  the window, up to 1400x900, maximize button). Settings (Ctrl+,) and Keyboard shortcuts (Ctrl+K Ctrl+S,
   or the link under the Settings sections) open in it over the current screen and close with Escape or
   a click outside; `#/settings` and `#/keys` links still open them. Settings rows follow VS Code's:
   bold label, description, then the control; a boolean is one checkbox labelled by its description;
@@ -155,7 +155,7 @@ source directly; there is no package build step.
 - **Icon-only main menu**: `<Sidebar collapsed>` shows only the icons (items keep their label and
   `hint` as tooltip); the app adds `nav-collapsed` to the `.app` element (narrow first column).
   See the gallery's `App.tsx`.
-- **Command palette**: `useCommandPalette()` (Ctrl+K, Ctrl+Shift+P) gives `{ open, setOpen }`; render
+- **Command palette**: `useCommandPalette()` (Ctrl+Shift+P, F1) gives `{ open, setOpen }`; render
   `<CommandPalette items onClose />` (both from `@deckbuilder/ui`) with `PaletteItem`s
   `{ id, group, label, hint?, keywords?, run }`. `keywords[0]` doubles as a prefix that narrows
   to its group (`theme nord`). The gallery's `App.tsx` lists screens, themes and Quit.
@@ -206,15 +206,15 @@ source directly; there is no package build step.
   undo, copy/cut/paste and drag and drop inside the tree and from and to the OS, compact folders,
   file nesting, exclude patterns and sort orders (Settings → Explorer; the Settings search filters every row). **Quick Open**: Ctrl+P
   lists the files of the shown projects ranked by `fuzzyPath` (recent files first, matched letters
-  bold, Ctrl+Enter opens to the side); typing `>` switches the same box to commands, Ctrl+K and
-  Ctrl+Shift+P open it on commands. An app offers its file list with `useProvideQuickOpen`; without
+  bold, Ctrl+Enter opens to the side); typing `>` switches the same box to commands, Ctrl+Shift+P and
+  F1 open it on commands. An app offers its file list with `useProvideQuickOpen`; without
   one the box lists commands only. The list comes from `GET /api/fs/names` (every path, excludes
   applied). **Find in the tree**: Ctrl+Alt+F (`explorer.find`) opens a find box over the tree you
   last clicked; matches are highlighted and folders show match counts, the Filter chip hides
   everything else (and lists matches in folders never opened); Enter steps through the matches.
-  **Maximize pane**: Ctrl+Alt+M, a double-click on a non-preview tab or the "…" menu hide the
+  **Maximize pane**: Ctrl+K Ctrl+M, a double-click on a non-preview tab or the "…" menu hide the
   tree and the other panes (they stay mounted; `TabWorkspace`'s `onMaximizedChange`, `Explorer`'s
-  `hidden`). **Zen mode**: Ctrl+Alt+Z (`explorer.zen`) also hides the nav and the status bars; Esc
+  `hidden`). **Zen mode**: Ctrl+K Z (`explorer.zen`) also hides the nav and the status bars; Esc
   twice leaves. An empty tab lists the main shortcuts from the keymap.
 - **A terminal**: add `@deckbuilder/terminal` (and `"lib": ["ESNext", "DOM", "DOM.Iterable", "DOM.AsyncIterable"]`
   in the app's tsconfig). Server: spread `terminalRoutes({ sessions, shell, resolveCwd, launchers })`
@@ -226,7 +226,7 @@ source directly; there is no package build step.
   the tab closes. `launchers` start other programs by id (the client sends an id and args, never a
   program; `parse` validates the args). `preview` viewers and `listSessions()` info (title, bells,
   `lastOutputAt`, `meta`) feed a session sidebar. Terminal-first keys: the pane owns the keyboard
-  and only `appKeys` commands (the palette by default) pass through. A real PTY on every platform
+  and only `appKeys` commands (the palette by default) pass through, by the first step of their chords (a gallery terminal passes Ctrl+K on to the app, not to the shell). A real PTY on every platform
   through `Bun.spawn({ terminal })` (ConPTY on Windows). The gallery's Terminal screen and the
   Explorer's "Open terminal here" use it.
 - **Dialogs**: `useDialogs()` (from `@deckbuilder/ui`) gives `confirm` and `prompt` modals.

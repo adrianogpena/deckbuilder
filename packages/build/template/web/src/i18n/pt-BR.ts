@@ -13,7 +13,7 @@ export const ptBR: Messages<typeof en> = {
   'palette.group.app': 'App',
   'palette.theme': 'Tema: {name}',
   'palette.quit': 'Sair do {name}',
-  'nav.palette': 'Paleta de comandos (Ctrl+K)',
+  'nav.palette': 'Paleta de comandos (Ctrl+Shift+P)',
 
   'home.title': 'Início',
   'home.system': 'Sistema',

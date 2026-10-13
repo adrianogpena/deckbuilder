@@ -156,9 +156,9 @@ export function CommandPalette({ items, onClose, initialQuery = '' }: { items: P
   );
 }
 
-/** Ctrl+K and Ctrl+Shift+P toggle the palette on commands (a `>` typed), also while typing and while it is open. */
+/** Ctrl+Shift+P and F1 toggle the palette on commands (a `>` typed), also while typing and while it is open. */
 export function paletteCommand(): CommandDef {
-  return { id: 'palette.toggle', scope: GLOBAL, label: t('keys.palette'), keys: ['Ctrl+K', 'Ctrl+Shift+P'], inInput: true, inModal: true };
+  return { id: 'palette.toggle', scope: GLOBAL, label: t('keys.palette'), keys: ['Ctrl+Shift+P', 'F1'], inInput: true, inModal: true };
 }
 
 /** Ctrl+P opens the palette on files (on commands when the screen offers no files). */

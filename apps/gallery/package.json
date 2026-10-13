@@ -1,6 +1,6 @@
 {
   "name": "@deckbuilder/gallery",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Example app built on the deckbuilder packages: tabs, grid, Explorer and Workbench demos.",
   "private": true,
   "type": "module",

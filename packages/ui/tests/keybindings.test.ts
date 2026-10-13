@@ -203,3 +203,15 @@ describe('ownsKey', () => {
   });
 });
 
+describe('gallery default keymap', () => {
+  test('has no conflicts or prefix clashes', async () => {
+    const store = new Map<string, string>();
+    const storage = { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v), removeItem: (k: string) => void store.delete(k) };
+    Object.assign(globalThis, {
+      window: { location: { href: 'http://localhost/', search: '', hash: '' }, history: { replaceState() {} }, sessionStorage: storage, localStorage: storage, matchMedia: () => ({ matches: false }) },
+      localStorage: storage, sessionStorage: storage,
+    });
+    const { commands } = await import('../../../apps/gallery/web/src/commands.ts');
+    expect(conflictsOf(commands(), {})).toEqual([]);
+  });
+});

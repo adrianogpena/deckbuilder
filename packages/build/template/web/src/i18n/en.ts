@@ -11,7 +11,7 @@ export const en = {
   'palette.group.app': 'App',
   'palette.theme': 'Theme: {name}',
   'palette.quit': 'Quit {name}',
-  'nav.palette': 'Command palette (Ctrl+K)',
+  'nav.palette': 'Command palette (Ctrl+Shift+P)',
 
   'home.title': 'Home',
   'home.system': 'System',

@@ -41,7 +41,7 @@ import {
 } from '@deckbuilder/ui';
 import { closeSession } from '@deckbuilder/terminal';
 import { api, type ExplorerSettings, type LogSettings, type Project, type Settings } from '../api';
-import { commandById } from '../commands';
+import { commandById, terminalAppKeys } from '../commands';
 import { fullPath, nodeId } from '../explorer-paths';
 import { t } from '../i18n';
 import type { ScreenId } from '../nav';
@@ -554,6 +554,7 @@ export function ExplorerScreen({ settings, onSave, go }: { settings: Settings; o
                   session={tab.route.session}
                   cwd={{ root: tab.route.project, path: tab.route.path }}
                   onSession={(id) => onSession(tab.id, id)}
+                  appKeys={terminalAppKeys('explorer')}
                 />
               </Suspense>
             ) : (

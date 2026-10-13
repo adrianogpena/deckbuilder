@@ -294,8 +294,8 @@ function TabBar<R>(props: TabBarProps<R>) {
 /**
  * Commands of a tab workspace shown in view `scope`: Alt+1..9 select a tab of the focused pane;
  * Ctrl+T, Ctrl+W and Ctrl+Tab / Ctrl+Shift+Tab only in the native window (Edge and Chrome keep
- * them in browser and app mode). Ctrl+Alt+S saves every tab with unsaved changes (VS Code's
- * Ctrl+K S needs a two-key chord, which the keymap doesn't have).
+ * them in browser and app mode). Ctrl+K S saves every tab with unsaved changes, Ctrl+K Ctrl+M
+ * maximizes the focused pane.
  */
 export function tabCommands(scope: string): CommandDef[] {
   const desktop = (name: string, key: string): CommandDef => ({ id: `${scope}.tab.${name}`, scope, label: t(`keys.tab.${name}` as BaseKey), keys: [key], desktopOnly: true });
@@ -305,9 +305,8 @@ export function tabCommands(scope: string): CommandDef[] {
     desktop('next', 'Ctrl+Tab'),
     desktop('prev', 'Ctrl+Shift+Tab'),
     ...Array.from({ length: 9 }, (_, i) => ({ id: `${scope}.tab.select${i + 1}`, scope, label: t('keys.tab.select', { n: i + 1 }), keys: [`Alt+${i + 1}`] })),
-    { id: `${scope}.tab.saveAll`, scope, label: t('keys.tab.saveAll'), keys: ['Ctrl+Alt+S'] },
-    // VS Code uses Ctrl+K Ctrl+M; the keymap has no two-key chords.
-    { id: `${scope}.pane.maximize`, scope, label: t('keys.pane.maximize'), keys: ['Ctrl+Alt+M'] },
+    { id: `${scope}.tab.saveAll`, scope, label: t('keys.tab.saveAll'), keys: ['Ctrl+K S'] },
+    { id: `${scope}.pane.maximize`, scope, label: t('keys.pane.maximize'), keys: ['Ctrl+K Ctrl+M'] },
   ];
 }
 

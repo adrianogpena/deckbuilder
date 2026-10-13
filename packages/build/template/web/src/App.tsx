@@ -28,11 +28,10 @@ function commands(): CommandDef[] {
   const nav = NAV.flatMap((s) => s.items).map((item, i): CommandDef => ({
     id: navCommandId(item.id), scope: GLOBAL, label: t(item.label), keys: [`Ctrl+${i + 1}`], inInput: true,
   }));
-  // Settings and keybindings are modals over the screen, not screens. Ctrl+, is VS Code's; its Ctrl+K Ctrl+S
-  // is a two-key chord, which the keymap doesn't have.
+  // Settings and keybindings are modals over the screen, not screens; both are VS Code's keys.
   const overlays: CommandDef[] = [
     { id: SETTINGS_COMMAND, scope: GLOBAL, label: t('nav.settings'), keys: ['Ctrl+,'], inInput: true },
-    { id: KEYS_COMMAND, scope: GLOBAL, label: t('nav.keys'), keys: ['Ctrl+Alt+K'], inInput: true },
+    { id: KEYS_COMMAND, scope: GLOBAL, label: t('nav.keys'), keys: ['Ctrl+K Ctrl+S'], inInput: true },
   ];
   return [paletteCommand(), ...nav, ...overlays];
 }

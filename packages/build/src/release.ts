@@ -49,7 +49,7 @@ function writeSig(dir: string, sig: string | null): void {
   else rmSync(join(dir, MANIFEST_SIG), { force: true });
 }
 
-/** Tags of an app's releases start with its folder name: `gallery-v0.2.0`. */
+/** Tags of an app's releases start with its folder name: `gallery-v0.3.0`. */
 const tagPrefix = (app: AppDir): string => `${basename(app.dir)}-v`;
 
 /** Runs git in the workspace root; returns trimmed stdout, throws with stderr on failure. */

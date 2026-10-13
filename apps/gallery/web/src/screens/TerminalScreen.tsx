@@ -16,6 +16,7 @@ import {
   useDebouncedSave,
 } from '@deckbuilder/ui';
 import type { Settings } from '../api';
+import { terminalAppKeys } from '../commands';
 import { t } from '../i18n';
 import './terminal-screen.css';
 
@@ -150,6 +151,7 @@ export function TerminalScreen({ settings, onSave }: { settings: Settings; onSav
             session={tab.route.session}
             cwd={tab.route.root !== undefined ? { root: tab.route.root, path: tab.route.path ?? '' } : undefined}
             onSession={(id) => onSession(tab.id, id)}
+            appKeys={terminalAppKeys('terminal')}
             onTitle={(title) => {
               const session = latest.current.panes.flatMap((p) => p.tabs).find((x) => x.id === tab.id)?.route.session;
               if (session) setTitles((m) => ({ ...m, [session]: title }));
