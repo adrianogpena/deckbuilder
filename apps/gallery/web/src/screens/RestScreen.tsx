@@ -1,11 +1,13 @@
-import { useRef, useState } from 'react';
-import { draftToSpec, emptyDraft, type HttpRequestDraft, type ImportedRequest, RequestEditor, ResponseView, toCurl } from '@deckbuilder/editor';
+import { useEffect, useState } from 'react';
+import { draftToSpec, type HttpRequestDraft, type ImportedRequest, RequestEditor, ResponseView, toCurl } from '@deckbuilder/editor';
 import type { HttpResponseInfo } from '@deckbuilder/server-core/protocol';
 import { type ApiError, ErrorBanner, errorOf, Icon, PageHead, SplitView, useAsync, useDebouncedSave, useDialogs } from '@deckbuilder/ui';
 import { api, type RestSettings, type SavedRequest, type Settings } from '../api';
 import { t } from '../i18n';
 import { ImportDialog, requestLabel } from './rest/ImportDialog';
 import { CurlDialog } from './rest/CurlDialog';
+import { RestTabBar } from './rest/RestTabBar';
+import { restTabs, runtimeOf, useRestTabs } from './rest/tabs-store';
 
 const MAX_NAME = 80;
 
@@ -26,68 +28,27 @@ export function RestScreen({ settings, onSave }: { settings: Settings; onSave: (
   const saved = useAsync(() => api.requests(), []);
   const { confirm, prompt, element } = useDialogs();
   const [state, setState] = useState<RestSettings>(settings.rest ?? {});
-  const [draft, setDraft] = useState<HttpRequestDraft>(emptyDraft);
-  const [loaded, setLoaded] = useState<SavedRequest>();
-  const [auth, setAuth] = useState('');
-  const [imported, setImported] = useState<{ name: string; auth: boolean }>();
+  const { tabs, active, full } = useRestTabs();
+  useEffect(() => restTabs.setSaved(saved.data), [saved.data]);
+  const tab = tabs.find((t) => t.id === active) ?? tabs[0]!;
+  const draft = tab.draft;
+  const loaded = tab.savedId ? saved.data?.find((r) => r.id === tab.savedId) : undefined;
+  const { auth, imported, response, error, sending, savedPath } = runtimeOf(tab.id);
   const [importing, setImporting] = useState(false);
   const [curl, setCurl] = useState<string>();
-  const [response, setResponse] = useState<HttpResponseInfo>();
-  const [error, setError] = useState<ApiError>();
   const [actionError, setActionError] = useState<ApiError>();
-  const [sending, setSending] = useState(false);
-  const [savedPath, setSavedPath] = useState<string>();
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
-  const controller = useRef<AbortController>();
 
   const persist = useDebouncedSave((next: RestSettings) => onSave({ rest: next }));
   const sizes = state.sizes?.main ?? DEFAULT_MAIN;
 
-  const send = async () => {
-    if (sending) return;
-    const abort = new AbortController();
-    controller.current = abort;
-    setSending(true);
-    setError(undefined);
-    setSavedPath(undefined);
-    try {
-      setResponse(await api.httpSend(draftToSpec(draft), loaded?.id, abort.signal));
-    } catch (err) {
-      if (!abort.signal.aborted) {
-        setResponse(undefined);
-        setError(errorOf(err));
-      }
-    } finally {
-      if (controller.current === abort) setSending(false);
-    }
-  };
-  const cancel = () => {
-    controller.current?.abort();
-    setSending(false);
-  };
+  const setDraft = (next: HttpRequestDraft) => restTabs.update(tab.id, { draft: next });
+  const setAuth = (value: string) => restTabs.setRuntime(tab.id, { auth: value });
+  const send = () => void restTabs.send(tab.id);
+  const cancel = () => restTabs.cancel(tab.id);
 
-  const load = (item: SavedRequest) => {
-    setLoaded(item);
-    setDraft(item.request);
-    setAuth('');
-    setImported(undefined);
-  };
-  const reset = () => {
-    setLoaded(undefined);
-    setDraft(emptyDraft());
-    setAuth('');
-    setImported(undefined);
-  };
-
-  const loadImported = (item: ImportedRequest) => {
-    setLoaded(undefined);
-    setDraft(item.draft);
-    setAuth(item.auth ?? '');
-    setImported({ name: item.name ?? '', auth: item.auth !== undefined });
-    setResponse(undefined);
-    setError(undefined);
-  };
+  const loadImported = (item: ImportedRequest) => restTabs.loadImported(tab.id, item.draft, item.name ?? '', item.auth);
 
   const saveImported = async (items: ImportedRequest[]) => {
     const taken = new Set((saved.data ?? []).map((r) => r.name));
@@ -103,24 +64,23 @@ export function RestScreen({ settings, onSave }: { settings: Settings; onSave: (
   };
 
   const save = async (asNew: boolean) => {
+    const { id, savedId } = tab;
     setActionError(undefined);
     try {
-      let name = loaded?.name;
-      if (asNew || !loaded) {
+      let name = loaded?.name ?? tab.title;
+      if (asNew || !savedId || !name) {
         name =
           (await prompt({
             title: t('rest.saveAsTitle'),
             label: t('rest.name'),
-            value: loaded?.name ?? imported?.name ?? '',
+            value: name ?? imported?.name ?? '',
             validate: (v) => (v.trim() ? null : t('error.badRequestName')),
           })) ?? undefined;
         if (!name) return;
       }
       const input = { name, request: draft, ...(auth ? { auth } : {}) };
-      const record = asNew || !loaded ? await api.createRequest(input) : await api.updateRequest(loaded.id, input);
-      setLoaded(record);
-      setAuth('');
-      setImported(undefined);
+      const record = asNew || !savedId ? await api.createRequest(input) : await api.updateRequest(savedId, input);
+      restTabs.markSaved(id, record);
       saved.reload();
     } catch (err) {
       setActionError(errorOf(err));
@@ -132,7 +92,7 @@ export function RestScreen({ settings, onSave }: { settings: Settings; onSave: (
     setActionError(undefined);
     try {
       await api.deleteRequest(item.id);
-      if (loaded?.id === item.id) reset();
+      restTabs.savedChanged(item.id);
       saved.reload();
     } catch (err) {
       setActionError(errorOf(err));
@@ -150,7 +110,7 @@ export function RestScreen({ settings, onSave }: { settings: Settings; onSave: (
     setActionError(undefined);
     try {
       const record = await api.updateRequest(item.id, { name, request: item.request });
-      if (loaded?.id === item.id) setLoaded(record);
+      restTabs.savedChanged(item.id, record);
       saved.reload();
     } catch (err) {
       setActionError(errorOf(err));
@@ -180,10 +140,11 @@ export function RestScreen({ settings, onSave }: { settings: Settings; onSave: (
   };
 
   const saveResponse = async (info: HttpResponseInfo) => {
+    const id = tab.id;
     setActionError(undefined);
     try {
       const { path } = await api.httpSave(info.id);
-      if (path) setSavedPath(path);
+      if (path) restTabs.setRuntime(id, { savedPath: path });
     } catch (err) {
       setActionError(errorOf(err));
     }
@@ -200,18 +161,19 @@ export function RestScreen({ settings, onSave }: { settings: Settings; onSave: (
         </div>
       </PageHead>
       {actionError && <ErrorBanner error={actionError} compact />}
+      {full && <p className="muted" role="status">{t('rest.tab.full')}</p>}
       <div className="rest-body">
         <aside className="rest-list">
           <div className="rest-list-head">
             <span className="mono-label">{t('rest.saved')}</span>
-            <button className="btn btn-sm" onClick={reset}><Icon name="plus" /> {t('rest.new')}</button>
+            <button className="btn btn-sm" onClick={restTabs.newTab}><Icon name="plus" /> {t('rest.new')}</button>
           </div>
           {saved.error && <ErrorBanner error={saved.error} onRetry={saved.reload} compact />}
           {saved.data?.length === 0 && <p className="muted">{t('rest.none')}</p>}
           {saved.data?.map((item) => (
             <div
               key={item.id}
-              className={`rest-item${item.id === loaded?.id ? ' active' : ''}${item.id === dragOver ? ' drop-target' : ''}`}
+              className={`rest-item${item.id === tab.savedId ? ' active' : ''}${item.id === dragOver ? ' drop-target' : ''}`}
               draggable
               onDragStart={(e) => {
                 e.dataTransfer.effectAllowed = 'move';
@@ -234,7 +196,7 @@ export function RestScreen({ settings, onSave }: { settings: Settings; onSave: (
                 setDragOver(null);
               }}
             >
-              <button className="rest-item-main" onClick={() => load(item)} title={item.request.url}>
+              <button className="rest-item-main" onClick={() => restTabs.openSaved(item)} title={item.request.url}>
                 <span className="rest-method">{item.request.method}</span>
                 <span className="rest-item-name">{item.name}</span>
               </button>
@@ -249,6 +211,8 @@ export function RestScreen({ settings, onSave }: { settings: Settings; onSave: (
             </div>
           ))}
         </aside>
+        <div className="rest-main">
+        <RestTabBar tabs={tabs} active={tab.id} saved={saved.data} />
         <SplitView
           direction="column"
           sizes={[sizes[0], sizes[1]]}
@@ -272,13 +236,13 @@ export function RestScreen({ settings, onSave }: { settings: Settings; onSave: (
                   <input
                     type="password"
                     value={auth}
-                    disabled={!loaded && !imported?.auth}
+                    disabled={!tab.savedId && !imported?.auth}
                     placeholder={loaded?.auth?.hasSecret ? t('rest.authSaved') : ''}
                     onChange={(e) => setAuth(e.target.value)}
                     autoComplete="off"
                   />
                   <span className="muted">
-                    {loaded ? t('rest.authHint') : imported?.auth ? t('rest.authImported') : t('rest.authNeedsSave')}
+                    {tab.savedId ? t('rest.authHint') : imported?.auth ? t('rest.authImported') : t('rest.authNeedsSave')}
                   </span>
                 </label>
               )}
@@ -289,6 +253,7 @@ export function RestScreen({ settings, onSave }: { settings: Settings; onSave: (
             <ResponseView response={response} error={error} sending={sending} onSave={response ? () => saveResponse(response) : undefined} />
           </div>
         </SplitView>
+        </div>
       </div>
       {importing && <ImportDialog onLoad={loadImported} onSaveMany={saveImported} onClose={() => setImporting(false)} />}
       {curl !== undefined && <CurlDialog curl={curl} onClose={() => setCurl(undefined)} />}

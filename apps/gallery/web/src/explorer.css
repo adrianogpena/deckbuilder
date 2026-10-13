@@ -72,6 +72,8 @@
 .rest-pane { display: flex; flex-direction: column; gap: 10px; min-width: 0; min-height: 0; height: 100%; padding: 10px 14px; overflow: auto; }
 .rest-auth { max-width: 420px; }
 .rest-body > :last-child { flex: 1; min-width: 0; }
+.rest-main { display: flex; flex-direction: column; min-height: 0; }
+.rest-main > :last-child { flex: 1; min-height: 0; }
 
 /* Workbench: schema sidebar next to the editor and results. */
 .wb-body { display: flex; flex: 1; min-height: 0; }

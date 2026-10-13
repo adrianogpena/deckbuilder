@@ -120,6 +120,12 @@ export interface SavedRequest {
   auth?: { hasSecret: true };
 }
 
+export interface RestTabsFile {
+  version: 1;
+  tabs: Array<{ id: string; draft: HttpRequestDraft; savedId?: string; title?: string }>;
+  active?: string;
+}
+
 export type { CopyFormat };
 export type { LogSettings, ResultFormat, SqlFormatOptions };
 
@@ -357,6 +363,9 @@ export const api = {
   saveCurl: (text: string) => request<{ path: string | null }>('POST', '/api/requests/save-curl', {}, { text }),
   reorderRequests: (ids: string[]) => request<{ ok: true }>('POST', '/api/requests/order', {}, { ids }),
   deleteRequest: (id: string) => request<{ ok: true }>('DELETE', '/api/requests', { id }),
+  /** The REST screen's open tabs; never holds an Authorization value. */
+  restTabs: () => request<RestTabsFile>('GET', '/api/rest-tabs'),
+  saveRestTabs: (file: RestTabsFile) => request<{ ok: true }>('PUT', '/api/rest-tabs', {}, file),
   httpSend: (httpRequest: HttpRequestSpec, secretRef: string | undefined, signal: AbortSignal) =>
     request<HttpResponseInfo>('POST', '/api/http/send', {}, { request: httpRequest, secretRef }, { signal }),
   httpSave: (id: string) => request<{ path: string | null; bytes?: number }>('POST', '/api/http/save', {}, { id }),
