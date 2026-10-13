@@ -1,13 +1,13 @@
 import { type ArchiveContent, type SqliteContent, type SqlFormatOptions } from '@deckbuilder/editor';
 import type { HttpRequestDraft } from '@deckbuilder/editor/http';
 import type { ThemeSettings } from '@deckbuilder/server-core/palettes';
-import type { BackupInspect, EditorInfo, GitDiff, GitFileContent, GitRepoInfo, GitStatus, HttpRequestSpec, HttpResponseInfo, ImportResult, TailChunk, UpdateState } from '@deckbuilder/server-core/protocol';
+import type { BackupInspect, EditorInfo, FsDuProgress, FsHash, FsInfo, GitDiff, GitFileContent, GitRepoInfo, GitStatus, HttpRequestSpec, HttpResponseInfo, ImportResult, TailChunk, UpdateState } from '@deckbuilder/server-core/protocol';
 
-export type { EditorInfo, ImportResult, TailChunk };
+export type { EditorInfo, FsDuProgress, FsHash, FsInfo, ImportResult, TailChunk };
 import type { SessionInfo } from '@deckbuilder/terminal';
 import type { CopyFormat } from './screens/workbench/copy-format';
 import { settingDefault, settingDefaults } from './settings';
-import { type FileAssociation, type FileSettings, type Keymap, type Language, type LogSettings, type ResultFormat, request, requestUpload } from '@deckbuilder/ui';
+import { type FileAssociation, type FileSettings, type Keymap, type Language, type LogSettings, type ResultFormat, request, requestUpload, stream } from '@deckbuilder/ui';
 
 export interface Settings extends ThemeSettings {
   language?: Language;
@@ -102,6 +102,8 @@ export interface KeyboardSettings {
 export interface GitSettings {
   /** How the Git screen lays out a diff. */
   diffMode?: 'split' | 'inline';
+  /** Whether the Explorer tree colours changed files and marks them with their git status. */
+  explorerDecorations?: boolean;
 }
 
 export interface TerminalSettings {
@@ -316,6 +318,14 @@ export const api = {
     request<SqliteContent>('GET', '/api/fs/sqlite', { root, path, table, offset }),
   fsStat: (root: string, path: string) => request<FsEntry>('GET', '/api/fs/stat', { root, path }),
   fsRead: (root: string, path: string) => request<FsRead>('GET', '/api/fs/read', { root, path }),
+  fsInfo: (root: string, path: string) => request<FsInfo>('GET', '/api/fs/info', { root, path }),
+  /** Streams running totals to `onProgress`; resolves with the final totals, rejects with the abort reason when `signal` aborts. */
+  fsDu: async (root: string, path: string, onProgress: (p: FsDuProgress) => void, signal?: AbortSignal) => {
+    let last: FsDuProgress = { files: 0, dirs: 0, bytes: 0 };
+    await stream('/api/fs/du', { root, path }, (item) => onProgress((last = item as FsDuProgress)), signal);
+    return last;
+  },
+  fsHash: (root: string, path: string) => request<FsHash>('GET', '/api/fs/hash', { root, path }),
   gitRepos: () => request<GitRepoInfo[]>('GET', '/api/git/repos'),
   gitStatus: (root: string) => request<GitStatus>('GET', '/api/git/status', { root }),
   gitFile: (root: string, path: string, from: 'head' | 'index') => request<GitFileContent>('GET', '/api/git/file', { root, path, from }),

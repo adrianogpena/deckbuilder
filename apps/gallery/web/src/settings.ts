@@ -108,12 +108,12 @@ type FieldDef =
   | { kind: 'number'; default: number; min: number; max: number }
   | { kind: 'enum'; default: string; values: readonly string[] };
 
-const groupField = (group: Group, key: string, order: number, def: FieldDef): SettingDef<Settings> => {
+const groupField = (group: Group, key: string, order: number, def: FieldDef, section: SectionPath = [group]): SettingDef<Settings> => {
   const read = (s: Settings) => (s[group] as Record<string, unknown> | undefined)?.[key] ?? def.default;
   const set = (s: Settings, v: unknown): Partial<Settings> => ({ [group]: { ...s[group], [key]: v } });
   return {
     id: `${group}.${key}`,
-    section: [group],
+    section,
     order,
     label: `settings.${group}.${key}`,
     description: `settings.${group}.${key}.hint`,
@@ -161,6 +161,7 @@ settingsRegistry.registerSettings([
   groupField('keyboard', 'chordTimeout', 100, num(1500, 500, 10_000)),
 
   groupField('git', 'diffMode', 100, oneOf('split', ['split', 'inline'])),
+  groupField('git', 'explorerDecorations', 110, bool(true), explorer),
 
   groupField('terminal', 'fontFamily', 100, str(MONO_FONT)),
   groupField('terminal', 'fontSize', 110, num(13, 8, 32)),

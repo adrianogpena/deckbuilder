@@ -20,7 +20,10 @@ import { api, type FsEntry, type Project } from '../../api';
 import { fullPath, nodeId } from '../../explorer-paths';
 import { t } from '../../i18n';
 import { useCopyPath } from './copy-path';
+import { PropertiesDialog } from './PropertiesDialog';
 import type { FileUndo, UndoOp } from './file-undo';
+import type { GitFile } from '@deckbuilder/server-core/protocol';
+import { statusOf } from '../git/sides';
 import { entriesOf, freeName, walkEntry } from './os-drop';
 import type { FindResult } from './tree-find';
 
@@ -49,6 +52,11 @@ export interface ProjectTreeProps {
   /** Absent: no Open to the Side. */
   onOpenFileToSide?(project: string, path: string): void;
   onOpenTerminal(project: string, path: string): void;
+  /** The file chosen with Select for Compare, in any project. */
+  compareWith?: { project: string; path: string };
+  onSelectForCompare?(project: string, path: string): void;
+  /** Absent: no compare items in the menu. */
+  onCompare?(left: { project: string; path: string }, right: { project: string; path: string }): void;
   /** A file or folder was renamed or moved. */
   onMoved(project: string, from: string, to: string): void;
   onDeleted(project: string, path: string): void;
@@ -68,6 +76,32 @@ export interface ProjectTreeProps {
   nesting?: NestingPatterns;
   /** Find in the tree: `highlight` marks matches and counts them on folders, `filter` also hides everything else. */
   find?: { mode: 'highlight' | 'filter'; result: FindResult };
+  /** Git status badges on changed files and a dot on folders holding them (only while the root is expanded). */
+  gitDecorations?: boolean;
+}
+
+type Tone = 'ok' | 'warn' | 'err';
+const RANK: Record<Tone, number> = { ok: 0, warn: 1, err: 2 };
+interface GitMarks {
+  files: Map<string, { letter: string; tone: Tone }>;
+  dirs: Map<string, Tone>;
+}
+
+/** Badge per changed file (a conflict wins over its other entries) and the strongest tone per folder above one. */
+function gitMarksOf(list: GitFile[]): GitMarks {
+  const files = new Map<string, { letter: string; tone: Tone }>();
+  const dirs = new Map<string, Tone>();
+  for (const file of list) {
+    const s = statusOf(file);
+    const mark = { letter: file.group === 'conflict' ? 'C' : s.letter, tone: s.tone };
+    const had = files.get(file.path);
+    if (!had || RANK[mark.tone] > RANK[had.tone]) files.set(file.path, mark);
+    for (let dir = relPath.dirname(file.path); dir !== '' && dir !== '.'; dir = relPath.dirname(dir)) {
+      const tone = dirs.get(dir);
+      if (!tone || RANK[mark.tone] > RANK[tone]) dirs.set(dir, mark.tone);
+    }
+  }
+  return { files, dirs };
 }
 
 export interface TreeViewOptions {
@@ -98,7 +132,7 @@ export interface ProjectTreeApi {
 }
 
 /** The lazy tree of a project's folder, with the file actions. */
-export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, onPreviewFile, onOpenFileToSide, onOpenTerminal, onMoved, onDeleted, apiRef, undo, dirtyCount, view, compact, confirmDelete = true, confirmDragDrop = false, nesting, find }: ProjectTreeProps) {
+export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, onPreviewFile, onOpenFileToSide, onOpenTerminal, compareWith, onSelectForCompare, onCompare, onMoved, onDeleted, apiRef, undo, dirtyCount, view, compact, confirmDelete = true, confirmDragDrop = false, nesting, find, gitDecorations = false }: ProjectTreeProps) {
   const tree = useRef<TreeViewHandle<Node>>(null);
   const clipboard = useRef<{ mode: 'copy' | 'cut'; paths: string[] }>();
   const { confirm, choose, element } = useDialogs();
@@ -106,6 +140,7 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
   const toast = useToast();
   const copyPath = useCopyPath();
   const [menu, setMenu] = useState<{ at: { x: number; y: number }; node: Node; selection: Node[] }>();
+  const [properties, setProperties] = useState<string>();
   const editors = useAsync(() => api.editors(), []);
 
   const folderFiles = useRef(new Map<string, string[]>());
@@ -195,9 +230,40 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
     return n.kind === 'link' ? 'folder-link' : folderIconOf(n.name, folderFiles.current.get(nodeId(project.id, n.path)));
   };
 
+  const [git, setGit] = useState<GitMarks>();
+  const gitOn = useRef(false);
+  gitOn.current = gitDecorations && expanded.includes(nodeId(project.id, ''));
+  const gitSeq = useRef(0);
+  const gitKey = useRef('');
+  const refreshGit = () => {
+    const seq = ++gitSeq.current;
+    const done = (files?: GitFile[]) => {
+      if (seq !== gitSeq.current) return;
+      const key = files ? JSON.stringify(files) : '';
+      if (key === gitKey.current) return;
+      gitKey.current = key;
+      setGit(files && gitMarksOf(files));
+    };
+    if (!gitOn.current) return done();
+    api.gitStatus(project.id).then(
+      (status) => done(status.files),
+      () => done(),
+    );
+  };
+  useEffect(refreshGit, [project.id, gitOn.current]);
+
+  const decorationOf = (n: Node) => {
+    if (!git || n.outside || isRoot(n)) return undefined;
+    const file = git.files.get(n.path);
+    if (file) return { className: `git-${file.tone}`, badge: file.letter };
+    const tone = isDir(n) ? git.dirs.get(n.path) : undefined;
+    return tone && { className: `git-${tone} git-dir`, badge: '•' };
+  };
+
   const reloadDir = (path: string) => {
     folderFiles.current.delete(nodeId(project.id, path));
     tree.current?.reload(nodeId(project.id, path));
+    refreshGit();
   };
 
   useEffect(() => {
@@ -205,6 +271,7 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
       if (document.visibilityState !== 'visible') return;
       folderFiles.current.clear();
       tree.current?.reload();
+      refreshGit();
     };
     const timer = setInterval(refresh, 4000);
     window.addEventListener('focus', refresh);
@@ -566,6 +633,7 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
     refresh: () => {
       folderFiles.current.clear();
       tree.current?.reload();
+      refreshGit();
     },
     collapseAll: () => onExpandedChange([nodeId(project.id, '')]),
     reveal,
@@ -575,8 +643,11 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
     const disabled = !!node.outside;
     const item = (id: string, label: string, act: () => void, extra: Partial<ContextMenuItem> = {}): ContextMenuItem => ({ id, label, run: act, disabled, ...extra });
     const call = (job: () => Promise<unknown>) => () => void run(async () => void (await job()));
+    const ref = (n: Node) => ({ project: project.id, path: n.path });
     if (selection.length > 1) {
+      const pair = selection.length === 2 && selection.every((n) => !isDir(n) && !n.outside);
       return [
+        ...(pair && onCompare ? [item('compareSelected', t('explorer.compareSelected'), () => onCompare(ref(selection[0]!), ref(selection[1]!)), { disabled: false }), 'sep' as const] : []),
         item('copy', t('explorer.copy'), () => stash('copy', selection), { icon: 'copy', hint: 'Ctrl+C' }),
         item('cut', t('explorer.cut'), () => stash('cut', selection), { hint: 'Ctrl+X' }),
         item('delete', t('explorer.delete'), () => void remove(selection), {
@@ -605,6 +676,15 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
       item('copyFullPath', t('explorer.copyFullPath'), () => copyPath(fullPath(project.path, node.path)), { icon: 'copy', disabled: false }),
       ...(isRoot(node) ? [] : [item('copyPath', t('explorer.copyPath'), () => copyPath(node.path), { icon: 'copy', disabled: false })]),
       'sep' as const,
+      ...(isDir(node) || !onCompare || !onSelectForCompare
+        ? []
+        : [
+            ...(compareWith && !(compareWith.project === project.id && compareWith.path === node.path)
+              ? [item('compareWithSelected', t('explorer.compareWithSelected'), () => onCompare(compareWith, ref(node)))]
+              : []),
+            item('selectForCompare', t('explorer.selectForCompare'), () => onSelectForCompare(project.id, node.path)),
+            'sep' as const,
+          ]),
       ...(isDir(node) ? [item('openTerminal', t('explorer.openTerminal'), () => onOpenTerminal(project.id, node.path), { icon: 'terminal', disabled })] : []),
       item('reveal', t('explorer.reveal'), call(() => api.fsReveal(project.id, node.path))),
       ...(editors.data ?? []).map((editor) =>
@@ -614,6 +694,8 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
         }),
       ),
       ...(isDir(node) ? [] : [item('openDefault', t('explorer.openDefault'), call(() => api.fsOpen(project.id, node.path)))]),
+      'sep' as const,
+      item('properties', t('explorer.properties'), () => setProperties(node.path)),
     ];
   };
 
@@ -633,6 +715,7 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
         compact={compact}
         visibleOf={visibleOf}
         markOf={markOf}
+        decorationOf={decorationOf}
         forceExpanded={forced}
         loadChildren={loadChildren}
         expanded={expanded}
@@ -654,6 +737,7 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
         dragOut={{ prepare: prepareDragOut, link: dragOutLink }}
       />
       {menu && <ContextMenu at={menu.at} items={menuItems(menu.node, menu.selection)} onClose={() => setMenu(undefined)} />}
+      {properties !== undefined && <PropertiesDialog root={project.id} path={properties} onClose={() => setProperties(undefined)} />}
     </section>
   );
 }

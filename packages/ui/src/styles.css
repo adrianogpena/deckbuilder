@@ -589,6 +589,11 @@ html[data-status-bar="false"] .status-bar { display: none; }
 .tree-icon, .tab-icon { display: inline-flex; flex-shrink: 0; }
 .tree-hit { background: var(--accent-soft); color: var(--accent); border-radius: 2px; font-weight: 600; }
 .tree-count { margin-left: 6px; padding: 0 6px; border-radius: 8px; background: var(--accent-soft); color: var(--accent); font-size: 10.5px; font-family: var(--font-mono); flex-shrink: 0; }
+.tree-badge { margin-left: 6px; min-width: 12px; text-align: center; font-size: 11px; font-weight: 600; font-family: var(--font-mono); flex-shrink: 0; }
+.tree-row.git-ok .tree-label, .tree-row.git-ok .tree-badge { color: var(--ok); }
+.tree-row.git-warn .tree-label, .tree-row.git-warn .tree-badge { color: var(--warn); }
+.tree-row.git-err .tree-label, .tree-row.git-err .tree-badge { color: var(--err); }
+.tree-row.git-dir .tree-badge { font-size: 13px; line-height: 1; }
 .tree-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tree-rename { flex: 1; min-width: 0; height: 22px; padding: 0 6px; border-radius: 5px; font-size: 13px; }
 .tree-new { flex-wrap: wrap; }

@@ -458,3 +458,38 @@ test('sortEntries orders by the chosen mode', () => {
   expect(names('type')).toEqual(['z', 'a.md', 'c.md', 'b.txt']);
   expect(names('modified')).toEqual(['z', 'a.md', 'c.md', 'b.txt']);
 });
+
+test('info describes a file, a folder and the root; refuses escapes', async () => {
+  const { call, fail, realRoot } = await setup();
+  const file = (await call('GET /api/fs/info', 'root=r&path=a/b.txt')) as Record<string, unknown>;
+  expect(file).toMatchObject({ name: 'b.txt', fullPath: join(realRoot, 'a', 'b.txt'), type: 'file', size: 17, modified: OLD.getTime(), readOnly: false });
+  expect(file.created === null || typeof file.created === 'number').toBe(true);
+  expect(await call('GET /api/fs/info', 'root=r&path=a')).toMatchObject({ type: 'dir', size: 0 });
+  expect(await call('GET /api/fs/info', 'root=ro&path=')).toMatchObject({ fullPath: realRoot, readOnly: true });
+  expect(await fail('GET /api/fs/info', 'root=r&path=../x')).toMatchObject({ code: 'badPath' });
+  expect(await fail('GET /api/fs/info', 'root=r&path=link/secret.txt')).toMatchObject({ code: 'outsideRoot' });
+});
+
+test('du totals files, folders and bytes and skips links', async () => {
+  const { call, fail, root } = await setup();
+  await mkdir(join(root, 'a', 'c'));
+  await writeFile(join(root, 'a', 'c', 'd.bin'), '12345');
+  try {
+    symlinkSync(join(root, 'a'), join(root, 'a', 'c', 'loop'), 'junction');
+  } catch {}
+  const out = await lines(await call('GET /api/fs/du', 'root=r&path=a'));
+  expect(out.at(-1)).toEqual({ $end: true });
+  expect(out.at(-2)).toEqual({ files: 2, dirs: 1, bytes: 22, done: true });
+  const all = await lines(await call('GET /api/fs/du', 'root=r&path='));
+  expect(all.at(-2)).toEqual({ files: 3, dirs: 2, bytes: 25, done: true });
+  expect(await fail('GET /api/fs/du', 'root=r&path=../x')).toMatchObject({ code: 'badPath' });
+});
+
+test('hash streams a SHA-256 of the file', async () => {
+  const { call, fail } = await setup();
+  expect(await call('GET /api/fs/hash', 'root=r&path=top.txt')).toEqual({
+    sha256: '28720365c5e7476a011e4f43ac003ee5f16247a263b9d623aa85ed311d73bf39',
+  });
+  expect(await fail('GET /api/fs/hash', 'root=r&path=a')).toMatchObject({ code: 'notAFile' });
+  expect(await fail('GET /api/fs/hash', 'root=r&path=../x')).toMatchObject({ code: 'badPath' });
+});

@@ -314,6 +314,7 @@ const KEYBOARD_SPEC: Record<string, FieldSpec> = {
 };
 const GIT_SPEC: Record<string, FieldSpec> = {
   diffMode: ['split', 'inline'],
+  explorerDecorations: 'boolean',
 };
 const TERMINAL_SPEC: Record<string, FieldSpec> = {
   fontFamily: 'string',

@@ -93,6 +93,8 @@ export interface TreeViewProps<N> {
   visibleOf?: (node: N) => boolean;
   /** Find in the tree: label character indices to highlight and, on a folder, the number of matches below it. */
   markOf?: (node: N) => { positions: number[]; count?: number } | undefined;
+  /** Extra look of a row (e.g. a git status): a class on the row and a short badge at its end, with an optional tooltip. */
+  decorationOf?: (node: N) => { className?: string; badge?: string; title?: string } | undefined;
   /** Ids shown expanded, besides `expanded` (find lists the folders holding matches); their children load as usual. */
   forceExpanded?: ReadonlySet<string>;
 }
@@ -204,7 +206,7 @@ function NewEntryInput({ kind, depth, onSubmit, onCancel }: { kind: 'file' | 'di
 }
 
 function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) {
-  const { roots, idOf, labelOf, iconOf, iconToneOf, dimmedOf, hasChildren, isFolder = hasChildren, compact, expanded, visibleOf, markOf, forceExpanded, onExpandedChange, onOpen, onPreview, onOpenToSide, onContextMenu, onRename, onDelete, onCopy, onCut, onPaste, onUndo, newEntry, draggable, onDrop, onDropFiles, dragOut } = props;
+  const { roots, idOf, labelOf, iconOf, iconToneOf, dimmedOf, hasChildren, isFolder = hasChildren, compact, expanded, visibleOf, markOf, decorationOf, forceExpanded, onExpandedChange, onOpen, onPreview, onOpenToSide, onContextMenu, onRename, onDelete, onCopy, onCut, onPaste, onUndo, newEntry, draggable, onDrop, onDropFiles, dragOut } = props;
   const cache = useRef(new Map<string, Entry<N>>());
   const generations = useRef(new Map<string, number>());
   const [, bump] = useReducer((x: number) => x + 1, 0);
@@ -540,6 +542,7 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
         const iconTone = iconToneOf?.(node);
         const guides = Array.from({ length: depth }, (_, level) => level);
         const statusIndent = { paddingLeft: (depth + 1) * INDENT + 22 };
+        const deco = decorationOf?.(node);
         return (
           <Fragment key={id}>
             <div
@@ -549,7 +552,7 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
               aria-expanded={expandable ? isOpen : undefined}
               aria-selected={isPicked(row)}
               tabIndex={id === tabStop ? 0 : -1}
-              className={`tree-row${isPicked(row) ? ' selected' : ''}${id === dropTarget ? ' drop-target' : ''}${dimmedOf?.(node) ? ' dim' : ''}`}
+              className={`tree-row${isPicked(row) ? ' selected' : ''}${id === dropTarget ? ' drop-target' : ''}${dimmedOf?.(node) ? ' dim' : ''}${deco?.className ? ` ${deco.className}` : ''}`}
               style={{ paddingLeft: depth * INDENT + 4 }}
               draggable={draggable && renaming !== id}
               onClick={(e) => {
@@ -648,6 +651,11 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
                 ))}
               </span>
               {markOf?.(node)?.count ? <span className="tree-count">{markOf(node)!.count}</span> : null}
+              {deco?.badge ? (
+                <span className="tree-badge" title={deco.title}>
+                  {deco.badge}
+                </span>
+              ) : null}
             </div>
             {isOpen && newEntry?.parentId === id && <NewEntryInput key={`new-${id}`} kind={newEntry.kind} depth={depth} onSubmit={newEntry.onSubmit} onCancel={newEntry.onCancel} />}
             {entry?.status === 'loading' && !entry.children && (

@@ -5,6 +5,10 @@ import { moveToTrash, renameWithRetry, type SaveDialogOptions, saveFileAs, write
 import { AppError, forbidden, type Handler, invalid, ndjson, notFound, type Routes, socketTickets, type TailChunk } from '@deckbuilder/server-core';
 
 export type { TailChunk };
+import type { FsDuProgress, FsHash, FsInfo } from '@deckbuilder/server-core/protocol';
+
+/** How often `du` reports its running totals. */
+const DU_PROGRESS_MS = 150;
 import { listArchive } from './archive.ts';
 import { isBinary } from './bytes.ts';
 import { decodeText, detectEncoding, encodeText, encodingByBom, TEXT_ENCODINGS, type TextEncodingId } from './encoding.ts';
@@ -336,7 +340,7 @@ async function contentHits(file: string, q: string): Promise<Array<{ line: numbe
  * File routes confined to the roots the app registers. The client only ever sends a root id and a
  * relative path; `resolve` turns them into a real path inside that root or refuses.
  *
- * GET `/api/fs/list|stat|read|raw|archive|search|names` take `root` and `path` in the query; POST
+ * GET `/api/fs/list|stat|info|du|hash|read|raw|archive|search|names` take `root` and `path` in the query; POST
  * `/api/fs/create|write|rename|move|delete` take them in the JSON body. POST `/api/fs/upload` takes them
  * in the query and the file's bytes as the body.
  */
@@ -435,6 +439,77 @@ export function rootedFs(opts: RootedFsOptions): RootedFs {
       const { root, path } = fromQuery(query);
       const loc = await locate(root, path, true);
       return described(loc.segments.length ? await entryPath(loc) : loc.realRoot, basename(loc.abs), loc.realRoot);
+    },
+
+    'GET /api/fs/info': async ({ query }): Promise<FsInfo> => {
+      const { root, path } = fromQuery(query);
+      const loc = await locate(root, path, true);
+      const entry = loc.segments.length ? await entryPath(loc) : loc.realRoot;
+      const st = await lstat(entry).catch(() => {
+        throw fileNotFound();
+      });
+      const born = Math.round(st.birthtimeMs);
+      return {
+        name: basename(loc.abs),
+        fullPath: entry,
+        type: st.isSymbolicLink() ? 'symlink' : st.isDirectory() ? 'dir' : 'file',
+        size: st.isDirectory() ? 0 : st.size,
+        created: Number.isFinite(born) && born > 0 ? born : null,
+        modified: Math.round(st.mtimeMs),
+        accessed: Math.round(st.atimeMs),
+        readOnly: !!loc.root.readOnly || !ownerWritable(st.mode),
+      };
+    },
+
+    // Total size of a folder: running totals, then `done`. Links are counted as neither and not followed.
+    'GET /api/fs/du': async ({ req, query }) => {
+      const { root, path } = fromQuery(query);
+      const loc = await locate(root, path, true);
+      return ndjson(req, async (emit, signal) => {
+        const totals: FsDuProgress = { files: 0, dirs: 0, bytes: 0 };
+        const top = await stat(loc.real);
+        if (!top.isDirectory()) {
+          totals.files = 1;
+          totals.bytes = top.size;
+        }
+        const queue = top.isDirectory() ? [loc.real] : [];
+        let last = Date.now();
+        while (queue.length && !signal.aborted) {
+          const dir = queue.pop()!;
+          const items = await readdir(dir, { withFileTypes: true }).catch(() => [] as Dirent[]);
+          for (const d of items) {
+            if (signal.aborted) return;
+            if (d.isSymbolicLink()) continue;
+            const full = join(dir, d.name);
+            if (d.isDirectory()) {
+              totals.dirs++;
+              queue.push(full);
+            } else if (d.isFile()) {
+              const st = await lstat(full).catch(() => null);
+              if (!st) continue;
+              totals.files++;
+              totals.bytes += st.size;
+            }
+          }
+          if (Date.now() - last >= DU_PROGRESS_MS) {
+            last = Date.now();
+            await emit({ ...totals });
+          }
+        }
+        if (!signal.aborted) await emit({ ...totals, done: true });
+      });
+    },
+
+    'GET /api/fs/hash': async ({ req, query }): Promise<FsHash> => {
+      const { root, path } = fromQuery(query);
+      const loc = await locate(root, path, true);
+      if ((await stat(loc.real)).isDirectory()) throw notAFile();
+      const hasher = new Bun.CryptoHasher('sha256');
+      for await (const chunk of Bun.file(loc.real).stream()) {
+        if (req.signal.aborted) throw invalid('aborted', 'The request was cancelled.');
+        hasher.update(chunk);
+      }
+      return { sha256: hasher.digest('hex') };
     },
 
     'GET /api/fs/read': async ({ query }) => {

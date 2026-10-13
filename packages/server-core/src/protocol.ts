@@ -143,6 +143,33 @@ export interface TailChunk {
   reset?: true;
 }
 
+/** `GET /api/fs/info`: one entry's properties; a link is described itself, not its target. Times are epoch ms. */
+export interface FsInfo {
+  name: string;
+  /** Absolute path on disk. */
+  fullPath: string;
+  type: 'file' | 'dir' | 'symlink';
+  size: number;
+  /** Null when the file system doesn't record it. */
+  created: number | null;
+  modified: number;
+  accessed: number;
+  readOnly: boolean;
+}
+
+/** One `GET /api/fs/du` line: running totals; the last one has `done`. */
+export interface FsDuProgress {
+  files: number;
+  dirs: number;
+  bytes: number;
+  done?: true;
+}
+
+/** `GET /api/fs/hash`. */
+export interface FsHash {
+  sha256: string;
+}
+
 export type EditorId = 'vscode' | 'intellij';
 
 /** One entry of `GET /api/editors`. */

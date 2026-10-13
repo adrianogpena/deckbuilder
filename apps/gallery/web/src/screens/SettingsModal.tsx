@@ -522,6 +522,7 @@ function ExplorerCard({ settings, onChange }: { settings: Settings; onChange: (p
         <Row id="files.compactFolders" settings={settings} onChange={onChange} />
         <Row id="files.sortOrder" settings={settings} onChange={onChange} />
         <Row id="files.fileNesting" settings={settings} onChange={onChange} />
+        <Row id="git.explorerDecorations" settings={settings} onChange={onChange} />
         {files.fileNesting && <NestingField value={files.nestingPatterns} onChange={(nestingPatterns) => set({ nestingPatterns })} />}
         <ExcludeField value={files.exclude} onChange={(exclude) => set({ exclude })} />
       </div>
