@@ -60,6 +60,10 @@ export interface ProjectTreeProps {
   view?: TreeViewOptions;
   /** Folders holding a single folder share a row. */
   compact?: boolean;
+  /** Ask before deleting (default true); the unsaved-changes warning stays. */
+  confirmDelete?: boolean;
+  /** Ask before a drag and drop move (default false). */
+  confirmDragDrop?: boolean;
   /** File nesting patterns; absent: files are not nested. */
   nesting?: NestingPatterns;
   /** Find in the tree: `highlight` marks matches and counts them on folders, `filter` also hides everything else. */
@@ -94,7 +98,7 @@ export interface ProjectTreeApi {
 }
 
 /** The lazy tree of a project's folder, with the file actions. */
-export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, onPreviewFile, onOpenFileToSide, onOpenTerminal, onMoved, onDeleted, apiRef, undo, dirtyCount, view, compact, nesting, find }: ProjectTreeProps) {
+export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, onPreviewFile, onOpenFileToSide, onOpenTerminal, onMoved, onDeleted, apiRef, undo, dirtyCount, view, compact, confirmDelete = true, confirmDragDrop = false, nesting, find }: ProjectTreeProps) {
   const tree = useRef<TreeViewHandle<Node>>(null);
   const clipboard = useRef<{ mode: 'copy' | 'cut'; paths: string[] }>();
   const { confirm, choose, element } = useDialogs();
@@ -295,7 +299,7 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
         return;
       }
       const dirty = dirtyCount?.(project.id, targets.map((n) => n.path)) ?? 0;
-      const ok = await confirm({
+      const ok = !confirmDelete && dirty === 0 ? true : await confirm({
         title: t('explorer.deleteTitle'),
         body: (
           <>
@@ -344,8 +348,13 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
     return finalPath(await api.fsMove(project.id, from, to, choice));
   };
 
-  const moveInto = async (froms: string[], dir: string) => {
+  const moveInto = async (froms: string[], dir: string, dropped = false) => {
     if (!froms.length) return;
+    if (dropped && confirmDragDrop) {
+      const name = relPath.basename(dir) || project.name;
+      const body = froms.length === 1 ? t('explorer.moveBody', { name: relPath.basename(froms[0]!), target: name }) : t('explorer.moveMany', { count: froms.length, target: name });
+      if (!(await confirm({ title: t('explorer.moveTitle'), body }))) return;
+    }
     const dirty = dirtyCount?.(project.id, froms) ?? 0;
     if (dirty > 0 && !(await confirm({ title: t('explorer.dirtyTitle'), body: t('explorer.dirtyMove', { count: dirty }) }))) return;
     const moves: Array<{ from: string; to: string }> = [];
@@ -533,7 +542,7 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
       if (target.outside) return;
       const nodes = actionable(dragged).filter((n) => !relPath.isUnder(target.path, n.path));
       if (copy) await copyInto(nodes.map((n) => n.path), target.path);
-      else await moveInto(nodes.filter((n) => relPath.dirname(n.path) !== target.path).map((n) => n.path), target.path);
+      else await moveInto(nodes.filter((n) => relPath.dirname(n.path) !== target.path).map((n) => n.path), target.path, true);
     });
 
   const selectedDir = () => {

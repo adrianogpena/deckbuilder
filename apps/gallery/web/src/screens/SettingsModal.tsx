@@ -183,11 +183,14 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
         );
       case 'window':
         return (
+          <>
           <section className="section">
             <div className="card form">
               <ZoomField value={draft} onChange={change} />
             </div>
           </section>
+          <SettingRows ids={groupIds('window')} settings={draft} onChange={change} />
+          </>
         );
       case 'editor':
         return (
@@ -209,6 +212,7 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
             <SettingRows ids={groupIds('terminal')} settings={draft} onChange={change} />
           </>
         );
+      case 'keyboard': return <SettingRows ids={groupIds('keyboard')} settings={draft} onChange={change} />;
       case 'keyboard.shortcuts': return <ShortcutsSection settings={settings} onChange={onChange} />;
       case 'system.updates': return <UpdatesCard folder={draft.updateFolder} onFolder={(updateFolder) => change({ updateFolder })} />;
       case 'system.backup': return (
@@ -464,6 +468,9 @@ function GeneralSection({ settings, onChange, onQuit }: Props) {
         <Row id="general.autostart" settings={settings} onChange={onChange} />
         <Row id="general.closeToTray" settings={settings} onChange={onChange} />
         <Row id="general.rememberSettingsPage" settings={settings} onChange={onChange} />
+        <Row id="general.confirmCloseDirty" settings={settings} onChange={onChange} />
+        <Row id="general.toastDuration" settings={settings} onChange={onChange} />
+        <Row id="general.startScreen" settings={settings} onChange={onChange} />
       </div>
       {(!isDesktop || settings.closeToTray) && <GeneralCard onQuit={onQuit} />}
     </>
@@ -629,6 +636,8 @@ function WorkbenchCard({ settings, onChange }: { settings: Settings; onChange: C
       <div className="card form">
         <ProjectsRow settings={settings} onChange={onChange} />
         <Row id="workbench.maxRows" settings={settings} onChange={onChange} />
+        <Row id="workbench.confirmDestructive" settings={settings} onChange={onChange} />
+        <Row id="workbench.queryTimeout" settings={settings} onChange={onChange} />
       </div>
     </section>
   );

@@ -57,6 +57,7 @@ function dropCopiedSessions(prev: Layout<Route>, next: Layout<Route>): Layout<Ro
 
 const basename = (path: string) => path.split(/[\\/]/).filter(Boolean).pop() ?? path;
 
+import { generalSettingsOf } from '../settings';
 export function TerminalScreen({ settings, onSave }: { settings: Settings; onSave: (patch: Partial<Settings>) => void }) {
   const [layout, setLayout] = useState<Layout<Route>>(() => restore(settings.terminalLayout, isRoute) ?? singlePane(newTab(newRoute())));
   const latest = useRef(layout);
@@ -138,6 +139,7 @@ export function TerminalScreen({ settings, onSave }: { settings: Settings; onSav
         </button>
       </div>
       <TabWorkspace
+        confirmCloseDirty={generalSettingsOf(settings).confirmCloseDirty}
         layout={layout}
         onChange={change}
         titleOf={titleOf}

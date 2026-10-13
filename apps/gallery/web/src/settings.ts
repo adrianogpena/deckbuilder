@@ -15,7 +15,8 @@ import {
   registerDefaultSections,
   settingsFromOptionMeta,
 } from '@deckbuilder/ui';
-import type { AppearanceSettings, EditorSettings, Settings, TerminalSettings } from './api';
+import type { AppearanceSettings, EditorSettings, GeneralSettings, KeyboardSettings, Settings, TerminalSettings, WindowSettings } from './api';
+import { SCREENS } from './nav';
 import { COPY_FORMATS, type CopyFormat } from './screens/workbench/copy-format';
 
 export const settingsRegistry = createSettingsRegistry<Settings>();
@@ -45,7 +46,7 @@ const sqlFormatter: SectionPath = ['workbench', 'sqlFormatter'];
 const fileGet = <K extends keyof FileSettings>(k: K) => (s: Settings) => fileSettingsOf(s.files)[k] as Required<FileSettings>[K];
 const fileSet = (k: keyof FileSettings) => (s: Settings, v: unknown): Partial<Settings> => ({ files: { ...fileSettingsOf(s.files), [k]: v } });
 
-type FileBool = 'trimTrailingWhitespace' | 'insertFinalNewline' | 'previewTabs' | 'autoReveal' | 'breadcrumbs' | 'compactFolders' | 'fileNesting';
+type FileBool = 'trimTrailingWhitespace' | 'insertFinalNewline' | 'previewTabs' | 'autoReveal' | 'breadcrumbs' | 'compactFolders' | 'fileNesting' | 'confirmDelete' | 'confirmDragDrop' | 'showHidden' | 'restoreTabs';
 
 const fileBool = (key: FileBool, section: SectionPath, order: number, label: string): BooleanSetting<Settings> => ({
   id: `files.${key}`,
@@ -99,7 +100,7 @@ const resultBool = (key: 'hideMidnight' | 'thousandsSeparator', order: number, l
   set: (s, v) => withWorkbench(s, { results: { ...DEFAULT_RESULT_FORMAT, ...s.workbench?.results, [key]: v } satisfies ResultFormat }),
 });
 
-type Group = 'appearance' | 'editor' | 'terminal';
+type Group = 'appearance' | 'editor' | 'terminal' | 'window' | 'general' | 'keyboard';
 
 type FieldDef =
   | { kind: 'boolean'; default: boolean }
@@ -146,6 +147,18 @@ settingsRegistry.registerSettings([
   groupField('editor', 'autoCloseBrackets', 170, bool(true)),
   groupField('editor', 'cursorStyle', 180, oneOf('line', ['line', 'block', 'underline'])),
   groupField('editor', 'cursorBlink', 190, bool(true)),
+
+  groupField('window', 'sidebarSide', 100, oneOf('left', ['left', 'right'])),
+  groupField('window', 'statusBar', 110, bool(true)),
+  groupField('window', 'tabSizing', 120, oneOf('fit', ['fit', 'shrink'])),
+  groupField('window', 'tabCloseButton', 130, oneOf('right', ['right', 'left', 'hidden'])),
+  groupField('window', 'tabIcons', 140, bool(true)),
+
+  groupField('general', 'confirmCloseDirty', 100, bool(true)),
+  groupField('general', 'toastDuration', 110, num(4000, 1000, 60_000)),
+  groupField('general', 'startScreen', 120, oneOf('home', [...SCREENS])),
+
+  groupField('keyboard', 'chordTimeout', 100, num(1500, 500, 10_000)),
 
   groupField('terminal', 'fontFamily', 100, str(MONO_FONT)),
   groupField('terminal', 'fontSize', 110, num(13, 8, 32)),
@@ -201,6 +214,10 @@ settingsRegistry.registerSettings([
   fileBool('fileNesting', explorer, 60, 'settings.explorer.nesting'),
   { id: 'files.nestingPatterns', kind: 'custom', section: explorer, order: 70, label: 'settings.explorer.nesting.patterns', description: 'settings.explorer.nesting.patterns.hint', default: FILE_DEFAULTS.nestingPatterns },
   { id: 'files.exclude', kind: 'custom', section: explorer, order: 80, label: 'settings.explorer.exclude', description: 'settings.explorer.exclude.hint', default: FILE_DEFAULTS.exclude },
+  fileBool('confirmDelete', explorer, 90, 'settings.explorer.confirmDelete'),
+  fileBool('confirmDragDrop', explorer, 100, 'settings.explorer.confirmDragDrop'),
+  fileBool('showHidden', explorer, 110, 'settings.explorer.showHidden'),
+  fileBool('restoreTabs', explorer, 120, 'settings.explorer.restoreTabs'),
 
   { id: 'workbench.explorerProjects', kind: 'custom', section: workbench, order: 10, label: 'settings.workbench.projects', description: 'settings.workbench.projects.hint', default: [] as string[] },
   {
@@ -225,6 +242,30 @@ settingsRegistry.registerSettings([
     values: COPY_FORMATS as readonly string[],
     get: (s) => s.workbench?.copyFormat ?? 'tsv',
     set: (s, copyFormat) => withWorkbench(s, { copyFormat }),
+  },
+  {
+    id: 'workbench.confirmDestructive',
+    kind: 'boolean',
+    section: workbench,
+    order: 22,
+    label: 'settings.workbench.confirmDestructive',
+    description: 'settings.workbench.confirmDestructive.hint',
+    default: true,
+    get: (s) => s.workbench?.confirmDestructive ?? true,
+    set: (s, confirmDestructive) => withWorkbench(s, { confirmDestructive }),
+  },
+  {
+    id: 'workbench.queryTimeout',
+    kind: 'number',
+    section: workbench,
+    order: 24,
+    label: 'settings.workbench.queryTimeout',
+    description: 'settings.workbench.queryTimeout.hint',
+    default: 0,
+    min: 0,
+    max: 3600,
+    get: (s) => s.workbench?.queryTimeout ?? 0,
+    set: (s, queryTimeout) => withWorkbench(s, { queryTimeout }),
   },
 
   resultText('nullText', 10),
@@ -255,3 +296,16 @@ export const terminalSettingsOf = (s: Settings): Required<TerminalSettings> => {
   const { shell: _shell, ...fields } = s.terminal ?? {};
   return { ...settingDefaults<Required<TerminalSettings>>('terminal'), ...fields };
 };
+
+/** The window settings with their defaults filled in. */
+export const windowSettingsOf = (s: Settings): Required<WindowSettings> => ({ ...settingDefaults<Required<WindowSettings>>('window'), ...s.window });
+
+/** The keyboard settings with their defaults filled in. */
+export const keyboardSettingsOf = (s: Settings): Required<KeyboardSettings> => ({ ...settingDefaults<Required<KeyboardSettings>>('keyboard'), ...s.keyboard });
+
+/** The settings stored in `general` (autostart and the other top-level ones are not) with their defaults filled in. */
+export const generalSettingsOf = (s: Settings): Required<GeneralSettings> => ({
+  confirmCloseDirty: s.general?.confirmCloseDirty ?? settingDefault<boolean>('general.confirmCloseDirty'),
+  toastDuration: s.general?.toastDuration ?? settingDefault<number>('general.toastDuration'),
+  startScreen: s.general?.startScreen ?? settingDefault<string>('general.startScreen'),
+});

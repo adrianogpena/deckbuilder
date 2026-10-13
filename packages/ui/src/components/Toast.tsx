@@ -6,7 +6,7 @@ export interface ToastOptions {
   message: string;
   kind?: 'info' | 'error';
   action?: { label: string; run: () => void };
-  /** Ms until it closes; default 4 s for info, 10 s for errors; 0 keeps it until closed. */
+  /** Ms until it closes; default 4 s (the provider's `defaultTimeout`) for info, 10 s for errors; 0 keeps it until closed. */
   timeout?: number;
   /** A toast with the same key replaces the one on screen, in place; for progress that updates. */
   key?: string;
@@ -27,7 +27,7 @@ const ToastContext = createContext<Show>(() => {});
 let toastIds = 0;
 
 /** Holds the toast stack (bottom right) of everything below it; `useToast` reaches it. */
-export function ToastProvider({ children }: { children: ReactNode }) {
+export function ToastProvider({ children, defaultTimeout = 4000 }: { children: ReactNode; defaultTimeout?: number }) {
   const [toasts, setToasts] = useState<Entry[]>([]);
   const [paused, setPaused] = useState(false);
 
@@ -59,7 +59,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={show}>
       {children}
       <div className="toasts" aria-live="polite" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
-        {toasts.map((entry) => <Toast key={entry.view} entry={entry} paused={paused} onClose={() => close(entry.id)} />)}
+        {toasts.map((entry) => <Toast key={entry.view} entry={entry} paused={paused} defaultTimeout={defaultTimeout} onClose={() => close(entry.id)} />)}
       </div>
     </ToastContext.Provider>
   );
@@ -70,9 +70,9 @@ export function useToast(): Show {
   return useContext(ToastContext);
 }
 
-function Toast({ entry, paused, onClose }: { entry: Entry; paused: boolean; onClose: () => void }) {
+function Toast({ entry, paused, defaultTimeout, onClose }: { entry: Entry; paused: boolean; defaultTimeout: number; onClose: () => void }) {
   const error = entry.kind === 'error';
-  const timeout = entry.timeout ?? (error ? 10_000 : 4000);
+  const timeout = entry.timeout ?? (error ? 10_000 : defaultTimeout);
   const left = useRef(timeout);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;

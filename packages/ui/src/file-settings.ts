@@ -32,6 +32,14 @@ export interface FileSettings {
   exclude?: string[];
   /** How the tree orders the entries of a folder. */
   sortOrder?: SortOrder;
+  /** Ask before deleting files; the warning about unsaved changes stays either way. */
+  confirmDelete?: boolean;
+  /** Ask before moving files by drag and drop. */
+  confirmDragDrop?: boolean;
+  /** Start with the excluded entries shown in the tree. */
+  showHidden?: boolean;
+  /** Reopen the tabs of the last session. */
+  restoreTabs?: boolean;
 }
 
 export const FILE_DEFAULTS: Required<FileSettings> = {
@@ -46,6 +54,10 @@ export const FILE_DEFAULTS: Required<FileSettings> = {
   nestingPatterns: NESTING_DEFAULTS,
   exclude: ['**/.git', '**/.DS_Store', '**/Thumbs.db'],
   sortOrder: 'default',
+  confirmDelete: true,
+  confirmDragDrop: false,
+  showHidden: false,
+  restoreTabs: true,
 };
 
 /** `raw` with the defaults filled in; fields of the wrong type fall back to their default. */
@@ -65,6 +77,10 @@ export function validFileSettings(raw: unknown): FileSettings | null {
   if (typeof raw.breadcrumbs === 'boolean') out.breadcrumbs = raw.breadcrumbs;
   if (typeof raw.compactFolders === 'boolean') out.compactFolders = raw.compactFolders;
   if (typeof raw.fileNesting === 'boolean') out.fileNesting = raw.fileNesting;
+  if (typeof raw.confirmDelete === 'boolean') out.confirmDelete = raw.confirmDelete;
+  if (typeof raw.confirmDragDrop === 'boolean') out.confirmDragDrop = raw.confirmDragDrop;
+  if (typeof raw.showHidden === 'boolean') out.showHidden = raw.showHidden;
+  if (typeof raw.restoreTabs === 'boolean') out.restoreTabs = raw.restoreTabs;
   if (isRecord(raw.nestingPatterns)) {
     const entries = Object.entries(raw.nestingPatterns);
     if (entries.length <= MAX_EXCLUDES && entries.every(([k, v]) => k.trim() !== '' && k.length <= 200 && typeof v === 'string' && v.length <= 500)) {

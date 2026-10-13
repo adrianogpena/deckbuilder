@@ -33,6 +33,7 @@ function highestN(layout: Layout<Route>): number {
 
 const titleOf = (route: Route) => ({ title: `${t(`tabs.page.${route.page}`)} ${route.n}` });
 
+import { generalSettingsOf } from '../settings';
 export function TabsScreen({ settings, onSave }: { settings: Settings; onSave: (patch: Partial<Settings>) => void }) {
   const [layout, setLayout] = useState<Layout<Route>>(
     () => restore(settings.tabsLayout, isRoute) ?? singlePane(newTab<Route>({ page: 'notes', n: 1 })),
@@ -48,6 +49,7 @@ export function TabsScreen({ settings, onSave }: { settings: Settings; onSave: (
 
   return (
     <TabWorkspace
+      confirmCloseDirty={generalSettingsOf(settings).confirmCloseDirty}
       layout={layout}
       onChange={change}
       titleOf={titleOf}

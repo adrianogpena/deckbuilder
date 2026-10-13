@@ -42,6 +42,12 @@ export interface Settings extends ThemeSettings {
   appearance?: AppearanceSettings;
   /** How text editors behave; the server validates it. */
   editor?: EditorSettings;
+  /** Sidebar side, status bar and tabs; the server validates it. */
+  window?: WindowSettings;
+  /** Closing and notifications; the server validates it. */
+  general?: GeneralSettings;
+  /** Shortcut behavior; the server validates it. */
+  keyboard?: KeyboardSettings;
   /** Layout of the Terminal screen's tabs; restored (and validated) by the screen. */
   terminalLayout?: unknown;
 }
@@ -69,6 +75,26 @@ export interface EditorSettings {
   autoCloseBrackets?: boolean;
   cursorStyle?: 'line' | 'block' | 'underline';
   cursorBlink?: boolean;
+}
+
+export interface WindowSettings {
+  sidebarSide?: 'left' | 'right';
+  statusBar?: boolean;
+  tabSizing?: 'fit' | 'shrink';
+  tabCloseButton?: 'right' | 'left' | 'hidden';
+  tabIcons?: boolean;
+}
+
+export interface GeneralSettings {
+  confirmCloseDirty?: boolean;
+  /** Milliseconds a toast stays, 1000 to 60 000; errors stay longer. */
+  toastDuration?: number;
+  startScreen?: string;
+}
+
+export interface KeyboardSettings {
+  /** Milliseconds the next key of a multi-step shortcut may take, 500 to 10 000. */
+  chordTimeout?: number;
 }
 
 export interface TerminalSettings {
@@ -115,6 +141,10 @@ export interface WorkbenchSettings {
   results: ResultFormat;
   /** Format of "Copy results". */
   copyFormat: CopyFormat;
+  /** Ask before DROP, TRUNCATE, or a DELETE or UPDATE without WHERE. */
+  confirmDestructive?: boolean;
+  /** Seconds to wait for a database statement; 0 means no limit. */
+  queryTimeout?: number;
   /** SQL formatter options. */
   format: SqlFormatOptions;
   /** The document the editor edits: the connection's default script (also when omitted) or a project file. */
@@ -130,6 +160,8 @@ export const withWorkbenchDefaults = (raw?: Partial<WorkbenchSettings>): Workben
   explorerConnections: raw?.explorerConnections ?? {},
   results: { ...settingDefaults<ResultFormat>('workbench.results'), ...raw?.results },
   copyFormat: raw?.copyFormat ?? settingDefault<CopyFormat>('workbench.copyFormat'),
+  confirmDestructive: raw?.confirmDestructive ?? settingDefault<boolean>('workbench.confirmDestructive'),
+  queryTimeout: raw?.queryTimeout ?? settingDefault<number>('workbench.queryTimeout'),
   format: { ...settingDefaults<SqlFormatOptions>('workbench.format'), ...raw?.format },
 });
 

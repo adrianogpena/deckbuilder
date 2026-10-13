@@ -7,7 +7,7 @@ import { APP } from '../../app';
 import { api, type Settings } from './api';
 import { commandById, commands, KEYS_COMMAND, navCommandId, SETTINGS_COMMAND } from './commands';
 import { t } from './i18n';
-import { appearanceSettingsOf, editorSettingsOf, terminalSettingsOf } from './settings';
+import { appearanceSettingsOf, editorSettingsOf, generalSettingsOf, keyboardSettingsOf,terminalSettingsOf, windowSettingsOf } from './settings';
 import { useZen } from './zen';
 import { NAV, SCREENS, type ScreenId } from './nav';
 import { ExplorerScreen } from './screens/ExplorerScreen';
@@ -60,12 +60,12 @@ function Shell({ initialSettings }: { initialSettings: Settings }) {
     window.addEventListener('hashchange', take);
     return () => window.removeEventListener('hashchange', take);
   }, []);
-  const [screen, go] = useHashRoute(SCREENS, 'home');
+  const [screen, go] = useHashRoute(SCREENS, generalSettingsOf(settings).startScreen as ScreenId);
   shown.current = screen;
   setLanguage(settings.language ?? detectLanguage());
   setFileAssociations(settings.fileAssociations);
   return (
-    <KeybindingProvider defs={commands()} keymap={settings.keybindings ?? {}} scope={screen}>
+    <KeybindingProvider defs={commands()} keymap={settings.keybindings ?? {}} scope={screen} sequenceTimeout={keyboardSettingsOf(settings).chordTimeout}>
       <Main settings={settings} setSettings={setSettings} screen={screen} go={go} overlay={overlay} setOverlay={setOverlay} />
     </KeybindingProvider>
   );
@@ -89,6 +89,8 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
   useZoom(settings.zoom);
   const appearance = appearanceSettingsOf(settings);
   const editorOptions = useMemo(() => editorSettingsOf(settings), [settings.editor]);
+  const windowOptions = useMemo(() => windowSettingsOf(settings), [settings.window]);
+  const general = useMemo(() => generalSettingsOf(settings), [settings.general]);
   const terminalOptions = useMemo(() => terminalSettingsOf(settings), [settings.terminal]);
 
   useEffect(() => {
@@ -101,6 +103,14 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
     set('--editor-ligatures', appearance.editorLigatures ? 'normal' : 'none');
     root.dataset.reduceMotion = String(appearance.reduceMotion);
   }, [appearance.uiFontFamily, appearance.editorFontFamily, appearance.editorFontSize, appearance.editorLineHeight, appearance.editorLigatures, appearance.reduceMotion]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.dataset.tabSizing = windowOptions.tabSizing;
+    root.dataset.tabClose = windowOptions.tabCloseButton;
+    root.dataset.tabIcons = String(windowOptions.tabIcons);
+    root.dataset.statusBar = String(windowOptions.statusBar);
+  }, [windowOptions]);
 
   useEffect(() => {
     const item = NAV.flatMap((s) => s.items).find((i) => i.id === screen);
@@ -155,7 +165,7 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
   const settingsTitle = settingsChord ? `${t('nav.settings')} (${settingsChord})` : t('nav.settings');
 
   return (
-    <ToastProvider>
+    <ToastProvider defaultTimeout={general.toastDuration}>
       <EditorOptionsContext.Provider value={editorOptions}>
       <TerminalOptionsContext.Provider value={terminalOptions}>
       <div className={`app nav-collapsed${zen ? ' zen' : ''}`}>

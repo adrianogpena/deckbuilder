@@ -51,7 +51,7 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
   const connection = state.source && state.source !== DEMO_SOURCE ? connections.data?.find((c) => c.id === state.source) : undefined;
   const db = connection?.id;
   const doc = state.doc ?? { kind: 'default' as const };
-  const runner = useSqlRunner(db, state);
+  const runner = useSqlRunner(db, state, confirm);
   const docKey = doc.kind === 'file' ? `file:${doc.project}:${doc.path}` : db ? `db:${db}` : '';
   const docName = doc.kind === 'file' ? (doc.path.split(/[\\/]/).pop() ?? doc.path) : '';
 

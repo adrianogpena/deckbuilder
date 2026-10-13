@@ -32,6 +32,7 @@ interface Options {
   focused: boolean;
   draft: string;
   sql?: ExplorerSqlProps;
+  confirm: (opts: { title: string; body?: string; okLabel?: string; danger?: boolean }) => Promise<boolean>;
 }
 
 /**
@@ -39,13 +40,13 @@ interface Options {
  * below the editor. Only `.sql` files of projects in `workbench.explorerProjects`; the rest get nothing.
  * The connection's DB session is the Workbench's.
  */
-export function useExplorerSql({ project, name, active, focused, draft, sql }: Options) {
+export function useExplorerSql({ project, name, active, focused, draft, sql, confirm }: Options) {
   const settings = useMemo(() => withWorkbenchDefaults(sql?.workbench), [sql?.workbench]);
   const enabled = !!sql && active && langOfFile(name) === 'sql' && settings.explorerProjects.includes(project);
   const connections = useAsync(() => (enabled ? api.dbConnections() : Promise.resolve<DbConnection[]>([])), [enabled]);
   const connection = connections.data?.find((c) => c.id === settings.explorerConnections[project]);
   const db = enabled ? connection?.id : undefined;
-  const runner = useSqlRunner(db, settings);
+  const runner = useSqlRunner(db, settings, confirm);
   const { sqlSchema } = useSqlSchema(db);
   const editor = useRef<CodeEditorHandle>(null);
   const [open, setOpen] = useState(false);

@@ -21,6 +21,8 @@ export interface ExplorerProps {
   scope: string;
   /** Hides the sidebar and its rail for now (Zen mode, a maximized pane) without touching `collapsed`. */
   hidden?: boolean;
+  /** Which side the sidebar sits on; `sizes` stay [sidebar, workspace] either way. */
+  side?: 'left' | 'right';
 }
 
 /** Commands of an Explorer shown in view `scope`: Ctrl+B toggles the sidebar (not while typing). */
@@ -32,23 +34,30 @@ export function explorerCommands(scope: string): CommandDef[] {
  * A resizable sidebar (min 180 px) next to a workspace. Ctrl+B or the rail button toggle the
  * sidebar. Layout only: the app owns sizes, collapsed and what the sidebar and workspace show.
  */
-export function Explorer({ sidebar, sizes, onResize, collapsed: stored, onCollapsedChange, children, scope, hidden = false }: ExplorerProps) {
+export function Explorer({ sidebar, sizes, onResize, collapsed: stored, onCollapsedChange, children, scope, hidden = false, side = 'left' }: ExplorerProps) {
   const [toggle] = explorerCommands(scope);
   useCommand(toggle, () => onCollapsedChange(!stored), { enabled: !hidden });
   const collapsed = stored || hidden;
+  const right = side === 'right';
 
   // The workspace keeps its key and slot either way, so its tabs aren't remounted.
   return (
     <div className="explorer">
       {collapsed && !hidden && (
-        <div className="explorer-rail">
+        <div className="explorer-rail" style={{ order: right ? 1 : 0, ...(right ? { borderRight: 0, borderLeft: '1px solid var(--border-soft)' } : null) }}>
           <button className="btn btn-ghost btn-sm btn-icon" onClick={() => onCollapsedChange(false)} title={t('explorer.toggleSidebar')} aria-label={t('explorer.toggleSidebar')}>
             <Icon name="sidebar" />
           </button>
         </div>
       )}
-      <SplitView direction="row" sizes={collapsed ? [1] : sizes} defaultSizes={DEFAULT_SIZES} min={collapsed ? [] : MIN} onResize={(next) => !collapsed && onResize([next[0], next[1]])}>
-        {!collapsed && (
+      <SplitView
+        direction="row"
+        sizes={collapsed ? [1] : right ? [sizes[1], sizes[0]] : sizes}
+        defaultSizes={right ? [DEFAULT_SIZES[1], DEFAULT_SIZES[0]] : DEFAULT_SIZES}
+        min={collapsed ? [] : right ? [0, MIN[0]] : MIN}
+        onResize={(next) => !collapsed && onResize(right ? [next[1], next[0]] : [next[0], next[1]])}
+      >
+        {!collapsed && !right && (
           <div key="sidebar" className="explorer-side">
             {sidebar}
           </div>
@@ -56,6 +65,11 @@ export function Explorer({ sidebar, sizes, onResize, collapsed: stored, onCollap
         <div key="workspace" className="explorer-main">
           {children}
         </div>
+        {!collapsed && right && (
+          <div key="sidebar" className="explorer-side">
+            {sidebar}
+          </div>
+        )}
       </SplitView>
     </div>
   );

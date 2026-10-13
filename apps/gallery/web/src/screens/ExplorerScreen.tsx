@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { editorSettingsOf } from '../settings';
+import { editorSettingsOf, generalSettingsOf, windowSettingsOf } from '../settings';
 import {
   activate,
   activeTab,
@@ -105,7 +105,7 @@ interface State {
   layout: Layout<Route>;
 }
 
-function initialState(saved: ExplorerSettings | undefined, defaultWrap: boolean): State {
+function initialState(saved: ExplorerSettings | undefined, defaultWrap: boolean, restoreTabs: boolean): State {
   const expanded: Record<string, string[]> = {};
   for (const [id, ids] of Object.entries(saved?.expanded ?? {})) {
     if (Array.isArray(ids)) expanded[id] = ids.filter((x): x is string => typeof x === 'string');
@@ -120,7 +120,7 @@ function initialState(saved: ExplorerSettings | undefined, defaultWrap: boolean)
     markdownMode: MARKDOWN_MODES.includes(saved?.markdownMode as MarkdownMode) ? saved!.markdownMode! : 'live',
     wrapLines: saved?.wrapLines ?? defaultWrap,
     sqlSizes: saved?.sqlSizes,
-    layout: restore(saved?.tabs, isRoute) ?? singlePane(newTab<Route>(WELCOME)),
+    layout: (restoreTabs ? restore(saved?.tabs, isRoute) : undefined) ?? singlePane(newTab<Route>(WELCOME)),
   };
 }
 
@@ -168,7 +168,7 @@ const idsUnder = (project: string, path: string) => (id: string) => id.startsWit
 export function ExplorerScreen({ settings, onSave, go }: { settings: Settings; onSave: (patch: Partial<Settings>) => void; go: (screen: ScreenId) => void }) {
   const projects = useAsync(() => api.projects(), []);
   const list = projects.data ?? [];
-  const [state, setState] = useState(() => initialState(settings.explorer, editorSettingsOf(settings).wordWrap));
+  const [state, setState] = useState(() => initialState(settings.explorer, editorSettingsOf(settings).wordWrap, fileSettingsOf(settings.files).restoreTabs));
   const latest = useRef(state);
   const [form, setForm] = useState<{ project?: Project }>();
   const [formError, setFormError] = useState<ApiError>();
@@ -489,6 +489,9 @@ export function ExplorerScreen({ settings, onSave, go }: { settings: Settings; o
                   focused={focus === i}
                   exclude={files.exclude}
                   compact={files.compactFolders}
+                  confirmDelete={files.confirmDelete}
+                  confirmDragDrop={files.confirmDragDrop}
+                  showHidden={files.showHidden}
                   nesting={files.fileNesting ? files.nestingPatterns : undefined}
                   sort={files.sortOrder}
                   names={names.entries[project.id]}
@@ -523,6 +526,7 @@ export function ExplorerScreen({ settings, onSave, go }: { settings: Settings; o
     <>
       <Explorer
         hidden={zen || maximized}
+        side={windowSettingsOf(settings).sidebarSide}
         sidebar={sidebar}
         sizes={state.sizes}
         onResize={(sizes) => update((s) => ({ ...s, sizes }))}
@@ -531,6 +535,7 @@ export function ExplorerScreen({ settings, onSave, go }: { settings: Settings; o
         scope="explorer"
       >
         <TabWorkspace
+          confirmCloseDirty={generalSettingsOf(settings).confirmCloseDirty}
           layout={state.layout}
           onChange={(layout) => update((s) => ({ ...s, layout }))}
           titleOf={titleOf}

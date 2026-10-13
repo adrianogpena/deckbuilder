@@ -407,6 +407,13 @@ kbd {
 }
 .tab-chip:hover .tab-close, .tab-chip.active .tab-close { opacity: 1; }
 .tab-close:hover { background: var(--hover); color: var(--text); }
+html[data-tab-sizing="shrink"] .tab-chip { flex: 1 1 0; }
+html[data-tab-close="left"] .tab-close { order: -1; }
+html[data-tab-close="hidden"] .tab-chip:not(.dirty) .tab-close { display: none; }
+html[data-tab-close="hidden"] .tab-close .icon { display: none; }
+html[data-tab-close="hidden"] .tab-chip.dirty:hover .tab-dot { display: block; }
+html[data-tab-icons="false"] .tab-icon { display: none; }
+html[data-status-bar="false"] .status-bar { display: none; }
 .tab-new { align-self: center; flex-shrink: 0; width: 28px; justify-content: center; padding: 0; }
 .tabbar-tools { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
 .tabbar .btn-icon { width: 26px; height: 26px; }

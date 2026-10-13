@@ -323,7 +323,7 @@ function TextFileTab({ project, projectName, path, focused, preview, markdownMod
     if (ok) void save({ overwrite: true });
   };
 
-  const sqlUi = useExplorerSql({ project, name, active, focused, draft, sql });
+  const sqlUi = useExplorerSql({ project, name, active, focused, draft, sql, confirm });
   const chordOf = useChordOf();
   const openInWorkbench = async () => {
     if (!sql) return;

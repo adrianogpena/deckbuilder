@@ -5,6 +5,7 @@ import { api, type DbColumn, type DbStatus, type DemoRow, type ResultFormat, typ
 import { t } from '../../i18n';
 import { settingDefault } from '../../settings';
 import { type CopyColumn, formatCopy } from './copy-format';
+import { isDestructive } from './destructive';
 
 const ROW_COUNT = 50_000;
 const MAX_STREAM_ITEMS = 100_001;
@@ -46,8 +47,24 @@ const dbTableColumns = (columns: DbColumn[], format: ResultFormat): DataTableCol
 const demoCells = (r: DemoRow) => [r.id, r.name, r.amount, r.date];
 const isTruncatedMarker = (item: unknown) => typeof item === 'object' && item !== null && !Array.isArray(item) && '$truncated' in item;
 
+type Confirm = (opts: { title: string; body?: string; okLabel?: string; danger?: boolean }) => Promise<boolean>;
+
+/** Rejects with a timeout error after `seconds` (never, when 0), leaving `promise` running. */
+function withTimeout<T>(promise: Promise<T>, seconds: number): Promise<T> {
+  if (seconds <= 0) return promise;
+  let timer: ReturnType<typeof setTimeout>;
+  const limit = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(t('workbench.log.timeout', { seconds }))), seconds * 1000);
+  });
+  return Promise.race([promise, limit]).finally(() => clearTimeout(timer));
+}
+
 /** Runs SQL on connection `db` (the demo rows when undefined) and holds the result table, the log and the transaction state. */
-export function useSqlRunner(db: string | undefined, settings: Pick<WorkbenchSettings, 'maxRows' | 'results'> & Partial<Pick<WorkbenchSettings, 'copyFormat'>>) {
+export function useSqlRunner(
+  db: string | undefined,
+  settings: Pick<WorkbenchSettings, 'maxRows' | 'results'> & Partial<Pick<WorkbenchSettings, 'copyFormat' | 'confirmDestructive' | 'queryTimeout'>>,
+  confirm?: Confirm,
+) {
   const [lines, setLines] = useState<OutputLine[]>([]);
   const [actionError, setActionError] = useState<ApiError>();
   const [selection, setSelection] = useState<string[]>([]);
@@ -114,7 +131,7 @@ export function useSqlRunner(db: string | undefined, settings: Pick<WorkbenchSet
         log(t('workbench.log.start', { query: sql.trim() }));
         lastSql.current = sql;
         const last = i === statements.length - 1;
-        const result = await api.dbRun(id, sql, maxRows);
+        const result = await withTimeout(api.dbRun(id, sql, maxRows), settings.queryTimeout ?? 0);
         if (result.kind === 'rows' && last) {
           setShown({ kind: 'db', run: result.run, columns: result.columns });
           rows.start('/api/db/rows', { run: result.run });
@@ -134,7 +151,7 @@ export function useSqlRunner(db: string | undefined, settings: Pick<WorkbenchSet
     }
   };
 
-  const run = (text: string, mode: RunMode) => {
+  const run = async (text: string, mode: RunMode) => {
     if (rows.running || starting) return;
     if (!db) {
       runDemo(text);
@@ -142,6 +159,16 @@ export function useSqlRunner(db: string | undefined, settings: Pick<WorkbenchSet
     }
     const statements = mode === 'all' ? splitStatements(text).map((s) => s.text) : [text];
     if (statements.length === 0 || statements.every((s) => !s.trim())) return;
+    const risky = statements.filter(isDestructive);
+    if (risky.length > 0 && confirm && (settings.confirmDestructive ?? settingDefault<boolean>('workbench.confirmDestructive'))) {
+      const ok = await confirm({
+        title: t('workbench.destructive.title'),
+        body: `${t('workbench.destructive.body')}\n${risky.map((s) => s.trim()).join('\n')}`.slice(0, 600),
+        okLabel: t('workbench.destructive.run'),
+        danger: true,
+      });
+      if (!ok) return;
+    }
     void runDb(db, statements);
   };
 

@@ -12,6 +12,8 @@ export interface TreePaneProps extends ProjectTreeProps, Omit<ProjectPickerProps
   project: Project;
   /** This pane is the one the user last clicked; Ctrl+Shift+F searches its project. */
   focused: boolean;
+  /** Start with the excluded entries shown. */
+  showHidden?: boolean;
   onFocus(): void;
   /** The Explorer settings that decide what the tree lists. */
   exclude: string[];
@@ -28,7 +30,7 @@ export interface TreePaneProps extends ProjectTreeProps, Omit<ProjectPickerProps
 }
 
 /** One sidebar tree: the project picker, and the project's tree or, while searching, its search panel. */
-export function TreePane({ focused, onFocus, exclude, sort, names, ensureNames, onSplit, onCloseTree, onGoToFile, apiRef, projects, onPick, onAdd, onEdit, onRemove, ...tree }: TreePaneProps) {
+export function TreePane({ focused, showHidden = false, onFocus, exclude, sort, names, ensureNames, onSplit, onCloseTree, onGoToFile, apiRef, projects, onPick, onAdd, onEdit, onRemove, ...tree }: TreePaneProps) {
   const { project } = tree;
   const own = useRef<ProjectTreeApi>(null);
   useImperativeHandle(apiRef, () => ({
@@ -71,7 +73,7 @@ export function TreePane({ focused, onFocus, exclude, sort, names, ensureNames, 
     </button>
   );
   const [searching, setSearching] = useState(false);
-  const [showExcluded, setShowExcluded] = useState(false);
+  const [showExcluded, setShowExcluded] = useState(showHidden);
   const [signal, setSignal] = useState(0);
   const [finding, setFinding] = useState(false);
   const [findQuery, setFindQuery] = useState('');

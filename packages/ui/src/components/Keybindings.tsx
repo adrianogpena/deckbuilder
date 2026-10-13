@@ -38,10 +38,10 @@ function blocked(e: KeyboardEvent, def: CommandDef, chord: string, continuing = 
  * chord resolves to, the `scope` view's first, then a global one. `keymap` overrides `defs`' keys.
  * A command registered with `useCommand` but missing from `defs` keeps its default keys.
  */
-export function KeybindingProvider({ defs, keymap, scope, children }: KeybindingsValue & { children: ReactNode }) {
+export function KeybindingProvider({ defs, keymap, scope, sequenceTimeout = SEQUENCE_TIMEOUT, children }: KeybindingsValue & { sequenceTimeout?: number; children: ReactNode }) {
   const registry = useRef(new Map<string, HandlerRef[]>());
-  const latest = useRef({ defs, keymap, scope });
-  latest.current = { defs, keymap, scope };
+  const latest = useRef({ defs, keymap, scope, sequenceTimeout });
+  latest.current = { defs, keymap, scope, sequenceTimeout };
 
   useEffect(() => {
     // Steps already pressed of a multi-step binding, forgotten after SEQUENCE_TIMEOUT.
@@ -85,7 +85,7 @@ export function KeybindingProvider({ defs, keymap, scope, children }: Keybinding
       if (starters.some((d) => !blocked(e, d, chord, continuing))) {
         e.preventDefault();
         pending = chord;
-        timer = setTimeout(clear, SEQUENCE_TIMEOUT);
+        timer = setTimeout(clear, latest.current.sequenceTimeout);
       } else if (continuing) {
         // A key that breaks a started sequence is swallowed, so it doesn't type or trigger something else.
         e.preventDefault();

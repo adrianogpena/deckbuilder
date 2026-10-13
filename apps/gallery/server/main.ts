@@ -63,6 +63,12 @@ export interface Settings extends BaseSettings {
   appearance?: Record<string, string | number | boolean>;
   /** How text editors behave, checked by `validGroup`. */
   editor?: Record<string, string | number | boolean>;
+  /** Sidebar side, status bar and tabs, checked by `validGroup`. */
+  window?: Record<string, string | number | boolean>;
+  /** Closing and notifications, checked by `validGroup`. */
+  general?: Record<string, string | number | boolean>;
+  /** Shortcut behavior, checked by `validGroup`. */
+  keyboard?: Record<string, string | number | boolean>;
   /** Layout of the Terminal screen's tabs (`serialize`); the UI validates it on restore. */
   terminalLayout?: unknown;
 }
@@ -88,6 +94,10 @@ export interface WorkbenchSettings {
   results?: ResultFormat;
   /** Format of "Copy results": tsv, csv, markdown, json or insert. */
   copyFormat?: 'tsv' | 'csv' | 'markdown' | 'json' | 'insert';
+  /** Ask before DROP, TRUNCATE, or a DELETE or UPDATE without WHERE. */
+  confirmDestructive?: boolean;
+  /** Seconds to wait for a database statement, 0 to 3600; 0 means no limit. */
+  queryTimeout?: number;
   /** SQL formatter options; the editor package owns their meaning. */
   format?: Record<string, string | number | boolean>;
   /** The document the Workbench edits; the default script of the connection when omitted. */
@@ -221,6 +231,14 @@ function validWorkbench(raw: unknown): WorkbenchSettings | null {
     if (typeof r.copyFormat !== 'string' || !['tsv', 'csv', 'markdown', 'json', 'insert'].includes(r.copyFormat)) return null;
     out.copyFormat = r.copyFormat;
   }
+  if (r.confirmDestructive !== undefined) {
+    if (typeof r.confirmDestructive !== 'boolean') return null;
+    out.confirmDestructive = r.confirmDestructive;
+  }
+  if (r.queryTimeout !== undefined) {
+    if (typeof r.queryTimeout !== 'number' || !Number.isFinite(r.queryTimeout) || r.queryTimeout < 0 || r.queryTimeout > 3600) return null;
+    out.queryTimeout = r.queryTimeout;
+  }
   if (r.format !== undefined) {
     if (!isRecord(r.format)) return null;
     const format: Record<string, string | number | boolean> = {};
@@ -277,6 +295,21 @@ const EDITOR_SPEC: Record<string, FieldSpec> = {
   autoCloseBrackets: 'boolean',
   cursorStyle: ['line', 'block', 'underline'],
   cursorBlink: 'boolean',
+};
+const WINDOW_SPEC: Record<string, FieldSpec> = {
+  sidebarSide: ['left', 'right'],
+  statusBar: 'boolean',
+  tabSizing: ['fit', 'shrink'],
+  tabCloseButton: ['right', 'left', 'hidden'],
+  tabIcons: 'boolean',
+};
+const GENERAL_SPEC: Record<string, FieldSpec> = {
+  confirmCloseDirty: 'boolean',
+  toastDuration: [1000, 60_000],
+  startScreen: ['home', 'tabs', 'grid', 'explorer', 'workbench', 'rest', 'terminal'],
+};
+const KEYBOARD_SPEC: Record<string, FieldSpec> = {
+  chordTimeout: [500, 10_000],
 };
 const TERMINAL_SPEC: Record<string, FieldSpec> = {
   fontFamily: 'string',
@@ -355,6 +388,12 @@ const settings = settingsStore<Settings>({
     if (appearance) next.appearance = appearance;
     const editor = validGroup(patch.editor, EDITOR_SPEC);
     if (editor) next.editor = editor;
+    const windowGroup = validGroup(patch.window, WINDOW_SPEC);
+    if (windowGroup) next.window = windowGroup;
+    const general = validGroup(patch.general, GENERAL_SPEC);
+    if (general) next.general = general;
+    const keyboard = validGroup(patch.keyboard, KEYBOARD_SPEC);
+    if (keyboard) next.keyboard = keyboard;
     if (typeof patch.terminalLayout === 'object' && patch.terminalLayout !== null && JSON.stringify(patch.terminalLayout).length < MAX_TABS_LAYOUT_BYTES) {
       next.terminalLayout = patch.terminalLayout;
     }

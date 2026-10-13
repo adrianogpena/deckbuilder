@@ -356,9 +356,11 @@ interface TabWorkspaceProps<R> {
   scope: string;
   /** Told when a pane is maximized or restored, so the app can hide its own side views too. */
   onMaximizedChange?: (maximized: boolean) => void;
+  /** Ask before closing tabs with unsaved changes (default); when false they are saved first and kept open if a save fails. */
+  confirmCloseDirty?: boolean;
 }
 
-export function TabWorkspace<R>({ layout, onChange, renderTab, titleOf, menuOf, newRoute, scope, onMaximizedChange }: TabWorkspaceProps<R>) {
+export function TabWorkspace<R>({ layout, onChange, renderTab, titleOf, menuOf, newRoute, scope, onMaximizedChange, confirmCloseDirty = true }: TabWorkspaceProps<R>) {
   const { choose, element } = useDialogs();
   const savers = useRef(new Map<string, () => Promise<boolean>>());
   // The latest list per tab (fresh `run`s); the bar re-renders only when what it shows changes.
@@ -397,7 +399,9 @@ export function TabWorkspace<R>({ layout, onChange, renderTab, titleOf, menuOf, 
       const tab = findTab(latest.current, id);
       return tab?.dirty ? [tab] : [];
     });
-    if (dirty.length) {
+    if (dirty.length && !confirmCloseDirty) {
+      if (!(await saveTabs(dirty.map((x) => x.id)))) return;
+    } else if (dirty.length) {
       const choice = await choose({
         title: t('tabs.unsavedTitle'),
         body: dirty.length === 1 ? t('tabs.unsavedOne', { name: titleOf(dirty[0].route).title }) : t('tabs.unsavedMany', { count: dirty.length }),
