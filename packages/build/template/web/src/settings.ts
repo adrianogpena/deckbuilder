@@ -1,8 +1,11 @@
-import { createSettingsRegistry, registerDefaultSections } from '@deckbuilder/ui';
+import { createSettingsRegistry, DEFAULT_SECTIONS, sectionKey } from '@deckbuilder/ui';
 import type { Settings } from './api';
 
+/** The built-in sections this app has screens for; add more (e.g. `editor`, `terminal`) as the app grows. */
+const SECTIONS = ['general', 'appearance', 'window', 'keyboard', 'keyboard.shortcuts', 'system', 'system.updates'];
+
 export const settingsRegistry = createSettingsRegistry<Settings>();
-registerDefaultSections(settingsRegistry);
+for (const s of DEFAULT_SECTIONS) if (SECTIONS.includes(sectionKey(s.path))) settingsRegistry.registerSection(s);
 
 settingsRegistry.registerSettings([
   {

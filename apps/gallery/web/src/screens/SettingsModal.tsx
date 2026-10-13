@@ -1,9 +1,11 @@
-import { Fragment, type ReactNode, type RefObject, useEffect, useMemo, useRef, useState } from 'react';
+import { type CSSProperties, Fragment, type ReactNode, useMemo, useRef, useState } from 'react';
 import { formatSql } from '@deckbuilder/editor';
-import { AppearanceFields, SettingRow, fileSettingsOf, ZoomField, type ApiError, detectLanguage, type FileAssociation, validFileAssociations, ErrorBanner, errorMessage, errorOf, Icon, isDesktop, LANGUAGES, Modal, Spinner, useAsync, type Language } from '@deckbuilder/ui';
+import { AppearanceFields, SettingRow, fileSettingsOf, ZoomField, type ApiError, detectLanguage, type FileAssociation, validFileAssociations, ErrorBanner, errorMessage, errorOf, GLOBAL, isDesktop, KeybindingsEditor, LANGUAGES, Modal, Spinner, useAsync, useKeybindings, type Language, type SettingDef, type SettingsSectionNode, sectionKey } from '@deckbuilder/ui';
 import { APP } from '../../../app';
+import { NAV } from '../nav';
 import { api, type BackupInfo, type EditorInfo, type Project, type ImportResult, type Settings, type SqlFormatOptions, withWorkbenchDefaults } from '../api';
 import { type MessageKey, t } from '../i18n';
+import { en } from '../i18n/en';
 import { settingsRegistry } from '../settings';
 
 interface Props {
@@ -13,34 +15,97 @@ interface Props {
   onQuit: () => void;
 }
 
-const SECTIONS = [
-  { id: 'general', label: 'settings.general' },
-  { id: 'layout', label: 'settings.layout' },
-  { id: 'explorer', label: 'settings.explorer' },
-  { id: 'workbench', label: 'settings.workbench' },
-  { id: 'editor', label: 'settings.editor' },
-  { id: 'files', label: 'settings.files' },
-  { id: 'editors', label: 'settings.editors' },
-  { id: 'terminal', label: 'settings.terminal' },
-  { id: 'updates', label: 'settings.updates' },
-  { id: 'backup', label: 'settings.backup' },
-] as const satisfies ReadonlyArray<{ id: string; label: MessageKey }>;
-type SectionId = (typeof SECTIONS)[number]['id'];
+type Change = (patch: Partial<Settings>) => void;
+
+/** Translates `key` when it is a message, else falls back. */
+const tr = (key: string | undefined, fallback?: string): string =>
+  !key ? (fallback ?? '') : Object.hasOwn(en, key) ? t(key as MessageKey) : (fallback ?? key);
+
+const sectionLabel = (node: SettingsSectionNode): string => {
+  const key = sectionKey(node.path);
+  const last = node.path[node.path.length - 1] ?? key;
+  return tr(node.label, last.charAt(0).toUpperCase() + last.slice(1));
+};
+
+interface FlatNode {
+  node: SettingsSectionNode;
+  key: string;
+  depth: number;
+  /** Labels from the top level down to this node. */
+  trail: string[];
+}
+
+const flatten = (nodes: SettingsSectionNode[], depth = 0, trail: string[] = []): FlatNode[] =>
+  nodes.flatMap((node) => {
+    const here = [...trail, sectionLabel(node)];
+    return [{ node, key: sectionKey(node.path), depth, trail: here }, ...flatten(node.children, depth + 1, here)];
+  });
+
+const isUnder = (key: string, parent: string) => key === parent || key.startsWith(`${parent}.`);
+
+interface SectionHit {
+  /** The section label matched, so the whole section shows. */
+  whole: boolean;
+  /** Matching settings directly in the section. */
+  ids: string[];
+}
+
+/**
+ * Searches the schema like VS Code's settings search: a setting matches when its label, description or id holds
+ * every word; a section whose label matches (or sits under one that does) shows whole. Returns the sections with hits.
+ */
+function searchSchema(flat: FlatNode[], query: string): Map<string, SectionHit> {
+  const words = norm(query).trim().split(' ').filter(Boolean);
+  const found = new Map<string, SectionHit>();
+  if (words.length === 0) return found;
+  const wholeKeys: string[] = [];
+  for (const { node, key } of flat) {
+    const whole = words.every((w) => norm(sectionLabel(node)).includes(w)) || wholeKeys.some((k) => isUnder(key, k));
+    if (whole) wholeKeys.push(key);
+    const ids = settingsRegistry
+      .settingsIn(node.path)
+      .filter((s) => {
+        const text = norm([tr(s.label), tr(s.description), s.id].join(' '));
+        return whole || words.every((w) => text.includes(w));
+      })
+      .map((s) => s.id);
+    if (whole || ids.length > 0) found.set(key, { whole, ids });
+  }
+  return found;
+}
 
 /**
  * Settings as VS Code opens them: a modal editor over the current screen, closed with Escape or a click outside.
- * The keybindings have a screen of their own (`KeysScreen`), linked from the section list.
+ * The nav is the schema's section tree; a parent shows its own settings and its children's. Keyboard › Shortcuts
+ * holds the keybindings editor, which has its own filter; `initialSection` opens a section directly.
  */
-export function SettingsModal({ settings, onChange, onQuit, onClose, onOpenKeys }: Props & { onClose: () => void; onOpenKeys: () => void }) {
-  const [section, setSection] = useState<SectionId>('general');
+export function SettingsModal({ settings, onChange, onQuit, onClose, initialSection }: Props & { onClose: () => void; initialSection?: string }) {
+  const flat = useMemo(() => flatten(settingsRegistry.sectionTree()), []);
+  const [section, setSection] = useState(initialSection ?? flat[0]?.key ?? 'general');
+  // The initial section's ancestors start expanded, so the nav shows it.
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => {
+    const path = initialSection?.split('.') ?? [];
+    return new Set(path.slice(0, -1).map((_, i) => path.slice(0, i + 1).join('.')));
+  });
   const [query, setQuery] = useState('');
   const body = useRef<HTMLDivElement>(null);
   const searching = query.trim() !== '';
-  const hits = useSettingsFilter(body, searching ? query : '');
-  const render = (id: SectionId): ReactNode => {
-    switch (id) {
+  const hits = useMemo(() => searchSchema(flat, query), [flat, query]);
+  const deepCount = (key: string) => [...hits].reduce((n, [k, h]) => (isUnder(k, key) ? n + h.ids.length : n), 0);
+  const total = [...hits.values()].reduce((n, h) => n + h.ids.length, 0);
+
+  const render = (key: string): ReactNode => {
+    switch (key) {
       case 'general': return <GeneralSection settings={settings} onChange={onChange} onQuit={onQuit} />;
-      case 'layout':
+      case 'appearance':
+        return (
+          <section className="section">
+            <div className="card form">
+              <AppearanceFields value={settings} onChange={onChange} />
+            </div>
+          </section>
+        );
+      case 'window':
         return (
           <section className="section">
             <div className="card form">
@@ -48,80 +113,122 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, onOpenKeys 
             </div>
           </section>
         );
+      case 'editor': return <EditorCard settings={settings} onChange={onChange} />;
+      case 'editor.fileTypes': return <FileTypesCard value={settings.fileAssociations ?? []} onChange={(fileAssociations) => onChange({ fileAssociations })} />;
+      case 'editor.externalEditors': return <EditorsCard />;
       case 'explorer': return <ExplorerCard settings={settings} onChange={onChange} />;
       case 'workbench': return <WorkbenchCard settings={settings} onChange={onChange} />;
-      case 'editor': return <EditorCard settings={settings} onChange={onChange} />;
-      case 'files': return <FileTypesCard value={settings.fileAssociations ?? []} onChange={(fileAssociations) => onChange({ fileAssociations })} />;
-      case 'editors': return <EditorsCard />;
+      case 'workbench.results': return <ResultsCard settings={settings} onChange={onChange} />;
+      case 'workbench.sqlFormatter': return <FormatterCard settings={settings} onChange={onChange} />;
       case 'terminal': return <TerminalCard shell={settings.terminal?.shell ?? 'auto'} onShell={(shell) => onChange({ terminal: { shell } })} />;
-      case 'updates': return <UpdatesCard folder={settings.updateFolder} onFolder={(updateFolder) => onChange({ updateFolder })} />;
-      case 'backup': return <BackupCard onSettings={onChange} />;
+      case 'keyboard.shortcuts': return <ShortcutsSection settings={settings} onChange={onChange} />;
+      case 'system.updates': return <UpdatesCard folder={settings.updateFolder} onFolder={(updateFolder) => onChange({ updateFolder })} />;
+      case 'system.backup': return <BackupCard onSettings={onChange} />;
+      default: {
+        // Sections other packages or apps add: their schema rows.
+        const path = key.split('.');
+        const defs = settingsRegistry.settingsIn(path);
+        return defs.length > 0 ? <SettingRows ids={defs.map((d) => d.id)} settings={settings} onChange={onChange} /> : null;
+      }
     }
   };
-  const total = [...hits.values()].reduce((a, n) => a + n, 0);
+
+  const open = (key: string) => {
+    setQuery('');
+    setSection(key);
+    body.current?.scrollTo({ top: 0 });
+  };
+  const toggle = (key: string) => setExpanded((prev) => {
+    const next = new Set(prev);
+    if (!next.delete(key)) next.add(key);
+    return next;
+  });
+  // A node shows when its ancestors are expanded; while searching, when it or a descendant has hits.
+  const visible = (f: FlatNode) =>
+    searching
+      ? [...hits.keys()].some((k) => isUnder(k, f.key))
+      : f.node.path.slice(0, -1).every((_, i) => expanded.has(sectionKey(f.node.path.slice(0, i + 1))));
+  const selected = flat.find((f) => f.key === section) ?? flat[0];
+
   return (
     <Modal title={t('settings.title')} onClose={onClose} large>
-      <div className="settings-header">
-        <input
-          className="settings-search"
-          type="search"
-          value={query}
-          placeholder={t('settings.search')}
-          aria-label={t('settings.search')}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape' && query) {
-              e.stopPropagation();
-              setQuery('');
-            } else if (e.key === 'ArrowDown') {
-              // Like VS Code: down from the search box goes into the settings.
-              const first = body.current?.querySelector<HTMLElement>(`.field:not([hidden]) :is(${CONTROLS})`);
-              if (first) {
-                e.preventDefault();
-                first.focus();
-              }
-            }
-          }}
-        />
-        {searching && <span className="settings-count">{t(total === 1 ? 'settings.search.count.one' : 'settings.search.count', { n: total })}</span>}
-      </div>
       <div className="settings-layout">
         <nav className="settings-nav" aria-label={t('settings.title')}>
-          {SECTIONS.map((s) => (
-            <button
-              key={s.id}
-              className={`settings-nav-item${!searching && section === s.id ? ' active' : ''}`}
-              aria-current={!searching && section === s.id}
-              hidden={searching && !hits.has(s.id)}
-              onClick={() => {
+          <input
+            className="settings-search settings-nav-search"
+            type="search"
+            value={query}
+            placeholder={t('settings.search')}
+            aria-label={t('settings.search')}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape' && query) {
+                e.stopPropagation();
                 setQuery('');
-                setSection(s.id);
-                body.current?.scrollTo({ top: 0 });
-              }}
-            >
-              {t(s.label)}
-              {searching && <span className="settings-nav-count">{hits.get(s.id)}</span>}
-            </button>
-          ))}
-          <div className="settings-nav-sep" />
-          <button className="settings-nav-item settings-nav-link" onClick={onOpenKeys}>
-            <Icon name="key" />
-            {t('settings.keys')}
-          </button>
+              } else if (e.key === 'ArrowDown') {
+                // Like VS Code: down from the search box goes into the settings.
+                const first = body.current?.querySelector<HTMLElement>(`.field :is(${CONTROLS})`);
+                if (first) {
+                  e.preventDefault();
+                  first.focus();
+                }
+              }
+            }}
+          />
+          {searching && <span className="settings-count">{t(total === 1 ? 'settings.search.count.one' : 'settings.search.count', { n: total })}</span>}
+          {flat.filter(visible).map((f) => {
+            const parent = f.node.children.length > 0;
+            const isOpen = searching || expanded.has(f.key);
+            const active = !searching && section === f.key;
+            return (
+              <button
+                key={f.key}
+                className={`settings-nav-item${active ? ' active' : ''}`}
+                style={{ '--depth': f.depth } as CSSProperties}
+                aria-current={active}
+                aria-expanded={parent ? isOpen : undefined}
+                onClick={() => {
+                  if (parent && (!expanded.has(f.key) || active)) toggle(f.key);
+                  open(f.key);
+                }}
+              >
+                <span
+                  className={`settings-nav-twisty${parent ? '' : ' leaf'}${isOpen ? ' open' : ''}`}
+                  onClick={(e) => {
+                    if (!parent || searching) return;
+                    e.stopPropagation();
+                    toggle(f.key);
+                  }}
+                >
+                  ▶
+                </span>
+                {sectionLabel(f.node)}
+                {searching && <span className="settings-nav-count">{deepCount(f.key)}</span>}
+              </button>
+            );
+          })}
         </nav>
         <div className="scroll" ref={body}>
           {searching
-            ? SECTIONS.map((s) => (
-                <div key={s.id} className="settings-group" data-section={s.id} data-title={t(s.label)}>
-                  <h3 className="settings-group-title">{t(s.label)}</h3>
-                  {render(s.id)}
-                </div>
-              ))
-            : (
-                // Keyed apart from the search groups, so leaving a search remounts rows the filter hid.
-                <div key={`page-${section}`} className="settings-page">
-                  <h3 className="settings-group-title">{t(SECTIONS.find((s) => s.id === section)!.label)}</h3>
-                  {render(section)}
+            ? flat.filter((f) => hits.has(f.key)).map((f) => {
+                const hit = hits.get(f.key)!;
+                return (
+                  <div key={f.key} className="settings-group" data-section={f.key}>
+                    <h3 className="settings-group-title">{f.trail.join(' › ')}</h3>
+                    {hit.whole ? render(f.key) : <SettingRows ids={hit.ids} settings={settings} onChange={onChange} />}
+                  </div>
+                );
+              })
+            : selected && (
+                <div key={`page-${selected.key}`} className="settings-page">
+                  <h3 className="settings-group-title">{selected.trail.join(' › ')}</h3>
+                  {render(selected.key)}
+                  {flat.filter((f) => f.key !== selected.key && isUnder(f.key, selected.key)).map((f) => (
+                    <div key={f.key} className="settings-group" data-section={f.key}>
+                      <h3 className="settings-subgroup-title">{f.trail.slice(selected.trail.length).join(' › ')}</h3>
+                      {render(f.key)}
+                    </div>
+                  ))}
                 </div>
               )}
           {searching && hits.size === 0 && (
@@ -137,8 +244,31 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, onOpenKeys 
 }
 
 /** One schema setting rendered as a row. */
-function Row({ id, settings, onChange }: { id: string; settings: Settings; onChange: (patch: Partial<Settings>) => void }) {
+function Row({ id, settings, onChange }: { id: string; settings: Settings; onChange: Change }) {
   return <SettingRow def={settingsRegistry.setting(id)!} settings={settings} onChange={onChange} />;
+}
+
+/** A schema setting, custom ones with the field their section uses. */
+function SettingField({ def, settings, onChange }: { def: SettingDef<Settings>; settings: Settings; onChange: Change }) {
+  if (def.kind !== 'custom') return <SettingRow def={def} settings={settings} onChange={onChange} />;
+  const files = fileSettingsOf(settings.files);
+  switch (def.id) {
+    case 'files.nestingPatterns': return <NestingField value={files.nestingPatterns} onChange={(nestingPatterns) => onChange({ files: { ...files, nestingPatterns } })} />;
+    case 'files.exclude': return <ExcludeField value={files.exclude} onChange={(exclude) => onChange({ files: { ...files, exclude } })} />;
+    case 'workbench.explorerProjects': return <ProjectsRow settings={settings} onChange={onChange} />;
+    default: return null;
+  }
+}
+
+/** Schema settings as one card of rows (search results, sections with no screen of their own). */
+function SettingRows({ ids, settings, onChange }: { ids: string[]; settings: Settings; onChange: Change }) {
+  return (
+    <section className="section">
+      <div className="card form">
+        {ids.map((id) => <SettingField key={id} def={settingsRegistry.setting(id)!} settings={settings} onChange={onChange} />)}
+      </div>
+    </section>
+  );
 }
 
 // What ArrowDown in the search box focuses first.
@@ -146,58 +276,9 @@ const CONTROLS = 'input, select, textarea, button';
 
 const norm = (s: string | null | undefined) => (s ?? '').toLocaleLowerCase().replace(/\s+/g, ' ');
 
-/**
- * Filters the rendered settings while searching, like VS Code's settings search: a `.field` row stays when its
- * label (`.mono-label`) or description (`.muted`, also a checkbox's) holds every word; cards, sections and groups
- * with no row left hide. A group whose title matches keeps all its rows. It works on the DOM, so the hand-written
- * rows need no wiring, and re-runs when async cards (editors, updates, backup) fill in. Returns the number of
- * matching rows per section with hits.
- */
-function useSettingsFilter(root: RefObject<HTMLElement | null>, query: string): Map<string, number> {
-  const [hits, setHits] = useState<Map<string, number>>(() => new Map());
-  useEffect(() => {
-    const el = root.current;
-    const words = norm(query).trim().split(' ').filter(Boolean);
-    if (!el || words.length === 0) {
-      setHits((prev) => (prev.size === 0 ? prev : new Map()));
-      return;
-    }
-    const apply = () => {
-      const found = new Map<string, number>();
-      for (const group of el.querySelectorAll<HTMLElement>('.settings-group')) {
-        const whole = words.every((w) => norm(group.dataset.title).includes(w));
-        for (const field of group.querySelectorAll<HTMLElement>('.field')) {
-          const text = norm([...field.querySelectorAll(':scope > .mono-label, :scope > .muted, :scope > .setting-check > .muted')].map((n) => n.textContent).join(' '));
-          field.hidden = !(whole || words.every((w) => text.includes(w)));
-        }
-        // Innermost first, so a section sees its cards' final state.
-        for (const box of [...group.querySelectorAll<HTMLElement>('.card, .section')].reverse()) {
-          box.hidden = box.querySelector('.field') ? !box.querySelector('.field:not([hidden])') : !whole;
-        }
-        const rows = group.querySelectorAll('.field:not([hidden])').length;
-        const any = whole || rows > 0;
-        group.hidden = !any;
-        if (any && group.dataset.section) found.set(group.dataset.section, rows);
-      }
-      setHits((prev) => (prev.size === found.size && [...found].every(([s, n]) => prev.get(s) === n) ? prev : found));
-    };
-    apply();
-    const observer = new MutationObserver(apply);
-    observer.observe(el, { childList: true, subtree: true, characterData: true });
-    return () => observer.disconnect();
-  }, [root, query]);
-  return hits;
-}
-
 function GeneralSection({ settings, onChange, onQuit }: Props) {
   return (
     <>
-      <section className="section">
-        <h4 className="mono-label">{t('settings.theme')}</h4>
-        <div className="card form">
-          <AppearanceFields value={settings} onChange={onChange} />
-        </div>
-      </section>
       <div className="card form">
         <label className="field">
           <span className="mono-label">{t('settings.language')}</span>
@@ -212,6 +293,16 @@ function GeneralSection({ settings, onChange, onQuit }: Props) {
     </>
   );
 }
+
+/** Every command of the app, with the keys the user can change; a change applies at once. It has its own filter. */
+function ShortcutsSection({ settings, onChange }: { settings: Settings; onChange: Change }) {
+  const keys = useKeybindings();
+  if (!keys) return null;
+  const screens = NAV.flatMap((s) => s.items);
+  const scopeLabel = (scope: string) => (scope === GLOBAL ? t('keys.global') : t(screens.find((i) => i.id === scope)?.label ?? 'nav.home'));
+  return <KeybindingsEditor defs={keys.defs} keymap={settings.keybindings ?? {}} onChange={(keybindings) => onChange({ keybindings })} scopeLabel={scopeLabel} />;
+}
+
 
 /** Saving text files, like VS Code's `files.*` settings; the Explorer's file tabs read them. */
 function EditorCard({ settings, onChange }: { settings: Settings; onChange: (patch: Partial<Settings>) => void }) {
@@ -318,9 +409,52 @@ function ProjectsField({ projects, error, onRetry, value, onChange }: {
   );
 }
 
-/** Which projects run SQL from the Explorer, how result cells read, and the SQL formatter options with a live preview. */
-function WorkbenchCard({ settings, onChange }: { settings: Settings; onChange: (patch: Partial<Settings>) => void }) {
+/** The allowed projects field with the project list loaded. */
+function ProjectsRow({ settings, onChange }: { settings: Settings; onChange: Change }) {
   const projects = useAsync(() => api.projects(), []);
+  const wb = withWorkbenchDefaults(settings.workbench);
+  return (
+    <ProjectsField
+      projects={projects.data}
+      error={projects.error}
+      onRetry={projects.reload}
+      value={wb.explorerProjects}
+      onChange={(explorerProjects) => onChange({ workbench: { ...wb, explorerProjects } })}
+    />
+  );
+}
+
+/** Which projects run SQL from the Explorer, and how many rows a run fetches. */
+function WorkbenchCard({ settings, onChange }: { settings: Settings; onChange: Change }) {
+  return (
+    <section className="section">
+      <h4 className="mono-label">{t('settings.workbench.sql')}</h4>
+      <div className="card form">
+        <ProjectsRow settings={settings} onChange={onChange} />
+        <Row id="workbench.maxRows" settings={settings} onChange={onChange} />
+      </div>
+    </section>
+  );
+}
+
+/** How result cells read and copy. */
+function ResultsCard({ settings, onChange }: { settings: Settings; onChange: Change }) {
+  return (
+    <section className="section">
+      <div className="card form">
+        <Row id="workbench.results.nullText" settings={settings} onChange={onChange} />
+        <Row id="workbench.results.dateFormat" settings={settings} onChange={onChange} />
+        <Row id="workbench.results.hideMidnight" settings={settings} onChange={onChange} />
+        <Row id="workbench.results.timestampFormat" settings={settings} onChange={onChange} />
+        <Row id="workbench.results.thousandsSeparator" settings={settings} onChange={onChange} />
+        <Row id="workbench.copyFormat" settings={settings} onChange={onChange} />
+      </div>
+    </section>
+  );
+}
+
+/** The SQL formatter options with a live preview. */
+function FormatterCard({ settings, onChange }: { settings: Settings; onChange: Change }) {
   const wb = withWorkbenchDefaults(settings.workbench);
   const preview = useMemo(() => {
     try {
@@ -331,30 +465,6 @@ function WorkbenchCard({ settings, onChange }: { settings: Settings; onChange: (
   }, [wb.format]);
   return (
     <>
-      <section className="section">
-        <h4 className="mono-label">{t('settings.workbench.sql')}</h4>
-        <div className="card form">
-          <ProjectsField
-            projects={projects.data}
-            error={projects.error}
-            onRetry={projects.reload}
-            value={wb.explorerProjects}
-            onChange={(explorerProjects) => onChange({ workbench: { ...wb, explorerProjects } })}
-          />
-          <Row id="workbench.maxRows" settings={settings} onChange={onChange} />
-        </div>
-      </section>
-      <section className="section">
-        <h4 className="mono-label">{t('settings.workbench.results')}</h4>
-        <div className="card form">
-          <Row id="workbench.results.nullText" settings={settings} onChange={onChange} />
-          <Row id="workbench.results.dateFormat" settings={settings} onChange={onChange} />
-          <Row id="workbench.results.hideMidnight" settings={settings} onChange={onChange} />
-          <Row id="workbench.results.timestampFormat" settings={settings} onChange={onChange} />
-          <Row id="workbench.results.thousandsSeparator" settings={settings} onChange={onChange} />
-          <Row id="workbench.copyFormat" settings={settings} onChange={onChange} />
-        </div>
-      </section>
       {FORMAT_GROUPS.map((group) => (
         <section key={group.id} className="section">
           <h4 className="mono-label">{t(`settings.workbench.group.${group.id}` as MessageKey)}</h4>

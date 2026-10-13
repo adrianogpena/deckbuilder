@@ -5,7 +5,6 @@ import { APP } from '../../app';
 import { api, type Settings } from './api';
 import { type MessageKey, t } from './i18n';
 import { Home } from './screens/Home';
-import { KeysModal } from './screens/KeysModal';
 import { SettingsModal } from './screens/SettingsModal';
 
 const SCREENS = ['home'] as const;
@@ -41,8 +40,8 @@ function commands(): CommandDef[] {
 // Retrying can't revive a used launch code or a stale token; the user has to open the app again.
 const SESSION_ERRORS = ['invalidCode', 'invalidToken'];
 
-// Settings and keybindings are modals over the current screen, not screens; app links (toasts, second instances)
-// still open them with `#/settings` and `#/keys`.
+// Settings is a modal over the current screen, not a screen; 'keys' opens it at Keyboard › Shortcuts. App links
+// (toasts, second instances) still open them with `#/settings` and `#/keys`.
 type Overlay = 'settings' | 'keys';
 const overlayOfHash = (): Overlay | null => (/^#\/?(settings|keys)\/?$/.exec(window.location.hash)?.[1] as Overlay | undefined) ?? null;
 
@@ -151,7 +150,7 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
   const sections = NAV.map((s) => ({ title: t(s.title), items: s.items.map((i) => ({ ...i, label: t(i.label), hint: chordOf(navCommandId(i.id)) })) }));
 
   return (
-    <div className={"app nav-collapsed"}>
+    <div className="app nav-collapsed">
       <Sidebar
         name={APP.name}
         sections={sections}
@@ -160,8 +159,8 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
         collapsed
         footer={
           <>
-            <button className="btn btn-ghost btn-sm" onClick={() => save({ theme: nextTheme })} title={t(`nav.theme.${nextTheme}`)}>
-              <Icon name={kind === 'dark' ? 'sun' : 'moon'} />{!collapsed && ` ${t(`nav.theme.${nextTheme}`)}`}
+            <button className="btn btn-ghost btn-sm btn-icon" onClick={() => save({ theme: nextTheme })} title={t(`nav.theme.${nextTheme}`)} aria-label={t(`nav.theme.${nextTheme}`)}>
+              <Icon name={kind === 'dark' ? 'sun' : 'moon'} />
             </button>
             <button className={`btn btn-ghost btn-sm${overlay ? ' active' : ''} btn-icon`} onClick={() => setOverlay('settings')} title={t('nav.settings')} aria-label={t('nav.settings')}>
               <Icon name="settings" />
@@ -172,17 +171,16 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
           </>
         }
       />
-      <main className="main">{renderScreen(screen, settings, save)}</main>
-      {overlay === 'settings' && (
-        <SettingsModal settings={settings} onChange={save} onQuit={() => setStopped(true)} onClose={() => setOverlay(null)} onOpenKeys={() => setOverlay('keys')} />
+      <main className="main">{renderScreen(screen)}</main>
+      {overlay && (
+        <SettingsModal key={overlay} settings={settings} onChange={save} onQuit={() => setStopped(true)} onClose={() => setOverlay(null)} initialSection={overlay === 'keys' ? 'keyboard.shortcuts' : undefined} />
       )}
-      {overlay === 'keys' && <KeysModal settings={settings} onSave={save} onClose={() => setOverlay(null)} />}
       {palette.open && <CommandPalette items={items} onClose={() => palette.setOpen(false)} />}
     </div>
   );
 }
 
-function renderScreen(screen: ScreenId, settings: Settings, save: (patch: Partial<Settings>) => void) {
+function renderScreen(screen: ScreenId) {
   switch (screen) {
     default:
       return <Home />;

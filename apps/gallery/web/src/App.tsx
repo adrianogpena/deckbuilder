@@ -10,7 +10,6 @@ import { NAV, SCREENS, type ScreenId } from './nav';
 import { ExplorerScreen } from './screens/ExplorerScreen';
 import { GridScreen } from './screens/GridScreen';
 import { Home } from './screens/Home';
-import { KeysModal } from './screens/KeysModal';
 import { SettingsModal } from './screens/SettingsModal';
 import { TabsScreen } from './screens/TabsScreen';
 
@@ -23,8 +22,8 @@ const TerminalScreen = lazy(() => import('./screens/TerminalScreen').then((m) =>
 // Retrying can't revive a used launch code or a stale token; the user has to open the app again.
 const SESSION_ERRORS = ['invalidCode', 'invalidToken'];
 
-// Settings and keybindings are modals over the current screen, not screens; app links (toasts, second instances)
-// still open them with `#/settings` and `#/keys`.
+// Settings is a modal over the current screen, not a screen; 'keys' opens it at Keyboard › Shortcuts. App links
+// (toasts, second instances) still open them with `#/settings` and `#/keys`.
 type Overlay = 'settings' | 'keys';
 const overlayOfHash = (): Overlay | null => (/^#\/?(settings|keys)\/?$/.exec(window.location.hash)?.[1] as Overlay | undefined) ?? null;
 
@@ -159,10 +158,9 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
           }
         />
         <main className="main">{renderScreen(screen, settings, save, go)}</main>
-        {overlay === 'settings' && (
-          <SettingsModal settings={settings} onChange={save} onQuit={() => setStopped(true)} onClose={() => setOverlay(null)} onOpenKeys={() => setOverlay('keys')} />
+        {overlay && (
+          <SettingsModal key={overlay} settings={settings} onChange={save} onQuit={() => setStopped(true)} onClose={() => setOverlay(null)} initialSection={overlay === 'keys' ? 'keyboard.shortcuts' : undefined} />
         )}
-        {overlay === 'keys' && <KeysModal settings={settings} onSave={save} onClose={() => setOverlay(null)} />}
         {palette.open && <CommandPalette items={items} initialQuery={palette.initialQuery} onClose={() => palette.setOpen(false)} />}
       </div>
     </ToastProvider>

@@ -4,16 +4,14 @@ import type { SettingDef } from '../settings-schema';
 
 const tr = (key: string): string => tryT(key) ?? key;
 
-/** A boolean as VS Code shows it: one checkbox whose label is the description. */
+/** A boolean as one tick-box row: label on the left, checkbox on the right edge, description below the label. */
 export function OnOffField({ label, hint, value, onChange }: { label: string; hint: string; value: boolean; onChange: (on: boolean) => void }) {
   return (
-    <div className="field">
+    <label className="field setting-check">
       <span className="mono-label">{label}</span>
-      <label className="setting-check">
-        <input type="checkbox" checked={value} aria-label={label} onChange={(e) => onChange(e.target.checked)} />
-        {hint && <span className="muted">{hint}</span>}
-      </label>
-    </div>
+      {hint && <span className="muted">{hint}</span>}
+      <input type="checkbox" checked={value} aria-label={label} onChange={(e) => onChange(e.target.checked)} />
+    </label>
   );
 }
 
