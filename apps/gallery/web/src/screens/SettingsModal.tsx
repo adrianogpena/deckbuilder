@@ -1,5 +1,5 @@
 import { type CSSProperties, Fragment, type ReactNode, useMemo, useRef, useState } from 'react';
-import { formatSql } from '@deckbuilder/editor';
+import { CodeView, formatSql } from '@deckbuilder/editor';
 import { AppearanceFields, SettingRow, fileSettingsOf, ZoomField, type ApiError, detectLanguage, type FileAssociation, validFileAssociations, ErrorBanner, errorMessage, errorOf, GLOBAL, isDesktop, KeybindingsEditor, LANGUAGES, Modal, Spinner, useAsync, useKeybindings, type Language, type SettingDef, type SettingsSectionNode, sectionKey } from '@deckbuilder/ui';
 import { APP } from '../../../app';
 import { NAV } from '../nav';
@@ -354,8 +354,14 @@ const FORMAT_GROUPS: ReadonlyArray<{ id: string; keys: ReadonlyArray<keyof SqlFo
   { id: 'statements', keys: ['indent', 'groupOrderListPerLine', 'fromTablesPerLine', 'setItemsPerLine', 'blankLineBetweenStatements'] },
 ];
 
+/** Exercises every format option: comments, CASE, JOIN, several FROM tables, IN list, subqueries, GROUP/ORDER lists, UPDATE SET. */
 const FORMAT_SAMPLE =
-  "select e.id, e.name, lower(d.title) as dept, case when e.salary > 5000 then 'high' else 'low' end as band from employees e join departments d on d.id = e.dept_id where e.active = 1 and d.region in (select region from regions where code = 'EU') order by e.name;\nupdate employees set salary = salary * 1.1, updated = sysdate where dept_id = 10;";
+  "-- active staff per department\n" +
+  "select e.id, e.name, lower(d.title) as dept, count(*) as n, case when e.salary>5000 then 'high' when e.salary>2000 then 'mid' else 'low' end as band /* salary band */ " +
+  "from employees e join departments d on d.id=e.dept_id and d.active=1, locations l " +
+  "where e.active=1 and l.id=d.location_id and (e.status in ('A', 'B', 'C') or e.manager_id is null) and d.region in (select region from regions where code='EU') " +
+  "group by e.id, e.name, d.title, e.salary order by dept, e.name;\n" +
+  "update employees set salary=salary*1.1, updated=sysdate, note='raise' where dept_id in (select id from departments where region='EU');";
 
 /** Allowed projects as a short list with remove buttons, and a searchable "add" list for the rest. */
 function ProjectsField({ projects, error, onRetry, value, onChange }: {
@@ -464,25 +470,23 @@ function FormatterCard({ settings, onChange }: { settings: Settings; onChange: C
     }
   }, [wb.format]);
   return (
-    <>
-      {FORMAT_GROUPS.map((group) => (
-        <section key={group.id} className="section">
-          <h4 className="mono-label">{t(`settings.workbench.group.${group.id}` as MessageKey)}</h4>
-          <div className="card form">
-            {group.keys.map((key) => <Row key={key} id={`workbench.format.${key}`} settings={settings} onChange={onChange} />)}
-          </div>
-        </section>
-      ))}
-      <section className="section">
+    <div className="settings-format">
+      <aside className="settings-format-preview">
         <h4 className="mono-label">{t('settings.workbench.preview')}</h4>
-        <div className="card form">
-          <div className="field">
-            <span className="muted">{t('settings.workbench.preview.hint')}</span>
-            <pre className="mono">{preview}</pre>
-          </div>
-        </div>
-      </section>
-    </>
+        <span className="muted">{t('settings.workbench.preview.hint')}</span>
+        <CodeView value={preview} lang="sql" />
+      </aside>
+      <div className="settings-format-options">
+        {FORMAT_GROUPS.map((group) => (
+          <section key={group.id} className="section">
+            <h4 className="mono-label">{t(`settings.workbench.group.${group.id}` as MessageKey)}</h4>
+            <div className="card form">
+              {group.keys.map((key) => <Row key={key} id={`workbench.format.${key}`} settings={settings} onChange={onChange} />)}
+            </div>
+          </section>
+        ))}
+      </div>
+    </div>
   );
 }
 

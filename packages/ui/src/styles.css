@@ -945,6 +945,14 @@ kbd {
 .modal-large .settings-layout { gap: 0; }
 .modal-large .settings-nav { padding: 10px 8px; border-right: 1px solid var(--border); background: var(--bg-sunken); overflow: auto; }
 .modal-large .settings-layout > .scroll { padding: 16px 20px 24px; }
+/* SQL Formatter page: preview beside the options, or above them once they wrap; sticky either way. */
+.settings-format { display: flex; flex-direction: row-reverse; flex-wrap: wrap; align-items: flex-start; gap: 16px; }
+.settings-format-options { flex: 1 1 340px; min-width: 0; }
+.settings-format-preview {
+  flex: 1 1 320px; min-width: 0; position: sticky; top: 0; z-index: 2;
+  display: flex; flex-direction: column; gap: 6px; padding-bottom: 8px; background: var(--bg-elev);
+}
+.settings-format-preview .cm-editor { max-height: min(55vh, 520px); }
 @media (max-width: 720px) {
   .settings-layout { grid-template-columns: 1fr; gap: 8px; grid-template-rows: auto minmax(0, 1fr); }
   .settings-nav { flex-direction: row; flex-wrap: wrap; }
