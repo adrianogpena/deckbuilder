@@ -41,6 +41,7 @@ import {
 } from '@deckbuilder/ui';
 import { closeSession } from '@deckbuilder/terminal';
 import { api, type ExplorerSettings, type LogSettings, type Project, type Settings } from '../api';
+import { takeExplorerRequest } from '../explorer-request';
 import { commandById, terminalAppKeys } from '../commands';
 import { fullPath, nodeId } from '../explorer-paths';
 import { t } from '../i18n';
@@ -429,6 +430,13 @@ export function ExplorerScreen({ settings, onSave, go }: { settings: Settings; o
     if (!shown.some((p) => p.id === project)) pickProject(project, focus);
     setRevealTick((n) => n + 1);
   };
+  // A file sent by another screen (Git): reveal it, and open it when asked.
+  useEffect(() => {
+    const request = projects.data && takeExplorerRequest();
+    if (!request) return;
+    if (request.open) openFile(request.project, request.path);
+    revealFile(request.project, request.path);
+  }, [projects.data]);
   useCommand(commandById('explorer.revealInTree'), () => activeFile && revealFile(activeFile.project, activeFile.path), { enabled: !!activeFile });
 
   useEffect(() => {

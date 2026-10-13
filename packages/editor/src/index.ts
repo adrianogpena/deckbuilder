@@ -1,6 +1,7 @@
 export * from './ArchiveView';
 export * from './CodeEditor';
 export * from './CodeView';
+export * from './DiffView';
 export * from './FilePreview';
 export * from './http';
 export { HEX_LIMIT } from './HexView';

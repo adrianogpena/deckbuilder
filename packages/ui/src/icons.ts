@@ -76,6 +76,7 @@ export const PATHS = {
   'folder-image': 'M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM14 18l2.5-3 2 2 1-1.5',
   'folder-terminal': 'M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM14 12.5l2 2-2 2M17 17.5h2',
   'folder-git': 'M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM15 11.5v7M18.5 11.5a1 1 0 1 1 0 .01M15 17c3.5 0 3.5-2 3.5-4.5',
+  'git-branch': 'M6 3v12M21 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0M18 9a9 9 0 0 1-9 9',
   'folder-build': 'M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM16.5 11.5l3 1.5v3.5l-3 1.5-3-1.5V13z',
 } as const satisfies Record<string, string>;
 

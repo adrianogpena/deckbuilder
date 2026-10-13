@@ -72,6 +72,21 @@
 .rest-pane { display: flex; flex-direction: column; gap: 10px; min-width: 0; min-height: 0; height: 100%; padding: 10px 14px; overflow: auto; }
 .rest-auth { max-width: 420px; }
 .rest-body > :last-child { flex: 1; min-width: 0; }
+.git-list { width: 300px; gap: 8px; }
+.git-repo { display: flex; flex-direction: column; gap: 2px; }
+.git-repo-head { display: flex; align-items: center; gap: 6px; padding: 4px 6px; min-width: 0; }
+.git-reason { margin: 0 0 0 28px; font-size: 12px; color: var(--muted); }
+.git-group { display: flex; flex-direction: column; }
+.git-group > .mono-label { padding: 4px 6px 2px; }
+.git-file { border-radius: 6px; }
+.git-file:hover, .git-file.active { background: var(--hover); }
+.git-letter { flex-shrink: 0; width: 14px; text-align: center; font-family: var(--mono, monospace); font-weight: 600; }
+.git-letter.ok { color: var(--ok); }
+.git-letter.warn { color: var(--warn); }
+.git-letter.err { color: var(--err); }
+.git-diff { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.git-conflict { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.git-conflict-body { flex: 1; min-height: 0; overflow: auto; }
 .rest-main { display: flex; flex-direction: column; min-height: 0; }
 .rest-main > :last-child { flex: 1; min-height: 0; }
 

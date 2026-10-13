@@ -656,6 +656,19 @@ html[data-status-bar="false"] .status-bar { display: none; }
 /* ---- code editor and viewers (@deckbuilder/editor) */
 .code-editor, .code-view { min-width: 0; min-height: 0; border: 1px solid var(--border-soft); border-radius: 8px; overflow: hidden; }
 .code-editor:focus-within { border-color: var(--accent); }
+.diff-view { display: flex; flex-direction: column; gap: 6px; min-width: 0; min-height: 0; height: 100%; }
+.diff-view-bar { display: flex; gap: 2px; align-self: flex-end; }
+.diff-view-bar button { padding: 2px 10px; border: 1px solid var(--border-soft); border-radius: 6px; background: none; color: var(--text-2); cursor: pointer; }
+.diff-view-bar button.active { background: var(--accent-soft); border-color: var(--accent); color: var(--text); }
+.diff-view-body { flex: 1; min-height: 0; border: 1px solid var(--border-soft); border-radius: 8px; overflow: hidden; }
+.diff-view-body > .cm-mergeView, .diff-view-body > .cm-editor { height: 100%; }
+.diff-view-body .cm-editor.cm-merge-a .cm-changedLine, .diff-view-body .cm-editor .cm-deletedChunk { background: var(--err-soft); }
+.diff-view-body .cm-editor.cm-merge-b .cm-changedLine, .diff-view-body .cm-editor .cm-inlineChangedLine { background: var(--ok-soft); }
+.diff-view-body .cm-editor.cm-editor.cm-merge-a .cm-changedText, .diff-view-body .cm-editor.cm-editor .cm-deletedChunk .cm-deletedText { background: var(--err-soft); }
+.diff-view-body .cm-editor.cm-editor.cm-merge-b .cm-changedText { background: var(--ok-soft); }
+.diff-view-body .cm-editor.cm-editor.cm-merge-a .cm-changedLineGutter, .diff-view-body .cm-editor.cm-editor .cm-deletedLineGutter { background: var(--err); }
+.diff-view-body .cm-editor.cm-editor.cm-merge-b .cm-changedLineGutter, .diff-view-body .cm-editor.cm-editor .cm-changedLineGutter { background: var(--ok); }
+.diff-view-body .cm-editor.cm-editor .cm-collapsedLines { background: var(--hover); color: var(--text-2); }
 .code-view-plain {
   margin: 0; padding: 8px 10px; overflow: auto; background: var(--bg-sunken); color: var(--text);
   border: 1px solid var(--border-soft); border-radius: 8px; font-family: var(--font-mono); font-size: 12.5px; line-height: 1.55;

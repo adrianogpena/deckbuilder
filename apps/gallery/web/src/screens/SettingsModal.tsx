@@ -213,6 +213,7 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
           </>
         );
       case 'keyboard': return <SettingRows ids={groupIds('keyboard')} settings={draft} onChange={change} />;
+      case 'git': return <SettingRows ids={groupIds('git')} settings={draft} onChange={change} />;
       case 'keyboard.shortcuts': return <ShortcutsSection settings={settings} onChange={onChange} />;
       case 'system.updates': return <UpdatesCard folder={draft.updateFolder} onFolder={(updateFolder) => change({ updateFolder })} />;
       case 'system.backup': return (

@@ -69,6 +69,7 @@ export interface Settings extends BaseSettings {
   general?: Record<string, string | number | boolean>;
   /** Shortcut behavior, checked by `validGroup`. */
   keyboard?: Record<string, string | number | boolean>;
+  git?: Record<string, string | number | boolean>;
   /** Layout of the Terminal screen's tabs (`serialize`); the UI validates it on restore. */
   terminalLayout?: unknown;
 }
@@ -311,6 +312,9 @@ const GENERAL_SPEC: Record<string, FieldSpec> = {
 const KEYBOARD_SPEC: Record<string, FieldSpec> = {
   chordTimeout: [500, 10_000],
 };
+const GIT_SPEC: Record<string, FieldSpec> = {
+  diffMode: ['split', 'inline'],
+};
 const TERMINAL_SPEC: Record<string, FieldSpec> = {
   fontFamily: 'string',
   fontSize: [8, 32],
@@ -394,6 +398,8 @@ const settings = settingsStore<Settings>({
     if (general) next.general = general;
     const keyboard = validGroup(patch.keyboard, KEYBOARD_SPEC);
     if (keyboard) next.keyboard = keyboard;
+    const git = validGroup(patch.git, GIT_SPEC);
+    if (git) next.git = git;
     if (typeof patch.terminalLayout === 'object' && patch.terminalLayout !== null && JSON.stringify(patch.terminalLayout).length < MAX_TABS_LAYOUT_BYTES) {
       next.terminalLayout = patch.terminalLayout;
     }

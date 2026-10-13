@@ -7,7 +7,7 @@ import { APP } from '../../app';
 import { api, type Settings } from './api';
 import { commandById, commands, KEYS_COMMAND, navCommandId, SETTINGS_COMMAND } from './commands';
 import { t } from './i18n';
-import { appearanceSettingsOf, editorSettingsOf, generalSettingsOf, keyboardSettingsOf,terminalSettingsOf, windowSettingsOf } from './settings';
+import { appearanceSettingsOf, editorSettingsOf, generalSettingsOf, gitSettingsOf, keyboardSettingsOf, terminalSettingsOf, windowSettingsOf } from './settings';
 import { useZen } from './zen';
 import { NAV, SCREENS, type ScreenId } from './nav';
 import { ExplorerScreen } from './screens/ExplorerScreen';
@@ -21,6 +21,7 @@ const WorkbenchScreen = lazy(() => import('./screens/WorkbenchScreen').then((m) 
 const RestScreen = lazy(() => import('./screens/RestScreen').then((m) => ({ default: m.RestScreen })));
 // xterm.js is large too.
 const TerminalScreen = lazy(() => import('./screens/TerminalScreen').then((m) => ({ default: m.TerminalScreen })));
+const GitScreen = lazy(() => import('./screens/GitScreen').then((m) => ({ default: m.GitScreen })));
 
 // Retrying can't revive a used launch code or a stale token; the user has to open the app again.
 const SESSION_ERRORS = ['invalidCode', 'invalidToken'];
@@ -212,6 +213,8 @@ function renderScreen(screen: ScreenId, settings: Settings, save: (patch: Partia
       return <Suspense fallback={<PanelLoading />}><RestScreen settings={settings} onSave={save} /></Suspense>;
     case 'terminal':
       return <Suspense fallback={<PanelLoading />}><TerminalScreen settings={settings} onSave={save} /></Suspense>;
+    case 'git':
+      return <Suspense fallback={<PanelLoading />}><GitScreen settings={settings} go={go} initialDiffMode={gitSettingsOf(settings).diffMode} /></Suspense>;
     default:
       return <Home />;
   }

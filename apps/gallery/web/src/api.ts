@@ -1,7 +1,7 @@
 import { type ArchiveContent, type SqliteContent, type SqlFormatOptions } from '@deckbuilder/editor';
 import type { HttpRequestDraft } from '@deckbuilder/editor/http';
 import type { ThemeSettings } from '@deckbuilder/server-core/palettes';
-import type { BackupInspect, EditorInfo, HttpRequestSpec, HttpResponseInfo, ImportResult, TailChunk, UpdateState } from '@deckbuilder/server-core/protocol';
+import type { BackupInspect, EditorInfo, GitDiff, GitFileContent, GitRepoInfo, GitStatus, HttpRequestSpec, HttpResponseInfo, ImportResult, TailChunk, UpdateState } from '@deckbuilder/server-core/protocol';
 
 export type { EditorInfo, ImportResult, TailChunk };
 import type { SessionInfo } from '@deckbuilder/terminal';
@@ -48,6 +48,8 @@ export interface Settings extends ThemeSettings {
   general?: GeneralSettings;
   /** Shortcut behavior; the server validates it. */
   keyboard?: KeyboardSettings;
+  /** Git screen behavior; the server validates it. */
+  git?: GitSettings;
   /** Layout of the Terminal screen's tabs; restored (and validated) by the screen. */
   terminalLayout?: unknown;
 }
@@ -95,6 +97,11 @@ export interface GeneralSettings {
 export interface KeyboardSettings {
   /** Milliseconds the next key of a multi-step shortcut may take, 500 to 10 000. */
   chordTimeout?: number;
+}
+
+export interface GitSettings {
+  /** How the Git screen lays out a diff. */
+  diffMode?: 'split' | 'inline';
 }
 
 export interface TerminalSettings {
@@ -309,6 +316,10 @@ export const api = {
     request<SqliteContent>('GET', '/api/fs/sqlite', { root, path, table, offset }),
   fsStat: (root: string, path: string) => request<FsEntry>('GET', '/api/fs/stat', { root, path }),
   fsRead: (root: string, path: string) => request<FsRead>('GET', '/api/fs/read', { root, path }),
+  gitRepos: () => request<GitRepoInfo[]>('GET', '/api/git/repos'),
+  gitStatus: (root: string) => request<GitStatus>('GET', '/api/git/status', { root }),
+  gitFile: (root: string, path: string, from: 'head' | 'index') => request<GitFileContent>('GET', '/api/git/file', { root, path, from }),
+  gitDiff: (root: string, path: string, staged: boolean) => request<GitDiff>('GET', '/api/git/diff', { root, path, staged: staged ? '1' : '0' }),
   fsCreate: (root: string, path: string, kind: 'file' | 'dir') => request<FsEntry>('POST', '/api/fs/create', {}, { root, path, kind }),
   fsTail: (root: string, path: string, from?: number, max?: number) =>
     request<TailChunk>('GET', '/api/fs/tail', { root, path, from, max }),
