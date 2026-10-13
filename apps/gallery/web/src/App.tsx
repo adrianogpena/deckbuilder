@@ -1,16 +1,17 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PALETTES } from '@deckbuilder/server-core/palettes';
 import { CommandPalette, detectLanguage, effectiveKeys, ErrorBanner, Icon, isDesktop, KeybindingProvider, type PaletteItem, PanelLoading, setFileAssociations, setLanguage, Sidebar, Spinner, ToastProvider, useAsync, useCommand, useCommandPalette, useHashRoute, useHeartbeat, useKeybindings, useTheme, useZoom } from '@deckbuilder/ui';
 import { APP } from '../../app';
 import { api, type Settings } from './api';
-import { commandById, commands, navCommandId } from './commands';
+import { commandById, commands, KEYS_COMMAND, navCommandId, SETTINGS_COMMAND } from './commands';
 import { t } from './i18n';
 import { useZen } from './zen';
 import { NAV, SCREENS, type ScreenId } from './nav';
 import { ExplorerScreen } from './screens/ExplorerScreen';
 import { GridScreen } from './screens/GridScreen';
 import { Home } from './screens/Home';
-import { SettingsScreen } from './screens/SettingsScreen';
+import { KeysModal } from './screens/KeysModal';
+import { SettingsModal } from './screens/SettingsModal';
 import { TabsScreen } from './screens/TabsScreen';
 
 // The editor and its language parsers are a separate chunk, loaded on first visit.
@@ -21,6 +22,11 @@ const TerminalScreen = lazy(() => import('./screens/TerminalScreen').then((m) =>
 
 // Retrying can't revive a used launch code or a stale token; the user has to open the app again.
 const SESSION_ERRORS = ['invalidCode', 'invalidToken'];
+
+// Settings and keybindings are modals over the current screen, not screens; app links (toasts, second instances)
+// still open them with `#/settings` and `#/keys`.
+type Overlay = 'settings' | 'keys';
+const overlayOfHash = (): Overlay | null => (/^#\/?(settings|keys)\/?$/.exec(window.location.hash)?.[1] as Overlay | undefined) ?? null;
 
 /** Loads the settings first, so the first paint already has the right theme and language. */
 export function App() {
@@ -38,12 +44,27 @@ export function App() {
 
 function Shell({ initialSettings }: { initialSettings: Settings }) {
   const [settings, setSettings] = useState(initialSettings);
+  const [overlay, setOverlay] = useState(overlayOfHash);
+  const shown = useRef<ScreenId>('home');
+  // Before useHashRoute, so this listener runs first: it puts the shown screen back in the hash for the router.
+  useEffect(() => {
+    const take = () => {
+      const open = overlayOfHash();
+      if (!open) return;
+      window.history.replaceState(null, '', `#/${shown.current}`);
+      setOverlay(open);
+    };
+    take();
+    window.addEventListener('hashchange', take);
+    return () => window.removeEventListener('hashchange', take);
+  }, []);
   const [screen, go] = useHashRoute(SCREENS, 'home');
+  shown.current = screen;
   setLanguage(settings.language ?? detectLanguage());
   setFileAssociations(settings.fileAssociations);
   return (
     <KeybindingProvider defs={commands()} keymap={settings.keybindings ?? {}} scope={screen}>
-      <Main settings={settings} setSettings={setSettings} screen={screen} go={go} />
+      <Main settings={settings} setSettings={setSettings} screen={screen} go={go} overlay={overlay} setOverlay={setOverlay} />
     </KeybindingProvider>
   );
 }
@@ -53,9 +74,11 @@ interface MainProps {
   setSettings: React.Dispatch<React.SetStateAction<Settings>>;
   screen: ScreenId;
   go: (screen: ScreenId) => void;
+  overlay: Overlay | null;
+  setOverlay: (overlay: Overlay | null) => void;
 }
 
-function Main({ settings, setSettings, screen, go }: MainProps) {
+function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainProps) {
   const [stopped, setStopped] = useState(false);
   useHeartbeat();
   const palette = useCommandPalette();
@@ -76,6 +99,8 @@ function Main({ settings, setSettings, screen, go }: MainProps) {
   const navItems = NAV.flatMap((s) => s.items);
   // The nav list is a constant, so the hooks run in the same order every render.
   for (const item of navItems) useCommand(commandById(navCommandId(item.id)), () => go(item.id));
+  useCommand(commandById(SETTINGS_COMMAND), () => setOverlay('settings'));
+  useCommand(commandById(KEYS_COMMAND), () => setOverlay('keys'));
   const zen = useZen();
   const keys = useKeybindings();
   const chordOf = (id: string) => (keys ? effectiveKeys(keys.defs, keys.keymap).get(id)?.[0] : undefined);
@@ -86,6 +111,10 @@ function Main({ settings, setSettings, screen, go }: MainProps) {
     const goTo = navItems.map((i): PaletteItem => ({
       id: `go:${i.id}`, group: t('palette.group.go'), label: t(i.label), hint: chordOf(navCommandId(i.id)), keywords: [i.id], run: () => go(i.id),
     }));
+    const overlays: PaletteItem[] = [
+      { id: 'app:settings', group: t('palette.group.go'), label: t('nav.settings'), hint: chordOf(SETTINGS_COMMAND), keywords: ['settings', 'preferences'], run: () => setOverlay('settings') },
+      { id: 'app:keys', group: t('palette.group.go'), label: t('nav.keys'), hint: chordOf(KEYS_COMMAND), keywords: ['keybindings', 'shortcuts', 'keys'], run: () => setOverlay('keys') },
+    ];
     const toggle: PaletteItem = {
       id: 'theme:toggle', group: t('palette.group.theme'), label: t(`nav.theme.${nextTheme}`), keywords: ['theme', 'dark', 'light'],
       run: () => save({ theme: nextTheme }),
@@ -97,16 +126,16 @@ function Main({ settings, setSettings, screen, go }: MainProps) {
     const quitItem: PaletteItem[] = isDesktop ? [] : [{
       id: 'app:quit', group: t('palette.group.app'), label: t('palette.quit', { name: APP.name }), keywords: ['quit', 'exit', 'stop'], run: quit,
     }];
-    return [...goTo, toggle, ...palettes, ...quitItem];
-  }, [go, save, quit, nextTheme, settings.language, keys]);
+    return [...goTo, ...overlays, toggle, ...palettes, ...quitItem];
+  }, [go, save, quit, nextTheme, settings.language, keys, setOverlay]);
 
   if (stopped) return <div className="boot"><span>{t('app.stopped', { name: APP.name })}</span></div>;
 
   const sections = NAV.map((s) => ({
     title: t(s.title),
-    items: s.items.filter((i) => i.id !== 'settings').map((i) => ({ ...i, label: t(i.label), hint: chordOf(navCommandId(i.id)) })),
+    items: s.items.map((i) => ({ ...i, label: t(i.label), hint: chordOf(navCommandId(i.id)) })),
   }));
-  const settingsChord = chordOf(navCommandId('settings'));
+  const settingsChord = chordOf(SETTINGS_COMMAND);
   const settingsTitle = settingsChord ? `${t('nav.settings')} (${settingsChord})` : t('nav.settings');
 
   return (
@@ -120,7 +149,7 @@ function Main({ settings, setSettings, screen, go }: MainProps) {
           collapsed
           footer={
             <>
-              <button className={`btn btn-ghost btn-sm${screen === 'settings' ? ' active' : ''} btn-icon`} onClick={() => go('settings')} title={settingsTitle} aria-label={settingsTitle}>
+              <button className={`btn btn-ghost btn-sm${overlay ? ' active' : ''} btn-icon`} onClick={() => setOverlay('settings')} title={settingsTitle} aria-label={settingsTitle}>
                 <Icon name="settings" />
               </button>
               <button className="btn btn-ghost btn-sm btn-icon" onClick={() => palette.setOpen(true)} title={t('nav.palette')} aria-label={t('nav.palette')}>
@@ -129,14 +158,18 @@ function Main({ settings, setSettings, screen, go }: MainProps) {
             </>
           }
         />
-        <main className="main">{renderScreen(screen, settings, save, () => setStopped(true), go)}</main>
+        <main className="main">{renderScreen(screen, settings, save, go)}</main>
+        {overlay === 'settings' && (
+          <SettingsModal settings={settings} onChange={save} onQuit={() => setStopped(true)} onClose={() => setOverlay(null)} onOpenKeys={() => setOverlay('keys')} />
+        )}
+        {overlay === 'keys' && <KeysModal settings={settings} onSave={save} onClose={() => setOverlay(null)} />}
         {palette.open && <CommandPalette items={items} initialQuery={palette.initialQuery} onClose={() => palette.setOpen(false)} />}
       </div>
     </ToastProvider>
   );
 }
 
-function renderScreen(screen: ScreenId, settings: Settings, save: (patch: Partial<Settings>) => void, onQuit: () => void, go: (screen: ScreenId) => void) {
+function renderScreen(screen: ScreenId, settings: Settings, save: (patch: Partial<Settings>) => void, go: (screen: ScreenId) => void) {
   switch (screen) {
     case 'tabs':
       return <TabsScreen settings={settings} onSave={save} />;
@@ -150,8 +183,6 @@ function renderScreen(screen: ScreenId, settings: Settings, save: (patch: Partia
       return <Suspense fallback={<PanelLoading />}><RestScreen settings={settings} onSave={save} /></Suspense>;
     case 'terminal':
       return <Suspense fallback={<PanelLoading />}><TerminalScreen settings={settings} onSave={save} /></Suspense>;
-    case 'settings':
-      return <SettingsScreen settings={settings} onChange={save} onQuit={onQuit} />;
     default:
       return <Home />;
   }

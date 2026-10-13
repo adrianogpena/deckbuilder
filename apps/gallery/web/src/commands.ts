@@ -3,6 +3,8 @@ import { t } from './i18n';
 import { NAV } from './nav';
 
 export const navCommandId = (screen: string) => `nav.${screen}`;
+export const SETTINGS_COMMAND = 'app.settings';
+export const KEYS_COMMAND = 'app.keybindings';
 
 /** Every shortcut of the gallery; built at render so the labels follow the language. */
 export function commands(): CommandDef[] {
@@ -13,6 +15,10 @@ export function commands(): CommandDef[] {
     paletteCommand(),
     quickOpenCommand(),
     ...nav,
+    // Settings and keybindings are modals over the screen, not screens. Ctrl+, is VS Code's; its Ctrl+K Ctrl+S
+    // is a two-key chord, which the keymap doesn't have.
+    { id: SETTINGS_COMMAND, scope: GLOBAL, label: t('nav.settings'), keys: ['Ctrl+,'], inInput: true },
+    { id: KEYS_COMMAND, scope: GLOBAL, label: t('nav.keys'), keys: ['Ctrl+Alt+K'], inInput: true },
     ...tabCommands('tabs'),
     ...tabCommands('explorer'),
     ...tabCommands('terminal'),

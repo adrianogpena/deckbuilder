@@ -1,13 +1,14 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PALETTES } from '@deckbuilder/server-core/palettes';
 import { type CommandDef, CommandPalette, detectLanguage, effectiveKeys, ErrorBanner, GLOBAL, Icon, type IconName, isDesktop, KeybindingProvider, paletteCommand, type PaletteItem, setLanguage, Sidebar, Spinner, useAsync, useCommand, useCommandPalette, useHashRoute, useHeartbeat, useKeybindings, useTheme, useZoom } from '@deckbuilder/ui';
 import { APP } from '../../app';
 import { api, type Settings } from './api';
 import { type MessageKey, t } from './i18n';
 import { Home } from './screens/Home';
-import { SettingsScreen } from './screens/SettingsScreen';
+import { KeysModal } from './screens/KeysModal';
+import { SettingsModal } from './screens/SettingsModal';
 
-const SCREENS = ['home', 'settings'] as const;
+const SCREENS = ['home'] as const;
 type ScreenId = (typeof SCREENS)[number];
 
 const NAV: Array<{ title: MessageKey; items: Array<{ id: ScreenId; label: MessageKey; icon: IconName }> }> = [
@@ -15,23 +16,35 @@ const NAV: Array<{ title: MessageKey; items: Array<{ id: ScreenId; label: Messag
     title: 'nav.section.main',
     items: [
       { id: 'home', label: 'nav.home', icon: 'home' },
-      { id: 'settings', label: 'nav.settings', icon: 'settings' },
     ],
   },
 ];
 
 const navCommandId = (screen: ScreenId) => `nav.${screen}`;
+const SETTINGS_COMMAND = 'app.settings';
+const KEYS_COMMAND = 'app.keybindings';
 
 /** Every shortcut of the app; built at render so the labels follow the language. */
 function commands(): CommandDef[] {
   const nav = NAV.flatMap((s) => s.items).map((item, i): CommandDef => ({
     id: navCommandId(item.id), scope: GLOBAL, label: t(item.label), keys: [`Ctrl+${i + 1}`], inInput: true,
   }));
-  return [paletteCommand(), ...nav];
+  // Settings and keybindings are modals over the screen, not screens. Ctrl+, is VS Code's; its Ctrl+K Ctrl+S
+  // is a two-key chord, which the keymap doesn't have.
+  const overlays: CommandDef[] = [
+    { id: SETTINGS_COMMAND, scope: GLOBAL, label: t('nav.settings'), keys: ['Ctrl+,'], inInput: true },
+    { id: KEYS_COMMAND, scope: GLOBAL, label: t('nav.keys'), keys: ['Ctrl+Alt+K'], inInput: true },
+  ];
+  return [paletteCommand(), ...nav, ...overlays];
 }
 
 // Retrying can't revive a used launch code or a stale token; the user has to open the app again.
 const SESSION_ERRORS = ['invalidCode', 'invalidToken'];
+
+// Settings and keybindings are modals over the current screen, not screens; app links (toasts, second instances)
+// still open them with `#/settings` and `#/keys`.
+type Overlay = 'settings' | 'keys';
+const overlayOfHash = (): Overlay | null => (/^#\/?(settings|keys)\/?$/.exec(window.location.hash)?.[1] as Overlay | undefined) ?? null;
 
 /** Loads the settings first, so the first paint already has the right theme and language. */
 export function App() {
@@ -49,11 +62,26 @@ export function App() {
 
 function Shell({ initialSettings }: { initialSettings: Settings }) {
   const [settings, setSettings] = useState(initialSettings);
+  const [overlay, setOverlay] = useState(overlayOfHash);
+  const shown = useRef<ScreenId>('home');
+  // Before useHashRoute, so this listener runs first: it puts the shown screen back in the hash for the router.
+  useEffect(() => {
+    const take = () => {
+      const open = overlayOfHash();
+      if (!open) return;
+      window.history.replaceState(null, '', `#/${shown.current}`);
+      setOverlay(open);
+    };
+    take();
+    window.addEventListener('hashchange', take);
+    return () => window.removeEventListener('hashchange', take);
+  }, []);
   const [screen, go] = useHashRoute(SCREENS, 'home');
+  shown.current = screen;
   setLanguage(settings.language ?? detectLanguage());
   return (
     <KeybindingProvider defs={commands()} keymap={settings.keybindings ?? {}} scope={screen}>
-      <Main settings={settings} setSettings={setSettings} screen={screen} go={go} />
+      <Main settings={settings} setSettings={setSettings} screen={screen} go={go} overlay={overlay} setOverlay={setOverlay} />
     </KeybindingProvider>
   );
 }
@@ -63,9 +91,11 @@ interface MainProps {
   setSettings: React.Dispatch<React.SetStateAction<Settings>>;
   screen: ScreenId;
   go: (screen: ScreenId) => void;
+  overlay: Overlay | null;
+  setOverlay: (overlay: Overlay | null) => void;
 }
 
-function Main({ settings, setSettings, screen, go }: MainProps) {
+function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainProps) {
   const [stopped, setStopped] = useState(false);
   useHeartbeat();
   const palette = useCommandPalette();
@@ -87,6 +117,8 @@ function Main({ settings, setSettings, screen, go }: MainProps) {
   const defs = commands();
   // The nav list is a constant, so the hooks run in the same order every render.
   for (const item of navItems) useCommand(defs.find((d) => d.id === navCommandId(item.id))!, () => go(item.id));
+  useCommand(defs.find((d) => d.id === SETTINGS_COMMAND)!, () => setOverlay('settings'));
+  useCommand(defs.find((d) => d.id === KEYS_COMMAND)!, () => setOverlay('keys'));
   const keys = useKeybindings();
   const chordOf = (id: string) => (keys ? effectiveKeys(keys.defs, keys.keymap).get(id)?.[0] : undefined);
 
@@ -96,6 +128,10 @@ function Main({ settings, setSettings, screen, go }: MainProps) {
     const goTo = navItems.map((i): PaletteItem => ({
       id: `go:${i.id}`, group: t('palette.group.go'), label: t(i.label), hint: chordOf(navCommandId(i.id)), keywords: [i.id], run: () => go(i.id),
     }));
+    const overlays: PaletteItem[] = [
+      { id: 'app:settings', group: t('palette.group.go'), label: t('nav.settings'), hint: chordOf(SETTINGS_COMMAND), keywords: ['settings', 'preferences'], run: () => setOverlay('settings') },
+      { id: 'app:keys', group: t('palette.group.go'), label: t('nav.keys'), hint: chordOf(KEYS_COMMAND), keywords: ['keybindings', 'shortcuts', 'keys'], run: () => setOverlay('keys') },
+    ];
     const toggle: PaletteItem = {
       id: 'theme:toggle', group: t('palette.group.theme'), label: t(`nav.theme.${nextTheme}`), keywords: ['theme', 'dark', 'light'],
       run: () => save({ theme: nextTheme }),
@@ -107,8 +143,8 @@ function Main({ settings, setSettings, screen, go }: MainProps) {
     const quitItem: PaletteItem[] = isDesktop ? [] : [{
       id: 'app:quit', group: t('palette.group.app'), label: t('palette.quit', { name: APP.name }), keywords: ['quit', 'exit', 'stop'], run: quit,
     }];
-    return [...goTo, toggle, ...palettes, ...quitItem];
-  }, [go, save, quit, nextTheme, settings.language, keys]);
+    return [...goTo, ...overlays, toggle, ...palettes, ...quitItem];
+  }, [go, save, quit, nextTheme, settings.language, keys, setOverlay]);
 
   if (stopped) return <div className="boot"><span>{t('app.stopped', { name: APP.name })}</span></div>;
 
@@ -127,22 +163,27 @@ function Main({ settings, setSettings, screen, go }: MainProps) {
             <button className="btn btn-ghost btn-sm" onClick={() => save({ theme: nextTheme })} title={t(`nav.theme.${nextTheme}`)}>
               <Icon name={kind === 'dark' ? 'sun' : 'moon'} />{!collapsed && ` ${t(`nav.theme.${nextTheme}`)}`}
             </button>
+            <button className={`btn btn-ghost btn-sm${overlay ? ' active' : ''} btn-icon`} onClick={() => setOverlay('settings')} title={t('nav.settings')} aria-label={t('nav.settings')}>
+              <Icon name="settings" />
+            </button>
             <button className="btn btn-ghost btn-sm btn-icon" onClick={() => palette.setOpen(true)} title={t('nav.palette')} aria-label={t('nav.palette')}>
               <Icon name="search" />
             </button>
           </>
         }
       />
-      <main className="main">{renderScreen(screen, settings, save, () => setStopped(true))}</main>
+      <main className="main">{renderScreen(screen, settings, save)}</main>
+      {overlay === 'settings' && (
+        <SettingsModal settings={settings} onChange={save} onQuit={() => setStopped(true)} onClose={() => setOverlay(null)} onOpenKeys={() => setOverlay('keys')} />
+      )}
+      {overlay === 'keys' && <KeysModal settings={settings} onSave={save} onClose={() => setOverlay(null)} />}
       {palette.open && <CommandPalette items={items} onClose={() => palette.setOpen(false)} />}
     </div>
   );
 }
 
-function renderScreen(screen: ScreenId, settings: Settings, save: (patch: Partial<Settings>) => void, onQuit: () => void) {
+function renderScreen(screen: ScreenId, settings: Settings, save: (patch: Partial<Settings>) => void) {
   switch (screen) {
-    case 'settings':
-      return <SettingsScreen settings={settings} onChange={save} onQuit={onQuit} />;
     default:
       return <Home />;
   }

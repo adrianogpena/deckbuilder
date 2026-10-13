@@ -38,6 +38,8 @@ const NAMED = ['Enter', 'Escape', 'Tab', 'Space', 'Backspace', 'Delete', 'Insert
 const ID = /^[\w.:-]{1,80}$/;
 const MAX_IDS = 300;
 const MAX_CHORDS = 4;
+/** Most chords in one binding. */
+export const MAX_STEPS = 3;
 
 function chord(mods: Set<Modifier>, key: string): string {
   return [...MODIFIERS.filter((m) => mods.has(m)), key].join('+');
@@ -89,8 +91,29 @@ function normalizeKey(text: string): string | null {
   return null;
 }
 
-/** Canonical form of a typed chord (any case, spaces, aliases); null when it isn't one. */
+/** Steps of a sequence ("Ctrl+K Ctrl+C"): whitespace splits steps unless it touches a '+'. */
+const STEP_SPLIT = /(?<!\+)\s+(?!\+)/;
+
+/** The chords of a binding in order; a single chord is a one-step sequence. */
+export function stepsOf(sequence: string): string[] {
+  return sequence.split(' ');
+}
+
+/** Canonical form of a typed binding: one chord, or up to MAX_STEPS chords separated by spaces. */
 export function normalizeChord(text: string): string | null {
+  const steps = text.trim().split(STEP_SPLIT);
+  if (steps.length > MAX_STEPS) return null;
+  const out: string[] = [];
+  for (const step of steps) {
+    const n = normalizeStep(step);
+    if (!n) return null;
+    out.push(n);
+  }
+  return out.join(' ');
+}
+
+/** Canonical form of one typed chord (any case, spaces, aliases); null when it isn't one. */
+function normalizeStep(text: string): string | null {
   let body = text.replace(/\s+/g, '');
   let key: string | null = null;
   // A '+' key comes last: "+", "Ctrl++".
@@ -144,7 +167,44 @@ export function conflictsOf(defs: CommandDef[], keymap: Keymap): Array<{ chord: 
     const ids = global.length > 0 ? list.map((d) => d.id) : list.filter((d) => (views.get(d.scope) ?? 0) > 1).map((d) => d.id);
     out.push({ chord: c, ids });
   }
+  // A binding that is the start of a longer one in an overlapping scope can never run the longer one.
+  const overlap = (a: CommandDef, b: CommandDef) => a.scope === b.scope || a.scope === GLOBAL || b.scope === GLOBAL;
+  const starts = new Map<string, Set<string>>();
+  for (const [c, longList] of byChord) {
+    const steps = stepsOf(c);
+    for (let n = 1; n < steps.length; n++) {
+      const prefix = steps.slice(0, n).join(' ');
+      const shortList = byChord.get(prefix);
+      if (!shortList) continue;
+      const ids = starts.get(prefix) ?? new Set<string>();
+      starts.set(prefix, ids);
+      for (const s of shortList) {
+        for (const l of longList) {
+          if (s.id !== l.id && overlap(s, l)) {
+            ids.add(s.id);
+            ids.add(l.id);
+          }
+        }
+      }
+    }
+  }
+  for (const [prefix, ids] of starts) {
+    if (ids.size) out.push({ chord: prefix, ids: defs.filter((d) => ids.has(d.id)).map((d) => d.id) });
+  }
   return out;
+}
+
+/** Whether two bindings clash by being equal or one starting the other. */
+export function relatedChords(a: string, b: string): boolean {
+  return a === b || a.startsWith(`${b} `) || b.startsWith(`${a} `);
+}
+
+/** Whether a longer binding that starts with `steps` is bound to an applicable command in a view or global. */
+export function startsOf(steps: string, scope: string, defs: CommandDef[], keymap: Keymap, { desktop = true }: { desktop?: boolean } = {}): CommandDef[] {
+  const keys = effectiveKeys(defs, keymap);
+  return defs.filter(
+    (d) => (desktop || !d.desktopOnly) && (d.scope === GLOBAL || d.scope === scope) && keys.get(d.id)?.some((c) => c.startsWith(`${steps} `)),
+  );
 }
 
 /** The commands a chord is bound to, in any scope. */
@@ -162,7 +222,7 @@ export function resolve(chordText: string, scope: string, defs: CommandDef[], ke
 
 /** Whether a def fires while typing in a field: its `inInput`, else when its chord has Ctrl, Alt or Meta. */
 export function firesInInput(def: CommandDef, chordText: string): boolean {
-  return def.inInput ?? /(^|\+)(Ctrl|Alt|Meta)\+/.test(chordText);
+  return def.inInput ?? /(^|\+)(Ctrl|Alt|Meta)\+/.test(stepsOf(chordText)[0]);
 }
 
 /** A keymap read back from settings, canonicalized; null when anything in it is off. */
@@ -175,7 +235,7 @@ export function validKeymap(raw: unknown): Keymap | null {
     if (!ID.test(id) || !Array.isArray(chords) || chords.length > MAX_CHORDS) return null;
     const list: string[] = [];
     for (const c of chords) {
-      const n = typeof c === 'string' && c.length <= 60 ? normalizeChord(c) : null;
+      const n = typeof c === 'string' && c.length <= 100 ? normalizeChord(c) : null;
       if (!n) return null;
       list.push(n);
     }

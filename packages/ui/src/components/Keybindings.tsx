@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, type MutableRefObject, type ReactNode } from 'react';
 import { isDesktop } from '../api';
 import { isTyping } from '../hooks';
-import { chordOf, firesInInput, ownsKey, resolve, type CommandDef, type Keymap } from '../keybindings';
+import { chordOf, firesInInput, ownsKey, resolve, startsOf, type CommandDef, type Keymap } from '../keybindings';
 import { isModalOpen } from './ui';
 
 interface Handler {
@@ -24,8 +24,12 @@ interface Registry extends KeybindingsValue {
 
 const Ctx = createContext<Registry | null>(null);
 
-function blocked(e: KeyboardEvent, def: CommandDef, chord: string): boolean {
-  return ownsKey(e.target, def.id) || (isTyping(e) && !firesInInput(def, chord)) || (isModalOpen() && !def.inModal);
+/** How long the next step of a multi-step binding may take. */
+const SEQUENCE_TIMEOUT = 1500;
+
+/** `continuing`: a later step of a sequence, already allowed while typing by its first step. */
+function blocked(e: KeyboardEvent, def: CommandDef, chord: string, continuing = false): boolean {
+  return ownsKey(e.target, def.id) || (!continuing && isTyping(e) && !firesInInput(def, chord)) || (isModalOpen() && !def.inModal);
 }
 
 /**
@@ -40,10 +44,20 @@ export function KeybindingProvider({ defs, keymap, scope, children }: Keybinding
   latest.current = { defs, keymap, scope };
 
   useEffect(() => {
+    // Steps already pressed of a multi-step binding, forgotten after SEQUENCE_TIMEOUT.
+    let pending = '';
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const clear = () => {
+      pending = '';
+      clearTimeout(timer);
+    };
     const onKey = (e: KeyboardEvent) => {
       if (e.defaultPrevented || e.isComposing) return;
-      const chord = chordOf(e);
-      if (!chord) return;
+      const step = chordOf(e);
+      if (!step) return;
+      const continuing = pending !== '';
+      const chord = continuing ? `${pending} ${step}` : step;
+      clear();
       // Newest enabled registration of each command.
       const live = new Map<string, Handler>();
       for (const [id, list] of registry.current) {
@@ -61,12 +75,27 @@ export function KeybindingProvider({ defs, keymap, scope, children }: Keybinding
         ...[...live.values()].filter((h) => !known.has(h.def.id)).map((h) => h.def),
       ];
       const def = resolve(chord, scope, candidates, keymap, { desktop: isDesktop });
-      if (!def || blocked(e, def, chord)) return;
-      e.preventDefault();
-      live.get(def.id)!.run();
+      if (def) {
+        if (blocked(e, def, chord, continuing)) return;
+        e.preventDefault();
+        live.get(def.id)!.run();
+        return;
+      }
+      const starters = startsOf(chord, scope, candidates, keymap, { desktop: isDesktop });
+      if (starters.some((d) => !blocked(e, d, chord, continuing))) {
+        e.preventDefault();
+        pending = chord;
+        timer = setTimeout(clear, SEQUENCE_TIMEOUT);
+      } else if (continuing) {
+        // A key that breaks a started sequence is swallowed, so it doesn't type or trigger something else.
+        e.preventDefault();
+      }
     };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    return () => {
+      clear();
+      window.removeEventListener('keydown', onKey);
+    };
   }, []);
 
   // Stable, so a keymap or scope change doesn't re-register (and reorder) the handlers.

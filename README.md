@@ -56,7 +56,7 @@ Run at the root (they act on `apps/gallery`) or inside any app folder:
 | `bun run deckbuilder keygen` | (in the app folder) Create the app's update signing key, see [Releases](#releases). |
 
 The executable takes the same flags as the source: `--app` (Edge/Chrome app window),
-`--browser` (the Settings screen then has a Quit button that stops the app; wins over `--app`),
+`--browser` (Settings then has a Quit button that stops the app; wins over `--app`),
 `--no-open`, `--port <n>`, `--open-url <uri>` (open a native window on a `<id>://open/<path>` link), `--dev` with `--window`, `--idle-exit <min>` (exit after that
 many minutes without a request from an open UI; the UI sends a heartbeat every minute through
 `useHeartbeat()`; never with `--dev`), `--help`.
@@ -98,7 +98,7 @@ packages/
   build/         The `deckbuilder` CLI used by app scripts: dev, build:web, build, release; new
                  template/ is the app that `deckbuilder new` copies
 apps/
-  gallery/       Example app (Home, Tabs, Grid, Explorer, Workbench, REST, Terminal and Settings screens, echo and toast endpoints)
+  gallery/       Example app (Home, Tabs, Grid, Explorer, Workbench, REST, Terminal screens, Settings and Keyboard shortcuts modals, echo and toast endpoints)
     app.ts         Name and id
     server/        main.ts (composes routes, calls runApp) and routes.ts (the app's own API)
     web/           Vite root: index.html, public/favicon.svg (also the exe icon), src/
@@ -122,7 +122,7 @@ source directly; there is no package build step.
 - **Themes**: `useTheme(settings)` (from `@deckbuilder/ui`) applies the palette of `ThemeSettings`
   (`theme`, `paletteDark`, `paletteLight`; palettes in `@deckbuilder/server-core/palettes`) to `<html>`.
   Make the app `Settings` extend `ThemeSettings` and render `<AppearanceFields value onChange />` in
-  its settings screen. Style with the `var(--…)` tokens only. Pass
+  its settings. Style with the `var(--…)` tokens only. Pass
   `transformIndex: themeHead(settings)` (from `@deckbuilder/server-mods`) to `runApp`, so
   `index.html` already carries the saved palette and the first paint has its colours.
 - **Keyboard shortcuts**: `useCommand(def, run, { enabled? })` (from `@deckbuilder/ui`) runs `run`
@@ -141,7 +141,13 @@ source directly; there is no package build step.
   it). It refuses a chord another command uses in the same scope or in `global`. Feed it
   `useKeybindings()`'s `defs` and the settings' `keymap`, and save `onChange`'s result as
   `settings.keybindings` (the settings route validates it with `validKeymap`). The provider re-reads
-  the keymap, so changes apply at once. See the gallery's and the template's `SettingsScreen.tsx`.
+  the keymap, so changes apply at once. See the gallery's and the template's `KeysModal.tsx`.
+- **Settings and keybindings modals**: `<Modal title onClose large>` is VS Code's modal editor (80% of
+  the window, up to 1400x900, maximize button). Settings (Ctrl+,) and Keyboard shortcuts (Ctrl+Alt+K,
+  or the link under the Settings sections) open in it over the current screen and close with Escape or
+  a click outside; `#/settings` and `#/keys` links still open them. Settings rows follow VS Code's:
+  bold label, description, then the control; a boolean is one checkbox labelled by its description;
+  the search shows a result count and per-section counts. See `SettingsModal.tsx`.
 - **File icons**: `fileIconOf(name)` → `{ icon, tone? }` and `folderIconOf(name, childFiles?)` (from
   `@deckbuilder/ui`) pick a built-in icon by extension or folder name (an unnamed folder of two or
   more files of one kind gets that kind's icon). `TreeView` takes `iconOf` and `iconToneOf`;
@@ -248,7 +254,7 @@ source directly; there is no package build step.
   name matches a glob (`*`, `?`, case-insensitive) open and get icons as another extension, e.g.
   `{ pattern: '*.out', as: 'log' }`; `effectiveName(name)` applies it. Keep the list in a setting
   validated with `validFileAssociations` (`@deckbuilder/ui/file-associations`). The gallery's
-  Settings screen has a File types section.
+  Settings have a File types section.
 - **Streaming**: `ndjson(req, async (emit, signal) => ...)` in a route streams items without
   buffering; `useStream().start(path, params)` reads them into state (`cancel()` aborts) and
   `<OutputPanel lines />` shows log lines. See `GET /api/demo/rows` and the Workbench screen.
@@ -330,7 +336,7 @@ source directly; there is no package build step.
   runs `validate` (with `ctx.imported`) per item and reports skipped ones with their error code.
   Secret fields are never exported and imports never change them: the user enters them again.
   Leave machine-specific settings out with `excludeSettings` (the gallery excludes `autostart`
-  and `updateFolder`). The gallery's Settings screen has a Backup section.
+  and `updateFolder`). The gallery's Settings have a Backup section.
 - **Oracle database**: `@deckbuilder/db` (opt-in; add `"@deckbuilder/db": "workspace:*"` to the
   app, since it bundles the `oracledb` driver in thin mode: pure JS, no Instant Client). The app
   keeps the connections in a `recordStore` with `validate: validConnection` and

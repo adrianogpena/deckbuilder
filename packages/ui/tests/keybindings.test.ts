@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { GLOBAL, chordOf, conflictsOf, effectiveKeys, normalizeChord, ownsKey, resolve, usesOf, validKeymap, type CommandDef, type KeyLike } from '../src/keybindings.ts';
+import { GLOBAL, chordOf, conflictsOf, effectiveKeys, firesInInput, normalizeChord, ownsKey, resolve, startsOf, usesOf, validKeymap, type CommandDef, type KeyLike } from '../src/keybindings.ts';
 
 const ev = (key: string, code: string, mods: Partial<KeyLike> = {}): KeyLike => ({ key, code, ctrlKey: false, altKey: false, shiftKey: false, metaKey: false, ...mods });
 const def = (id: string, scope: string, keys: string[], extra: Partial<CommandDef> = {}): CommandDef => ({ id, scope, label: id, keys, ...extra });
@@ -57,6 +57,43 @@ describe('normalizeChord', () => {
 
   test('rejects no key, two keys and unknown names', () => {
     for (const bad of ['', 'Ctrl', 'Ctrl+Shift', 'Ctrl+', 'Ctrl+A+B', 'Ctrl+Foo', 'F25', 'Hyper+K', 'A++']) expect(normalizeChord(bad)).toBeNull();
+  });
+});
+
+describe('sequences', () => {
+  test('normalizeChord canonicalizes each step', () => {
+    expect(normalizeChord('ctrl+k  ctrl + c')).toBe('Ctrl+K Ctrl+C');
+    expect(normalizeChord('Ctrl+K c')).toBe('Ctrl+K C');
+    expect(normalizeChord('g g')).toBe('G G');
+  });
+
+  test('normalizeChord rejects bad steps and more than three', () => {
+    expect(normalizeChord('Ctrl+K Foo')).toBeNull();
+    expect(normalizeChord('A B C D')).toBeNull();
+  });
+
+  test('conflictsOf reports a binding that starts a longer one', () => {
+    const defs = [def('a', GLOBAL, ['Ctrl+K']), def('b', 'v', ['Ctrl+K Ctrl+C']), def('c', 'w', ['Ctrl+K Ctrl+D'])];
+    expect(conflictsOf(defs, {})).toEqual([{ chord: 'Ctrl+K', ids: ['a', 'b', 'c'] }]);
+    expect(conflictsOf([def('b', 'v', ['Ctrl+K Ctrl+C']), def('c', 'w', ['Ctrl+K'])], {})).toEqual([]);
+  });
+
+  test('resolve matches the whole sequence, startsOf the longer ones', () => {
+    const defs = [def('g', GLOBAL, ['Ctrl+K Ctrl+C']), def('v', 'v', ['Ctrl+K Ctrl+C', 'G G'])];
+    expect(resolve('Ctrl+K Ctrl+C', 'v', defs, {})?.id).toBe('v');
+    expect(resolve('Ctrl+K', 'v', defs, {})).toBeNull();
+    expect(startsOf('Ctrl+K', 'v', defs, {}).map((d) => d.id)).toEqual(['g', 'v']);
+    expect(startsOf('Ctrl+K', 'other', defs, {}).map((d) => d.id)).toEqual(['g']);
+    expect(startsOf('Ctrl+K Ctrl+C', 'v', defs, {})).toEqual([]);
+  });
+
+  test('a sequence fires in inputs by its first step', () => {
+    expect(firesInInput(def('a', GLOBAL, []), 'Ctrl+K C')).toBe(true);
+    expect(firesInInput(def('a', GLOBAL, []), 'G Ctrl+K')).toBe(false);
+  });
+
+  test('validKeymap keeps sequences', () => {
+    expect(validKeymap({ a: ['ctrl+k ctrl+c'] })).toEqual({ a: ['Ctrl+K Ctrl+C'] });
   });
 });
 

@@ -315,6 +315,18 @@ kbd {
 .modal-body { padding: 6px 18px 10px; display: flex; flex-direction: column; gap: 14px; }
 .modal-body p { margin: 0; color: var(--text-2); }
 .modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 18px 18px; }
+/* VS Code's modal editor: 80% of the window up to 1400x900; maximized it keeps a 16px margin (the backdrop padding). */
+.modal-large {
+  width: min(80vw, 1400px); height: min(80vh, 900px); display: flex; flex-direction: column;
+  border-radius: 8px;
+}
+.modal-large.maximized { width: 100%; height: 100%; }
+.modal-large .modal-head { flex: none; gap: 2px; height: 36px; padding: 0 6px 0 14px; border-bottom: 1px solid var(--border); background: var(--panel-2); user-select: none; }
+.modal-large .modal-head h3 { font-size: 12px; font-weight: 600; }
+.modal-large .modal-body { flex: 1; min-height: 0; padding: 0; gap: 0; }
+@media (max-width: 720px) {
+  .modal-large { width: 100%; height: 100%; }
+}
 
 /* ---- spinner */
 .spinner {
@@ -876,22 +888,63 @@ kbd {
 }
 .keys-press kbd { font-size: 13px; line-height: 20px; color: var(--text); }
 
-/* ---- settings layout: section list + body */
-.settings-layout { flex: 1; min-height: 0; display: grid; grid-template-columns: 170px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 24px; }
+/* ---- settings: VS Code's settings editor. A search bar across the top (with a result count), the section list
+   on the left and flat rows on the right: bold label, then the description, then the control; booleans are one
+   checkbox labelled by the description. Rows highlight on hover and while focused, like VS Code's. */
+.settings-header { flex: none; display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+.settings-header .settings-search { flex: 1; max-width: 720px; }
+.settings-count { font-size: 12px; color: var(--text-3); white-space: nowrap; }
+.settings-layout { flex: 1; min-height: 0; display: grid; grid-template-columns: 200px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 24px; }
 .settings-nav { display: flex; flex-direction: column; gap: 2px; padding-top: 6px; }
 .settings-nav-item {
-  text-align: left; padding: 7px 10px; border: 0; border-radius: 7px; background: transparent;
+  display: flex; align-items: center; gap: 8px; text-align: left; padding: 7px 10px; border: 0; border-radius: 7px; background: transparent;
   color: var(--text-2); font-size: 13px; cursor: pointer;
 }
 .settings-nav-item:hover { background: var(--hover); color: var(--text); }
 .settings-nav-item.active { background: var(--accent-soft); color: var(--accent-2); font-weight: 600; }
+.settings-nav-count { margin-left: auto; font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.settings-nav-sep { height: 1px; margin: 8px 4px; background: var(--border); }
+.settings-nav-link { white-space: nowrap; }
+.settings-nav-link .icon { width: 14px; height: 14px; }
 .settings-search { margin-bottom: 8px; }
-.settings-group-title { margin: 4px 0 10px; font-size: 13px; font-weight: 600; color: var(--text-2); }
+.settings-header .settings-search { margin-bottom: 0; }
+.settings-group-title { margin: 4px 0 14px 12px; font-size: 20px; font-weight: 600; letter-spacing: -.01em; color: var(--text); }
+.settings-group + .settings-group { margin-top: 18px; }
+.settings-empty { display: flex; align-items: center; gap: 12px; padding: 12px; }
 .settings-layout [hidden] { display: none !important; }
-.card.form.keys-card { max-width: 920px; }
+/* Rows: no cards, one column up to a readable width. */
+.settings-layout .section { margin: 0 0 16px; max-width: 880px; }
+.settings-layout .section > h4.mono-label {
+  margin: 0 0 2px 12px; font-family: inherit; font-size: 14px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--text);
+}
+.settings-layout .card.form { max-width: 880px; padding: 0; gap: 0; background: none; border: 0; border-radius: 0; }
+.settings-layout .card.form + .card.form, .settings-layout .section + .card.form { margin-top: 4px; }
+.settings-layout .field { gap: 4px; padding: 10px 12px 14px; border-radius: 6px; }
+.settings-layout .field:hover { background: color-mix(in srgb, var(--hover) 55%, transparent); }
+.settings-layout .field:focus-within { background: var(--hover); }
+.settings-layout .field > * { order: 2; }
+.settings-layout .field > .mono-label {
+  order: 0; font-family: inherit; font-size: 13px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--text);
+}
+.settings-layout .field > .muted { order: 1; font-size: 12.5px; max-width: 72ch; }
+.settings-layout .field > .field-error { order: 3; }
+.settings-layout .field > :is(select, input:not([type='checkbox'])) { margin-top: 4px; align-self: flex-start; }
+.settings-layout .field > select { width: 320px; max-width: 100%; }
+.settings-layout .field > input:not([type='number'], [type='checkbox']) { width: 420px; max-width: 100%; }
+.settings-layout .field > input[type='number'] { width: 200px; }
+.settings-layout .field > .chips { margin-top: 4px; }
+.setting-check { display: flex; align-items: flex-start; gap: 9px; margin-top: 2px; cursor: pointer; }
+.setting-check input { flex: none; width: 15px; height: 15px; margin: 1px 0 0; accent-color: var(--accent); cursor: pointer; }
+.setting-check .muted { font-size: 12.5px; max-width: 72ch; }
+/* In the large modal the section list is a sidebar, like the modal editor's. */
+.modal-large .settings-layout { gap: 0; }
+.modal-large .settings-nav { padding: 10px 8px; border-right: 1px solid var(--border); background: var(--bg-sunken); overflow: auto; }
+.modal-large .settings-layout > .scroll { padding: 16px 20px 24px; }
+.modal-large .keys-modal-body { padding: 16px 20px 24px; }
 @media (max-width: 720px) {
-  .settings-layout { grid-template-columns: 1fr; gap: 8px; }
+  .settings-layout { grid-template-columns: 1fr; gap: 8px; grid-template-rows: auto minmax(0, 1fr); }
   .settings-nav { flex-direction: row; flex-wrap: wrap; }
+  .modal-large .settings-nav { border-right: 0; border-bottom: 1px solid var(--border); }
 }
 
 .pdf-bar { justify-content: flex-start; align-items: center; }

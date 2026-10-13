@@ -65,7 +65,7 @@ export function TerminalPane(props: TerminalPaneProps) {
   const appChords = useRef(new Set<string>());
   appChords.current = useMemo(() => {
     const keys = kb ? effectiveKeys(kb.defs, kb.keymap) : new Map<string, string[]>();
-    return new Set(appKeys.flatMap((d) => keys.get(d.id) ?? d.keys));
+    return new Set(appKeys.flatMap((d) => keys.get(d.id) ?? d.keys).map((c) => c.split(' ')[0]));
   }, [kb, appKeys]);
 
   useEffect(() => {

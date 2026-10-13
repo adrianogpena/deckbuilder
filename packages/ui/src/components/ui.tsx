@@ -116,9 +116,12 @@ const FOCUSABLE = 'button:not(:disabled), [href], input:not(:disabled), select:n
 /**
  * Modal dialog; Escape or a click on the backdrop closes it. Focuses its first field (or an
  * `autoFocus` element), keeps Tab inside and gives the focus back on close.
+ * `large` is VS Code's modal editor (how it opens Settings): 80% of the window, up to 1400x900, a slim title bar
+ * whose button or double-click maximizes it, and a body the content lays out itself.
  */
-export function Modal({ title, onClose, children, footer }: { title: string; onClose: () => void; children?: ReactNode; footer?: ReactNode }) {
+export function Modal({ title, onClose, children, footer, large }: { title: string; onClose: () => void; children?: ReactNode; footer?: ReactNode; large?: boolean }) {
   const box = useRef<HTMLDivElement>(null);
+  const [maximized, setMaximized] = useState(false);
   const isTop = useModalOpen();
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
@@ -165,9 +168,28 @@ export function Modal({ title, onClose, children, footer }: { title: string; onC
 
   return (
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div ref={box} className="modal" role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} onKeyDown={trapTab}>
-        <div className="modal-head">
+      <div
+        ref={box}
+        className={`modal${large ? ' modal-large' : ''}${large && maximized ? ' maximized' : ''}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        tabIndex={-1}
+        onKeyDown={trapTab}
+      >
+        <div className="modal-head" onDoubleClick={large ? (e) => !(e.target as HTMLElement).closest('button') && setMaximized((m) => !m) : undefined}>
           <h3>{title}</h3>
+          {large && <span className="spacer" />}
+          {large && (
+            <button
+              className="btn btn-ghost btn-sm btn-icon"
+              onClick={() => setMaximized((m) => !m)}
+              title={t(maximized ? 'common.restore' : 'common.maximize')}
+              aria-label={t(maximized ? 'common.restore' : 'common.maximize')}
+            >
+              <Icon name={maximized ? 'restore' : 'maximize'} />
+            </button>
+          )}
           <button className="btn btn-ghost btn-sm btn-icon" onClick={onClose} title={t('common.close')} aria-label={t('common.close')}><Icon name="close" /></button>
         </div>
         <div className="modal-body">{children}</div>

@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { t } from '../i18n';
-import { chordOf, conflictsOf, effectiveKeys, GLOBAL, usesOf, type CommandDef, type Keymap } from '../keybindings';
+import { chordOf, conflictsOf, effectiveKeys, GLOBAL, MAX_STEPS, relatedChords, stepsOf, usesOf, type CommandDef, type Keymap } from '../keybindings';
 import { Icon, useDialogs } from './ui';
 
 const MAX_CHORDS = 4;
+/** Keys pressed within this many ms of each other make one multi-step shortcut. */
+const STEP_WINDOW = 1200;
 
 export interface KeybindingsEditorProps {
   defs: CommandDef[];
@@ -215,6 +217,7 @@ interface RecorderProps {
 /** Records one chord for `def`, showing what it would clash with; Save stays off while it clashes. */
 function ChordRecorder({ def, defs, keymap, chords, index, scopeLabel, labelOf, onSave, onCancel }: RecorderProps) {
   const [candidate, setCandidate] = useState<string | null>(null);
+  const lastPress = useRef(0);
 
   const withCandidate = (chord: string) => (index < 0 ? [...chords, chord] : chords.map((c, i) => (i === index ? chord : c)));
 
@@ -230,13 +233,18 @@ function ChordRecorder({ def, defs, keymap, chords, index, scopeLabel, labelOf, 
       return;
     }
     const chord = chordOf(e);
-    if (chord) setCandidate(chord);
+    if (!chord) return;
+    // A key pressed soon after the previous one adds a step; after a pause it starts over.
+    const now = Date.now();
+    const quick = now - lastPress.current < STEP_WINDOW;
+    lastPress.current = now;
+    setCandidate((prev) => (prev && quick && stepsOf(prev).length < MAX_STEPS ? `${prev} ${chord}` : chord));
   });
 
   const problems: string[] = [];
   if (candidate) {
     if (chords.some((c, i) => c === candidate && i !== index)) problems.push(t('keys.duplicate'));
-    const clash = conflictsOf(defs, { ...keymap, [def.id]: withCandidate(candidate) }).find((c) => c.chord === candidate && c.ids.includes(def.id));
+    const clash = conflictsOf(defs, { ...keymap, [def.id]: withCandidate(candidate) }).find((c) => relatedChords(c.chord, candidate) && c.ids.includes(def.id));
     for (const id of clash?.ids ?? []) {
       const other = defs.find((d) => d.id === id);
       if (!other || other.id === def.id) continue;

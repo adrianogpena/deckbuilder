@@ -1,4 +1,4 @@
-import { DEFAULT_FORMAT_OPTIONS, type ArchiveContent, type SqliteContent, type SqlFormatOptions } from '@deckbuilder/editor';
+import { type ArchiveContent, type SqliteContent, type SqlFormatOptions } from '@deckbuilder/editor';
 import type { HttpRequestDraft } from '@deckbuilder/editor/http';
 import type { ThemeSettings } from '@deckbuilder/server-core/palettes';
 import type { BackupInspect, EditorInfo, HttpRequestSpec, HttpResponseInfo, ImportResult, TailChunk, UpdateState } from '@deckbuilder/server-core/protocol';
@@ -6,7 +6,8 @@ import type { BackupInspect, EditorInfo, HttpRequestSpec, HttpResponseInfo, Impo
 export type { EditorInfo, ImportResult, TailChunk };
 import type { SessionInfo } from '@deckbuilder/terminal';
 import type { CopyFormat } from './screens/workbench/copy-format';
-import { DEFAULT_RESULT_FORMAT, type FileAssociation, type FileSettings, type Keymap, type Language, type LogSettings, type ResultFormat, request, requestUpload } from '@deckbuilder/ui';
+import { settingDefault, settingDefaults } from './settings';
+import { type FileAssociation, type FileSettings, type Keymap, type Language, type LogSettings, type ResultFormat, request, requestUpload } from '@deckbuilder/ui';
 
 export interface Settings extends ThemeSettings {
   language?: Language;
@@ -79,22 +80,14 @@ export interface WorkbenchSettings {
 
 export type WorkbenchDoc = { kind: 'default' } | { kind: 'file'; project: string; path: string };
 
-export const DEFAULT_WORKBENCH_SETTINGS: Pick<WorkbenchSettings, 'explorerProjects' | 'explorerConnections' | 'results' | 'copyFormat' | 'format'> = {
-  explorerProjects: [],
-  explorerConnections: {},
-  results: DEFAULT_RESULT_FORMAT,
-  copyFormat: 'tsv',
-  format: DEFAULT_FORMAT_OPTIONS,
-};
-
-/** The stored workbench state with every missing field filled from the defaults. */
+/** The stored workbench state with every missing field filled from the settings schema. */
 export const withWorkbenchDefaults = (raw?: Partial<WorkbenchSettings>): WorkbenchSettings => ({
   ...raw,
-  explorerProjects: raw?.explorerProjects ?? DEFAULT_WORKBENCH_SETTINGS.explorerProjects,
-  explorerConnections: raw?.explorerConnections ?? DEFAULT_WORKBENCH_SETTINGS.explorerConnections,
-  results: { ...DEFAULT_RESULT_FORMAT, ...raw?.results },
-  copyFormat: raw?.copyFormat ?? DEFAULT_WORKBENCH_SETTINGS.copyFormat,
-  format: { ...DEFAULT_FORMAT_OPTIONS, ...raw?.format },
+  explorerProjects: raw?.explorerProjects ?? settingDefault<string[]>('workbench.explorerProjects'),
+  explorerConnections: raw?.explorerConnections ?? {},
+  results: { ...settingDefaults<ResultFormat>('workbench.results'), ...raw?.results },
+  copyFormat: raw?.copyFormat ?? settingDefault<CopyFormat>('workbench.copyFormat'),
+  format: { ...settingDefaults<SqlFormatOptions>('workbench.format'), ...raw?.format },
 });
 
 export interface DemoRow {

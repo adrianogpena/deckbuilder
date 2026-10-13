@@ -214,7 +214,7 @@ export const routes = (ctx: StartContext): Routes => ({
   },
   // Example notification: a click opens the app on the Settings screen.
   'POST /api/toast/test': () => {
-    toaster.show({ title: APP.name, body: 'Click to open the Settings screen.', launch: ctx.link('settings') });
+    toaster.show({ title: APP.name, body: 'Click to open the Settings.', launch: ctx.link('settings') });
     return { ok: true };
   },
 });

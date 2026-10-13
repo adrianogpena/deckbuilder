@@ -7,6 +7,8 @@ export * from './components/Explorer';
 export * from './components/JsonTree';
 export * from './components/Keybindings';
 export * from './components/KeybindingsEditor';
+export * from './components/SettingFields';
+export * from './settings-schema';
 export * from './components/LogView';
 export * from './components/OutputPanel';
 export * from './components/Panel';

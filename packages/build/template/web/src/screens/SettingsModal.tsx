@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { AppearanceFields, ZoomField, type ApiError, detectLanguage, ErrorBanner, errorMessage, errorOf, GLOBAL, isDesktop, KeybindingsEditor, LANGUAGES, PageHead, Spinner, useAsync, useKeybindings, type Language } from '@deckbuilder/ui';
+import { AppearanceFields, ZoomField, type ApiError, detectLanguage, ErrorBanner, errorMessage, errorOf, Icon, isDesktop, LANGUAGES, Modal, SettingRow, Spinner, useAsync, type Language } from '@deckbuilder/ui';
 import { APP } from '../../../app';
 import { api, type Settings } from '../api';
 import { type MessageKey, t } from '../i18n';
+import { settingsRegistry } from '../settings';
 
 interface Props {
   settings: Settings;
@@ -14,16 +15,18 @@ interface Props {
 const SECTIONS = [
   { id: 'general', label: 'settings.general' },
   { id: 'layout', label: 'settings.layout' },
-  { id: 'keys', label: 'settings.keys' },
   { id: 'updates', label: 'settings.updates' },
 ] as const satisfies ReadonlyArray<{ id: string; label: MessageKey }>;
 type SectionId = (typeof SECTIONS)[number]['id'];
 
-export function SettingsScreen({ settings, onChange, onQuit }: Props) {
+/**
+ * Settings as VS Code opens them: a modal editor over the current screen, closed with Escape or a click outside.
+ * The keybindings have a screen of their own (`KeysScreen`), linked from the section list.
+ */
+export function SettingsModal({ settings, onChange, onQuit, onClose, onOpenKeys }: Props & { onClose: () => void; onOpenKeys: () => void }) {
   const [section, setSection] = useState<SectionId>('general');
   return (
-    <div className="content">
-      <PageHead title={t('settings.title')} />
+    <Modal title={t('settings.title')} onClose={onClose} large>
       <div className="settings-layout">
         <nav className="settings-nav" aria-label={t('settings.title')}>
           {SECTIONS.map((s) => (
@@ -31,22 +34,26 @@ export function SettingsScreen({ settings, onChange, onQuit }: Props) {
               {t(s.label)}
             </button>
           ))}
+          <div className="settings-nav-sep" />
+          <button className="settings-nav-item settings-nav-link" onClick={onOpenKeys}>
+            <Icon name="key" />
+            {t('settings.keys')}
+          </button>
         </nav>
         <div className="scroll">
+          <h3 className="settings-group-title">{t(SECTIONS.find((s) => s.id === section)!.label)}</h3>
           {section === 'general' && <GeneralSection settings={settings} onChange={onChange} onQuit={onQuit} />}
           {section === 'layout' && (
             <section className="section">
-              <h4 className="mono-label">{t('settings.layout')}</h4>
               <div className="card form">
                 <ZoomField value={settings} onChange={onChange} />
               </div>
             </section>
           )}
-          {section === 'keys' && <KeysCard settings={settings} onChange={onChange} />}
           {section === 'updates' && <UpdatesCard folder={settings.updateFolder} onFolder={(updateFolder) => onChange({ updateFolder })} />}
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -66,53 +73,10 @@ function GeneralSection({ settings, onChange, onQuit }: Props) {
             {LANGUAGES.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}
           </select>
         </label>
-        <OnOffField
-          label={t('settings.autostart')}
-          hint={t('settings.autostart.hint')}
-          value={settings.autostart}
-          onChange={(autostart) => onChange({ autostart })}
-        />
-        <OnOffField
-          label={t('settings.closeToTray')}
-          hint={t('settings.closeToTray.hint')}
-          value={settings.closeToTray}
-          onChange={(closeToTray) => onChange({ closeToTray })}
-        />
+        {settingsRegistry.settingsIn(['general']).map((def) => <SettingRow key={def.id} def={def} settings={settings} onChange={onChange} />)}
       </div>
       {(!isDesktop || settings.closeToTray) && <GeneralCard onQuit={onQuit} />}
     </>
-  );
-}
-
-/** Every command of the app, with the keys the user can change; a change applies at once. */
-function KeysCard({ settings, onChange }: { settings: Settings; onChange: (patch: Partial<Settings>) => void }) {
-  const keys = useKeybindings();
-  if (!keys) return null;
-  // A view scope is a screen id; the nav labels are `nav.<screen id>`.
-  const scopeLabel = (scope: string) => (scope === GLOBAL ? t('keys.global') : t(`nav.${scope}` as MessageKey));
-  return (
-    <section className="section">
-      <h4 className="mono-label">{t('settings.keys')}</h4>
-      <div className="card form keys-card">
-        <KeybindingsEditor defs={keys.defs} keymap={settings.keybindings ?? {}} onChange={(keybindings) => onChange({ keybindings })} scopeLabel={scopeLabel} />
-      </div>
-    </section>
-  );
-}
-
-function OnOffField({ label, hint, value, onChange }: { label: string; hint: string; value: boolean; onChange: (on: boolean) => void }) {
-  return (
-    <div className="field">
-      <span className="mono-label">{label}</span>
-      <div className="chips">
-        {([true, false] as const).map((on) => (
-          <button key={String(on)} className={`chip${value === on ? ' chip-on' : ''}`} onClick={() => onChange(on)}>
-            {t(on ? 'settings.on' : 'settings.off')}
-          </button>
-        ))}
-      </div>
-      <span className="muted">{hint}</span>
-    </div>
   );
 }
 
@@ -138,7 +102,6 @@ function GeneralCard({ onQuit }: { onQuit: () => void }) {
 
   return (
     <section className="section">
-      <h4 className="mono-label">{t('settings.general')}</h4>
       <div className="card form">
         <div className="field">
           <div className="row">
@@ -189,7 +152,6 @@ function UpdatesCard({ folder, onFolder }: { folder: string; onFolder: (folder: 
 
   return (
     <section className="section">
-      <h4 className="mono-label">{t('settings.updates')}</h4>
       <div className="card form">
         <div className="field">
           <label className="mono-label" htmlFor="update-folder">{t('settings.updateFolder')}</label>

@@ -1,11 +1,10 @@
 import { Fragment, type ReactNode, type RefObject, useEffect, useMemo, useRef, useState } from 'react';
-import { FORMAT_OPTION_META, formatSql, type FormatOptionMeta } from '@deckbuilder/editor';
-import { AppearanceFields, AUTO_SAVE, type AutoSave, SORT_ORDERS, fileSettingsOf, ZoomField, type ApiError, detectLanguage, type FileAssociation, validFileAssociations, ErrorBanner, errorMessage, errorOf, GLOBAL, isDesktop, KeybindingsEditor, LANGUAGES, Modal, PageHead, Spinner, useAsync, useKeybindings, type Language } from '@deckbuilder/ui';
+import { formatSql } from '@deckbuilder/editor';
+import { AppearanceFields, SettingRow, fileSettingsOf, ZoomField, type ApiError, detectLanguage, type FileAssociation, validFileAssociations, ErrorBanner, errorMessage, errorOf, Icon, isDesktop, LANGUAGES, Modal, Spinner, useAsync, type Language } from '@deckbuilder/ui';
 import { APP } from '../../../app';
-import { COPY_FORMATS } from './workbench/copy-format';
-import { api, type BackupInfo, type CopyFormat, type EditorInfo, type Project, type ImportResult, type ResultFormat, type Settings, type SqlFormatOptions, type WorkbenchSettings, withWorkbenchDefaults } from '../api';
+import { api, type BackupInfo, type EditorInfo, type Project, type ImportResult, type Settings, type SqlFormatOptions, withWorkbenchDefaults } from '../api';
 import { type MessageKey, t } from '../i18n';
-import { NAV } from '../nav';
+import { settingsRegistry } from '../settings';
 
 interface Props {
   settings: Settings;
@@ -17,7 +16,6 @@ interface Props {
 const SECTIONS = [
   { id: 'general', label: 'settings.general' },
   { id: 'layout', label: 'settings.layout' },
-  { id: 'keys', label: 'settings.keys' },
   { id: 'explorer', label: 'settings.explorer' },
   { id: 'workbench', label: 'settings.workbench' },
   { id: 'editor', label: 'settings.editor' },
@@ -29,7 +27,11 @@ const SECTIONS = [
 ] as const satisfies ReadonlyArray<{ id: string; label: MessageKey }>;
 type SectionId = (typeof SECTIONS)[number]['id'];
 
-export function SettingsScreen({ settings, onChange, onQuit }: Props) {
+/**
+ * Settings as VS Code opens them: a modal editor over the current screen, closed with Escape or a click outside.
+ * The keybindings have a screen of their own (`KeysScreen`), linked from the section list.
+ */
+export function SettingsModal({ settings, onChange, onQuit, onClose, onOpenKeys }: Props & { onClose: () => void; onOpenKeys: () => void }) {
   const [section, setSection] = useState<SectionId>('general');
   const [query, setQuery] = useState('');
   const body = useRef<HTMLDivElement>(null);
@@ -41,13 +43,11 @@ export function SettingsScreen({ settings, onChange, onQuit }: Props) {
       case 'layout':
         return (
           <section className="section">
-            <h4 className="mono-label">{t('settings.layout')}</h4>
             <div className="card form">
               <ZoomField value={settings} onChange={onChange} />
             </div>
           </section>
         );
-      case 'keys': return <KeysCard settings={settings} onChange={onChange} />;
       case 'explorer': return <ExplorerCard settings={settings} onChange={onChange} />;
       case 'workbench': return <WorkbenchCard settings={settings} onChange={onChange} />;
       case 'editor': return <EditorCard settings={settings} onChange={onChange} />;
@@ -58,25 +58,35 @@ export function SettingsScreen({ settings, onChange, onQuit }: Props) {
       case 'backup': return <BackupCard onSettings={onChange} />;
     }
   };
+  const total = [...hits.values()].reduce((a, n) => a + n, 0);
   return (
-    <div className="content">
-      <PageHead title={t('settings.title')} />
+    <Modal title={t('settings.title')} onClose={onClose} large>
+      <div className="settings-header">
+        <input
+          className="settings-search"
+          type="search"
+          value={query}
+          placeholder={t('settings.search')}
+          aria-label={t('settings.search')}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape' && query) {
+              e.stopPropagation();
+              setQuery('');
+            } else if (e.key === 'ArrowDown') {
+              // Like VS Code: down from the search box goes into the settings.
+              const first = body.current?.querySelector<HTMLElement>(`.field:not([hidden]) :is(${CONTROLS})`);
+              if (first) {
+                e.preventDefault();
+                first.focus();
+              }
+            }
+          }}
+        />
+        {searching && <span className="settings-count">{t(total === 1 ? 'settings.search.count.one' : 'settings.search.count', { n: total })}</span>}
+      </div>
       <div className="settings-layout">
         <nav className="settings-nav" aria-label={t('settings.title')}>
-          <input
-            className="settings-search"
-            type="search"
-            value={query}
-            placeholder={t('settings.search')}
-            aria-label={t('settings.search')}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape' && query) {
-                e.stopPropagation();
-                setQuery('');
-              }
-            }}
-          />
           {SECTIONS.map((s) => (
             <button
               key={s.id}
@@ -86,11 +96,18 @@ export function SettingsScreen({ settings, onChange, onQuit }: Props) {
               onClick={() => {
                 setQuery('');
                 setSection(s.id);
+                body.current?.scrollTo({ top: 0 });
               }}
             >
               {t(s.label)}
+              {searching && <span className="settings-nav-count">{hits.get(s.id)}</span>}
             </button>
           ))}
+          <div className="settings-nav-sep" />
+          <button className="settings-nav-item settings-nav-link" onClick={onOpenKeys}>
+            <Icon name="key" />
+            {t('settings.keys')}
+          </button>
         </nav>
         <div className="scroll" ref={body}>
           {searching
@@ -100,48 +117,69 @@ export function SettingsScreen({ settings, onChange, onQuit }: Props) {
                   {render(s.id)}
                 </div>
               ))
-            : render(section)}
-          {searching && hits.size === 0 && <p className="muted">{t('settings.search.none')}</p>}
+            : (
+                // Keyed apart from the search groups, so leaving a search remounts rows the filter hid.
+                <div key={`page-${section}`} className="settings-page">
+                  <h3 className="settings-group-title">{t(SECTIONS.find((s) => s.id === section)!.label)}</h3>
+                  {render(section)}
+                </div>
+              )}
+          {searching && hits.size === 0 && (
+            <div className="settings-empty">
+              <span className="muted">{t('settings.search.none')}</span>
+              <button className="btn btn-sm" onClick={() => setQuery('')}>{t('settings.search.clear')}</button>
+            </div>
+          )}
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
+
+/** One schema setting rendered as a row. */
+function Row({ id, settings, onChange }: { id: string; settings: Settings; onChange: (patch: Partial<Settings>) => void }) {
+  return <SettingRow def={settingsRegistry.setting(id)!} settings={settings} onChange={onChange} />;
+}
+
+// What ArrowDown in the search box focuses first.
+const CONTROLS = 'input, select, textarea, button';
 
 const norm = (s: string | null | undefined) => (s ?? '').toLocaleLowerCase().replace(/\s+/g, ' ');
 
 /**
  * Filters the rendered settings while searching, like VS Code's settings search: a `.field` row stays when its
- * label (`.mono-label`) or description (`.muted`) holds every word; cards, sections and groups with no row left
- * hide. A group whose title matches keeps all its rows. It works on the DOM, so the hand-written rows need no
- * wiring, and re-runs when async cards (editors, updates, backup) fill in. Returns the sections with hits.
+ * label (`.mono-label`) or description (`.muted`, also a checkbox's) holds every word; cards, sections and groups
+ * with no row left hide. A group whose title matches keeps all its rows. It works on the DOM, so the hand-written
+ * rows need no wiring, and re-runs when async cards (editors, updates, backup) fill in. Returns the number of
+ * matching rows per section with hits.
  */
-function useSettingsFilter(root: RefObject<HTMLElement | null>, query: string): Set<string> {
-  const [hits, setHits] = useState<Set<string>>(() => new Set());
+function useSettingsFilter(root: RefObject<HTMLElement | null>, query: string): Map<string, number> {
+  const [hits, setHits] = useState<Map<string, number>>(() => new Map());
   useEffect(() => {
     const el = root.current;
     const words = norm(query).trim().split(' ').filter(Boolean);
     if (!el || words.length === 0) {
-      setHits((prev) => (prev.size === 0 ? prev : new Set()));
+      setHits((prev) => (prev.size === 0 ? prev : new Map()));
       return;
     }
     const apply = () => {
-      const found = new Set<string>();
+      const found = new Map<string, number>();
       for (const group of el.querySelectorAll<HTMLElement>('.settings-group')) {
         const whole = words.every((w) => norm(group.dataset.title).includes(w));
         for (const field of group.querySelectorAll<HTMLElement>('.field')) {
-          const text = norm([...field.querySelectorAll(':scope > .mono-label, :scope > .muted')].map((n) => n.textContent).join(' '));
+          const text = norm([...field.querySelectorAll(':scope > .mono-label, :scope > .muted, :scope > .setting-check > .muted')].map((n) => n.textContent).join(' '));
           field.hidden = !(whole || words.every((w) => text.includes(w)));
         }
         // Innermost first, so a section sees its cards' final state.
         for (const box of [...group.querySelectorAll<HTMLElement>('.card, .section')].reverse()) {
           box.hidden = box.querySelector('.field') ? !box.querySelector('.field:not([hidden])') : !whole;
         }
-        const any = whole || !!group.querySelector('.field:not([hidden])');
+        const rows = group.querySelectorAll('.field:not([hidden])').length;
+        const any = whole || rows > 0;
         group.hidden = !any;
-        if (any && group.dataset.section) found.add(group.dataset.section);
+        if (any && group.dataset.section) found.set(group.dataset.section, rows);
       }
-      setHits((prev) => (prev.size === found.size && [...found].every((s) => prev.has(s)) ? prev : found));
+      setHits((prev) => (prev.size === found.size && [...found].every(([s, n]) => prev.get(s) === n) ? prev : found));
     };
     apply();
     const observer = new MutationObserver(apply);
@@ -167,87 +205,23 @@ function GeneralSection({ settings, onChange, onQuit }: Props) {
             {LANGUAGES.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}
           </select>
         </label>
-        <OnOffField
-          label={t('settings.autostart')}
-          hint={t('settings.autostart.hint')}
-          value={settings.autostart}
-          onChange={(autostart) => onChange({ autostart })}
-        />
-        <OnOffField
-          label={t('settings.closeToTray')}
-          hint={t('settings.closeToTray.hint')}
-          value={settings.closeToTray}
-          onChange={(closeToTray) => onChange({ closeToTray })}
-        />
+        <Row id="general.autostart" settings={settings} onChange={onChange} />
+        <Row id="general.closeToTray" settings={settings} onChange={onChange} />
       </div>
       {(!isDesktop || settings.closeToTray) && <GeneralCard onQuit={onQuit} />}
     </>
   );
 }
 
-/** Every command of the app, with the keys the user can change; a change applies at once. */
-function KeysCard({ settings, onChange }: { settings: Settings; onChange: (patch: Partial<Settings>) => void }) {
-  const keys = useKeybindings();
-  if (!keys) return null;
-  const screens = NAV.flatMap((s) => s.items);
-  const scopeLabel = (scope: string) => (scope === GLOBAL ? t('keys.global') : t(screens.find((i) => i.id === scope)?.label ?? 'nav.home'));
-  return (
-    <section className="section">
-      <h4 className="mono-label">{t('settings.keys')}</h4>
-      <div className="card form keys-card">
-        <KeybindingsEditor defs={keys.defs} keymap={settings.keybindings ?? {}} onChange={(keybindings) => onChange({ keybindings })} scopeLabel={scopeLabel} />
-      </div>
-    </section>
-  );
-}
-
-function OnOffField({ label, hint, value, onChange }: { label: string; hint: string; value: boolean; onChange: (on: boolean) => void }) {
-  return (
-    <div className="field">
-      <span className="mono-label">{label}</span>
-      <div className="chips">
-        {([true, false] as const).map((on) => (
-          <button key={String(on)} className={`chip${value === on ? ' chip-on' : ''}`} onClick={() => onChange(on)}>
-            {t(on ? 'settings.on' : 'settings.off')}
-          </button>
-        ))}
-      </div>
-      <span className="muted">{hint}</span>
-    </div>
-  );
-}
-
 /** Saving text files, like VS Code's `files.*` settings; the Explorer's file tabs read them. */
 function EditorCard({ settings, onChange }: { settings: Settings; onChange: (patch: Partial<Settings>) => void }) {
-  const files = fileSettingsOf(settings.files);
-  const set = (patch: Partial<typeof files>) => onChange({ files: { ...files, ...patch } });
   return (
     <section className="section">
       <h4 className="mono-label">{t('settings.explorer.saving')}</h4>
       <div className="card form">
-        <div className="field">
-          <span className="mono-label">{t('settings.explorer.autoSave')}</span>
-          <div className="chips">
-            {AUTO_SAVE.map((mode: AutoSave) => (
-              <button key={mode} className={`chip${files.autoSave === mode ? ' chip-on' : ''}`} onClick={() => set({ autoSave: mode })}>
-                {t(`settings.explorer.autoSave.${mode}`)}
-              </button>
-            ))}
-          </div>
-          <span className="muted">{t('settings.explorer.autoSave.hint')}</span>
-        </div>
-        <OnOffField
-          label={t('settings.explorer.trim')}
-          hint={t('settings.explorer.trim.hint')}
-          value={files.trimTrailingWhitespace}
-          onChange={(trimTrailingWhitespace) => set({ trimTrailingWhitespace })}
-        />
-        <OnOffField
-          label={t('settings.explorer.finalNewline')}
-          hint={t('settings.explorer.finalNewline.hint')}
-          value={files.insertFinalNewline}
-          onChange={(insertFinalNewline) => set({ insertFinalNewline })}
-        />
+        <Row id="files.autoSave" settings={settings} onChange={onChange} />
+        <Row id="files.trimTrailingWhitespace" settings={settings} onChange={onChange} />
+        <Row id="files.insertFinalNewline" settings={settings} onChange={onChange} />
       </div>
     </section>
   );
@@ -262,52 +236,17 @@ function ExplorerCard({ settings, onChange }: { settings: Settings; onChange: (p
     <section className="section">
       <h4 className="mono-label">{t('settings.explorer.tabs')}</h4>
       <div className="card form">
-        <OnOffField
-          label={t('settings.explorer.previewTabs')}
-          hint={t('settings.explorer.previewTabs.hint')}
-          value={files.previewTabs}
-          onChange={(previewTabs) => set({ previewTabs })}
-        />
-        <OnOffField
-          label={t('settings.explorer.autoReveal')}
-          hint={t('settings.explorer.autoReveal.hint')}
-          value={files.autoReveal}
-          onChange={(autoReveal) => set({ autoReveal })}
-        />
-        <OnOffField
-          label={t('settings.explorer.breadcrumbs')}
-          hint={t('settings.explorer.breadcrumbs.hint')}
-          value={files.breadcrumbs}
-          onChange={(breadcrumbs) => set({ breadcrumbs })}
-        />
+        <Row id="files.previewTabs" settings={settings} onChange={onChange} />
+        <Row id="files.autoReveal" settings={settings} onChange={onChange} />
+        <Row id="files.breadcrumbs" settings={settings} onChange={onChange} />
       </div>
     </section>
     <section className="section">
       <h4 className="mono-label">{t('settings.explorer.view')}</h4>
       <div className="card form">
-        <OnOffField
-          label={t('settings.explorer.compact')}
-          hint={t('settings.explorer.compact.hint')}
-          value={files.compactFolders}
-          onChange={(compactFolders) => set({ compactFolders })}
-        />
-        <div className="field">
-          <span className="mono-label">{t('settings.explorer.sort')}</span>
-          <div className="chips">
-            {SORT_ORDERS.map((order) => (
-              <button key={order} className={`chip${files.sortOrder === order ? ' chip-on' : ''}`} onClick={() => set({ sortOrder: order })}>
-                {t(`settings.explorer.sort.${order}`)}
-              </button>
-            ))}
-          </div>
-          <span className="muted">{t('settings.explorer.sort.hint')}</span>
-        </div>
-        <OnOffField
-          label={t('settings.explorer.nesting')}
-          hint={t('settings.explorer.nesting.hint')}
-          value={files.fileNesting}
-          onChange={(fileNesting) => set({ fileNesting })}
-        />
+        <Row id="files.compactFolders" settings={settings} onChange={onChange} />
+        <Row id="files.sortOrder" settings={settings} onChange={onChange} />
+        <Row id="files.fileNesting" settings={settings} onChange={onChange} />
         {files.fileNesting && <NestingField value={files.nestingPatterns} onChange={(nestingPatterns) => set({ nestingPatterns })} />}
         <ExcludeField value={files.exclude} onChange={(exclude) => set({ exclude })} />
       </div>
@@ -315,9 +254,6 @@ function ExplorerCard({ settings, onChange }: { settings: Settings; onChange: (p
     </>
   );
 }
-
-const MAX_ROWS_LIMIT = 100_000;
-const DEFAULT_MAX_ROWS = 1000;
 
 const FORMAT_GROUPS: ReadonlyArray<{ id: string; keys: ReadonlyArray<keyof SqlFormatOptions> }> = [
   { id: 'case', keys: ['keywordCase', 'functionCase'] },
@@ -329,36 +265,6 @@ const FORMAT_GROUPS: ReadonlyArray<{ id: string; keys: ReadonlyArray<keyof SqlFo
 
 const FORMAT_SAMPLE =
   "select e.id, e.name, lower(d.title) as dept, case when e.salary > 5000 then 'high' else 'low' end as band from employees e join departments d on d.id = e.dept_id where e.active = 1 and d.region in (select region from regions where code = 'EU') order by e.name;\nupdate employees set salary = salary * 1.1, updated = sysdate where dept_id = 10;";
-
-function NumberField({ label, value, min, max, onChange }: { label: string; value: number; min: number; max?: number; onChange: (n: number) => void }) {
-  const [text, setText] = useState(String(value));
-  return (
-    <label className="field">
-      <span className="mono-label">{label}</span>
-      <input
-        type="number"
-        min={min}
-        max={max}
-        value={text}
-        onChange={(e) => {
-          setText(e.target.value);
-          const n = Number(e.target.value);
-          if (e.target.value !== '' && Number.isInteger(n) && n >= min && (max === undefined || n <= max)) onChange(n);
-        }}
-        onBlur={() => setText(String(value))}
-      />
-    </label>
-  );
-}
-
-function TextField({ label, value, onChange }: { label: string; value: string; onChange: (text: string) => void }) {
-  return (
-    <label className="field">
-      <span className="mono-label">{label}</span>
-      <input value={value} spellCheck={false} onChange={(e) => onChange(e.target.value)} />
-    </label>
-  );
-}
 
 /** Allowed projects as a short list with remove buttons, and a searchable "add" list for the rest. */
 function ProjectsField({ projects, error, onRetry, value, onChange }: {
@@ -416,9 +322,6 @@ function ProjectsField({ projects, error, onRetry, value, onChange }: {
 function WorkbenchCard({ settings, onChange }: { settings: Settings; onChange: (patch: Partial<Settings>) => void }) {
   const projects = useAsync(() => api.projects(), []);
   const wb = withWorkbenchDefaults(settings.workbench);
-  const set = (patch: Partial<WorkbenchSettings>) => onChange({ workbench: { ...wb, ...patch } });
-  const setResults = (patch: Partial<ResultFormat>) => set({ results: { ...wb.results, ...patch } });
-  const setFormat = (patch: Partial<SqlFormatOptions>) => set({ format: { ...wb.format, ...patch } });
   const preview = useMemo(() => {
     try {
       return formatSql(FORMAT_SAMPLE, wb.format);
@@ -426,29 +329,6 @@ function WorkbenchCard({ settings, onChange }: { settings: Settings; onChange: (
       return FORMAT_SAMPLE;
     }
   }, [wb.format]);
-  const valueLabel = (v: string | number) => (typeof v === 'number' ? String(v) : t(`settings.workbench.value.${v}` as MessageKey));
-  const formatField = (meta: FormatOptionMeta) => {
-    const label = t(`settings.workbench.format.${meta.key}` as MessageKey);
-    const value = wb.format[meta.key];
-    if (meta.kind === 'boolean') {
-      return <OnOffField key={meta.key} label={label} hint="" value={value as boolean} onChange={(v) => setFormat({ [meta.key]: v })} />;
-    }
-    if (meta.kind === 'number') {
-      return <NumberField key={meta.key} label={label} value={value as number} min={meta.min ?? 1} onChange={(n) => setFormat({ [meta.key]: n })} />;
-    }
-    return (
-      <div key={meta.key} className="field">
-        <span className="mono-label">{label}</span>
-        <div className="chips">
-          {meta.values?.map((v) => (
-            <button key={v} className={`chip${value === v ? ' chip-on' : ''}`} onClick={() => setFormat({ [meta.key]: v })}>
-              {valueLabel(v)}
-            </button>
-          ))}
-        </div>
-      </div>
-    );
-  };
   return (
     <>
       <section className="section">
@@ -459,49 +339,27 @@ function WorkbenchCard({ settings, onChange }: { settings: Settings; onChange: (
             error={projects.error}
             onRetry={projects.reload}
             value={wb.explorerProjects}
-            onChange={(explorerProjects) => set({ explorerProjects })}
+            onChange={(explorerProjects) => onChange({ workbench: { ...wb, explorerProjects } })}
           />
-          <NumberField
-            key={wb.maxRows ?? DEFAULT_MAX_ROWS}
-            label={t('settings.workbench.maxRows')}
-            value={wb.maxRows ?? DEFAULT_MAX_ROWS}
-            min={1}
-            max={MAX_ROWS_LIMIT}
-            onChange={(maxRows) => set({ maxRows })}
-          />
+          <Row id="workbench.maxRows" settings={settings} onChange={onChange} />
         </div>
       </section>
       <section className="section">
         <h4 className="mono-label">{t('settings.workbench.results')}</h4>
         <div className="card form">
-          <TextField label={t('settings.workbench.results.nullText')} value={wb.results.nullText} onChange={(nullText) => setResults({ nullText })} />
-          <TextField label={t('settings.workbench.results.dateFormat')} value={wb.results.dateFormat} onChange={(dateFormat) => setResults({ dateFormat })} />
-          <OnOffField
-            label={t('settings.workbench.results.hideMidnight')}
-            hint={t('settings.workbench.results.hideMidnight.hint')}
-            value={wb.results.hideMidnight}
-            onChange={(hideMidnight) => setResults({ hideMidnight })}
-          />
-          <TextField label={t('settings.workbench.results.timestampFormat')} value={wb.results.timestampFormat} onChange={(timestampFormat) => setResults({ timestampFormat })} />
-          <OnOffField
-            label={t('settings.workbench.results.thousands')}
-            hint={t('settings.workbench.results.hint')}
-            value={wb.results.thousandsSeparator}
-            onChange={(thousandsSeparator) => setResults({ thousandsSeparator })}
-          />
-          <label className="field">
-            <span className="mono-label">{t('settings.workbench.copyFormat')}</span>
-            <select value={wb.copyFormat} onChange={(e) => set({ copyFormat: e.target.value as CopyFormat })}>
-              {COPY_FORMATS.map((f) => <option key={f} value={f}>{t(`settings.workbench.copyFormat.${f}` as MessageKey)}</option>)}
-            </select>
-          </label>
+          <Row id="workbench.results.nullText" settings={settings} onChange={onChange} />
+          <Row id="workbench.results.dateFormat" settings={settings} onChange={onChange} />
+          <Row id="workbench.results.hideMidnight" settings={settings} onChange={onChange} />
+          <Row id="workbench.results.timestampFormat" settings={settings} onChange={onChange} />
+          <Row id="workbench.results.thousandsSeparator" settings={settings} onChange={onChange} />
+          <Row id="workbench.copyFormat" settings={settings} onChange={onChange} />
         </div>
       </section>
       {FORMAT_GROUPS.map((group) => (
         <section key={group.id} className="section">
           <h4 className="mono-label">{t(`settings.workbench.group.${group.id}` as MessageKey)}</h4>
           <div className="card form">
-            {group.keys.map((key) => formatField(FORMAT_OPTION_META.find((m) => m.key === key)!))}
+            {group.keys.map((key) => <Row key={key} id={`workbench.format.${key}`} settings={settings} onChange={onChange} />)}
           </div>
         </section>
       ))}
@@ -585,7 +443,6 @@ function GeneralCard({ onQuit }: { onQuit: () => void }) {
 
   return (
     <section className="section">
-      <h4 className="mono-label">{t('settings.general')}</h4>
       <div className="card form">
         <div className="field">
           <div className="row">
@@ -614,7 +471,6 @@ function FileTypesCard({ value, onChange }: { value: FileAssociation[]; onChange
   const targetLabel = (as: string) => (ASSOCIATION_TARGETS.includes(as as never) ? t(`settings.files.as.${as}` as MessageKey) : `.${as}`);
   return (
     <section className="section">
-      <h4 className="mono-label">{t('settings.files')}</h4>
       <div className="card form">
         <span className="muted">{t('settings.files.hint')}</span>
         {rows.length === 0 && <span className="muted">{t('settings.files.empty')}</span>}
@@ -655,7 +511,6 @@ function TerminalCard({ shell, onShell }: { shell: string; onShell: (shell: stri
   const shells = useAsync(() => api.terminalShells(), []);
   return (
     <section className="section">
-      <h4 className="mono-label">{t('settings.terminal')}</h4>
       <div className="card form">
         {shells.error && <ErrorBanner error={shells.error} onRetry={shells.reload} compact />}
         <label className="field">
@@ -692,7 +547,6 @@ function EditorsCard() {
   const editors = list ?? state.data;
   return (
     <section className="section">
-      <h4 className="mono-label">{t('settings.editors')}</h4>
       <div className="card form">
         {!editors && !state.error && <Spinner small />}
         {state.error && <ErrorBanner error={state.error} onRetry={state.reload} compact />}
@@ -757,7 +611,6 @@ function UpdatesCard({ folder, onFolder }: { folder: string; onFolder: (folder: 
 
   return (
     <section className="section">
-      <h4 className="mono-label">{t('settings.updates')}</h4>
       <div className="card form">
         <div className="field">
           <label className="mono-label" htmlFor="update-folder">{t('settings.updateFolder')}</label>
@@ -852,7 +705,6 @@ function BackupCard({ onSettings }: { onSettings: (settings: Settings) => void }
 
   return (
     <section className="section">
-      <h4 className="mono-label">{t('settings.backup')}</h4>
       <div className="card form">
         {!parts.data && !parts.error && <Spinner small />}
         {parts.error && <ErrorBanner error={parts.error} onRetry={parts.reload} compact />}

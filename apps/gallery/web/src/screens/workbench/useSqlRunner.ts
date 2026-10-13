@@ -3,11 +3,11 @@ import { type RunMode, splitStatements } from '@deckbuilder/editor';
 import { type ApiError, type DataTableColumn, type OutputLine, copyText, errorMessage, errorOf, formatCell, useStream } from '@deckbuilder/ui';
 import { api, type DbColumn, type DbStatus, type DemoRow, type ResultFormat, type WorkbenchSettings } from '../../api';
 import { t } from '../../i18n';
+import { settingDefault } from '../../settings';
 import { type CopyColumn, formatCopy } from './copy-format';
 
 const ROW_COUNT = 50_000;
 const MAX_STREAM_ITEMS = 100_001;
-const DEFAULT_MAX_ROWS = 1000;
 const PROGRESS_EVERY = 10_000;
 const BANNER_CODES = ['dbLogin', 'dbUnreachable'];
 
@@ -60,7 +60,7 @@ export function useSqlRunner(db: string | undefined, settings: Pick<WorkbenchSet
   const wasRunning = useRef(false);
   const lastSql = useRef<string>();
 
-  const maxRows = settings.maxRows ?? DEFAULT_MAX_ROWS;
+  const maxRows = settings.maxRows ?? settingDefault<number>('workbench.maxRows');
 
   const log = (text: string, tone?: OutputLine['tone']) => setLines((l) => [...l, { text, tone, at: Date.now() }]);
 

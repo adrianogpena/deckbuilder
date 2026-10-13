@@ -18,6 +18,8 @@ export const PATHS = {
   split: 'M3 4h18v16H3zM12 4v16',
   'split-down': 'M3 4h18v16H3zM3 12h18',
   sidebar: 'M3 4h18v16H3zM9 4v16',
+  maximize: 'M4 4h16v16H4z',
+  restore: 'M8 4h12v12M4 8h12v12H4z',
   back: 'M19 12H5m7-7-7 7 7 7',
   forward: 'M5 12h14m-7-7 7 7-7 7',
   'chevron-down': 'M6 9l6 6 6-6',
