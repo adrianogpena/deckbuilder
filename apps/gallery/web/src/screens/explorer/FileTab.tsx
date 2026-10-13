@@ -12,6 +12,7 @@ import { api, type LogSettings, type TextEncoding } from '../../api';
 import { commandById } from '../../commands';
 import { t } from '../../i18n';
 import { LogTab } from './LogTab';
+import { useExplorerCurl } from './CurlPanel';
 import { type ExplorerSqlProps, useExplorerSql } from './SqlPanel';
 import { useChordOf, useTabActions } from './tab-actions';
 
@@ -324,6 +325,7 @@ function TextFileTab({ project, projectName, path, focused, preview, markdownMod
   };
 
   const sqlUi = useExplorerSql({ project, name, active, focused, draft, sql, confirm });
+  const curlUi = useExplorerCurl({ name, active, draft, sql });
   const chordOf = useChordOf();
   const openInWorkbench = async () => {
     if (!sql) return;
@@ -331,7 +333,7 @@ function TextFileTab({ project, projectName, path, focused, preview, markdownMod
     sql.onWorkbenchChange({ ...sql.workbench, doc: { kind: 'file', project, path } });
     sql.go('workbench');
   };
-  const actions: TabAction[] = [...sqlUi.actions];
+  const actions: TabAction[] = [...sqlUi.actions, ...curlUi.actions];
   if (editable && TOGGLES.has(previewKind(name))) {
     actions.push({ id: 'preview', group: 'primary', icon: 'preview', label: t('explorer.preview'), checked: previewing, run: () => void toggleEdit() });
   }
@@ -405,7 +407,9 @@ function TextFileTab({ project, projectName, path, focused, preview, markdownMod
         {content && (mdEditor
           ? <MarkdownEditor value={draft} onChange={setDraft} mode={markdownMode} layout={mdLayout} wrap={wrapLines} autoFocus={!preview} onSelection={setSelection} />
           : active
-          ? sqlUi.layout(<CodeEditor ref={sqlUi.editor} value={draft} lang={langOfFile(name)} onChange={setDraft} height="100%" wrap={wrapLines} autoFocus={!preview} onSelection={setSelection} {...sqlUi.editorProps} />)
+          ? curlUi.enabled
+            ? curlUi.layout(<CodeEditor ref={curlUi.editor} value={draft} lang={langOfFile(name)} onChange={setDraft} height="100%" wrap={wrapLines} autoFocus={!preview} onSelection={setSelection} {...curlUi.editorProps} />)
+            : sqlUi.layout(<CodeEditor ref={sqlUi.editor} value={draft} lang={langOfFile(name)} onChange={setDraft} height="100%" wrap={wrapLines} autoFocus={!preview} onSelection={setSelection} {...sqlUi.editorProps} />)
           : <FilePreview name={name} content={content} onImageInfo={setImage} />)}
       </div>
       {status.length > 0 && <StatusBar items={status} />}

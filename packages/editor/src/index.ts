@@ -6,6 +6,7 @@ export * from './http';
 export { HEX_LIMIT } from './HexView';
 export type { SqliteContent } from './SqliteView';
 export * from './http-import';
+export * from './curl-file';
 export * from './RequestEditor';
 export * from './ResponseView';
 export * from './languages';
