@@ -15,6 +15,7 @@ import { LogTab } from './LogTab';
 import { useExplorerCurl } from './CurlPanel';
 import { type ExplorerSqlProps, useExplorerSql } from './SqlPanel';
 import { useChordOf, useTabActions } from './tab-actions';
+import { useLocalImages } from './useLocalImages';
 
 type State =
   | { status: 'loading' }
@@ -88,6 +89,7 @@ function TextFileTab({ project, projectName, path, focused, preview, markdownMod
   const wrapLines = wrapLinesProp ?? useEditorOptions()?.wordWrap ?? true;
   const name = relPath.basename(path);
   const markdown = previewKind(name) === 'markdown';
+  const resolveImage = useLocalImages(project, path);
   const [state, setState] = useState<State>({ status: 'loading' });
   const [previewing, setPreviewing] = useState(false);
   const [draft, setDraft] = useState('');
@@ -405,12 +407,12 @@ function TextFileTab({ project, projectName, path, focused, preview, markdownMod
         {state.status === 'loading' && <PanelLoading />}
         {state.status === 'error' && <ErrorBanner error={state.error} onRetry={() => void load()} />}
         {content && (mdEditor
-          ? <MarkdownEditor value={draft} onChange={setDraft} mode={markdownMode} layout={mdLayout} wrap={wrapLines} autoFocus={!preview} onSelection={setSelection} toc={files.markdownToc} />
+          ? <MarkdownEditor value={draft} onChange={setDraft} mode={markdownMode} layout={mdLayout} wrap={wrapLines} autoFocus={!preview} onSelection={setSelection} toc={files.markdownToc} resolveImage={resolveImage} />
           : active
           ? curlUi.enabled
             ? curlUi.layout(<CodeEditor ref={curlUi.editor} value={draft} lang={langOfFile(name)} onChange={setDraft} height="100%" wrap={wrapLines} autoFocus={!preview} onSelection={setSelection} {...curlUi.editorProps} />)
             : sqlUi.layout(<CodeEditor ref={sqlUi.editor} value={draft} lang={langOfFile(name)} onChange={setDraft} height="100%" wrap={wrapLines} autoFocus={!preview} onSelection={setSelection} {...sqlUi.editorProps} />)
-          : <FilePreview name={name} content={content} onImageInfo={setImage} toc={files.markdownToc} />)}
+          : <FilePreview name={name} content={content} onImageInfo={setImage} toc={files.markdownToc} resolveImage={resolveImage} />)}
       </div>
       {status.length > 0 && <StatusBar items={status} />}
     </div>
