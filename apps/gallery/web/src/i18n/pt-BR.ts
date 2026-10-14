@@ -666,6 +666,7 @@ export const ptBR: Messages<typeof en> = {
   'explorer.layout': 'Coluna de texto',
   'keys.explorer.search': 'Buscar no projeto',
   'keys.explorer.find': 'Procurar na árvore',
+  'keys.terminal.find': 'Procurar no terminal',
   'error.notASaveTarget': 'Escolha onde salvar primeiro.',
   'nav.git': 'Git',
   'git.refresh': 'Atualizar',

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { t } from '../i18n';
-import { chordOf, conflictsOf, effectiveKeys, GLOBAL, MAX_STEPS, relatedChords, stepsOf, usesOf, type CommandDef, type Keymap } from '../keybindings';
+import { chordOf, conflictsOf, effectiveKeys, GLOBAL, MAX_STEPS, relatedChords, stepsOf, type CommandDef, type Keymap } from '../keybindings';
 import { Icon, useDialogs } from './ui';
 
 const MAX_CHORDS = 4;
@@ -44,6 +44,8 @@ export function KeybindingsEditor({ defs, keymap, onChange, scopeLabel }: Keybin
   const [finding, setFinding] = useState(false);
   const [found, setFound] = useState<string | null>(null);
   const [edit, setEdit] = useState<Edit | null>(null);
+  const findPress = useRef(0);
+  const findTimer = useRef(0);
   const { confirm, element } = useDialogs();
 
   const keys = useMemo(() => effectiveKeys(defs, keymap), [defs, keymap]);
@@ -64,13 +66,17 @@ export function KeybindingsEditor({ defs, keymap, onChange, scopeLabel }: Keybin
     }
     const chord = chordOf(e);
     if (!chord) return;
-    setFound(chord);
-    setFinding(false);
+    const now = Date.now();
+    const quick = now - findPress.current < STEP_WINDOW;
+    findPress.current = now;
+    setFound((prev) => (prev && quick && stepsOf(prev).length < MAX_STEPS ? `${prev} ${chord}` : chord));
+    window.clearTimeout(findTimer.current);
+    findTimer.current = window.setTimeout(() => setFinding(false), STEP_WINDOW);
   });
 
   const needle = filter.trim().toLowerCase();
   const visible = defs.filter((d) => {
-    if (found && !usesOf(found, [d], keymap).length) return false;
+    if (found && !(keys.get(d.id) ?? []).some((c) => relatedChords(found, c))) return false;
     if (!needle) return true;
     return [d.label, d.id, ...(keys.get(d.id) ?? [])].some((text) => text.toLowerCase().includes(needle));
   });
@@ -94,6 +100,8 @@ export function KeybindingsEditor({ defs, keymap, onChange, scopeLabel }: Keybin
           onClick={() => {
             setFound(null);
             setEdit(null);
+            findPress.current = 0;
+            window.clearTimeout(findTimer.current);
             setFinding(!finding);
           }}
         >

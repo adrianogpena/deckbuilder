@@ -1,4 +1,6 @@
+import { ClipboardAddon, type ClipboardSelectionType } from '@xterm/addon-clipboard';
 import { FitAddon } from '@xterm/addon-fit';
+import { SearchAddon } from '@xterm/addon-search';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { Terminal, type ITheme } from '@xterm/xterm';
@@ -27,6 +29,21 @@ export interface XtermViewOptions {
   onKey?: (e: KeyboardEvent) => boolean;
 }
 
+export interface FindOptions {
+  caseSensitive?: boolean;
+  regex?: boolean;
+}
+
+/** Match highlights; the addon only takes #RRGGBB. */
+const FIND_DECORATIONS = {
+  matchBackground: '#5a4fa0',
+  matchBorder: '#5a4fa0',
+  matchOverviewRuler: '#9b8cff',
+  activeMatchBackground: '#c9a227',
+  activeMatchBorder: '#e6c34a',
+  activeMatchColorOverviewRuler: '#e6c34a',
+};
+
 export interface XtermView extends TerminalView {
   fit(): void;
   focus(): void;
@@ -38,8 +55,20 @@ export interface XtermView extends TerminalView {
   size(): { cols: number; rows: number };
   /** Clears the screen and scrollback before a replay. */
   reset(): void;
+  /** Selects and scrolls to the next (or previous) match of `term`; false when none. */
+  findNext(term: string, o?: FindOptions): boolean;
+  findPrevious(term: string, o?: FindOptions): boolean;
+  /** Reports the active match index (-1 when none) and the count after each search or output. */
+  onFindResults(cb: (index: number, count: number) => void): void;
+  /** Removes the highlights and the match selection. */
+  clearFind(): void;
   /** The xterm root element, measured to scale a preview. */
   element(): HTMLElement;
+}
+
+/** Opens http(s) links in the browser; any other scheme (OSC 8 included) is ignored. */
+function openLink(uri: string) {
+  if (/^https?:\/\//i.test(uri)) window.open(uri, '_blank', 'noopener');
 }
 
 const tokenTheme = () => xtermTheme(readCssToken());
@@ -53,13 +82,26 @@ export function createXtermView(el: HTMLElement, opts: XtermViewOptions = {}): X
     cursorBlink: !opts.readOnly,
     scrollback: 5000,
     theme: tokenTheme(),
-    linkHandler: { activate: (_e, uri) => window.open(uri, '_blank', 'noopener'), allowNonHttpProtocols: false },
+    linkHandler: { activate: (_e, uri) => openLink(uri), allowNonHttpProtocols: false },
   });
   const fitAddon = new FitAddon();
   term.loadAddon(fitAddon);
+  const searchAddon = new SearchAddon();
+  term.loadAddon(searchAddon);
   term.loadAddon(new Unicode11Addon());
   term.unicode.activeVersion = '11';
-  term.loadAddon(new WebLinksAddon((_e, uri) => window.open(uri, '_blank', 'noopener')));
+  term.loadAddon(new WebLinksAddon((_e, uri) => openLink(uri)));
+  if (!opts.readOnly) {
+    // OSC 52: programs may write the clipboard, never read it.
+    term.loadAddon(
+      new ClipboardAddon(undefined, {
+        readText: (_selection: ClipboardSelectionType) => '',
+        writeText: async (_selection: ClipboardSelectionType, text: string) => {
+          await navigator.clipboard?.writeText(text).catch(() => {});
+        },
+      }),
+    );
+  }
   if (opts.onKey) term.attachCustomKeyEventHandler(opts.onKey);
   term.open(el);
 
@@ -125,6 +167,10 @@ export function createXtermView(el: HTMLElement, opts: XtermViewOptions = {}): X
     getSelection: () => term.getSelection(),
     size: () => ({ cols: term.cols, rows: term.rows }),
     reset: () => term.reset(),
+    findNext: (q, o) => searchAddon.findNext(q, { ...o, decorations: FIND_DECORATIONS }),
+    findPrevious: (q, o) => searchAddon.findPrevious(q, { ...o, decorations: FIND_DECORATIONS }),
+    onFindResults: (cb) => void subs.push(searchAddon.onDidChangeResults(({ resultIndex, resultCount }) => cb(resultIndex, resultCount))),
+    clearFind: () => searchAddon.clearDecorations(),
     element: () => term.element ?? el,
     dispose: () => {
       resizeObserver.disconnect();

@@ -39,6 +39,8 @@ export function TreePane({ focused, showHidden = false, onFocus, exclude, sort, 
     refresh: () => own.current?.refresh(),
     collapseAll: () => own.current?.collapseAll(),
     reveal: (path) => own.current?.reveal(path),
+    scrollTo: (path) => own.current?.scrollTo(path),
+    finding: () => own.current?.finding() ?? false,
   }));
   const [moreOpen, setMoreOpen] = useState(false);
   const moreWrap = useRef<HTMLDivElement>(null);
@@ -77,9 +79,10 @@ export function TreePane({ focused, showHidden = false, onFocus, exclude, sort, 
   const [signal, setSignal] = useState(0);
   const [finding, setFinding] = useState(false);
   const [findQuery, setFindQuery] = useState('');
-  const [filterMode, setFilterMode] = useState(false);
+  const [filterMode, setFilterMode] = useState(true);
   const [matchAt, setMatchAt] = useState(-1);
   const findInput = useRef<HTMLInputElement>(null);
+  const [inside, setInside] = useState(false);
 
   const result = useMemo(() => (finding && names ? findInTree(findQuery, names) : undefined), [finding, findQuery, names]);
   useEffect(() => setMatchAt(-1), [result]);
@@ -98,22 +101,35 @@ export function TreePane({ focused, showHidden = false, onFocus, exclude, sort, 
     if (!result?.order.length) return;
     const next = (matchAt + delta + result.order.length) % result.order.length;
     setMatchAt(next);
-    own.current?.reveal(result.order[next]!);
+    own.current?.scrollTo(result.order[next]!);
   };
 
   const openSearch = () => {
     setSearching(true);
     setSignal((n) => n + 1);
   };
-  useCommand(commandById('explorer.search'), openSearch, { enabled: focused });
-  useCommand(commandById('explorer.find'), openFind, { enabled: focused });
+  useCommand(commandById('explorer.search'), openSearch, { enabled: focused && inside });
+  useCommand(commandById('explorer.find'), openFind, { enabled: focused && inside });
   useEffect(() => {
     if (finding) findInput.current?.focus();
   }, [finding]);
   useCommand(commandById('explorer.collapseAll'), () => own.current?.collapseAll(), { enabled: focused });
 
   return (
-    <div className="xp-pane" onMouseDownCapture={onFocus} onFocusCapture={onFocus}>
+    <div
+      className="xp-pane"
+      onMouseDownCapture={() => {
+        onFocus();
+        setInside(true);
+      }}
+      onFocusCapture={() => {
+        onFocus();
+        setInside(true);
+      }}
+      onBlurCapture={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setInside(false);
+      }}
+    >
       <ProjectPicker
         projects={projects}
         current={project}

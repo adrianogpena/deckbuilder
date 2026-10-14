@@ -1,4 +1,3 @@
-import { fuzzyScore } from '@deckbuilder/ui/fuzzy';
 import { relPath } from '@deckbuilder/ui/rel-path';
 import type { SearchHit } from '../../api';
 
@@ -15,17 +14,19 @@ const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'bas
 
 /** Entries whose name matches `query` (their path when the query has a `/`), with the folder counts above them. */
 export function findInTree(query: string, entries: readonly SearchHit[]): FindResult | undefined {
-  const q = query.trim().replace(/\\/g, '/').replace(/\s+/g, '');
+  const q = query.trim().replace(/\\/g, '/').toLowerCase();
   if (!q) return undefined;
   const byPath = q.includes('/');
   const matches = new Map<string, number[]>();
   const counts = new Map<string, number>();
   for (const e of entries) {
     const name = relPath.basename(e.path);
-    const m = fuzzyScore(q, byPath ? e.path : name);
-    if (!m) continue;
-    const offset = e.path.length - name.length;
-    matches.set(e.path, m.positions.filter((p) => !byPath || p >= offset).map((p) => (byPath ? p - offset : p)));
+    const at = (byPath ? e.path : name).toLowerCase().indexOf(q);
+    if (at < 0) continue;
+    const start = byPath ? at - (e.path.length - name.length) : at;
+    const positions: number[] = [];
+    for (let i = 0; i < q.length; i++) if (start + i >= 0) positions.push(start + i);
+    matches.set(e.path, positions);
     for (let dir = relPath.dirname(e.path); ; dir = relPath.dirname(dir)) {
       counts.set(dir, (counts.get(dir) ?? 0) + 1);
       if (!dir) break;

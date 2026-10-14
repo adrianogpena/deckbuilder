@@ -1,5 +1,5 @@
-import { copyText, effectiveKeys, errorMessage, errorOf, paletteCommand, t, useKeybindings, type CommandDef } from '@deckbuilder/ui';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { copyText, Icon, effectiveKeys, errorMessage, errorOf, paletteCommand, t, useKeybindings, type CommandDef } from '@deckbuilder/ui';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { attachSession, closeSession, isSessionGone, openSession, socketUrl, type TerminalCwd, type TerminalLaunch } from './client.ts';
 import { terminalKeyAction } from './keys.ts';
 import { decodeServerMessage, encodeControl } from './protocol.ts';
@@ -12,6 +12,9 @@ const BACKPRESSURE_CLOSE = 4001;
 const NO_SESSION_CLOSE = 1008;
 const NORMAL_CLOSE = 1000;
 const MAX_BACKOFF = 30_000;
+/** The command that opens the find bar (registered by the app); the key is the fallback without a keymap. */
+const FIND_COMMAND = 'terminal.find';
+const DEFAULT_FIND_KEY = 'Ctrl+Shift+F';
 
 export interface TerminalPaneProps {
   /** The session to attach to; none opens a new one and reports it through `onSession`. */
@@ -68,6 +71,13 @@ export function TerminalPane(props: TerminalPaneProps) {
   const optionsRef = useRef(options);
   optionsRef.current = options;
 
+  const [finding, setFinding] = useState(false);
+  const [findQuery, setFindQuery] = useState('');
+  const [matchCase, setMatchCase] = useState(false);
+  const [regex, setRegex] = useState(false);
+  const [found, setFound] = useState({ index: -1, count: 0 });
+  const findInput = useRef<HTMLInputElement>(null);
+
   const kb = useKeybindings();
   const appKeys = useMemo(() => props.appKeys ?? [paletteCommand()], [props.appKeys]);
   const appChords = useRef(new Set<string>());
@@ -75,6 +85,12 @@ export function TerminalPane(props: TerminalPaneProps) {
     const keys = kb ? effectiveKeys(kb.defs, kb.keymap) : new Map<string, string[]>();
     return new Set(appKeys.flatMap((d) => keys.get(d.id) ?? d.keys).map((c) => c.split(' ')[0]));
   }, [kb, appKeys]);
+
+  const findChords = useRef(new Set<string>());
+  findChords.current = useMemo(() => {
+    const keys = kb ? effectiveKeys(kb.defs, kb.keymap).get(FIND_COMMAND) : undefined;
+    return new Set((keys ?? [DEFAULT_FIND_KEY]).map((c) => c.split(' ')[0]));
+  }, [kb]);
 
   useEffect(() => {
     const host = hostRef.current!;
@@ -93,7 +109,12 @@ export function TerminalPane(props: TerminalPaneProps) {
       options: optionsRef.current,
       onKey: (e) => {
         if (preview || e.type !== 'keydown') return true;
-        switch (terminalKeyAction(e, view.hasSelection(), appChords.current)) {
+        switch (terminalKeyAction(e, view.hasSelection(), appChords.current, findChords.current)) {
+          case 'find':
+            e.preventDefault();
+            setFinding(true);
+            requestAnimationFrame(() => findInput.current?.select());
+            return false;
           case 'app':
           case 'paste': // the browser's paste event reaches xterm
             return false;
@@ -108,6 +129,7 @@ export function TerminalPane(props: TerminalPaneProps) {
     });
 
     viewRef.current = view;
+    view.onFindResults((index, count) => setFound({ index, count }));
     const send = (data: string | Uint8Array) => {
       if (ws?.readyState === WebSocket.OPEN) ws.send(data);
     };
@@ -253,6 +275,40 @@ export function TerminalPane(props: TerminalPaneProps) {
     if (options) viewRef.current?.setOptions(options);
   }, [options]);
 
+  const step = (dir: 1 | -1) => {
+    const view = viewRef.current;
+    if (!view || !findQuery) return;
+    const o = { caseSensitive: matchCase, regex };
+    if (dir === 1) view.findNext(findQuery, o);
+    else view.findPrevious(findQuery, o);
+  };
+  const closeFind = () => {
+    setFinding(false);
+    setFound({ index: -1, count: 0 });
+    viewRef.current?.clearFind();
+    viewRef.current?.focus();
+  };
+  // Typing or toggling an option searches again; an empty query clears the highlights.
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!finding || !view) return;
+    if (findQuery) view.findNext(findQuery, { caseSensitive: matchCase, regex });
+    else {
+      view.clearFind();
+      setFound({ index: -1, count: 0 });
+    }
+  }, [finding, findQuery, matchCase, regex]);
+  const onFindKey = (e: ReactKeyboardEvent) => {
+    e.stopPropagation();
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeFind();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      step(e.shiftKey ? -1 : 1);
+    }
+  };
+
   // A new `session` prop (not the one this pane just opened and reported) switches sessions.
   useEffect(() => {
     const c = controller.current;
@@ -267,6 +323,38 @@ export function TerminalPane(props: TerminalPaneProps) {
       {...(preview ? {} : { 'data-keys': 'own', 'data-keys-allow': appKeys.map((d) => d.id).join(' ') })}
     >
       <div ref={hostRef} className="terminal-host" />
+      {finding && !preview && (
+        <div className="terminal-find">
+          <input
+            ref={findInput}
+            autoFocus
+            type="search"
+            value={findQuery}
+            placeholder={t('terminal.find.placeholder')}
+            aria-label={t('terminal.find.placeholder')}
+            onChange={(e) => setFindQuery(e.target.value)}
+            onKeyDown={onFindKey}
+          />
+          <span className="terminal-find-count muted">
+            {findQuery ? (found.count ? `${found.index >= 0 ? found.index + 1 : 0}/${found.count}` : t('terminal.find.none')) : ''}
+          </span>
+          <button type="button" className={`chip${matchCase ? ' chip-on' : ''}`} onClick={() => setMatchCase(!matchCase)} aria-pressed={matchCase} title={t('terminal.find.matchCase')}>
+            Aa
+          </button>
+          <button type="button" className={`chip${regex ? ' chip-on' : ''}`} onClick={() => setRegex(!regex)} aria-pressed={regex} title={t('terminal.find.regex')}>
+            .*
+          </button>
+          <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={() => step(-1)} title={t('terminal.find.prev')} aria-label={t('terminal.find.prev')}>
+            <Icon name="chevron-up" />
+          </button>
+          <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={() => step(1)} title={t('terminal.find.next')} aria-label={t('terminal.find.next')}>
+            <Icon name="chevron-down" />
+          </button>
+          <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={closeFind} title={t('terminal.find.close')} aria-label={t('terminal.find.close')}>
+            <Icon name="close" />
+          </button>
+        </div>
+      )}
       {overlay && <div className="terminal-overlay">{overlay}</div>}
     </div>
   );

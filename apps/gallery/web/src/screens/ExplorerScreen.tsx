@@ -462,10 +462,12 @@ export function ExplorerScreen({ settings, onSave, go }: { settings: Settings; o
   const active = activeTab(state.layout).route;
   const activeFile = active.kind === 'file' ? active : undefined;
   const shownKey = shown.map((p) => p.id).join(',');
-  const revealIn = (project: string, path: string) => {
+  const revealIn = (project: string, path: string, autoReveal = false) => {
     const at = shown.findIndex((p) => p.id === project);
     if (at < 0) return false;
-    trees.current[at]?.reveal(path);
+    const tree = trees.current[at];
+    if (autoReveal && tree?.finding()) tree.scrollTo(path);
+    else tree?.reveal(path);
     return true;
   };
   const revealFile = (project: string, path: string) => {
@@ -499,7 +501,7 @@ export function ExplorerScreen({ settings, onSave, go }: { settings: Settings; o
       return;
     }
     if (!files.autoReveal || !activeFile || /(^|\/)(node_modules|\.git)(\/|$)/.test(activeFile.path)) return;
-    revealIn(activeFile.project, activeFile.path);
+    revealIn(activeFile.project, activeFile.path, true);
   }, [activeFile?.project, activeFile?.path, shownKey, revealTick, files.autoReveal]);
 
   const pickerHandlers = {

@@ -1,6 +1,6 @@
 # DeckBuilder
 
-Base for local-first desktop apps: a Bun workspace of shared packages plus thin apps on top.
+Base for local-first desktop apps: a Bun workspace of shared packages plus thin apps on top. 
 Each app builds to **one self-contained executable** (Bun runtime, server, UI and native window
 library inside), and Windows, Linux and macOS executables can all be built from one machine.
 
@@ -209,7 +209,7 @@ source directly; there is no package build step.
   bold, Ctrl+Enter opens to the side); typing `>` switches the same box to commands, Ctrl+Shift+P and
   F1 open it on commands. An app offers its file list with `useProvideQuickOpen`; without
   one the box lists commands only. The list comes from `GET /api/fs/names` (every path, excludes
-  applied). **Find in the tree**: Ctrl+Alt+F (`explorer.find`) opens a find box over the tree you
+  applied). **Find in the tree**: Ctrl+F (`explorer.find`) opens a find box over the tree you
   last clicked; matches are highlighted and folders show match counts, the Filter chip hides
   everything else (and lists matches in folders never opened); Enter steps through the matches.
   **Maximize pane**: Ctrl+K Ctrl+M, a double-click on a non-preview tab or the "…" menu hide the

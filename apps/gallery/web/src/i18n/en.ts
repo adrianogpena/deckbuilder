@@ -664,6 +664,7 @@ export const en = {
   'explorer.layout': 'Text column',
   'keys.explorer.search': 'Search in the project',
   'keys.explorer.find': 'Find in the tree',
+  'keys.terminal.find': 'Find in the terminal',
   'error.notASaveTarget': 'Choose where to save first.',
   'nav.git': 'Git',
   'git.refresh': 'Refresh',

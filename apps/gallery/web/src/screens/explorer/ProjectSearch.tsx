@@ -19,7 +19,7 @@ export interface ProjectSearchProps {
 export function ProjectSearch({ project, exclude, onOpenFile, onClose, focusSignal }: ProjectSearchProps) {
   const input = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState('');
-  const [content, setContent] = useState(false);
+  const [content, setContent] = useState(true);
   const [searched, setSearched] = useState(false);
   const search = useStream<SearchHit>({ maxItems: MAX_HITS });
 

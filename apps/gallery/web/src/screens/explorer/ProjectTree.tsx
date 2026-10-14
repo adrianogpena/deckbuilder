@@ -129,6 +129,10 @@ export interface ProjectTreeApi {
   collapseAll(): void;
   /** Expands the folders above `path` and selects it. */
   reveal(path: string): void;
+  /** Scrolls to and selects `path` without changing which folders are expanded. */
+  scrollTo(path: string): void;
+  /** True while the tree's find box is open. */
+  finding(): boolean;
 }
 
 /** The lazy tree of a project's folder, with the file actions. */
@@ -291,7 +295,7 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
   }, [viewKey]);
 
   const rootNode = roots[0]!;
-  const reveal = (path: string) => {
+  const expandAbove = (path: string) => {
     const missing: string[] = [];
     for (let dir = relPath.dirname(path); ; dir = relPath.dirname(dir)) {
       const id = nodeId(project.id, dir);
@@ -301,7 +305,11 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
     const holder = nestParent.current.get(nodeId(project.id, path));
     if (holder && !expanded.includes(holder)) missing.push(holder);
     if (missing.length) onExpandedChange([...expanded, ...missing]);
-    tree.current?.reveal(nodeId(project.id, path));
+  };
+  const scrollTo = (path: string) => tree.current?.reveal(nodeId(project.id, path));
+  const reveal = (path: string) => {
+    expandAbove(path);
+    scrollTo(path);
   };
 
   const open = (node: Node) => {
@@ -310,6 +318,7 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
       const id = nodeId(project.id, node.path);
       onExpandedChange(expanded.includes(id) ? expanded.filter((x) => x !== id) : [...expanded, id]);
     } else {
+      if (find) expandAbove(node.path);
       onOpenFile(project.id, node.path);
     }
   };
@@ -637,6 +646,8 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
     },
     collapseAll: () => onExpandedChange([nodeId(project.id, '')]),
     reveal,
+    scrollTo,
+    finding: () => !!find,
   }));
 
   const menuItems = (node: Node, selection: Node[]): Array<ContextMenuItem | 'sep'> => {

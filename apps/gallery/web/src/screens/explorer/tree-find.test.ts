@@ -23,6 +23,11 @@ describe('findInTree', () => {
     expect(r.counts.get('')).toBe(2);
   });
 
+  test('letters must be adjacent, in order, ignoring case', () => {
+    expect(findInTree('tbs', entries)!.order).toEqual([]);
+    expect(findInTree('TAB-B', entries)!.order).toEqual(['src/deep/tab-bar.tsx']);
+  });
+
   test('a query with a slash matches the path and highlights the name', () => {
     const r = findInTree('deep/tab', entries)!;
     expect([...r.matches.keys()]).toEqual(['src/deep/tab-bar.tsx']);
