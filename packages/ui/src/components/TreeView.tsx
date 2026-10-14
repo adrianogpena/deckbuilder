@@ -380,8 +380,11 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
       const open = new Set(latest.current.expanded);
       for (const key of ids) {
         const found = locate(rowsRef.current, key);
+        const root = latest.current.roots.find((r) => latest.current.idOf(r) === key);
         if (found && open.has(key)) {
           load(found.row.chain[found.index].node, key);
+        } else if (root && latest.current.hideRoots) {
+          load(root, key);
         } else {
           bumpGeneration(key);
           cache.current.delete(key);
