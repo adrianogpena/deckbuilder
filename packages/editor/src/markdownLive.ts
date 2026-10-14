@@ -126,6 +126,13 @@ function decorate(state: EditorState, resolveImage?: (src: string) => string | n
     if (lined.has(`${from}:${cls}`)) return;
     lined.add(`${from}:${cls}`);
     out.push(lineDeco(cls).range(from));
+    // CodeMirror sizes every unmeasured line from the first short plain line it draws; a heading or
+    // code line would skew that, so a mark over its text keeps it out of the sample.
+    const to = state.doc.lineAt(pos).to;
+    if (to > from && !lined.has(`${from}:mark`)) {
+      lined.add(`${from}:mark`);
+      out.push(mark('cm-md-nosample').range(from, to));
+    }
   };
   const addLines = (from: number, to: number, cls: string) => {
     for (let p = from; p <= to;) {
