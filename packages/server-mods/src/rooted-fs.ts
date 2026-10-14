@@ -1,15 +1,15 @@
 import type { Dirent } from 'node:fs';
-import { chmod, cp, lstat, mkdir, readdir, realpath, rm, stat, writeFile } from 'node:fs/promises';
-import { basename, dirname, extname, isAbsolute, join, sep } from 'node:path';
+import { chmod, cp, lstat, mkdir, readdir, readlink, realpath, rm, stat, writeFile } from 'node:fs/promises';
+import { basename, dirname, extname, isAbsolute, join, resolve, sep } from 'node:path';
 import { moveToTrash, renameWithRetry, type SaveDialogOptions, saveFileAs, writeFileAtomic } from '@deckbuilder/platform';
 import { AppError, forbidden, type Handler, invalid, ndjson, notFound, type Routes, socketTickets, type TailChunk } from '@deckbuilder/server-core';
 
 export type { TailChunk };
-import type { FsDuProgress, FsHash, FsInfo } from '@deckbuilder/server-core/protocol';
+import type { FsCompressResult, FsDuProgress, FsExtractResult, FsHash, FsInfo } from '@deckbuilder/server-core/protocol';
 
 /** How often `du` reports its running totals. */
 const DU_PROGRESS_MS = 150;
-import { listArchive } from './archive.ts';
+import { compressArchive, extractArchive, listArchive } from './archive.ts';
 import { isBinary } from './bytes.ts';
 import { decodeText, detectEncoding, encodeText, encodingByBom, TEXT_ENCODINGS, type TextEncodingId } from './encoding.ts';
 import { fromPlatform } from './platform-errors.ts';
@@ -229,6 +229,20 @@ async function freeName(wanted: string, isDir: boolean): Promise<string> {
   return to;
 }
 
+/** True when an entry below `dir` (a real path) resolves outside it: a link out, or a dangling link aiming out. */
+async function escapes(dir: string): Promise<boolean> {
+  for (const e of await readdir(dir, { recursive: true, withFileTypes: true })) {
+    const p = join(e.parentPath, e.name);
+    let real = await realpath(p).catch(() => null);
+    if (real === null) {
+      if (!e.isSymbolicLink()) return true;
+      real = resolve(dirname(p), await readlink(p));
+    }
+    if (!inside(real, dir)) return true;
+  }
+  return false;
+}
+
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 
 const MAX_RAW_BYTES = 50_000_000;
@@ -341,7 +355,7 @@ async function contentHits(file: string, q: string): Promise<Array<{ line: numbe
  * relative path; `resolve` turns them into a real path inside that root or refuses.
  *
  * GET `/api/fs/list|stat|info|du|hash|read|raw|archive|search|names` take `root` and `path` in the query; POST
- * `/api/fs/create|write|rename|move|delete` take them in the JSON body. POST `/api/fs/upload` takes them
+ * `/api/fs/create|write|extract|compress|rename|move|delete` take them in the JSON body. POST `/api/fs/upload` takes them
  * in the query and the file's bytes as the body.
  */
 export function rootedFs(opts: RootedFsOptions): RootedFs {
@@ -746,6 +760,51 @@ export function rootedFs(opts: RootedFsOptions): RootedFs {
       }
       await writeFileAtomic(loc.real, bytes);
       return described(loc.real, basename(loc.abs), loc.realRoot);
+    },
+
+    // `to` is the new folder; it must not exist. Anything that unpacks to a path outside it removes the folder again.
+    'POST /api/fs/extract': async ({ json }) => {
+      const b = await body(json);
+      const src = await locate(b.root, b.path, true);
+      const dest = await locate(b.root, b.to);
+      writable(dest.root);
+      if ((await stat(src.real)).isDirectory()) throw notAFile();
+      const to = await entryPath(dest);
+      if (await present(to)) throw exists();
+      await mkdir(dirname(to), { recursive: true });
+      await mkdir(to);
+      try {
+        await extractArchive(src.real, to);
+        if (await escapes(await realpath(to))) throw invalid('archiveUnsafe', 'The archive has entries that lead outside the target folder.');
+      } catch (err) {
+        await rm(to, { recursive: true, force: true }).catch(() => {});
+        throw err;
+      }
+      return { path: dest.segments.join('/') } satisfies FsExtractResult;
+    },
+
+    // The archive `name` goes into the one folder all `paths` share; it is written beside it under a temporary name first.
+    'POST /api/fs/compress': async ({ json }) => {
+      const b = await body(json);
+      if (!Array.isArray(b.paths) || !b.paths.length || b.paths.length > MAX_DELETE_PATHS) throw badRequest();
+      if (b.format !== 'zip' && b.format !== '7z') throw badRequest();
+      if (!validName(b.name)) throw badPath();
+      const located = await Promise.all(b.paths.map((p) => locate(b.root, p, true)));
+      writable(located[0]!.root);
+      const entries = await Promise.all(located.map(entryPath));
+      const parent = dirname(entries[0]!);
+      if (entries.some((e) => fold(dirname(e)) !== fold(parent))) throw invalid('mixedParents', 'All items must be in the same folder.');
+      const file = join(parent, b.name);
+      if (await present(file)) throw exists();
+      const staged = `${file}.compress-${crypto.randomUUID()}`;
+      try {
+        await compressArchive(parent, [...new Set(entries.map((e) => basename(e)))], staged, b.format);
+        if (await present(file)) throw exists();
+        await renameWithRetry(staged, file);
+      } finally {
+        await rm(staged, { force: true }).catch(() => {});
+      }
+      return { path: [...located[0]!.segments.slice(0, -1), b.name].join('/'), skippedLinks: [] } satisfies FsCompressResult;
     },
 
     'POST /api/fs/rename': async ({ json }) => {

@@ -43,6 +43,10 @@ export interface DataTableProps<T> {
   /** Enter or double-click on a row. */
   onRowOpen?: (row: T) => void;
   onRowContextMenu?: (row: T, e: MouseEvent) => void;
+  /** Rank that orders rows before the sort column, in both directions and unsorted (lower first), e.g. folders before files. */
+  groupOf?: (row: T) => number;
+  /** Keys the grid handles before its own; call `e.preventDefault()` to stop the default handling. */
+  onKeyDown?: (e: KeyboardEvent) => void;
   empty?: ReactNode;
 }
 
@@ -59,6 +63,8 @@ export function DataTable<T>({
   onSelectionChange,
   onRowOpen,
   onRowContextMenu,
+  groupOf,
+  onKeyDown: onKeyDownProp,
   empty,
 }: DataTableProps<T>) {
   const scroller = useRef<HTMLDivElement>(null);
@@ -90,8 +96,9 @@ export function DataTable<T>({
 
   const sorted = useMemo(() => {
     const column = sortState ? columns.find((c) => c.id === sortState.column) : undefined;
-    return sortState && column ? sortRows(rows, column.value, sortState.dir) : rows;
-  }, [rows, columns, sortState]);
+    if (sortState && column) return sortRows(rows, column.value, sortState.dir, groupOf);
+    return groupOf ? sortRows(rows, () => 0, 'asc', groupOf) : rows;
+  }, [rows, columns, sortState, groupOf]);
   const ordered = useMemo(() => sorted.map(rowKey), [sorted, rowKey]);
   const selected = useMemo(() => new Set(keys), [keys]);
 
@@ -134,6 +141,8 @@ export function DataTable<T>({
   };
 
   const onKeyDown = (e: KeyboardEvent) => {
+    onKeyDownProp?.(e);
+    if (e.defaultPrevented) return;
     const mod = e.ctrlKey || e.metaKey;
     if (mod && e.key.toLowerCase() === 'a') {
       e.preventDefault();

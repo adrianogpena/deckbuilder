@@ -1,4 +1,5 @@
 import { useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from 'react';
+import { previewKind } from '@deckbuilder/editor';
 import {
   ContextMenu,
   type ContextMenuItem,
@@ -22,9 +23,10 @@ import { t } from '../../i18n';
 import { useCopyPath } from './copy-path';
 import { PropertiesDialog } from './PropertiesDialog';
 import type { FileUndo, UndoOp } from './file-undo';
-import type { GitFile } from '@deckbuilder/server-core/protocol';
+import type { FsArchiveFormat, GitFile } from '@deckbuilder/server-core/protocol';
 import { statusOf } from '../git/sides';
 import { entriesOf, freeName, walkEntry } from './os-drop';
+import { archiveStem, commonParent, compressPaths, takenIn as takenInDir } from './fs-actions';
 import type { FindResult } from './tree-find';
 
 interface Node {
@@ -41,6 +43,7 @@ interface Node {
 
 const isRoot = (node: Node) => node.path === '';
 const isDir = (node: Node) => node.kind === 'dir' || node.target === 'dir';
+const isArchive = (node: Node) => !isDir(node) && previewKind(node.name) === 'archive';
 
 export interface ProjectTreeProps {
   project: Project;
@@ -57,6 +60,8 @@ export interface ProjectTreeProps {
   onSelectForCompare?(project: string, path: string): void;
   /** Absent: no compare items in the menu. */
   onCompare?(left: { project: string; path: string }, right: { project: string; path: string }): void;
+  /** Absent: no Open as Details in the menu. */
+  onOpenDetails?(project: string, path: string): void;
   /** A file or folder was renamed or moved. */
   onMoved(project: string, from: string, to: string): void;
   onDeleted(project: string, path: string): void;
@@ -133,13 +138,15 @@ export interface ProjectTreeApi {
   scrollTo(path: string): void;
   /** True while the tree's find box is open. */
   finding(): boolean;
+  /** The selected folder, the folder of the selected file, or the root. */
+  selectedFolder(): string;
 }
 
 /** The lazy tree of a project's folder, with the file actions. */
-export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, onPreviewFile, onOpenFileToSide, onOpenTerminal, compareWith, onSelectForCompare, onCompare, onMoved, onDeleted, apiRef, undo, dirtyCount, view, compact, confirmDelete = true, confirmDragDrop = false, nesting, find, gitDecorations = false }: ProjectTreeProps) {
+export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, onPreviewFile, onOpenFileToSide, onOpenTerminal, compareWith, onSelectForCompare, onCompare, onOpenDetails, onMoved, onDeleted, apiRef, undo, dirtyCount, view, compact, confirmDelete = true, confirmDragDrop = false, nesting, find, gitDecorations = false }: ProjectTreeProps) {
   const tree = useRef<TreeViewHandle<Node>>(null);
   const clipboard = useRef<{ mode: 'copy' | 'cut'; paths: string[] }>();
-  const { confirm, choose, element } = useDialogs();
+  const { confirm, choose, prompt, element } = useDialogs();
   const [creating, setCreating] = useState<{ dir: string; kind: 'file' | 'dir' }>();
   const toast = useToast();
   const copyPath = useCopyPath();
@@ -524,6 +531,39 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
       clipboard.current = undefined;
     });
 
+  const takenIn = (dir: string) => takenInDir(project.id, dir);
+
+  const extract = (node: Node, ask: boolean) =>
+    run(async () => {
+      const dir = relPath.dirname(node.path);
+      const { fold, taken } = await takenIn(dir);
+      let to = relPath.join(dir, freeName(archiveStem(node.name), true, taken, fold));
+      if (ask) {
+        const raw = await prompt({
+          title: t('explorer.extractTo'),
+          label: t('explorer.extractToLabel'),
+          value: to,
+          validate: (v) => (v.replace(/\\/g, '/').split('/').some((x) => !x.trim() || x.trim() === '.' || x.trim() === '..') ? t('explorer.nameInvalid') : null),
+        });
+        if (raw === null) return;
+        to = raw.replace(/\\/g, '/').split('/').map((x) => x.trim()).join('/');
+      }
+      const result = await api.fsExtract(project.id, node.path, to);
+      reloadDir(dir);
+      reloadDir(relPath.dirname(result.path));
+      reveal(result.path);
+      toast({ message: t('explorer.extracted', { name: node.name, target: result.path }) });
+    });
+
+  const compress = (nodes: Node[], format: FsArchiveFormat) =>
+    run(async () => {
+      const done = await compressPaths(project, actionable(nodes).map((n) => n.path), format);
+      if (!done) return;
+      reloadDir(done.dir);
+      reveal(done.result.path);
+      toast({ message: done.message });
+    });
+
   /**
    * Files and folders dragged in from the OS. A top-level name that is taken asks Skip / Keep both / Replace
    * (once for all with the checkbox); what is inside a dropped folder is not compared. Up to UPLOAD_PARALLEL files go at once.
@@ -648,6 +688,10 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
     reveal,
     scrollTo,
     finding: () => !!find,
+    selectedFolder: () => {
+      const node = selectedDir();
+      return isDir(node) ? node.path : relPath.dirname(node.path);
+    },
   }));
 
   const menuItems = (node: Node, selection: Node[]): Array<ContextMenuItem | 'sep'> => {
@@ -655,12 +699,22 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
     const item = (id: string, label: string, act: () => void, extra: Partial<ContextMenuItem> = {}): ContextMenuItem => ({ id, label, run: act, disabled, ...extra });
     const call = (job: () => Promise<unknown>) => () => void run(async () => void (await job()));
     const ref = (n: Node) => ({ project: project.id, path: n.path });
+    const compressItems = (nodes: Node[]) => {
+      const ok = nodes.length > 0 && nodes.every((n) => !isRoot(n) && !n.outside) && commonParent(nodes) !== undefined;
+      return ok
+        ? [
+            item('compressZip', t('explorer.compressZip'), () => void compress(nodes, 'zip'), { icon: 'archive', disabled: false }),
+            item('compress7z', t('explorer.compress7z'), () => void compress(nodes, '7z'), { disabled: false }),
+          ]
+        : [];
+    };
     if (selection.length > 1) {
       const pair = selection.length === 2 && selection.every((n) => !isDir(n) && !n.outside);
       return [
         ...(pair && onCompare ? [item('compareSelected', t('explorer.compareSelected'), () => onCompare(ref(selection[0]!), ref(selection[1]!)), { disabled: false }), 'sep' as const] : []),
         item('copy', t('explorer.copy'), () => stash('copy', selection), { icon: 'copy', hint: 'Ctrl+C' }),
         item('cut', t('explorer.cut'), () => stash('cut', selection), { hint: 'Ctrl+X' }),
+        ...compressItems(selection),
         item('delete', t('explorer.delete'), () => void remove(selection), {
           icon: 'trash',
           hint: MULTI_DELETE_ENABLED ? 'Del' : t('explorer.deleteOne'),
@@ -683,6 +737,14 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
             item('rename', t('explorer.rename'), () => tree.current?.startRename(nodeId(project.id, node.path)), { icon: 'edit', hint: 'F2' }),
             item('delete', t('explorer.delete'), () => void remove([node]), { icon: 'trash', hint: 'Del', danger: true }),
             'sep' as const,
+            ...(isArchive(node)
+              ? [
+                  item('extractHere', t('explorer.extractHere'), () => void extract(node, false), { icon: 'archive' }),
+                  item('extractTo', t('explorer.extractTo'), () => void extract(node, true)),
+                ]
+              : []),
+            ...compressItems([node]),
+            'sep' as const,
           ]),
       item('copyFullPath', t('explorer.copyFullPath'), () => copyPath(fullPath(project.path, node.path)), { icon: 'copy', disabled: false }),
       ...(isRoot(node) ? [] : [item('copyPath', t('explorer.copyPath'), () => copyPath(node.path), { icon: 'copy', disabled: false })]),
@@ -696,6 +758,7 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
             item('selectForCompare', t('explorer.selectForCompare'), () => onSelectForCompare(project.id, node.path)),
             'sep' as const,
           ]),
+      ...(isDir(node) && onOpenDetails ? [item('openDetails', t('explorer.openDetails'), () => onOpenDetails(project.id, node.path), { icon: 'table', disabled })] : []),
       ...(isDir(node) ? [item('openTerminal', t('explorer.openTerminal'), () => onOpenTerminal(project.id, node.path), { icon: 'terminal', disabled })] : []),
       item('reveal', t('explorer.reveal'), call(() => api.fsReveal(project.id, node.path))),
       ...(editors.data ?? []).map((editor) =>

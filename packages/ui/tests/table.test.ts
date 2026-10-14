@@ -43,6 +43,18 @@ describe('sortRows', () => {
     expect(sortRows([true, false], id, 'asc')).toEqual([false, true]);
   });
 
+  test('orders by group first in both directions', () => {
+    const rows = [
+      { dir: false, n: 'b' },
+      { dir: true, n: 'z' },
+      { dir: false, n: 'a' },
+      { dir: true, n: 'y' },
+    ];
+    const group = (r: { dir: boolean }) => (r.dir ? 0 : 1);
+    expect(sortRows(rows, (r) => r.n, 'asc', group).map((r) => r.n)).toEqual(['y', 'z', 'a', 'b']);
+    expect(sortRows(rows, (r) => r.n, 'desc', group).map((r) => r.n)).toEqual(['z', 'y', 'b', 'a']);
+  });
+
   test('does not mutate the input', () => {
     const rows = [2, 1];
     sortRows(rows, id, 'asc');

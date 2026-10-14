@@ -493,3 +493,74 @@ test('hash streams a SHA-256 of the file', async () => {
   expect(await fail('GET /api/fs/hash', 'root=r&path=a')).toMatchObject({ code: 'notAFile' });
   expect(await fail('GET /api/fs/hash', 'root=r&path=../x')).toMatchObject({ code: 'badPath' });
 });
+
+function tar(entries: { name: string; body?: string; link?: string }[]): Uint8Array<ArrayBuffer> {
+  const blocks: Uint8Array[] = [];
+  const enc = new TextEncoder();
+  for (const e of entries) {
+    const data = enc.encode(e.body ?? '');
+    const h = new Uint8Array(512);
+    const put = (s: string, at: number) => h.set(enc.encode(s), at);
+    put(e.name, 0);
+    put('0000644\0', 100);
+    put('0000000\0', 108);
+    put('0000000\0', 116);
+    put(`${data.length.toString(8).padStart(11, '0')}\0`, 124);
+    put('14000000000\0', 136);
+    put('        ', 148);
+    put(e.link ? '2' : '0', 156);
+    if (e.link) put(e.link, 157);
+    put('ustar\u000000', 257);
+    put(`${h.reduce((a, b) => a + b, 0).toString(8).padStart(6, '0')}\0 `, 148);
+    blocks.push(h, data, new Uint8Array((512 - (data.length % 512)) % 512));
+  }
+  blocks.push(new Uint8Array(1024));
+  return new Uint8Array(Buffer.concat(blocks));
+}
+
+test('extract unpacks a zip into a new folder and refuses an existing target', async () => {
+  const { call, fail, root } = await setup();
+  expect(await call('POST /api/fs/compress', { root: 'r', paths: ['a', 'top.txt'], name: 'pack.zip', format: 'zip' })).toEqual({ path: 'pack.zip', skippedLinks: [] });
+  expect(await call('POST /api/fs/extract', { root: 'r', path: 'pack.zip', to: 'out' })).toEqual({ path: 'out' });
+  expect(await readFile(join(root, 'out', 'a', 'b.txt'), 'utf8')).toBe('hello\nsecond line');
+  expect(await readFile(join(root, 'out', 'top.txt'), 'utf8')).toBe('top');
+  expect(await fail('POST /api/fs/extract', { root: 'r', path: 'pack.zip', to: 'a' })).toMatchObject({ code: 'exists' });
+});
+
+test('extract unpacks the tar inside a tar.gz', async () => {
+  const { call, root } = await setup();
+  await writeFile(join(root, 'x.tar.gz'), Bun.gzipSync(tar([{ name: 'd/one.txt', body: 'one' }, { name: 'two.txt', body: 'two' }])));
+  await call('POST /api/fs/extract', { root: 'r', path: 'x.tar.gz', to: 'x' });
+  expect(await readFile(join(root, 'x', 'd', 'one.txt'), 'utf8')).toBe('one');
+  expect(await readFile(join(root, 'x', 'two.txt'), 'utf8')).toBe('two');
+});
+
+test('extract refuses a dot-dot entry and removes the target', async () => {
+  const { fail, root } = await setup();
+  await writeFile(join(root, 'slip.tar'), tar([{ name: 'ok.txt', body: 'ok' }, { name: '../evil.txt', body: 'evil' }]));
+  expect(await fail('POST /api/fs/extract', { root: 'r', path: 'slip.tar', to: 't' })).toMatchObject({ code: 'archiveUnsafe' });
+  expect(await stat(join(root, 'evil.txt')).catch(() => null)).toBeNull();
+  expect(await stat(join(root, 't')).catch(() => null)).toBeNull();
+});
+
+test('extract refuses a link leading out of the target and removes it', async () => {
+  const { fail, root } = await setup();
+  await writeFile(join(root, 'slip.tar'), tar([{ name: 'out', link: '../../outside' }]));
+  expect(await fail('POST /api/fs/extract', { root: 'r', path: 'slip.tar', to: 't' })).toMatchObject({ code: 'archiveUnsafe' });
+  expect(await stat(join(root, 't')).catch(() => null)).toBeNull();
+});
+
+test('compress writes a 7z that extracts to the same files', async () => {
+  const { call, fail, root } = await setup();
+  expect(await call('POST /api/fs/compress', { root: 'r', paths: ['a/b.txt'], name: 'b.7z', format: '7z' })).toEqual({ path: 'a/b.7z', skippedLinks: [] });
+  expect(await fail('POST /api/fs/compress', { root: 'r', paths: ['a/b.txt'], name: 'b.7z', format: '7z' })).toMatchObject({ code: 'exists' });
+  expect(await fail('POST /api/fs/compress', { root: 'r', paths: ['a/b.txt', 'top.txt'], name: 'c.zip', format: 'zip' })).toMatchObject({ code: 'mixedParents' });
+  await call('POST /api/fs/extract', { root: 'r', path: 'a/b.7z', to: 'a/b' });
+  expect(await readFile(join(root, 'a', 'b', 'b.txt'), 'utf8')).toBe('hello\nsecond line');
+});
+
+test('extract and compress are refused on a read-only root', async () => {
+  const { fail } = await setup();
+  expect(await fail('POST /api/fs/compress', { root: 'ro', paths: ['top.txt'], name: 't.zip', format: 'zip' })).toMatchObject({ code: 'rootReadOnly' });
+  expect(await fail('POST /api/fs/extract', { root: 'ro', path: 'top.txt', to: 'x' })).toMatchObject({ code: 'rootReadOnly' });
+});

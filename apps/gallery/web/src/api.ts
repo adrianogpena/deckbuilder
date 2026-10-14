@@ -1,7 +1,7 @@
 import { type ArchiveContent, type SqliteContent, type SqlFormatOptions } from '@deckbuilder/editor';
 import type { HttpRequestDraft } from '@deckbuilder/editor/http';
 import type { ThemeSettings } from '@deckbuilder/server-core/palettes';
-import type { BackupInspect, EditorInfo, FsDuProgress, FsHash, FsInfo, GitDiff, GitFileContent, GitRepoInfo, GitStatus, HttpRequestSpec, HttpResponseInfo, ImportResult, RestEnvironment, RestEnvironmentInput, RestHistoryEntry, SqlHistoryEntry, TailChunk, UpdateState } from '@deckbuilder/server-core/protocol';
+import type { BackupInspect, EditorInfo, FsArchiveFormat, FsCompressResult, FsDuProgress, FsExtractResult, FsHash, FsInfo, GitDiff, GitFileContent, GitRepoInfo, GitStatus, HttpRequestSpec, HttpResponseInfo, ImportResult, RestEnvironment, RestEnvironmentInput, RestHistoryEntry, SqlHistoryEntry, TailChunk, UpdateState } from '@deckbuilder/server-core/protocol';
 
 export type { EditorInfo, FsDuProgress, FsHash, FsInfo, ImportResult, TailChunk };
 import type { SessionInfo } from '@deckbuilder/terminal';
@@ -375,6 +375,9 @@ export const api = {
     return last;
   },
   fsHash: (root: string, path: string) => request<FsHash>('GET', '/api/fs/hash', { root, path }),
+  fsExtract: (root: string, path: string, to: string) => request<FsExtractResult>('POST', '/api/fs/extract', {}, { root, path, to }),
+  fsCompress: (root: string, paths: string[], name: string, format: FsArchiveFormat) =>
+    request<FsCompressResult>('POST', '/api/fs/compress', {}, { root, paths, name, format }),
   gitRepos: () => request<GitRepoInfo[]>('GET', '/api/git/repos'),
   gitStatus: (root: string) => request<GitStatus>('GET', '/api/git/status', { root }),
   gitFile: (root: string, path: string, from: 'head' | 'index') => request<GitFileContent>('GET', '/api/git/file', { root, path, from }),

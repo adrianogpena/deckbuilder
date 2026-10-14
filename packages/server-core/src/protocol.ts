@@ -268,6 +268,34 @@ export interface FsHash {
   sha256: string;
 }
 
+/** `POST /api/fs/extract`: unpacks the archive `path` into the new folder `to` (must not exist). */
+export interface FsExtractRequest {
+  root: string;
+  path: string;
+  to: string;
+}
+
+/** `POST /api/fs/extract` reply: `path` is the created folder, relative to the root. */
+export interface FsExtractResult {
+  path: string;
+}
+
+export type FsArchiveFormat = 'zip' | '7z';
+
+/** `POST /api/fs/compress`: archives `paths` (all in one folder) into the file `name` in that folder (must not exist). */
+export interface FsCompressRequest {
+  root: string;
+  paths: string[];
+  name: string;
+  format: FsArchiveFormat;
+}
+
+/** `POST /api/fs/compress` reply: `path` is the archive, relative to the root; links that could not be stored are listed (root-relative). */
+export interface FsCompressResult {
+  path: string;
+  skippedLinks: string[];
+}
+
 export type EditorId = 'vscode' | 'intellij';
 
 /** One entry of `GET /api/editors`. */

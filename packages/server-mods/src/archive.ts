@@ -29,7 +29,20 @@ const MAX_NESTED_TAR_BYTES = 256_000_000;
 
 let wasm: Promise<ArrayBuffer> | undefined;
 
-async function run(args: string[], mounts: Record<string, string>): Promise<{ out: string[]; err: string[]; code: number }> {
+export interface SevenZipJob {
+  args: string[];
+  /** Emscripten mount point -> host folder, mounted through NODEFS. */
+  mounts: Record<string, string>;
+  cwd?: string;
+}
+
+export interface SevenZipResult {
+  out: string[];
+  err: string[];
+  code: number;
+}
+
+export async function run(args: string[], mounts: Record<string, string>, cwd?: string): Promise<SevenZipResult> {
   wasm ??= Bun.file(wasmFile).arrayBuffer();
   const out: string[] = [];
   const err: string[] = [];
@@ -38,6 +51,7 @@ async function run(args: string[], mounts: Record<string, string>): Promise<{ ou
     m.FS.mkdir(point);
     m.FS.mount(m.NODEFS, { root }, point);
   }
+  if (cwd) m.FS.chdir(cwd);
   let code = 0;
   try {
     m.callMain(args);
@@ -81,8 +95,8 @@ export function parseListing(lines: string[]): ArchiveEntry[] {
   return entries;
 }
 
-async function list(abs: string): Promise<ArchiveEntry[]> {
-  const { out, err, code } = await run(['l', '-slt', '-ba', '-bd', `/host/${basename(abs)}`], { '/host': dirname(abs) });
+async function list(abs: string, extra: string[] = []): Promise<ArchiveEntry[]> {
+  const { out, err, code } = await run(['l', '-slt', '-ba', '-bd', ...extra, `/host/${basename(abs)}`], { '/host': dirname(abs) });
   const entries = parseListing(out);
   if (entries.length === 0 && (code !== 0 || err.length > 0)) {
     throw invalid('badArchive', err.find((l) => l.trim()) ?? 'This file is not a supported archive.');
@@ -104,4 +118,88 @@ export async function listArchive(abs: string): Promise<ArchiveListing> {
     }
   }
   return { entries: entries.slice(0, MAX_ENTRIES), truncated: entries.length > MAX_ENTRIES };
+}
+
+/**
+ * `callMain` is synchronous and blocks its thread for the whole run, so extract and compress run
+ * 7z in a Worker; the server keeps answering meanwhile.
+ */
+function runInWorker(job: SevenZipJob): Promise<SevenZipResult> {
+  // In the exe this resolves next to the bundled entry, where `deckbuilder build` must put the worker entrypoint.
+  const worker = new Worker(new URL('./archive-worker.ts', import.meta.url).href);
+  return new Promise<SevenZipResult>((resolve, reject) => {
+    worker.addEventListener('message', (e: MessageEvent<SevenZipResult | { error: string }>) => {
+      if ('error' in e.data) reject(new Error(e.data.error));
+      else resolve(e.data);
+    });
+    worker.addEventListener('error', (e) => reject(new Error(e.message)));
+    worker.postMessage(job);
+  }).finally(() => worker.terminate());
+}
+
+// 7z asks for a password on stdin when it needs one; a dummy one makes it fail instead.
+const NO_PASSWORD = '-pdeckbuilder-no-password';
+const encrypted = () => invalid('archiveEncrypted', 'The archive is encrypted; password-protected archives are not supported.');
+const wrongPassword = (lines: string[]) => lines.some((l) => /wrong password|encrypted|can ?not open encrypted/i.test(l));
+
+const unsafe = () => invalid('archiveUnsafe', 'The archive has entries that lead outside the target folder.');
+/** An entry name that climbs out (`..`) or is absolute; 7z would quietly strip that, so it is refused instead. */
+const unsafePath = (path: string) => /^([\\/]|[a-zA-Z]:)/.test(path) || path.split(/[\\/]/).includes('..');
+
+/** 7z's exit status isn't passed back by `callMain`, so errors are read from its output too. */
+function check(r: SevenZipResult): void {
+  const lines = [...r.err, ...r.out];
+  if (r.code === 0 && !lines.some((l) => /ERROR|Errors:/.test(l))) return;
+  if (wrongPassword(lines)) throw encrypted();
+  if (lines.some((l) => /dangerous (link )?path/i.test(l))) throw unsafe();
+  throw invalid('badArchive', lines.find((l) => /ERROR/.test(l))?.trim() ?? r.err.find((l) => l.trim()) ?? 'The archive could not be extracted.');
+}
+
+/** Lists `abs` for extraction: encrypted entries or entry names leading out are refused. */
+async function checkedList(abs: string): Promise<ArchiveEntry[]> {
+  const entries = await list(abs, [NO_PASSWORD]).catch((err) => {
+    throw wrongPassword([(err as Error).message ?? '']) ? encrypted() : err;
+  });
+  if (entries.some((e) => e.encrypted)) throw encrypted();
+  if (entries.some((e) => unsafePath(e.path))) throw unsafe();
+  return entries;
+}
+
+const extract = (archive: string, to: string, mode: 'x' | 'e' = 'x') =>
+  runInWorker({ args: [mode, '-y', '-bd', NO_PASSWORD, '-o/out', `/host/${basename(archive)}`], mounts: { '/host': dirname(archive), '/out': to } }).then(check);
+
+/**
+ * Extracts `abs` into the existing empty folder `to` (7z `x`, folders kept). A lone .tar inside a
+ * .gz/.xz/.bz2 is unpacked too, like `listArchive` lists it. Encrypted archives and entries that
+ * lead out of `to` (`..`, absolute names, links out) are refused.
+ */
+export async function extractArchive(abs: string, to: string): Promise<void> {
+  const entries = await checkedList(abs);
+  const only = entries.length === 1 ? entries[0]! : undefined;
+  if (only && !only.dir && /\.tar$/i.test(only.path)) {
+    const dir = await mkdtemp(join(tmpdir(), 'deckbuilder-arc-'));
+    try {
+      await extract(abs, dir, 'e');
+      const tar = join(dir, basename(only.path));
+      await checkedList(tar);
+      await extract(tar, to);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+    return;
+  }
+  await extract(abs, to);
+}
+
+/**
+ * Writes the archive `file` (zip or 7z) of the entries `names` of the folder `dir`, stored by name.
+ * Links are stored as links (`-snl`), never followed.
+ */
+export async function compressArchive(dir: string, names: string[], file: string, format: 'zip' | '7z'): Promise<void> {
+  const r = await runInWorker({
+    args: ['a', `-t${format}`, '-snl', '-bd', '-y', `/out/${basename(file)}`, '--', ...names],
+    mounts: { '/host': dir, '/out': dirname(file) },
+    cwd: '/host',
+  });
+  if (r.code !== 0) throw invalid('compressFailed', r.err.find((l) => l.trim()) ?? 'The archive could not be written.');
 }

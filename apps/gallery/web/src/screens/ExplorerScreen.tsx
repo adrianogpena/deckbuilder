@@ -38,6 +38,7 @@ import {
   fileIconOf,
   fileSettingsOf,
   relPath,
+  type SortState,
 } from '@deckbuilder/ui';
 import { closeSession } from '@deckbuilder/terminal';
 import { api, type ExplorerSettings, type LogSettings, type Project, type Settings } from '../api';
@@ -60,13 +61,15 @@ import { TreePane } from './explorer/TreePane';
 const FileTab = lazy(() => import('./explorer/FileTab').then((m) => ({ default: m.FileTab })));
 const TerminalPane = lazy(() => import('@deckbuilder/terminal').then((m) => ({ default: m.TerminalPane })));
 const CompareTab = lazy(() => import('./explorer/CompareTab').then((m) => ({ default: m.CompareTab })));
+const DetailsTab = lazy(() => import('./explorer/DetailsTab').then((m) => ({ default: m.DetailsTab })));
 
 type FileRef = { project: string; path: string };
 type Route =
   | { kind: 'welcome' }
   | { kind: 'file'; project: string; path: string }
   | { kind: 'terminal'; project: string; path: string; session?: string }
-  | { kind: 'diff'; left: FileRef; right: FileRef };
+  | { kind: 'diff'; left: FileRef; right: FileRef }
+  | { kind: 'details'; project: string; path: string; sort?: SortState | null };
 
 const isFileRef = (x: unknown): x is FileRef => {
   const r = x as { project?: unknown; path?: unknown } | null;
@@ -103,6 +106,10 @@ const isRoute = (x: unknown): x is Route => {
   if (r.kind === 'welcome') return true;
   if (r.kind === 'diff') return isFileRef((x as { left?: unknown }).left) && isFileRef((x as { right?: unknown }).right);
   if (typeof r.project !== 'string' || typeof r.path !== 'string') return false;
+  if (r.kind === 'details') {
+    const sort = (x as { sort?: { column?: unknown; dir?: unknown } | null }).sort;
+    return sort === undefined || sort === null || (typeof sort === 'object' && typeof sort.column === 'string' && (sort.dir === 'asc' || sort.dir === 'desc'));
+  }
   return r.kind === 'file' || (r.kind === 'terminal' && (r.session === undefined || typeof r.session === 'string'));
 };
 
@@ -319,6 +326,14 @@ export function ExplorerScreen({ settings, onSave, go }: { settings: Settings; o
       return { ...s, layout };
     });
 
+  const openDetails = (project: string, path: string) =>
+    update((s) => {
+      const target: Route = { kind: 'details', project, path };
+      const current = activeTab(s.layout);
+      const layout = current.route.kind === 'welcome' ? navigate(s.layout, current.id, target, { replace: true }) : addTab(s.layout, newTab(target));
+      return { ...s, layout };
+    });
+
   const onSession = (tabId: string, session: string) => {
     const tab = latest.current.layout.panes.flatMap((p) => p.tabs).find((x) => x.id === tabId);
     if (!tab || tab.route.kind !== 'terminal' || tab.route.session === session) return;
@@ -332,7 +347,7 @@ export function ExplorerScreen({ settings, onSave, go }: { settings: Settings; o
     update((s) => ({
       ...s,
       layout: mapRoutes(s.layout, (r) =>
-        r.kind === 'file' && r.project === project && relPath.isUnder(r.path, from)
+        (r.kind === 'file' || r.kind === 'details') && r.project === project && relPath.isUnder(r.path, from)
           ? { ...r, path: relPath.moved(r.path, from, to) }
           : r.kind === 'diff'
             ? { ...r, left: movedRef(r.left, project, from, to), right: movedRef(r.right, project, from, to) }
@@ -357,7 +372,7 @@ export function ExplorerScreen({ settings, onSave, go }: { settings: Settings; o
     update((s) => ({
       ...s,
       layout: closeTabsWhere(s.layout, (r) =>
-        r.kind === 'file' ? r.project === project && relPath.isUnder(r.path, path) : r.kind === 'diff' && (refUnder(r.left, project, path) || refUnder(r.right, project, path)),
+        r.kind === 'file' || r.kind === 'details' ? r.project === project && relPath.isUnder(r.path, path) : r.kind === 'diff' && (refUnder(r.left, project, path) || refUnder(r.right, project, path)),
       ),
       expanded: s.expanded[project] ? { ...s.expanded, [project]: s.expanded[project].filter((id) => !idsUnder(project, path)(id)) } : s.expanded,
     }));
@@ -379,7 +394,7 @@ export function ExplorerScreen({ settings, onSave, go }: { settings: Settings; o
       const shownRemoved = s.trees[0] === project.id || (s.trees.length === 0 && shownId(s, list) === project.id);
       const trees = shownRemoved && next ? [next.id, ...rest] : rest;
       if (shownRemoved && next && !expanded[next.id]) expanded[next.id] = [nodeId(next.id, '')];
-      return { ...s, expanded, trees, layout: closeTabsWhere(s.layout, (r) => (r.kind === 'diff' ? r.left.project === project.id || r.right.project === project.id : r.kind === 'file' && r.project === project.id)) };
+      return { ...s, expanded, trees, layout: closeTabsWhere(s.layout, (r) => (r.kind === 'diff' ? r.left.project === project.id || r.right.project === project.id : (r.kind === 'file' || r.kind === 'details') && r.project === project.id)) };
     });
     projects.reload();
   };
@@ -414,7 +429,9 @@ export function ExplorerScreen({ settings, onSave, go }: { settings: Settings; o
             tooltip: `${nameOf(route.left.project)}/${route.left.path} ↔ ${nameOf(route.right.project)}/${route.right.path}`,
             ...fileIconOf(relPath.basename(route.right.path)),
           }
-          : {
+          : route.kind === 'details'
+            ? { title: relPath.basename(route.path) || nameOf(route.project), tooltip: `${nameOf(route.project)}/${route.path}`, icon: 'table' as const }
+            : {
           title: relPath.basename(route.path),
           tooltip: `${nameOf(route.project)}/${route.path}`,
           location: [nameOf(route.project), relPath.dirname(route.path)].filter(Boolean).join('/'),
@@ -564,6 +581,7 @@ export function ExplorerScreen({ settings, onSave, go }: { settings: Settings; o
                   compareWith={compareWith}
                   onSelectForCompare={(p, path) => setCompareWith({ project: p, path })}
                   onCompare={openCompare}
+                  onOpenDetails={openDetails}
                   onMoved={moved}
                   onDeleted={deleted}
                   undo={undo}
@@ -614,6 +632,28 @@ export function ExplorerScreen({ settings, onSave, go }: { settings: Settings; o
                   onSession={(id) => onSession(tab.id, id)}
                   appKeys={terminalAppKeys('explorer')}
                 />
+              </Suspense>
+            ) : tab.route.kind === 'details' ? (
+              <Suspense fallback={<PanelLoading />}>
+                {(() => {
+                  const route = tab.route;
+                  const project = list.find((p) => p.id === route.project);
+                  return project ? (
+                    <DetailsTab
+                      project={project}
+                      path={route.path}
+                      exclude={files.exclude}
+                      showHidden={files.showHidden}
+                      sort={route.sort ?? null}
+                      onSortChange={(sort) => update((s) => ({ ...s, layout: navigate(s.layout, tab.id, { ...route, sort }, { replace: true }) }))}
+                      onNavigate={(path) => update((s) => ({ ...s, layout: navigate(s.layout, tab.id, { ...route, path }) }))}
+                      onOpenFile={(path) => openFile(route.project, path, files.previewTabs)}
+                      onDeleted={deleted}
+                      dirtyCount={dirtyCount}
+                      confirmDelete={files.confirmDelete}
+                    />
+                  ) : <PanelLoading />;
+                })()}
               </Suspense>
             ) : tab.route.kind === 'diff' ? (
               <Suspense fallback={<PanelLoading />}>

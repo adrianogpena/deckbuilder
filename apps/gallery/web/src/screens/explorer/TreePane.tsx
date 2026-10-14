@@ -41,6 +41,7 @@ export function TreePane({ focused, showHidden = false, onFocus, exclude, sort, 
     reveal: (path) => own.current?.reveal(path),
     scrollTo: (path) => own.current?.scrollTo(path),
     finding: () => own.current?.finding() ?? false,
+    selectedFolder: () => own.current?.selectedFolder() ?? '',
   }));
   const [moreOpen, setMoreOpen] = useState(false);
   const moreWrap = useRef<HTMLDivElement>(null);
@@ -155,6 +156,7 @@ export function TreePane({ focused, showHidden = false, onFocus, exclude, sort, 
                   {item('folder-plus', t('explorer.newFolder'), () => own.current?.newFolder())}
                   {item('refresh', t('explorer.refresh'), () => own.current?.refresh())}
                   {item('collapse-all', t('explorer.collapseAll'), () => own.current?.collapseAll())}
+                  {tree.onOpenDetails && item('table', t('explorer.openDetails'), () => tree.onOpenDetails?.(project.id, own.current?.selectedFolder() ?? ''))}
                   {item(showExcluded ? 'eye' : 'eye-off', t('explorer.showExcluded'), () => setShowExcluded(!showExcluded), showExcluded)}
                   {onSplit && item('split-down', t('explorer.split'), onSplit)}
                   {onCloseTree && item('close', t('explorer.closeTree'), onCloseTree)}

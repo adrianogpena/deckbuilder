@@ -95,11 +95,15 @@ function compare(a: unknown, b: unknown): number {
   return collator.compare(cellText(a), cellText(b));
 }
 
-/** A sorted copy; stable, and null/undefined values come last in both directions. */
-export function sortRows<T>(rows: readonly T[], value: (row: T) => unknown, dir: SortDir): T[] {
+/**
+ * A sorted copy; stable, and null/undefined values come last in both directions.
+ * `group` ranks rows before the value in both directions (lower first), e.g. folders before files.
+ */
+export function sortRows<T>(rows: readonly T[], value: (row: T) => unknown, dir: SortDir, group?: (row: T) => number): T[] {
   const sign = dir === 'asc' ? 1 : -1;
-  const keyed = rows.map((row, index) => ({ row, index, v: value(row) }));
+  const keyed = rows.map((row, index) => ({ row, index, v: value(row), g: group ? group(row) : 0 }));
   keyed.sort((x, y) => {
+    if (x.g !== y.g) return x.g - y.g;
     const mx = missing(x.v);
     const my = missing(y.v);
     if (mx || my) return mx && my ? x.index - y.index : mx ? 1 : -1;
