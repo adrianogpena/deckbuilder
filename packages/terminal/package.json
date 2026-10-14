@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./protocol": "./src/protocol.ts",
+    "./session": "./src/client.ts",
     "./options": "./src/terminalOptions.ts",
     "./server": "./src/server/index.ts"
   },

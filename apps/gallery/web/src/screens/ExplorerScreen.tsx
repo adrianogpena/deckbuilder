@@ -40,7 +40,7 @@ import {
   relPath,
   type SortState,
 } from '@deckbuilder/ui';
-import { closeSession } from '@deckbuilder/terminal';
+import { closeSession } from '@deckbuilder/terminal/session';
 import { api, type ExplorerSettings, type LogSettings, type Project, type Settings } from '../api';
 import { takeExplorerRequest } from '../explorer-request';
 import { commandById, terminalAppKeys } from '../commands';

@@ -1,4 +1,4 @@
-import { type ArchiveContent, type SqliteContent, type SqlFormatOptions } from '@deckbuilder/editor';
+import type { ArchiveContent, SqliteContent, SqlFormatOptions } from '@deckbuilder/editor';
 import type { HttpRequestDraft } from '@deckbuilder/editor/http';
 import type { ThemeSettings } from '@deckbuilder/server-core/palettes';
 import type { BackupInspect, EditorInfo, FsArchiveFormat, FsCompressRequest, FsCompressResult, FsDuProgress, FsExtractRequest, FsExtractResult, FsHash, FsInfo, GitCommit, GitCommitFile, GitDiff, GitFileContent, GitRepoInfo, GitStatus, HttpRequestSpec, HttpResponseInfo, ImportResult, RestEnvironment, RestEnvironmentInput, RestHistoryEntry, SqlHistoryEntry, TailChunk, UpdateState } from '@deckbuilder/server-core/protocol';

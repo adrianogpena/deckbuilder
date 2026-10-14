@@ -10,7 +10,7 @@ export default defineConfig({
   build: {
     outDir: '../dist/web',
     emptyOutDir: true,
-    // The editor chunk (CodeMirror and its language parsers, ~700 kB) loads lazily with the first file tab.
+    // The editor chunks (CodeMirror and its language parsers) load lazily with the first file tab; the editor/terminal barrels must not be imported statically at startup (use the ./options and ./session subpaths).
     chunkSizeWarningLimit: 900,
   },
   server: {

@@ -2,7 +2,8 @@ import { closeBrackets } from '@codemirror/autocomplete';
 import { bracketMatching, indentUnit } from '@codemirror/language';
 import { EditorState, type Extension } from '@codemirror/state';
 import { Decoration, type DecorationSet, drawSelection, EditorView, highlightActiveLine, highlightActiveLineGutter, highlightWhitespace, lineNumbers, ViewPlugin, type ViewUpdate } from '@codemirror/view';
-import { createContext, useContext } from 'react';
+import { useContext } from 'react';
+import { EditorOptionsContext } from './editorOptionsContext';
 
 /** Plain-data editor preferences; every field is optional and defaults to the built-in behavior. */
 export interface EditorOptions {
@@ -76,7 +77,7 @@ export function editorOptionsExtension(options: EditorOptions | undefined): Exte
   ];
 }
 
-export const EditorOptionsContext = createContext<EditorOptions | undefined>(undefined);
+export { EditorOptionsContext };
 
 /** The app-wide editor options, as provided above the editors. */
 export const useEditorOptions = (): EditorOptions | undefined => useContext(EditorOptionsContext);

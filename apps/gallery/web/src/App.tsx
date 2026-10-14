@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PALETTES } from '@deckbuilder/server-core/palettes';
 import { CommandPalette, detectLanguage, effectiveKeys, ErrorBanner, Icon, isDesktop, KeybindingProvider, type PaletteItem, PanelLoading, setFileAssociations, setLanguage, Sidebar, Spinner, ToastProvider, useAsync, useCommand, useCommandPalette, useHashRoute, useHeartbeat, useKeybindings, useTheme, useZoom } from '@deckbuilder/ui';
-import { EditorOptionsContext } from '@deckbuilder/editor';
+import { EditorOptionsContext } from '@deckbuilder/editor/options';
 import { TerminalOptionsContext } from '@deckbuilder/terminal/options';
 import { APP } from '../../app';
 import { api, type Settings } from './api';

@@ -1,5 +1,5 @@
 import { useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from 'react';
-import { previewKind } from '@deckbuilder/editor';
+import { previewKind } from '@deckbuilder/editor/options';
 import {
   ContextMenu,
   type ContextMenuItem,

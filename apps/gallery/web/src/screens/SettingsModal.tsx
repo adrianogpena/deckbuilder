@@ -1,5 +1,4 @@
-import { type CSSProperties, Fragment, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { CodeView, formatSql } from '@deckbuilder/editor';
+import { type CSSProperties, Fragment, lazy, type ReactNode, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { AppearanceFields, SettingItem, SettingLinksProvider, type SettingLinks, SettingRow, useRevealSetting, useRovingList, SETTING_ROW_CONTROLS,fileSettingsOf, ZoomField, type ApiError, detectLanguage, type FileAssociation, validFileAssociations, ErrorBanner, errorMessage, errorOf, GLOBAL, isDesktop, KeybindingsEditor, LANGUAGES, isModified, resetPatch, Modal, parseSettingsQuery, settingDescriptionText, toggleModifiedFilter, Spinner, useAsync, useKeybindings, type Language, type SettingDef, type SettingsSectionNode, sectionKey } from '@deckbuilder/ui';
 import { APP } from '../../../app';
 import { NAV } from '../nav';
@@ -7,6 +6,8 @@ import { api, type BackupInfo, type EditorInfo, type Project, type ImportResult,
 import { type MessageKey, t } from '../i18n';
 import { en } from '../i18n/en';
 import { settingDefault, settingsRegistry } from '../settings';
+
+const CodeView = lazy(() => import('@deckbuilder/editor').then((m) => ({ default: m.CodeView })));
 
 interface Props {
   settings: Settings;
@@ -671,19 +672,24 @@ function ResultsCard({ settings, onChange }: { settings: Settings; onChange: Cha
 /** The SQL formatter options with a live preview. */
 function FormatterCard({ settings, onChange }: { settings: Settings; onChange: Change }) {
   const wb = withWorkbenchDefaults(settings.workbench);
-  const preview = useMemo(() => {
-    try {
-      return formatSql(FORMAT_SAMPLE, wb.format);
-    } catch {
-      return FORMAT_SAMPLE;
-    }
+  const [preview, setPreview] = useState(FORMAT_SAMPLE);
+  useEffect(() => {
+    let live = true;
+    import('@deckbuilder/editor').then(({ formatSql }) => {
+      let text = FORMAT_SAMPLE;
+      try {
+        text = formatSql(FORMAT_SAMPLE, wb.format);
+      } catch { /* keep the raw sample */ }
+      if (live) setPreview(text);
+    });
+    return () => { live = false; };
   }, [wb.format]);
   return (
     <div className="settings-format">
       <aside className="settings-format-preview">
         <h4 className="mono-label">{t('settings.workbench.preview')}</h4>
         <span className="muted">{t('settings.workbench.preview.hint')}</span>
-        <CodeView value={preview} lang="sql" />
+        <Suspense fallback={null}><Suspense fallback={null}><CodeView value={preview} lang="sql" /></Suspense></Suspense>
       </aside>
       <div className="settings-format-options">
         {FORMAT_GROUPS.map((group) => (

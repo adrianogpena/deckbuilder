@@ -1,4 +1,4 @@
-import { DEFAULT_FORMAT_OPTIONS, FORMAT_OPTION_META, type SqlFormatOptions } from '@deckbuilder/editor';
+import { DEFAULT_FORMAT_OPTIONS, FORMAT_OPTION_META, type SqlFormatOptions } from '@deckbuilder/editor/options';
 import {
   AUTO_SAVE,
   DEFAULT_RESULT_FORMAT,
