@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { basename, isAbsolute, join } from 'node:path';
 import { appHome, createToaster, openWithDefault, pickFile, revealInFolder, saveFileAs, secretStore, writeFileAtomic } from '@deckbuilder/platform';
 import type { HttpRequestDraft } from '@deckbuilder/editor/http';
-import { dbRoutes, dbSessions, parseOracleUrl, validConnection, type DbConnectionFields } from '@deckbuilder/db';
+import { dbRoutes, dbSessions, parseOracleUrl, sqlHistory, validConnection, type DbConnectionFields } from '@deckbuilder/db';
 import { AppError, forbidden, invalid, isRecord, ndjson, type Routes } from '@deckbuilder/server-core';
 import { dialogRoutes, editorRoutes, fromPlatform, httpExecutor, gitRoutes, httpRoutes, pickedPaths, recordRoutes, recordStore, restTabsRoutes, rootedFs, validateDraft } from '@deckbuilder/server-mods';
 import type { StartContext } from '@deckbuilder/shell';
@@ -61,8 +61,11 @@ export const dbConnections = recordStore<DbConnectionFields & { password?: unkno
 });
 const sessions = dbSessions();
 const scriptFile = (id: string) => join(appHome(APP.id), 'workbench', `${id}.sql`);
+/** Statements the Workbench and the Explorer ran; main.ts sets its size from `workbench.historySize`. */
+export const sqlHistoryStore = sqlHistory({ dir: appHome(APP.id), max: 500 });
 const dbApi = dbRoutes({
   sessions,
+  history: sqlHistoryStore,
   scripts: {
     read: (id) => readFile(scriptFile(id), 'utf8').catch((err: NodeJS.ErrnoException) => (err.code === 'ENOENT' ? '' : Promise.reject(err))),
     write: (id, text) => writeFileAtomic(scriptFile(id), text),
@@ -167,8 +170,10 @@ export const routes = (ctx: StartContext): Routes => ({
       }
     });
   },
-  'POST /api/demo/save-target': async () => {
-    const path = await saveFileAs({ suggestedName: 'rows.csv', filters: [{ name: 'CSV', patterns: ['*.csv'] }] }).catch(fromPlatform);
+  'POST /api/demo/save-target': async ({ json }) => {
+    const { format } = await json<{ format?: unknown }>().catch(() => ({ format: undefined }));
+    const ext = format === 'json' ? 'json' : 'csv';
+    const path = await saveFileAs({ suggestedName: `rows.${ext}`, filters: [{ name: ext.toUpperCase(), patterns: [`*.${ext}`] }] }).catch(fromPlatform);
     if (path) saveTargets.add(path);
     return { path };
   },

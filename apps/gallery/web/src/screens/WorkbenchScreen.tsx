@@ -1,24 +1,27 @@
-import { useEffect, useRef, useState } from 'react';
+import { type MouseEvent, useEffect, useRef, useState } from 'react';
 import { CodeEditor, type CodeEditorHandle } from '@deckbuilder/editor';
 import {
   type ApiError,
   Badge,
+  ContextMenu,
   errorMessage,
   errorOf,
   ErrorBanner,
   Icon,
   PageHead,
   SplitView,
-  toCsv,
   useAsync,
   useCommand,
   useDebouncedSave,
   useDialogs,
+  useToast,
 } from '@deckbuilder/ui';
 import { api, withWorkbenchDefaults, type DbSchemaTable, type Settings, type WorkbenchSettings } from '../api';
 import { commandById } from '../commands';
 import { t } from '../i18n';
 import { Connections } from './workbench/Connections';
+import { EXPORT_ROWS, type ExportFormat, exportResults } from './workbench/export-results';
+import { HistoryPanel } from './workbench/HistoryPanel';
 import { SchemaPanel } from './workbench/SchemaPanel';
 import { DEFAULT_RESULTS, SqlResults } from './workbench/SqlResults';
 import { useSqlRunner } from './workbench/useSqlRunner';
@@ -27,7 +30,6 @@ import { useSqlSchema } from './workbench/useSqlSchema';
 const SAVE_DELAY = 500;
 const DEMO_SOURCE = 'demo';
 const MANAGE = '::manage';
-const EXPORT_ROWS = 10_000;
 const DEFAULT_MAIN: [number, number] = [0.3, 0.7];
 
 export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSave: (patch: Partial<Settings>) => void }) {
@@ -141,16 +143,22 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
   const { cols, tableRows, selection, log, setActionError, shown, status } = runner;
   const exportCols = () => cols.map((c) => ({ label: c.label, value: c.value }));
 
-  const exportCsv = async () => {
+  const toast = useToast();
+  const [exportMenu, setExportMenu] = useState<{ x: number; y: number }>();
+  const exportAs = async (format: ExportFormat) => {
     setActionError(undefined);
     try {
-      const { path } = await api.saveTarget();
-      if (!path) return;
-      await api.saveDemo(path, toCsv(exportCols(), tableRows.slice(0, EXPORT_ROWS)));
-      log(t('workbench.log.exported', { count: Math.min(tableRows.length, EXPORT_ROWS), path }), 'ok');
+      const message = await exportResults(format, exportCols(), tableRows, runner.truncated);
+      if (!message) return;
+      log(message, 'ok');
+      toast({ message });
     } catch (err) {
       setActionError(errorOf(err));
     }
+  };
+  const openExportMenu = (e: MouseEvent<HTMLButtonElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    setExportMenu({ x: r.left, y: r.bottom });
   };
 
   const disconnect = async () => {
@@ -176,6 +184,24 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
   const sizes = state.sizes ?? { main: DEFAULT_MAIN, results: DEFAULT_RESULTS };
   const demoWidths = shown.kind !== 'db';
   const { busy, starting } = runner;
+
+  // Reloads the history panel each time a run finishes.
+  const [runsDone, setRunsDone] = useState(0);
+  const wasBusy = useRef(false);
+  useEffect(() => {
+    if (wasBusy.current && !busy) setRunsDone((n) => n + 1);
+    wasBusy.current = busy;
+  }, [busy]);
+
+  const insertSql = (sql: string) => {
+    const view = editor.current?.view;
+    if (!view) return edit(query ? `${query}
+${sql}` : sql);
+    const sel = view.state.selection.main;
+    editor.current?.replaceRange(sel.from, sel.to, sql);
+    editor.current?.focus();
+  };
+  const connectionName = (id: string) => connections.data?.find((c) => c.id === id)?.name ?? id;
 
   return (
     <div className="content">
@@ -211,7 +237,20 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
               <button className="btn btn-sm" onClick={disconnect} disabled={!status?.connected || starting}>{t('workbench.tx.disconnect')}</button>
             </>
           )}
-          <button className="btn btn-sm" onClick={exportCsv} disabled={tableRows.length === 0}>{t('workbench.export')}</button>
+          <button className="btn btn-sm" onClick={() => update((cur) => ({ history: !cur.history }))} aria-pressed={!!state.history}>
+            <Icon name="history" /> {t('workbench.history')}
+          </button>
+          <button className="btn btn-sm" onClick={openExportMenu} disabled={tableRows.length === 0} aria-haspopup="menu" aria-expanded={!!exportMenu}>{t('workbench.export')}</button>
+          {exportMenu && (
+            <ContextMenu
+              at={exportMenu}
+              onClose={() => setExportMenu(undefined)}
+              items={[
+                { id: 'csv', label: t('workbench.export.csv'), run: () => void exportAs('csv') },
+                { id: 'json', label: t('workbench.export.json'), run: () => void exportAs('json') },
+              ]}
+            />
+          )}
           <button className="btn btn-sm" onClick={runner.copy} disabled={tableRows.length === 0}>{t(selection.length > 0 ? 'workbench.copySelected' : 'workbench.copy')}</button>
           {doc.kind === 'file' && (
             <>
@@ -254,6 +293,9 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
           />
         </div>
       </SplitView>
+      {state.history && (
+        <HistoryPanel connection={db} refresh={runsDone} connectionName={connectionName} onInsert={insertSql} onOpen={edit} confirm={confirm} />
+      )}
       </div>
       {managing && <Connections onClose={() => setManaging(false)} onChanged={connections.reload} />}
     </div>

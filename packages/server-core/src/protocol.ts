@@ -239,3 +239,18 @@ export interface GitDiff {
   text: string;
   truncated: boolean;
 }
+
+/** One statement of the SQL history (`GET /api/db/history`), newest first. */
+export interface SqlHistoryEntry {
+  id: string;
+  /** The database connection record id. */
+  connectionId: string;
+  sql: string;
+  /** Start time, ms since epoch. */
+  at: number;
+  /** Duration of the execute call (a query's rows stream later). */
+  ms: number;
+  /** Rows affected, or rows a query streamed once its rows were read. */
+  rows?: number;
+  error?: string;
+}

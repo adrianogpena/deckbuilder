@@ -25,7 +25,7 @@ import { type FileSettings, validFileSettings } from '@deckbuilder/ui/file-setti
 import { type LogSettings, validLogSettings } from '@deckbuilder/ui/log';
 import { APP } from '../app.ts';
 import pkg from '../package.json';
-import { dbConnections, openRoutes, projects, requests, resolveCwd, routes } from './routes.ts';
+import { dbConnections, openRoutes, projects, requests, resolveCwd, routes, sqlHistoryStore } from './routes.ts';
 
 export interface Settings extends BaseSettings {
   /** Start at Windows login (exe only). */
@@ -99,6 +99,7 @@ export interface WorkbenchSettings {
   confirmDestructive?: boolean;
   /** Seconds to wait for a database statement, 0 to 3600; 0 means no limit. */
   queryTimeout?: number;
+  historySize?: number;
   /** SQL formatter options; the editor package owns their meaning. */
   format?: Record<string, string | number | boolean>;
   /** The document the Workbench edits; the default script of the connection when omitted. */
@@ -240,6 +241,10 @@ function validWorkbench(raw: unknown): WorkbenchSettings | null {
     if (typeof r.queryTimeout !== 'number' || !Number.isFinite(r.queryTimeout) || r.queryTimeout < 0 || r.queryTimeout > 3600) return null;
     out.queryTimeout = r.queryTimeout;
   }
+  if (r.historySize !== undefined) {
+    if (!Number.isInteger(r.historySize) || (r.historySize as number) < 0 || (r.historySize as number) > 10_000) return null;
+    out.historySize = r.historySize;
+  }
   if (r.format !== undefined) {
     if (!isRecord(r.format)) return null;
     const format: Record<string, string | number | boolean> = {};
@@ -357,6 +362,12 @@ function validTerminal(raw: unknown): Settings['terminal'] | null {
 
 const dataDir = appHome(APP.id);
 const autostart = createAutostart({ name: APP.name });
+/** `workbench.historySize` (default 500; 0 = no SQL history). */
+const historySizeOf = (s: Settings) => {
+  const n = s.workbench?.historySize;
+  return typeof n === 'number' && Number.isInteger(n) && n >= 0 ? n : 500;
+};
+
 /** The folder the update-folder dialog returned; `apply` takes it once. */
 const pickedUpdateFolder = pickedPaths({ max: 1 });
 const settings = settingsStore<Settings>({
@@ -409,6 +420,7 @@ const settings = settingsStore<Settings>({
   },
   onChange(next, prev) {
     if (next.autostart !== prev.autostart) void autostart.set(next.autostart);
+    sqlHistoryStore.setMax(historySizeOf(next));
     if (next.updateFolder !== prev.updateFolder) void updater.check();
   },
 });
@@ -423,6 +435,7 @@ const updater = createUpdater({
 });
 
 const { closeToTray } = await settings.load();
+sqlHistoryStore.setMax(historySizeOf(await settings.load()));
 
 /** Shells of every Terminal tab; they outlive the window's sockets and end at app quit. */
 const sessions = terminalSessions();

@@ -1,5 +1,6 @@
 import { invalid, isRecord, ndjson, notFound, type Routes } from '@deckbuilder/server-core';
 import { parseOracleUrl, validUser } from './oracle-url.ts';
+import type { SqlHistory } from './history.ts';
 import type { DbCredentials, DbSessions } from './sessions.ts';
 
 export interface DbRoutesOptions {
@@ -8,6 +9,8 @@ export interface DbRoutesOptions {
   credentials: (id: string) => Promise<DbCredentials | null>;
   /** The Workbench's default script of a connection id: `read` gives '' when there is none yet. */
   scripts: { read: (id: string) => Promise<string>; write: (id: string, text: string) => Promise<void> };
+  /** Records every `/api/db/run`; also serves `/api/db/history*`. */
+  history?: SqlHistory;
 }
 
 const MAX_SQL = 1_000_000;
@@ -15,14 +18,19 @@ const MAX_PASSWORD = 1024;
 const MAX_ROWS = 100_000;
 const ID = /^[\w-]{1,64}$/;
 const OWNER = /^[A-Za-z0-9_$#]{1,128}$/;
+const MAX_IDS = 10_000;
+/** Query runs whose row count is still unknown, by run id: the history entry the streamed rows go to. */
+const MAX_PENDING = 200;
 
 const badRequest = () => invalid('badRequest', 'Invalid request.');
 
 /**
  * The Workbench's database API: `POST /api/db/test|connect|run|commit|rollback|disconnect`,
- * `GET /api/db/rows?run=` (NDJSON of row arrays), `GET /api/db/schema?id=&owner=` and `GET /api/db/status?id=`.
+ * `GET /api/db/rows?run=` (NDJSON of row arrays), `GET /api/db/schema?id=&owner=` and `GET /api/db/status?id=`;
+ * with `history`, `GET /api/db/history?q=&connection=` and `POST /api/db/history/delete|clear`.
  */
-export function dbRoutes({ sessions, credentials, scripts }: DbRoutesOptions): Routes {
+export function dbRoutes({ sessions, credentials, scripts, history }: DbRoutesOptions): Routes {
+  const pending = new Map<string, string>();
   function idOf(value: unknown): string {
     if (typeof value !== 'string' || !ID.test(value)) throw badRequest();
     return value;
@@ -69,12 +77,60 @@ export function dbRoutes({ sessions, credentials, scripts }: DbRoutesOptions): R
       if (typeof b.sql !== 'string' || b.sql.length > MAX_SQL) throw badRequest();
       const maxRows = b.maxRows;
       if (maxRows !== undefined && !(Number.isInteger(maxRows) && (maxRows as number) >= 1 && (maxRows as number) <= MAX_ROWS)) throw badRequest();
-      return sessions.run(id, await lookup(id), b.sql, { maxRows: maxRows as number | undefined });
+      const creds = await lookup(id);
+      const at = Date.now();
+      const start = performance.now();
+      const record = (extra: { rows?: number; error?: string }) =>
+        history?.append({ connectionId: id, sql: b.sql as string, at, ms: Math.round(performance.now() - start), ...extra }).catch(() => null) ?? Promise.resolve(null);
+      let result;
+      try {
+        result = await sessions.run(id, creds, b.sql, { maxRows: maxRows as number | undefined });
+      } catch (err) {
+        await record({ error: err instanceof Error ? err.message : String(err) });
+        throw err;
+      }
+      const entry = await record(result.kind === 'done' && result.rowsAffected !== undefined ? { rows: result.rowsAffected } : {});
+      if (entry && result.kind === 'rows') {
+        pending.set(result.run, entry.id);
+        if (pending.size > MAX_PENDING) pending.delete(pending.keys().next().value!);
+      }
+      return result;
     },
     'GET /api/db/rows': ({ req, query }) => {
       const run = query.get('run') ?? '';
       if (!/^[\w-]{1,64}$/.test(run)) throw badRequest();
-      return ndjson(req, (emit, signal) => sessions.rows(run, emit, signal));
+      const entryId = pending.get(run);
+      pending.delete(run);
+      let count = 0;
+      return ndjson(req, async (emit, signal) => {
+        try {
+          await sessions.rows(run, (item) => {
+            if (Array.isArray(item)) count++;
+            return emit(item);
+          }, signal);
+        } finally {
+          if (entryId && history) await history.setRows(entryId, count).catch(() => {});
+        }
+      });
+    },
+    'GET /api/db/history': async ({ query }) => {
+      if (!history) throw notFound('history', 'SQL history is not available.');
+      const q = query.get('q') || undefined;
+      const connection = query.get('connection') || undefined;
+      if ((q !== undefined && q.length > 1000) || (connection !== undefined && !ID.test(connection))) throw badRequest();
+      return history.list({ q, connection });
+    },
+    'POST /api/db/history/delete': async ({ json }) => {
+      if (!history) throw notFound('history', 'SQL history is not available.');
+      const { ids } = await body(json);
+      if (!Array.isArray(ids) || ids.length > MAX_IDS || !ids.every((x) => typeof x === 'string' && x.length <= 64)) throw badRequest();
+      await history.delete(ids as string[]);
+      return { ok: true };
+    },
+    'POST /api/db/history/clear': async () => {
+      if (!history) throw notFound('history', 'SQL history is not available.');
+      await history.clear();
+      return { ok: true };
     },
     'POST /api/db/commit': async ({ json }) => {
       const id = idOf((await body(json)).id);

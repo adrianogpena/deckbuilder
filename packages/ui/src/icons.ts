@@ -49,6 +49,7 @@ export const PATHS = {
   log: 'M4 6h16M4 10h16M4 14h10M4 18h13',
   image: 'M3 5h18v14H3zM8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM21 15l-5-5L5 19',
   table: 'M3 5h18v14H3zM3 10h18M3 15h18M9 5v14',
+  history: 'M3 12a9 9 0 1 0 2.6-6.4M3 4v5h5M12 7v5l3 3',
   code: 'M16 18l6-6-6-6M8 6l-6 6 6 6',
   terminal: 'M3 5h18v14H3zM7 10l3 2-3 2M12 15h5',
   archive: 'M3 4h18v4H3zM5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8M10 12h4',

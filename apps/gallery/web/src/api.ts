@@ -1,7 +1,7 @@
 import { type ArchiveContent, type SqliteContent, type SqlFormatOptions } from '@deckbuilder/editor';
 import type { HttpRequestDraft } from '@deckbuilder/editor/http';
 import type { ThemeSettings } from '@deckbuilder/server-core/palettes';
-import type { BackupInspect, EditorInfo, FsDuProgress, FsHash, FsInfo, GitDiff, GitFileContent, GitRepoInfo, GitStatus, HttpRequestSpec, HttpResponseInfo, ImportResult, TailChunk, UpdateState } from '@deckbuilder/server-core/protocol';
+import type { BackupInspect, EditorInfo, FsDuProgress, FsHash, FsInfo, GitDiff, GitFileContent, GitRepoInfo, GitStatus, HttpRequestSpec, HttpResponseInfo, ImportResult, SqlHistoryEntry, TailChunk, UpdateState } from '@deckbuilder/server-core/protocol';
 
 export type { EditorInfo, FsDuProgress, FsHash, FsInfo, ImportResult, TailChunk };
 import type { SessionInfo } from '@deckbuilder/terminal';
@@ -148,6 +148,8 @@ export interface WorkbenchSettings {
   maxRows?: number;
   /** The schema sidebar is open. */
   schema?: boolean;
+  /** The SQL history sidebar is open. */
+  history?: boolean;
   /** Project ids allowed to run SQL from the Explorer. */
   explorerProjects: string[];
   /** Last connection id used per project id. */
@@ -160,6 +162,8 @@ export interface WorkbenchSettings {
   confirmDestructive?: boolean;
   /** Seconds to wait for a database statement; 0 means no limit. */
   queryTimeout?: number;
+  /** Statements kept in the SQL history; 0 turns history off. */
+  historySize?: number;
   /** SQL formatter options. */
   format: SqlFormatOptions;
   /** The document the editor edits: the connection's default script (also when omitted) or a project file. */
@@ -177,6 +181,7 @@ export const withWorkbenchDefaults = (raw?: Partial<WorkbenchSettings>): Workben
   copyFormat: raw?.copyFormat ?? settingDefault<CopyFormat>('workbench.copyFormat'),
   confirmDestructive: raw?.confirmDestructive ?? settingDefault<boolean>('workbench.confirmDestructive'),
   queryTimeout: raw?.queryTimeout ?? settingDefault<number>('workbench.queryTimeout'),
+  historySize: raw?.historySize ?? settingDefault<number>('workbench.historySize'),
   format: { ...settingDefaults<SqlFormatOptions>('workbench.format'), ...raw?.format },
 });
 
@@ -222,6 +227,7 @@ export interface DbSchema {
   truncated: boolean;
 }
 
+export type { SqlHistoryEntry };
 export type DbRunResult = { kind: 'rows'; run: string; columns: DbColumn[] } | { kind: 'done'; rowsAffected?: number };
 
 export interface ExplorerSettings {
@@ -360,7 +366,7 @@ export const api = {
   resetEditor: (editor: EditorInfo['id']) => request<EditorInfo[]>('DELETE', '/api/editors/override', { editor }),
   openInEditor: (editor: EditorInfo['id'], root: string, path?: string) =>
     request<{ ok: true }>('POST', '/api/editors/open', {}, { editor, root, path: path || undefined }),
-  saveTarget: () => request<{ path: string | null }>('POST', '/api/demo/save-target'),
+  saveTarget: (format: 'csv' | 'json' = 'csv') => request<{ path: string | null }>('POST', '/api/demo/save-target', {}, { format }),
   saveDemo: (path: string, text: string) => request<{ ok: true }>('POST', '/api/demo/save', {}, { path, text }),
   dbConnections: () => request<DbConnection[]>('GET', '/api/db/connections'),
   createDbConnection: (input: Record<string, unknown>) => request<DbConnection>('POST', '/api/db/connections', {}, input),
@@ -377,6 +383,9 @@ export const api = {
   dbScript: (id: string) => request<{ text: string }>('GET', '/api/db/script', { id }).then((r) => r.text),
   dbScriptSave: (id: string, text: string) => request<{ ok: true }>('PUT', '/api/db/script', { id }, { text }),
   dbStatus: (id: string) => request<DbStatus>('GET', '/api/db/status', { id }),
+  listHistory: (filter: { q?: string; connection?: string } = {}) => request<SqlHistoryEntry[]>('GET', '/api/db/history', filter),
+  deleteHistory: (ids: string[]) => request<{ ok: true }>('POST', '/api/db/history/delete', {}, { ids }),
+  clearHistory: () => request<{ ok: true }>('POST', '/api/db/history/clear'),
   requests: () => request<SavedRequest[]>('GET', '/api/requests'),
   createRequest: (input: Record<string, unknown>) => request<SavedRequest>('POST', '/api/requests', {}, input),
   updateRequest: (id: string, input: Record<string, unknown>) => request<SavedRequest>('PUT', '/api/requests', { id }, input),

@@ -640,6 +640,7 @@ function WorkbenchCard({ settings, onChange }: { settings: Settings; onChange: C
         <Row id="workbench.maxRows" settings={settings} onChange={onChange} />
         <Row id="workbench.confirmDestructive" settings={settings} onChange={onChange} />
         <Row id="workbench.queryTimeout" settings={settings} onChange={onChange} />
+        <Row id="workbench.historySize" settings={settings} onChange={onChange} />
       </div>
     </section>
   );

@@ -80,7 +80,7 @@
 .git-group > .mono-label { padding: 4px 6px 2px; }
 .git-file { border-radius: 6px; }
 .git-file:hover, .git-file.active { background: var(--hover); }
-.git-letter { flex-shrink: 0; width: 14px; text-align: center; font-family: var(--mono, monospace); font-weight: 600; }
+.git-letter { flex-shrink: 0; width: 14px; text-align: center; font-weight: 600; }
 .git-letter.ok { color: var(--ok); }
 .git-letter.warn { color: var(--warn); }
 .git-letter.err { color: var(--err); }
@@ -92,7 +92,7 @@
 
 /* Workbench: schema sidebar next to the editor and results. */
 .wb-body { display: flex; flex: 1; min-height: 0; }
-.wb-body > :last-child { flex: 1; min-width: 0; }
+.wb-body > :not(aside) { flex: 1; min-width: 0; }
 .wb-schema { width: 260px; flex-shrink: 0; display: flex; flex-direction: column; gap: 6px; padding: 8px; overflow: hidden; border-right: 1px solid var(--border-soft); }
 .wb-schema-head { display: flex; align-items: center; gap: 8px; }
 .wb-schema-head .mono-label { flex: 1; }
@@ -104,6 +104,15 @@
 .wb-schema-cols { padding: 2px 0 4px 30px; }
 .wb-schema-cols li { display: flex; gap: 8px; font-size: 11px; line-height: 1.6; }
 .wb-schema-more { font-size: 11px; }
+.wb-history { width: 280px; flex-shrink: 0; display: flex; flex-direction: column; gap: 6px; padding: 8px; overflow: hidden; border-left: 1px solid var(--border-soft); }
+.wb-history-list { list-style: none; margin: 0; padding: 0; flex: 1; min-height: 0; overflow-y: auto; }
+.wb-history-entry { display: flex; align-items: flex-start; gap: 2px; border-bottom: 1px solid var(--border-soft); }
+.wb-history-pick { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; padding: 4px; border: 0; border-radius: 6px; background: transparent; color: var(--text); text-align: left; cursor: pointer; font-size: 11px; }
+.wb-history-pick:hover { background: var(--hover); }
+.wb-history-meta { display: flex; gap: 8px; }
+.wb-history-sql, .wb-history-error { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wb-history-sql { font-size: 12px; }
+.wb-history-error { color: var(--err); }
 .xp-watermark { display: grid; gap: 8px; margin: 28px auto 0; width: max-content; max-width: 100%; color: var(--text-2); font-size: 13px; }
 .xp-watermark > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px; align-items: center; }
 .xp-watermark dt { text-align: right; }
