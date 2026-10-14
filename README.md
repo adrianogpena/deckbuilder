@@ -13,6 +13,9 @@ library inside), and Windows, Linux and macOS executables can all be built from 
   it falls back to `--browser`, which serves the UI to the default browser.
 - **UI**: React + Vite. Sidebar layout, themes (System/Dark/Light and a color palette), English/Portuguese, error banners,
   cards, modals, Geist fonts and one set of color tokens.
+- **Tools**: Explorer (details view, archives, git badges, Compare files, Properties), Terminal
+  (find, OSC 52 clipboard, OSC 8 links), REST client (environments, history, Params/Auth, curl and
+  `.http` import) and Oracle Workbench (history, explain plan, table details with DDL).
 - Data and settings live in `~/.<app id>` (here `~/.deckbuilder`), outside the install folder.
 
 ## Screenshots
@@ -23,6 +26,7 @@ library inside), and Windows, Linux and macOS executables can all be built from 
 ![Explorer](docs/explorer.png)
 ![Workbench](docs/workbench.png)
 ![REST](docs/rest.png)
+![Git](docs/git.png)
 
 The Electron version of this project is in the git history (commit `585c282`); see
 `docs/shell-decision.md` for why webview-bun replaced it.
@@ -236,7 +240,9 @@ source directly; there is no package build step.
   can't hand in any other absolute path. Tested on Windows; other systems are best-effort.
 - **DataTable**: `<DataTable columns rows rowKey />` windows its rows (fixed row height), sorts,
   resizes columns (`widths` + `onWidthsChange` to persist), selects and copies. `toCsv` and `toTsv`
-  build exports.
+  build exports. `groupOf(row)` keeps rows of a lower group first whatever the sort (folders before
+  files; `sortRows(rows, value, dir, group?)` does the same) and `onKeyDown` handles keys on the
+  table; the Explorer's details view uses both.
 - **Editor and viewers**: add `@deckbuilder/editor` to the app. `CodeEditor` (Ctrl+Enter runs
   `onRun`), `CodeView`, `MarkdownView`, `JsonTree` (from `@deckbuilder/ui`) and `FilePreview`
   (picks a viewer by file name: markdown, JSON tree, log, highlighted code, CSV/TSV table,
@@ -279,11 +285,26 @@ source directly; there is no package build step.
   `<code>:<argument>` strings to translate; `parseImport(text)` picks cURL or `.http`. A file
   import is a route that shows `pickFile` on the server and returns only `{ name, text }`, never
   the path (`POST /api/requests/import-file`, 1 MB at most); the client parses and saves.
+  `RequestEditor` has Params and Auth tabs and form and multipart bodies; the draft round-trips
+  to curl and `.http`. Environments: `variableResolver(vars)` (`rest-env.ts`) resolves `{{name}}`
+  on every send; `httpRoutes` options `environmentVars(id)` (variables of the request's
+  `environment`) and `onSend(entry)` (history). An unknown `{{x}}` fails with `unknownVariable`.
+  The gallery serves `/api/rest/environments` and `/api/rest/history` (`rest/HistoryPanel.tsx`).
 - **Rooted file system**: `rootedFs({ roots })` serves `/api/fs/*` (list, read, write, create,
   rename, move, delete, search; `raw` for binary content, with `limit=<bytes>` for the first
   bytes only; `sqlite` for a read-only page of 200 rows of a table). Requests carry a root id and a relative path, never an absolute
   path; deletes go to the recycle bin and a root can be `readOnly`. A link is never followed out
   of its root, but a path swapped between the check and the use (TOCTOU) is not guarded against.
+  Archives: `POST /api/fs/extract {root,path,to}` and `POST /api/fs/compress {root,paths,name,format}`
+  (`FsExtractRequest`, `FsCompressRequest` in `@deckbuilder/server-core/protocol`) run 7z-wasm in
+  `archive-worker.ts`, which `packages/build/src/build.ts` ships as an extra entrypoint of the exe.
+  Properties: `GET /api/fs/info|du|hash` (the gallery's Properties dialog).
+- **Git (read-only)**: `gitRoutes(opts)` (from `@deckbuilder/server-mods`, `git.ts`) serves
+  `GET /api/git/repos|status|file|diff`; the types (`GitStatus` and others) are in
+  `@deckbuilder/server-core/protocol`. The gallery uses it for Explorer git badges (setting
+  `git.explorerDecorations`: coloured files, status letters, a dot on folders with changes) and
+  Compare files. `<DiffView original modified lang mode onModeChange modeLabels ref />` (from
+  `@deckbuilder/editor`) shows a split or inline diff; `ref` has `next()` / `prev()` (F7 / Shift+F7).
 - **Secrets**: `secretStore(appId)` (from `@deckbuilder/platform`) encrypts values with the Windows
   user's DPAPI key; pass it as `secrets` to a `recordStore`. Routes must return `hasSecret`, never the value.
   Tested on Windows only.
@@ -371,6 +392,11 @@ source directly; there is no package build step.
   `ResourceForm`, password shown as "Saved", Test button), and while a connection is the source a
   bar shows an "Uncommitted changes" badge with Commit, Rollback and Disconnect; a "Max rows" field (default 1000, kept in the settings) limits each query, and
   the Schema button opens a sidebar with the tables and columns whose names also feed completion.
+  SQL history: `dbRoutes({ ..., history: sqlHistory({ dir, max }) })` (`sqlHistory` from
+  `@deckbuilder/db`, `history.ts`) records every run and serves `GET /api/db/history` and
+  `POST /api/db/history/delete|clear`; the Workbench shows it in `workbench/HistoryPanel.tsx`.
+  `POST /api/db/explain {id, sql}` returns the plan rows (not recorded in the history) and
+  `GET /api/db/table` the details of a table, with its DDL.
 
 ## New app
 

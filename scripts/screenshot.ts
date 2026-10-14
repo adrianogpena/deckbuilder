@@ -17,6 +17,8 @@ const USAGE = `Usage: bun scripts/screenshot.ts --out <png> [--hash <route>] [--
   --hash <route>      screen to load (#<route>), e.g. settings
   --settings <json>   contents of settings.json in the temp home (default {})
   --seed <json>       {"<file>.json": <value>} written next to settings.json (e.g. projects.json); not settings.json
+                      {{GITREPO}} in --seed/--settings becomes the path of a small git repo in the temp home
+                      (one commit, then an uncommitted edit and a new file)
   --eval <js>         run in the page after loading (awaited), 500 ms before the capture
   --size WxH          viewport size (default 1280x820)
   --wait <ms>         wait after the load event (default 1500)
@@ -50,8 +52,11 @@ if (!size || !(wait >= 0)) {
   process.exit(1);
 }
 const [width, height] = [Number(size[1]), Number(size[2])];
-const settings = JSON.parse(args.settings) as unknown;
-const seed = JSON.parse(args.seed) as Record<string, unknown>;
+const GIT_TOKEN = '{{GITREPO}}';
+const usesRepo = args.seed.includes(GIT_TOKEN) || args.settings.includes(GIT_TOKEN);
+const sub = (text: string, repo: string) => text.split(GIT_TOKEN).join(JSON.stringify(repo).slice(1, -1));
+let settings = JSON.parse(usesRepo ? '{}' : args.settings) as unknown;
+let seed = JSON.parse(usesRepo ? '{}' : args.seed) as Record<string, unknown>;
 for (const name of Object.keys(seed)) {
   if (!/^[\w.-]+\.json$/.test(name) || name === 'settings.json') {
     console.error(`--seed: invalid file name ${name} (settings.json: use --settings)`);
@@ -139,6 +144,23 @@ try {
 
   const home = join(temp, 'home');
   await mkdir(join(home, '.deckbuilder'), { recursive: true });
+  if (usesRepo) {
+    const repo = join(home, 'demo-repo');
+    await mkdir(repo, { recursive: true });
+    const git = (...a: string[]) => {
+      const r = Bun.spawnSync(['git', '-c', 'user.name=Demo', '-c', 'user.email=demo@example.com', ...a], { cwd: repo, stdio: ['ignore', 'ignore', 'inherit'] });
+      if (r.exitCode !== 0) throw new Error(`git ${a[0]} failed`);
+    };
+    await writeFile(join(repo, 'app.ts'), ["export function greet(name: string) {", "  return 'Hello, ' + name;", '}', '', 'export const version = 1;', ''].join('\n'));
+    await writeFile(join(repo, 'README.md'), ['# Demo', '', 'A small demo repository.', ''].join('\n'));
+    git('init', '-q');
+    git('add', '.');
+    git('commit', '-q', '-m', 'Initial commit');
+    await writeFile(join(repo, 'app.ts'), ["export function greet(name: string, punctuation = '!') {", '  return `Hello, ${name}${punctuation}`;', '}', '', 'export const version = 2;', ''].join('\n'));
+    await writeFile(join(repo, 'notes.txt'), 'todo: add tests' + '\n');
+    settings = JSON.parse(sub(args.settings, repo));
+    seed = JSON.parse(sub(args.seed, repo)) as Record<string, unknown>;
+  }
   await writeFile(join(home, '.deckbuilder', 'settings.json'), JSON.stringify(settings, null, 2));
   for (const [name, value] of Object.entries(seed)) {
     await writeFile(join(home, '.deckbuilder', name), JSON.stringify(value, null, 2));
