@@ -18,6 +18,8 @@ const MAX_PASSWORD = 1024;
 const MAX_ROWS = 100_000;
 const ID = /^[\w-]{1,64}$/;
 const OWNER = /^[A-Za-z0-9_$#]{1,128}$/;
+/** A table name as the dictionary holds it (quoted names may hold almost anything). */
+const TABLE = /^[^\x00-\x1f"]{1,128}$/;
 const MAX_IDS = 10_000;
 /** Query runs whose row count is still unknown, by run id: the history entry the streamed rows go to. */
 const MAX_PENDING = 200;
@@ -25,8 +27,8 @@ const MAX_PENDING = 200;
 const badRequest = () => invalid('badRequest', 'Invalid request.');
 
 /**
- * The Workbench's database API: `POST /api/db/test|connect|run|commit|rollback|disconnect`,
- * `GET /api/db/rows?run=` (NDJSON of row arrays), `GET /api/db/schema?id=&owner=` and `GET /api/db/status?id=`;
+ * The Workbench's database API: `POST /api/db/test|connect|run|explain|commit|rollback|disconnect`,
+ * `GET /api/db/rows?run=` (NDJSON of row arrays), `GET /api/db/schema?id=&owner=`, `GET /api/db/table?id=&owner=&name=` and `GET /api/db/status?id=`;
  * with `history`, `GET /api/db/history?q=&connection=` and `POST /api/db/history/delete|clear`.
  */
 export function dbRoutes({ sessions, credentials, scripts, history }: DbRoutesOptions): Routes {
@@ -95,6 +97,21 @@ export function dbRoutes({ sessions, credentials, scripts, history }: DbRoutesOp
         if (pending.size > MAX_PENDING) pending.delete(pending.keys().next().value!);
       }
       return result;
+    },
+    // Not recorded in the history.
+    'POST /api/db/explain': async ({ json }) => {
+      const b = await body(json);
+      const id = idOf(b.id);
+      if (typeof b.sql !== 'string' || b.sql.length > MAX_SQL) throw badRequest();
+      return { rows: await sessions.explain(id, await lookup(id), b.sql) };
+    },
+    // Not recorded in the history.
+    'GET /api/db/table': async ({ query }) => {
+      const id = idOf(query.get('id'));
+      const owner = query.get('owner') ?? '';
+      const name = query.get('name') ?? '';
+      if ((owner && !OWNER.test(owner)) || !TABLE.test(name)) throw badRequest();
+      return sessions.table(id, await lookup(id), owner, name);
     },
     'GET /api/db/rows': ({ req, query }) => {
       const run = query.get('run') ?? '';

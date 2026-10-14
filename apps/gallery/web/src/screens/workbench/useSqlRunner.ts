@@ -1,7 +1,7 @@
 import { createElement, useEffect, useMemo, useRef, useState } from 'react';
 import { type RunMode, splitStatements } from '@deckbuilder/editor';
 import { type ApiError, type DataTableColumn, type OutputLine, copyText, errorMessage, errorOf, formatCell, useStream } from '@deckbuilder/ui';
-import { api, type DbColumn, type DbStatus, type DemoRow, type ResultFormat, type WorkbenchSettings } from '../../api';
+import { api, type DbColumn, type DbPlanRow, type DbStatus, type DemoRow, type ResultFormat, type WorkbenchSettings } from '../../api';
 import { t } from '../../i18n';
 import { settingDefault } from '../../settings';
 import { type CopyColumn, formatCopy } from './copy-format';
@@ -71,6 +71,8 @@ export function useSqlRunner(
   const [shown, setShown] = useState<Shown>({ kind: 'none' });
   const [starting, setStarting] = useState(false);
   const [status, setStatus] = useState<DbStatus>();
+  const [plan, setPlan] = useState<DbPlanRow[]>();
+  const [explaining, setExplaining] = useState(false);
   const rows = useStream<unknown>({ maxItems: MAX_STREAM_ITEMS });
   const cancelled = useRef(false);
   const reported = useRef(0);
@@ -113,6 +115,7 @@ export function useSqlRunner(
     reported.current = 0;
     setActionError(undefined);
     setSelection([]);
+    setPlan(undefined);
   };
 
   const runDemo = (sql: string) => {
@@ -172,6 +175,27 @@ export function useSqlRunner(
     void runDb(db, statements);
   };
 
+  /** Shows the execution plan of `text` without running it: no rows, no history entry, no transaction change. */
+  const explain = async (text: string) => {
+    if (rows.running || starting || explaining || !text.trim()) return;
+    if (!db) {
+      log(t('workbench.log.explainDemo'), 'warn');
+      return;
+    }
+    setActionError(undefined);
+    setExplaining(true);
+    log(t('workbench.log.explain', { query: text.trim() }));
+    try {
+      const steps = await withTimeout(api.dbExplain(db, text), settings.queryTimeout ?? 0);
+      setPlan(steps);
+      log(t('workbench.log.explained', { count: steps.length }), 'ok');
+    } catch (err) {
+      fail(err);
+    } finally {
+      setExplaining(false);
+    }
+  };
+
   const cancel = () => {
     cancelled.current = true;
     rows.cancel();
@@ -182,6 +206,7 @@ export function useSqlRunner(
     cancel();
     setActionError(undefined);
     setSelection([]);
+    setPlan(undefined);
     setShown({ kind: 'none' });
   };
 
@@ -243,6 +268,10 @@ export function useSqlRunner(
 
   return {
     run,
+    explain,
+    explaining,
+    plan,
+    closePlan: () => setPlan(undefined),
     cancel,
     reset,
     busy: rows.running || starting,

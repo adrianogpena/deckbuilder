@@ -173,6 +173,73 @@ describe('dbSessions', () => {
     expect(conns[0]!.log).toContain('rollback');
   });
 
+  test('explain keeps pending and neither commits nor rolls back', async () => {
+    const { sessions, conns } = setup();
+    await sessions.run('a', CREDS, 'update t set x = 1');
+    expect(await sessions.explain('a', CREDS, 'update t set x = 2;')).toEqual([]);
+    expect(sessions.status('a').pending).toBe(true);
+    const log = conns[0]!.log.slice(1);
+    expect(log[0]).toMatch(/^execute EXPLAIN PLAN SET STATEMENT_ID = 'db[0-9a-f]{28}' FOR update t set x = 2$/);
+    expect(log.at(-1)).toBe('execute delete from plan_table where statement_id = :sid');
+    expect(log).not.toContain('commit');
+    expect(log).not.toContain('rollback');
+  });
+
+  test('table groups indexes and constraints, fetches DDL as string and keeps pending', async () => {
+    const queries: { sql: string; binds: unknown[]; options: Record<string, unknown> }[] = [];
+    const base = fakeConnection();
+    const sessions = dbSessions({
+      connect: async () => ({
+        ...base,
+        async execute(sql: string, binds: unknown[], options: Record<string, unknown>) {
+          queries.push({ sql, binds, options });
+          if (sql.includes('CURRENT_SCHEMA')) return { rows: [['MILES']] };
+          if (sql.includes('from all_tables')) return { rows: [[1]] };
+          if (sql.includes('all_ind_columns')) return { rows: [['T_PK', 'UNIQUE', 'ID'], ['T_IX', 'NONUNIQUE', 'A'], ['T_IX', 'NONUNIQUE', 'B']] };
+          if (sql.includes('r_constraint_name,')) {
+            return {
+              rows: [
+                ['T_CK', 'C', 'USER NAME', 'A > 0', null, null, null],
+                ['SYS_C001', 'C', 'GENERATED NAME', '"ID" IS NOT NULL', null, null, null],
+                ['T_FK', 'R', 'USER NAME', null, 'OTHER', 'P_PK', 'P'],
+                ['T_PK', 'P', 'USER NAME', null, null, null, null],
+              ],
+            };
+          }
+          if (sql.includes('cc.owner')) return { rows: [['OTHER', 'P_PK', 'PID']] };
+          if (sql.includes('all_cons_columns')) return { rows: [['SYS_C001', 'ID'], ['T_CK', 'A'], ['T_FK', 'B'], ['T_PK', 'ID']] };
+          if (sql.includes('dbms_metadata')) return { rows: [['\n  CREATE TABLE "MILES"."T" ("ID" NUMBER)']] };
+          return { rowsAffected: 1 };
+        },
+      }),
+    });
+    await sessions.run('a', CREDS, 'update t set x = 1');
+    expect(await sessions.table('a', CREDS, '', 'T')).toEqual({
+      owner: 'MILES',
+      name: 'T',
+      indexes: [
+        { name: 'T_PK', unique: true, columns: ['ID'] },
+        { name: 'T_IX', unique: false, columns: ['A', 'B'] },
+      ],
+      constraints: [
+        { name: 'T_PK', type: 'P', columns: ['ID'] },
+        { name: 'T_FK', type: 'R', columns: ['B'], references: { owner: 'OTHER', table: 'P', constraint: 'P_PK', columns: ['PID'] } },
+        { name: 'T_CK', type: 'C', columns: ['A'], condition: 'A > 0' },
+      ],
+      ddl: 'CREATE TABLE "MILES"."T" ("ID" NUMBER)',
+    });
+    expect(queries.find((q) => q.sql.includes('all_ind_columns'))!.binds).toEqual(['MILES', 'T']);
+    expect(queries.find((q) => q.sql.includes('dbms_metadata'))!.options.fetchInfo).toEqual({ DDL: { type: oracledb.STRING } });
+    expect(sessions.status('a').pending).toBe(true);
+    expect(base.log).not.toContain('commit');
+    expect(base.log).not.toContain('rollback');
+  });
+
+  test('table of a missing table is not found', async () => {
+    const sessions = dbSessions({ connect: async () => ({ ...fakeConnection(), async execute() { return { rows: [] }; } }) });
+    expect(await codeOf(sessions.table('a', CREDS, 'MILES', 'NOPE'))).toBe('dbTable');
+  });
+
   test('DDL clears pending', async () => {
     const { sessions } = setup();
     await sessions.run('a', CREDS, 'delete from t');

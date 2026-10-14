@@ -227,6 +227,45 @@ export interface DbSchema {
   truncated: boolean;
 }
 
+export interface DbTableIndex {
+  name: string;
+  unique: boolean;
+  columns: string[];
+}
+
+export interface DbTableConstraint {
+  name: string;
+  /** Primary key, unique, foreign key (references), check. */
+  type: 'P' | 'U' | 'R' | 'C';
+  columns: string[];
+  condition?: string;
+  references?: { owner: string; table: string; constraint: string; columns: string[] };
+}
+
+export interface DbTableDetails {
+  owner: string;
+  name: string;
+  indexes: DbTableIndex[];
+  constraints: DbTableConstraint[];
+  ddl: string | null;
+}
+
+/** One step of an EXPLAIN PLAN, as PLAN_TABLE holds it. */
+export interface DbPlanRow {
+  id: number;
+  parentId: number | null;
+  depth: number;
+  operation: string;
+  options: string | null;
+  objectOwner: string | null;
+  objectName: string | null;
+  cost: number | null;
+  cardinality: number | null;
+  bytes: number | null;
+  accessPredicates: string | null;
+  filterPredicates: string | null;
+}
+
 export type { SqlHistoryEntry };
 export type DbRunResult = { kind: 'rows'; run: string; columns: DbColumn[] } | { kind: 'done'; rowsAffected?: number };
 
@@ -376,6 +415,10 @@ export const api = {
   dbTest: (input: Record<string, unknown>) => request<{ ok: true }>('POST', '/api/db/test', {}, input),
   dbConnect: (id: string) => request<DbStatus>('POST', '/api/db/connect', {}, { id }),
   dbRun: (id: string, sql: string, maxRows?: number) => request<DbRunResult>('POST', '/api/db/run', {}, { id, sql, maxRows }),
+  /** Explains `sql` without running it; not recorded in the history. */
+  dbExplain: (id: string, sql: string) => request<{ rows: DbPlanRow[] }>('POST', '/api/db/explain', {}, { id, sql }).then((r) => r.rows),
+  /** Indexes, constraints and DDL of one table; `notFound` when it is missing. */
+  dbTable: (id: string, owner: string, name: string) => request<DbTableDetails>('GET', '/api/db/table', { id, owner, name }),
   dbSchema: (id: string, owner?: string) => request<DbSchema>('GET', '/api/db/schema', { id, owner }),
   dbCommit: (id: string) => request<DbStatus>('POST', '/api/db/commit', {}, { id }),
   dbRollback: (id: string) => request<DbStatus>('POST', '/api/db/rollback', {}, { id }),

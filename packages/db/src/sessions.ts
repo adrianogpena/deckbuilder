@@ -70,6 +70,50 @@ export interface DbSchema {
   truncated: boolean;
 }
 
+/** One step of an EXPLAIN PLAN, as PLAN_TABLE holds it. */
+export interface DbPlanRow {
+  id: number;
+  parentId: number | null;
+  depth: number;
+  operation: string;
+  options: string | null;
+  objectOwner: string | null;
+  objectName: string | null;
+  cost: number | null;
+  cardinality: number | null;
+  bytes: number | null;
+  accessPredicates: string | null;
+  filterPredicates: string | null;
+}
+
+export interface DbTableIndex {
+  name: string;
+  unique: boolean;
+  /** In index order; an expression index shows its system column name. */
+  columns: string[];
+}
+
+export interface DbTableConstraint {
+  name: string;
+  /** P primary key, U unique, R foreign key, C check. */
+  type: 'P' | 'U' | 'R' | 'C';
+  columns: string[];
+  /** The condition of a check constraint. */
+  condition?: string;
+  /** For a foreign key: the constraint it references. */
+  references?: { owner: string; table: string; constraint: string; columns: string[] };
+}
+
+export interface DbTableDetails {
+  owner: string;
+  name: string;
+  indexes: DbTableIndex[];
+  /** Ordered P, U, R, C, then by name; system NOT NULL checks left out. */
+  constraints: DbTableConstraint[];
+  /** DBMS_METADATA.GET_DDL output; null when the user may not read it. */
+  ddl: string | null;
+}
+
 export interface DbStatus {
   connected: boolean;
   /** Uncommitted changes may exist. */
@@ -95,6 +139,13 @@ export interface DbSessions {
   run(id: string, creds: DbCredentials, sql: string, opts?: DbRunOptions): Promise<DbRunResult>;
   /** Tables, views and columns of `owner` (default: the session's schema) and the owners to choose from. */
   schema(id: string, creds: DbCredentials, owner?: string): Promise<DbSchema>;
+  /**
+   * The execution plan of `sql` (not run), ordered by id. Its PLAN_TABLE rows are deleted again in
+   * the same transaction; nothing is committed or rolled back and `pending` is left as it was.
+   */
+  explain(id: string, creds: DbCredentials, sql: string): Promise<DbPlanRow[]>;
+  /** Indexes, constraints and DDL of table `owner.name` (owner default: the session's schema); dictionary reads only. */
+  table(id: string, creds: DbCredentials, owner: string, name: string): Promise<DbTableDetails>;
   /** Streams the rows of a `run` result, then closes its result set. */
   rows(run: string, emit: Emit, signal: AbortSignal): Promise<void>;
   commit(id: string): Promise<DbStatus>;
@@ -314,6 +365,166 @@ export function dbSessions(opts: DbSessionsOptions = {}): DbSessions {
     }
   }
 
+  // EXPLAIN PLAN is DML on PLAN_TABLE (a session-private temporary table), not DDL: it commits
+  // nothing, and deleting its rows in the same transaction leaves the user's pending work as it was.
+  async function explain(id: string, creds: DbCredentials, sql: string): Promise<DbPlanRow[]> {
+    const statement = prepareSql(sql);
+    if (!statement) throw invalid('badRequest', 'Invalid request.');
+    const s = await session(id, creds);
+    // Like `schema`, an open result set doesn't block it.
+    while (s.executing) await s.idle;
+    const done = startExecuting(s);
+    try {
+      const conn = await s.conn;
+      // STATEMENT_ID is VARCHAR2(30) and can't be bound; this one is hex only.
+      const sid = `db${randomUUID().replace(/-/g, '').slice(0, 28)}`;
+      await conn.execute(`EXPLAIN PLAN SET STATEMENT_ID = '${sid}' FOR ${statement}`, [], { autoCommit: false });
+      try {
+        const r = await conn.execute(
+          `select id, parent_id, depth, operation, options, object_owner, object_name, cost, cardinality, bytes,
+                  access_predicates, filter_predicates
+             from plan_table where statement_id = :sid order by id`,
+          [sid],
+          { autoCommit: false, outFormat: oracledb.OUT_FORMAT_ARRAY },
+        );
+        return (r.rows ?? []).map((row) => {
+          const [id, parentId, depth, operation, options, objectOwner, objectName, cost, cardinality, bytes, access, filter] = row;
+          const num = (v: unknown) => (v === null || v === undefined ? null : Number(v));
+          const str = (v: unknown) => (v === null || v === undefined ? null : String(v));
+          return {
+            id: Number(id),
+            parentId: num(parentId),
+            depth: Number(depth ?? 0),
+            operation: String(operation ?? ''),
+            options: str(options),
+            objectOwner: str(objectOwner),
+            objectName: str(objectName),
+            cost: num(cost),
+            cardinality: num(cardinality),
+            bytes: num(bytes),
+            accessPredicates: str(access),
+            filterPredicates: str(filter),
+          };
+        });
+      } finally {
+        await conn.execute('delete from plan_table where statement_id = :sid', [sid], { autoCommit: false }).catch(() => {});
+      }
+    } catch (err) {
+      throw mapError(err, s.creds);
+    } finally {
+      done();
+      touch(id, s);
+    }
+  }
+
+  // Only dictionary selects and DBMS_METADATA (a function in a select): no DML, so the transaction is untouched.
+  async function table(id: string, creds: DbCredentials, owner: string, name: string): Promise<DbTableDetails> {
+    if (!name) throw invalid('badRequest', 'Invalid request.');
+    const s = await session(id, creds);
+    while (s.executing) await s.idle;
+    const done = startExecuting(s);
+    try {
+      const conn = await s.conn;
+      const options = { autoCommit: false, outFormat: oracledb.OUT_FORMAT_ARRAY };
+      let tableOwner = owner;
+      if (!tableOwner) {
+        const current = await conn.execute("select sys_context('USERENV', 'CURRENT_SCHEMA') from dual", [], options);
+        tableOwner = String(current.rows?.[0]?.[0] ?? creds.user.toUpperCase());
+      }
+      const binds = [tableOwner, name];
+      const exists = await conn.execute('select 1 from all_tables where owner = :owner and table_name = :name', binds, options);
+      if (!exists.rows?.length) throw notFound('dbTable', 'This table does not exist or is not visible.');
+
+      const str = (v: unknown) => (v === null || v === undefined ? '' : String(v));
+      const ix = await conn.execute(
+        `select i.index_name, i.uniqueness, c.column_name
+           from all_indexes i
+           join all_ind_columns c on c.index_owner = i.owner and c.index_name = i.index_name
+          where i.table_owner = :owner and i.table_name = :name
+          order by i.index_name, c.column_position`,
+        binds,
+        options,
+      );
+      const indexes: DbTableIndex[] = [];
+      for (const [index, uniqueness, column] of ix.rows ?? []) {
+        let last = indexes[indexes.length - 1];
+        if (last?.name !== str(index)) {
+          last = { name: str(index), unique: uniqueness === 'UNIQUE', columns: [] };
+          indexes.push(last);
+        }
+        last.columns.push(str(column));
+      }
+
+      const cons = await conn.execute(
+        `select c.constraint_name, c.constraint_type, c.generated, c.search_condition, c.r_owner, c.r_constraint_name,
+                (select r.table_name from all_constraints r where r.owner = c.r_owner and r.constraint_name = c.r_constraint_name)
+           from all_constraints c
+          where c.owner = :owner and c.table_name = :name and c.constraint_type in ('P', 'U', 'R', 'C')`,
+        binds,
+        options,
+      );
+      const cols = await conn.execute(
+        `select constraint_name, column_name from all_cons_columns
+          where owner = :owner and table_name = :name order by constraint_name, position`,
+        binds,
+        options,
+      );
+      const refCols = await conn.execute(
+        `select cc.owner, cc.constraint_name, cc.column_name
+           from all_constraints c
+           join all_cons_columns cc on cc.owner = c.r_owner and cc.constraint_name = c.r_constraint_name
+          where c.owner = :owner and c.table_name = :name and c.constraint_type = 'R'
+          order by cc.owner, cc.constraint_name, cc.position`,
+        binds,
+        options,
+      );
+      const group = (rows: unknown[][] | undefined, key: (r: unknown[]) => string, value: (r: unknown[]) => string) => {
+        const m = new Map<string, string[]>();
+        for (const r of rows ?? []) {
+          const k = key(r);
+          const list = m.get(k) ?? [];
+          if (!m.has(k)) m.set(k, list);
+          list.push(value(r));
+        }
+        return m;
+      };
+      const columnsOf = group(cols.rows, (r) => str(r[0]), (r) => str(r[1]));
+      const refColumnsOf = group(refCols.rows, (r) => `${str(r[0])}.${str(r[1])}`, (r) => str(r[2]));
+      const constraints: DbTableConstraint[] = [];
+      for (const [cname, type, generated, condition, rOwner, rName, rTable] of cons.rows ?? []) {
+        const c: DbTableConstraint = { name: str(cname), type: str(type) as DbTableConstraint['type'], columns: columnsOf.get(str(cname)) ?? [] };
+        if (c.type === 'C') {
+          c.condition = str(condition);
+          if (generated === 'GENERATED NAME' && /^\s*"[^"]+"\s+IS\s+NOT\s+NULL\s*$/i.test(c.condition)) continue;
+        }
+        if (c.type === 'R') {
+          c.references = { owner: str(rOwner), table: str(rTable), constraint: str(rName), columns: refColumnsOf.get(`${str(rOwner)}.${str(rName)}`) ?? [] };
+        }
+        constraints.push(c);
+      }
+      const order = 'PURC';
+      constraints.sort((a, b) => order.indexOf(a.type) - order.indexOf(b.type) || a.name.localeCompare(b.name));
+
+      let ddl: string | null = null;
+      try {
+        const r = await conn.execute("select dbms_metadata.get_ddl('TABLE', :name, :owner) as ddl from dual", [name, tableOwner], {
+          ...options,
+          fetchInfo: { DDL: { type: oracledb.STRING } },
+        });
+        const v = r.rows?.[0]?.[0];
+        ddl = v === null || v === undefined ? null : String(v).trim();
+      } catch {
+        // No privilege to read another schema's metadata: show the rest.
+      }
+      return { owner: tableOwner, name, indexes, constraints, ddl };
+    } catch (err) {
+      throw err instanceof AppError ? err : mapError(err, s.creds);
+    } finally {
+      done();
+      touch(id, s);
+    }
+  }
+
   async function rows(run: string, emit: Emit, signal: AbortSignal): Promise<void> {
     const id = runs.get(run);
     const s = id === undefined ? undefined : sessions.get(id);
@@ -386,6 +597,8 @@ export function dbSessions(opts: DbSessionsOptions = {}): DbSessions {
     },
     run,
     schema,
+    explain,
+    table,
     rows,
     commit: (id) => finish(id, 'commit'),
     rollback: (id) => finish(id, 'rollback'),

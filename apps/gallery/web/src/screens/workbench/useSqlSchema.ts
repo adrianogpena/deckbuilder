@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { type ApiError, errorOf } from '@deckbuilder/ui';
-import { api, type DbSchema } from '../../api';
+import { api, type DbSchema, type DbTableDetails } from '../../api';
 
 interface Entry {
   data?: DbSchema;
@@ -71,8 +71,64 @@ export function useSqlSchema(db: string | undefined) {
     owner,
     setOwner,
     reload: () => {
-      if (db) fetchSchema(db, owner);
+      if (!db) return;
+      dropDetails(db);
+      fetchSchema(db, owner);
     },
     sqlSchema,
+  };
+}
+
+export interface TableDetailsEntry {
+  data?: DbTableDetails;
+  error?: ApiError;
+  loading: boolean;
+}
+
+const details = new Map<string, TableDetailsEntry>();
+const inflight = new Map<string, Promise<DbTableDetails | undefined>>();
+let detailsVersion = 0;
+const detailsKey = (db: string, owner: string, name: string) => `${db}\n${owner}\n${name}`;
+
+const storeDetails = (key: string, entry: TableDetailsEntry) => {
+  details.set(key, entry);
+  detailsVersion++;
+  listeners.forEach((listener) => listener());
+};
+
+const dropDetails = (db: string) => {
+  for (const key of details.keys()) if (key.startsWith(`${db}\n`)) details.delete(key);
+  detailsVersion++;
+  listeners.forEach((listener) => listener());
+};
+
+/** Indexes, constraints and DDL per table of connection `db`, fetched once on `load` and cached until the schema reloads. */
+export function useTableDetails(db: string | undefined) {
+  useSyncExternalStore(subscribe, () => detailsVersion);
+  return {
+    get: (owner: string, name: string) => (db ? details.get(detailsKey(db, owner, name)) : undefined),
+    /** Resolves with the details, or undefined when they failed (the entry then holds the error). */
+    load: (owner: string, name: string): Promise<DbTableDetails | undefined> => {
+      if (!db) return Promise.resolve(undefined);
+      const key = detailsKey(db, owner, name);
+      const entry = details.get(key);
+      if (entry?.data) return Promise.resolve(entry.data);
+      const pending = inflight.get(key);
+      if (pending) return pending;
+      storeDetails(key, { loading: true });
+      const request = api.dbTable(db, owner, name).then(
+        (data) => {
+          storeDetails(key, { data, loading: false });
+          return data;
+        },
+        (err) => {
+          storeDetails(key, { error: errorOf(err), loading: false });
+          return undefined;
+        },
+      );
+      inflight.set(key, request);
+      void request.finally(() => inflight.delete(key));
+      return request;
+    },
   };
 }

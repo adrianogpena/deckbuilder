@@ -25,7 +25,7 @@ import { HistoryPanel } from './workbench/HistoryPanel';
 import { SchemaPanel } from './workbench/SchemaPanel';
 import { DEFAULT_RESULTS, SqlResults } from './workbench/SqlResults';
 import { useSqlRunner } from './workbench/useSqlRunner';
-import { useSqlSchema } from './workbench/useSqlSchema';
+import { useSqlSchema, useTableDetails } from './workbench/useSqlSchema';
 
 const SAVE_DELAY = 500;
 const DEMO_SOURCE = 'demo';
@@ -139,6 +139,8 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
   const runAll = () => runner.run(query, 'all');
   const format = () => editor.current?.format(withWorkbenchDefaults(settings.workbench).format);
   useCommand(commandById('workbench.format'), format);
+  const explain = () => void runner.explain(editor.current?.getRunText() ?? query);
+  useCommand(commandById('workbench.explain'), explain);
 
   const { cols, tableRows, selection, log, setActionError, shown, status } = runner;
   const exportCols = () => cols.map((c) => ({ label: c.label, value: c.value }));
@@ -169,6 +171,18 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
   const pickTable = (table: DbSchemaTable, tableOwner: string) => {
     const quote = (name: string) => (/^[A-Z][A-Z0-9_$#]*$/.test(name) ? name : `"${name}"`);
     edit(`select * from ${quote(tableOwner)}.${quote(table.name)}`);
+  };
+
+  const tableDetails = useTableDetails(db);
+  // The Workbench has one editor: the DDL replaces its text, after a confirm when it holds a query.
+  const showDdl = async (table: DbSchemaTable, tableOwner: string) => {
+    const data = await tableDetails.load(tableOwner, table.name);
+    if (!data?.ddl) {
+      toast({ message: t('workbench.schema.noDdl', { name: table.name }) });
+      return;
+    }
+    if (query.trim() && !(await confirm({ title: t('workbench.schema.showDdl'), body: t('workbench.schema.ddlConfirm', { name: table.name }), okLabel: t('workbench.schema.ddlReplace') }))) return;
+    edit(data.ddl);
   };
 
   const changeSource = (value: string) => {
@@ -224,6 +238,9 @@ ${sql}` : sql);
           <button className="btn btn-sm" onClick={runAll} disabled={busy} title={t('workbench.runAll.title')}>
             <Icon name="play" /> {t('workbench.runAll')}
           </button>
+          <button className="btn btn-sm" onClick={explain} disabled={!db || busy || runner.explaining} title={t('workbench.explain.title')}>
+            <Icon name="plan" /> {t('workbench.explain')}
+          </button>
           <button className="btn btn-sm" onClick={format}>{t('workbench.format')}</button>
           {runner.running && <button className="btn btn-sm" onClick={runner.cancel}>{t('workbench.cancel')}</button>}
           {db && (
@@ -272,6 +289,8 @@ ${sql}` : sql);
           onOwner={setOwner}
           onReload={reloadSchema}
           onPick={pickTable}
+          details={tableDetails}
+          onDdl={(table, tableOwner) => void showDdl(table, tableOwner)}
         />
       )}
       <SplitView
