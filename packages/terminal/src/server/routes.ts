@@ -1,4 +1,4 @@
-import { AppError, invalid, notFound, socketTickets, type Routes, type SocketData, type SocketRoutes } from '@deckbuilder/server-core';
+import { AppError, invalid, isRecord, notFound, socketTickets, type Routes, type SocketData, type SocketRoutes } from '@deckbuilder/server-core';
 import type { ServerWebSocket } from 'bun';
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -28,8 +28,6 @@ interface Ticket {
 }
 
 const badRequest = () => invalid('badRequest', 'Invalid request.');
-
-const isRecord = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x);
 
 function size(v: unknown, max: number): number {
   if (typeof v !== 'number' || !Number.isInteger(v) || v < 1 || v > max) throw badRequest();

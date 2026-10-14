@@ -66,8 +66,6 @@ export interface CustomSetting<V = unknown> extends SettingBase {
 
 export type SettingDef<S> = BooleanSetting<S> | NumberSetting<S> | StringSetting<S> | EnumSetting<S> | CustomSetting;
 
-export type SettingKind = SettingDef<unknown>['kind'];
-
 export const sectionKey = (path: SectionPath): string => path.join('.');
 
 const isPrefix = (prefix: SectionPath, path: SectionPath) =>

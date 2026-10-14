@@ -11,6 +11,8 @@ import type { StartContext } from '@deckbuilder/shell';
 import { APP, MULTI_DELETE_ENABLED } from '../app.ts';
 
 const toaster = createToaster();
+const home = appHome(APP.id);
+const osSecrets = secretStore(APP.id);
 
 const isDirectory = (path: string) => {
   try {
@@ -25,7 +27,7 @@ const pickedFolders = pickedPaths();
 
 /** The folders the Explorer screen shows; each is a root of the rooted file system. */
 export const projects = recordStore<{ name: string; path: string }>({
-  dir: appHome(APP.id),
+  dir: home,
   name: 'projects',
   validate(input, prev, ctx) {
     const { name, path } = (input ?? {}) as { name?: unknown; path?: unknown };
@@ -54,16 +56,16 @@ export async function resolveCwd(root: string, path: string): Promise<string> {
 
 /** Oracle connections of the Workbench; the password is a secret field, never returned by a route. */
 export const dbConnections = recordStore<DbConnectionFields & { password?: unknown }>({
-  dir: appHome(APP.id),
+  dir: home,
   name: 'dbConnections',
   secretFields: ['password'],
-  secrets: secretStore(APP.id),
+  secrets: osSecrets,
   validate: (input) => validConnection(input),
 });
 const sessions = dbSessions();
-const scriptFile = (id: string) => join(appHome(APP.id), 'workbench', `${id}.sql`);
+const scriptFile = (id: string) => join(home, 'workbench', `${id}.sql`);
 /** Statements the Workbench and the Explorer ran; main.ts sets its size from `workbench.historySize`. */
-export const sqlHistoryStore = sqlHistory({ dir: appHome(APP.id), max: 500 });
+export const sqlHistoryStore = sqlHistory({ dir: home, max: 500 });
 const dbApi = dbRoutes({
   sessions,
   history: sqlHistoryStore,
@@ -93,13 +95,12 @@ export interface SavedRequest {
   auth?: unknown;
 }
 
-
 /** Saved REST requests; the Authorization value is a secret field. */
 export const requests = recordStore<SavedRequest>({
-  dir: appHome(APP.id),
+  dir: home,
   name: 'requests',
   secretFields: ['auth'],
-  secrets: secretStore(APP.id),
+  secrets: osSecrets,
   validate(input) {
     const { name, request } = isRecord(input) ? input : ({} as Record<string, unknown>);
     const trimmed = typeof name === 'string' ? name.trim() : '';
@@ -109,7 +110,7 @@ export const requests = recordStore<SavedRequest>({
 });
 
 /** Sent REST requests; main.ts sets its size from `rest.historySize`. */
-export const restHistoryStore = restHistory({ dir: appHome(APP.id), max: 100 });
+export const restHistoryStore = restHistory({ dir: home, max: 100 });
 
 const sameOrigin = (a: string, b: string) => {
   try {
@@ -146,10 +147,10 @@ const badEnvironment = () => invalid('badEnvironment', 'The environment is not v
 
 /** REST environments for `{{name}}`; secret values live in the secret store, the client sees only `set`. */
 export const environments = recordStore<StoredEnvironment>({
-  dir: appHome(APP.id),
+  dir: home,
   name: 'environments',
   secretFields: ['secrets'],
-  secrets: secretStore(APP.id),
+  secrets: osSecrets,
   validate(input, prev, ctx) {
     const { name, vars } = isRecord(input) ? input : ({} as Record<string, unknown>);
     const trimmed = typeof name === 'string' ? name.trim() : '';
@@ -240,7 +241,7 @@ export const routes = (ctx: StartContext): Routes => ({
   ...recordRoutes(projects, '/api/projects'),
   ...fs.routes,
   ...dialogRoutes({ picked: pickedFolders }),
-  ...editorRoutes({ dir: appHome(APP.id), fs }),
+  ...editorRoutes({ dir: home, fs }),
   'POST /api/fs/reveal': async ({ json }) => {
     await revealInFolder(await target(json)).catch(fromPlatform);
     return { ok: true };
@@ -289,7 +290,7 @@ export const routes = (ctx: StartContext): Routes => ({
     await requests.get(id);
     return { value: (await requests.secret(id, 'auth')) ?? null };
   },
-  ...restTabsRoutes({ dir: appHome(APP.id) }),
+  ...restTabsRoutes({ dir: home }),
   ...gitRoutes({ roots: projectRoots }),
   // The target comes from the save dialog on this side; the client never names a path.
   'POST /api/requests/save-curl': async ({ json }) => {

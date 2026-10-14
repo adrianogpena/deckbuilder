@@ -61,7 +61,7 @@ test('status strips the repo prefix and scopes every call', async () => {
   };
   const out = await gitRoutes({ roots, run })['GET /api/git/status']!(q({ root: 'r1' }));
   expect(out).toMatchObject({ branch: 'main', files: [{ path: 'a.txt', group: 'untracked' }] });
-  expect(calls[0]!.slice(0, 7)).toEqual(['git', '--no-optional-locks', '-c', 'core.quotepath=off', '-C', 'C:/proj', 'status']);
+  expect(calls[0]!.slice(0, 9)).toEqual(['git', '--no-optional-locks', '-c', 'core.quotepath=off', '-c', 'core.fsmonitor=false', '-C', 'C:/proj', 'status']);
   expect(calls[0]!.slice(-2)).toEqual(['--', '.']);
 });
 

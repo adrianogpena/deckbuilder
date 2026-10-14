@@ -143,7 +143,9 @@ export function gitRoutes(opts: GitRoutesOptions): Routes {
   async function git(root: FsRoot, args: string[], timeoutMs = QUICK_TIMEOUT_MS) {
     let result;
     try {
-      result = await run(['git', '--no-optional-locks', '-c', 'core.quotepath=off', '-C', root.path, ...args], timeoutMs);
+      // A folder's own .git/config must not run programs: no fsmonitor hook (status), external diff,
+      // textconv (diff) or signature check (log, through gpg.program).
+      result = await run(['git', '--no-optional-locks', '-c', 'core.quotepath=off', '-c', 'core.fsmonitor=false', '-C', root.path, ...args], timeoutMs);
     } catch (e) {
       throw e instanceof AppError ? e : gitMissing();
     }
@@ -244,7 +246,7 @@ export function gitRoutes(opts: GitRoutesOptions): Routes {
       const root = await findRoot(query.get('root'));
       const skip = Math.max(0, Math.floor(Number(query.get('skip')) || 0));
       const limit = Math.min(MAX_LOG_PAGE, Math.max(1, Math.floor(Number(query.get('limit')) || LOG_PAGE)));
-      const r = await git(root, ['log', '-z', `--format=${LOG_FORMAT}`, `--skip=${skip}`, `-n${limit}`, '--', '.'], STATUS_TIMEOUT_MS);
+      const r = await git(root, ['log', '-z', '--no-show-signature', `--format=${LOG_FORMAT}`, `--skip=${skip}`, `-n${limit}`, '--', '.'], STATUS_TIMEOUT_MS);
       if (r.code !== 0) {
         if (/does not have any commits/i.test(r.stderr)) return [] satisfies GitCommit[];
         throw /not a git repository/i.test(r.stderr) ? notARepo() : gitFailed(r.stderr);
@@ -264,8 +266,8 @@ export function gitRoutes(opts: GitRoutesOptions): Routes {
       const path = filePath(query);
       const commit = query.get('commit');
       const args = commit
-        ? ['diff-tree', '-p', '--no-commit-id', '--no-color', '--relative', ...(await rangeOf(root, commitOf(query))), '--', path]
-        : ['diff', ...(query.get('staged') === '1' ? ['--cached'] : []), '--no-color', '--', path];
+        ? ['diff-tree', '-p', '--no-commit-id', '--no-color', '--no-ext-diff', '--no-textconv', '--relative', ...(await rangeOf(root, commitOf(query))), '--', path]
+        : ['diff', ...(query.get('staged') === '1' ? ['--cached'] : []), '--no-color', '--no-ext-diff', '--no-textconv', '--', path];
       const text = await gitOut(root, args);
       return (text.length > MAX_DIFF_CHARS ? { text: text.slice(0, MAX_DIFF_CHARS), truncated: true } : { text, truncated: false }) satisfies GitDiff;
     },

@@ -3,17 +3,17 @@ import { chmod, cp, lstat, mkdir, readdir, readlink, realpath, rm, stat, writeFi
 import { basename, dirname, extname, isAbsolute, join, resolve, sep } from 'node:path';
 import { moveToTrash, renameWithRetry, type SaveDialogOptions, saveFileAs, writeFileAtomic } from '@deckbuilder/platform';
 import { AppError, forbidden, type Handler, invalid, ndjson, notFound, type Routes, socketTickets, type TailChunk } from '@deckbuilder/server-core';
-
-export type { TailChunk };
 import type { FsCompressResult, FsDuProgress, FsExtractResult, FsHash, FsInfo } from '@deckbuilder/server-core/protocol';
-
-/** How often `du` reports its running totals. */
-const DU_PROGRESS_MS = 150;
 import { compressArchive, extractArchive, listArchive } from './archive.ts';
 import { isBinary } from './bytes.ts';
 import { decodeText, detectEncoding, encodeText, encodingByBom, TEXT_ENCODINGS, type TextEncodingId } from './encoding.ts';
 import { fromPlatform } from './platform-errors.ts';
 import { readSqlite } from './sqlite.ts';
+
+export type { TailChunk };
+
+/** How often `du` reports its running totals. */
+const DU_PROGRESS_MS = 150;
 
 /** A folder the app registered; every file route is confined to one. */
 export interface FsRoot {
@@ -121,7 +121,7 @@ export interface RootedFs {
 
 export const badPath = () => invalid('badPath', 'Invalid path.');
 const badRequest = () => invalid('badRequest', 'Invalid request.');
-const MAX_DELETE_PATHS = 1000;
+const MAX_PATHS = 1000;
 const outsideRoot = () => forbidden('outsideRoot', 'This path leads outside the project folder.');
 const fileNotFound = () => notFound('fileNotFound', 'File or folder not found.');
 const exists = () => invalid('exists', 'A file or folder with this name already exists.');
@@ -786,7 +786,7 @@ export function rootedFs(opts: RootedFsOptions): RootedFs {
     // The archive `name` goes into the one folder all `paths` share; it is written beside it under a temporary name first.
     'POST /api/fs/compress': async ({ json }) => {
       const b = await body(json);
-      if (!Array.isArray(b.paths) || !b.paths.length || b.paths.length > MAX_DELETE_PATHS) throw badRequest();
+      if (!Array.isArray(b.paths) || !b.paths.length || b.paths.length > MAX_PATHS) throw badRequest();
       if (b.format !== 'zip' && b.format !== '7z') throw badRequest();
       if (!validName(b.name)) throw badPath();
       const located = await Promise.all(b.paths.map((p) => locate(b.root, p, true)));
@@ -873,7 +873,7 @@ export function rootedFs(opts: RootedFsOptions): RootedFs {
       if (!Array.isArray(b.paths) || !b.paths.length) throw badRequest();
       // outermost() compares all pairs.
       if (opts.multiDelete === false && b.paths.length > 1) throw invalid('multiDeleteOff', 'Delete one item at a time.');
-      if (b.paths.length > MAX_DELETE_PATHS) throw invalid('tooManyItems', 'Too many items at once.');
+      if (b.paths.length > MAX_PATHS) throw invalid('tooManyItems', 'Too many items at once.');
       const located = await Promise.all(b.paths.map((p) => locate(b.root, p, true)));
       writable(located[0]!.root);
       const paths = await Promise.all(located.map(entryPath));

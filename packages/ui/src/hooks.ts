@@ -201,16 +201,6 @@ export function useHeartbeat(ms = 60_000) {
   }, [ms]);
 }
 
-export function useKey(handler: (e: KeyboardEvent) => void) {
-  const ref = useRef(handler);
-  ref.current = handler;
-  useEffect(() => {
-    const listener = (e: KeyboardEvent) => ref.current(e);
-    window.addEventListener('keydown', listener);
-    return () => window.removeEventListener('keydown', listener);
-  }, []);
-}
-
 export function isTyping(e: KeyboardEvent): boolean {
   const el = e.target as HTMLElement | null;
   return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable);

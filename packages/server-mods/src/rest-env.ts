@@ -1,15 +1,5 @@
 import { invalid } from '@deckbuilder/server-core';
-import { REST_BUILTIN_VARIABLES, REST_VAR_REFERENCE } from '@deckbuilder/server-core/protocol';
-
-/** Names `{{$name}}` resolves without an environment. */
-export const BUILTIN_VARIABLES = REST_BUILTIN_VARIABLES;
-
-const REFERENCE = REST_VAR_REFERENCE;
-
-/** The distinct variable names `text` refers to, in order of first use. */
-export function variableNames(text: string): string[] {
-  return [...new Set([...text.matchAll(REFERENCE)].map((m) => m[1]!))];
-}
+import { REST_VAR_REFERENCE } from '@deckbuilder/server-core/protocol';
 
 export interface VariableResolver {
   /** `text` with every known `{{name}}` replaced; unknown names are collected and left as they are. */
@@ -45,7 +35,7 @@ export function variableResolver(vars: Record<string, string> = {}, now: () => D
   };
   return {
     resolve: (text) =>
-      text.replace(REFERENCE, (whole, name: string) => {
+      text.replace(REST_VAR_REFERENCE, (whole, name: string) => {
         const value = Object.hasOwn(vars, name) ? vars[name] : builtin(name);
         if (value !== undefined) return value;
         if (!missing.includes(name)) missing.push(name);

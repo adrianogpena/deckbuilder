@@ -1,10 +1,6 @@
 import { expect, test } from 'bun:test';
 import type { AppError } from '@deckbuilder/server-core';
-import { unknownVariables, variableNames, variableResolver } from './rest-env.ts';
-
-test('variableNames lists distinct names in order', () => {
-  expect(variableNames('{{a}}/{{ b }}/{{a}}/{{$uuid}}/{{ }}/{{1x}}')).toEqual(['a', 'b', '$uuid']);
-});
+import { unknownVariables, variableResolver } from './rest-env.ts';
 
 test('resolve replaces known names and collects unknown ones', () => {
   const vars = variableResolver({ host: 'h.example', 'api.key': 'k' });
