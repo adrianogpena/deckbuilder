@@ -132,6 +132,10 @@ export interface ProjectTreeApi {
   newFolder(): void;
   refresh(): void;
   collapseAll(): void;
+  /** Opens every folder loaded so far; the ones that load as a result open on the next call. */
+  expandAll(): void;
+  /** Some folder below the root is open. */
+  canCollapse(): boolean;
   /** Expands the folders above `path` and selects it. */
   reveal(path: string): void;
   /** Scrolls to and selects `path` without changing which folders are expanded. */
@@ -243,7 +247,7 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
 
   const [git, setGit] = useState<GitMarks>();
   const gitOn = useRef(false);
-  gitOn.current = gitDecorations && expanded.includes(nodeId(project.id, ''));
+  gitOn.current = gitDecorations;
   const gitSeq = useRef(0);
   const gitKey = useRef('');
   const refreshGit = () => {
@@ -685,6 +689,8 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
       refreshGit();
     },
     collapseAll: () => onExpandedChange([nodeId(project.id, '')]),
+    expandAll: () => onExpandedChange([...new Set([...expanded, ...(tree.current?.loadedFolders() ?? [])])]),
+    canCollapse: () => expanded.some((id) => id !== nodeId(project.id, '')),
     reveal,
     scrollTo,
     finding: () => !!find,
@@ -779,6 +785,7 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
       <TreeView
         ref={tree}
         roots={roots}
+        hideRoots
         idOf={(n) => nodeId(n.project, n.path)}
         labelOf={(n) => (n.outside ? `${n.name} (${t('explorer.outside')})` : n.name)}
         iconOf={iconOf}

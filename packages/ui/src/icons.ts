@@ -30,6 +30,7 @@ export const PATHS = {
   'file-plus': 'M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6M12 12v6m-3-3h6',
   'folder-plus': 'M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM12 10v6m-3-3h6',
   'collapse-all': 'M4 4h16v16H4zM8 12h8',
+  'expand-all': 'M4 4h16v16H4zM8 12h8M12 8v8',
   'list-flat': 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',
   'list-tree': 'M3 5h8M7 5v14M7 12h4M7 19h4M14 12h7M14 19h7M14 5h7',
   eye: 'M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',

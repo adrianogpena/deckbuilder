@@ -89,11 +89,13 @@ export function JsonTree({ value, initialDepth = 1, onCopyPath }: { value: unkno
       }}
     >
       <div className="json-bar">
-        <button className="btn btn-ghost btn-sm btn-icon" onClick={() => issue('all')} title={t('json.expandAll')} aria-label={t('json.expandAll')}>
-          <Icon name="chevron-down" size={14} />
-        </button>
-        <button className="btn btn-ghost btn-sm btn-icon" onClick={() => issue('none')} title={t('json.collapseAll')} aria-label={t('json.collapseAll')}>
-          <Icon name="chevron-up" size={14} />
+        <button
+          className="btn btn-ghost btn-sm btn-icon"
+          onClick={() => issue(command.kind === 'none' ? 'all' : 'none')}
+          title={t(command.kind === 'none' ? 'json.expandAll' : 'json.collapseAll')}
+          aria-label={t(command.kind === 'none' ? 'json.expandAll' : 'json.collapseAll')}
+        >
+          <Icon name={command.kind === 'none' ? 'chevron-down' : 'chevron-up'} size={14} />
         </button>
         <span className="spacer" />
         <Icon name="search" size={13} />

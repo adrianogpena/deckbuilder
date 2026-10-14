@@ -29,6 +29,8 @@ type Entry<N> = { status: 'loading'; children?: N[] } | { status: 'error'; error
 
 export interface TreeViewProps<N> {
   roots: N[];
+  /** Show the children of the roots instead of the roots; the roots stay expanded. */
+  hideRoots?: boolean;
   idOf: (node: N) => string;
   labelOf: (node: N) => string;
   iconOf?: (node: N) => IconName;
@@ -107,6 +109,8 @@ export interface TreeViewHandle<N = unknown> {
   reveal: (id: string) => void;
   /** The selected nodes in display order. */
   selection: () => N[];
+  /** Ids of every loaded folder (the roots included). */
+  loadedFolders: () => string[];
 }
 
 function Marked({ text, positions }: { text: string; positions?: number[] }) {
@@ -206,7 +210,7 @@ function NewEntryInput({ kind, depth, onSubmit, onCancel }: { kind: 'file' | 'di
 }
 
 function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) {
-  const { roots, idOf, labelOf, iconOf, iconToneOf, dimmedOf, hasChildren, isFolder = hasChildren, compact, expanded, visibleOf, markOf, decorationOf, forceExpanded, onExpandedChange, onOpen, onPreview, onOpenToSide, onContextMenu, onRename, onDelete, onCopy, onCut, onPaste, onUndo, newEntry, draggable, onDrop, onDropFiles, dragOut } = props;
+  const { roots, hideRoots, idOf, labelOf, iconOf, iconToneOf, dimmedOf, hasChildren, isFolder = hasChildren, compact, expanded, visibleOf, markOf, decorationOf, forceExpanded, onExpandedChange, onOpen, onPreview, onOpenToSide, onContextMenu, onRename, onDelete, onCopy, onCut, onPaste, onUndo, newEntry, draggable, onDrop, onDropFiles, dragOut } = props;
   const cache = useRef(new Map<string, Entry<N>>());
   const generations = useRef(new Map<string, number>());
   const [, bump] = useReducer((x: number) => x + 1, 0);
@@ -225,7 +229,7 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
   const latest = useRef(props);
   latest.current = props;
 
-  const expandedSet = new Set(forceExpanded ? [...expanded, ...forceExpanded] : expanded);
+  const expandedSet = new Set([...expanded, ...(forceExpanded ?? []), ...(hideRoots ? roots.map(idOf) : [])]);
   const loadedChildren = (id: string) => {
     const entry = cache.current.get(id);
     return entry?.status === 'error' ? undefined : entry?.children;
@@ -235,7 +239,9 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
     return visibleOf && kids ? kids.filter(visibleOf) : kids;
   };
   // The parent of a pending new entry stays the last segment of its row, so the input shows right under it.
-  const rows = visibleRows(visibleOf ? roots.filter(visibleOf) : roots, childrenOf, expandedSet, idOf, compact ? { isFolder, stopAt: new Set(newEntry ? [newEntry.parentId] : []) } : undefined);
+  const allRows = visibleRows(visibleOf ? roots.filter(visibleOf) : roots, childrenOf, expandedSet, idOf, compact ? { isFolder, stopAt: new Set(newEntry ? [newEntry.parentId] : []) } : undefined);
+  const rootIds = new Set(hideRoots ? roots.map(idOf) : []);
+  const rows = hideRoots ? allRows.filter((r) => r.depth > 0).map((r) => ({ ...r, depth: r.depth - 1, parentId: r.parentId !== null && rootIds.has(r.parentId) ? null : r.parentId })) : allRows;
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
   const rowOf = (id: string | null) => (id === null ? undefined : rows.find((r) => r.id === id));
@@ -280,7 +286,7 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
 
   // Expanded rows whose children aren't loaded yet (first expand, restored state, after a reload).
   useEffect(() => {
-    for (const row of rows) {
+    for (const row of allRows) {
       if (expandedSet.has(row.id) && !cache.current.has(row.id) && hasChildren(row.node)) load(row.node, row.id);
     }
   });
@@ -346,6 +352,13 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
 
   useImperativeHandle(ref, () => ({
     selection: () => pickedItems().map((x) => x.node),
+    loadedFolders: () => {
+      const ids = new Set(roots.map(idOf));
+      for (const entry of cache.current.values()) {
+        if (entry.status === 'ok') for (const c of entry.children) if (isFolder(c) && hasChildren(c)) ids.add(idOf(c));
+      }
+      return [...ids];
+    },
     reload(id?: string) {
       const ids = id === undefined ? [...cache.current.keys()] : [id];
       const open = new Set(latest.current.expanded);
@@ -461,7 +474,8 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
   const fileTargetOf = (row: TreeRow<N>, seg: { id: string; node: N }) => {
     if (isFolder(row.node)) return seg;
     const parent = rows.find((r) => r.id === row.parentId);
-    return parent && { id: parent.id, node: parent.node };
+    if (parent) return { id: parent.id, node: parent.node };
+    return hideRoots && row.parentId === null ? { id: idOf(roots[0]!), node: roots[0]! } : undefined;
   };
 
   const canDrop = (row: TreeRow<N>, seg: { id: string }) => {
@@ -517,7 +531,8 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
               if (e.defaultPrevented || !isFileDrag(e) || !rows.length) return;
               e.preventDefault();
               e.dataTransfer.dropEffect = 'copy';
-              if (dropTarget !== rows[0]!.id) setDropTarget(rows[0]!.id);
+              const top = hideRoots ? idOf(roots[0]!) : rows[0]!.id;
+              if (dropTarget !== top) setDropTarget(top);
             }
           : undefined
       }
@@ -528,11 +543,36 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
               if (e.defaultPrevented || !isFileDrag(e) || !rows.length) return;
               e.preventDefault();
               setDropTarget(null);
-              onDropFiles(e.dataTransfer, rows[0]!.node);
+              onDropFiles(e.dataTransfer, hideRoots ? roots[0]! : rows[0]!.node);
             }
           : undefined
       }
     >
+      {hideRoots &&
+        roots.map((root) => {
+          const id = idOf(root);
+          const entry = cache.current.get(id);
+          return (
+            <Fragment key={id}>
+              {newEntry?.parentId === id && <NewEntryInput key={`new-${id}`} kind={newEntry.kind} depth={0} onSubmit={newEntry.onSubmit} onCancel={newEntry.onCancel} />}
+              {entry?.status === 'loading' && !entry.children && (
+                <div className="tree-status" style={{ paddingLeft: INDENT + 4 }}>
+                  <Spinner small />
+                  <span className="tree-label">{t('common.loading')}</span>
+                </div>
+              )}
+              {entry?.status === 'error' && (
+                <div className="tree-status tree-error" style={{ paddingLeft: INDENT + 4 }}>
+                  <Icon name="alert" size={14} />
+                  <span className="tree-label" title={entry.error.detail}>{errorMessage(entry.error)}</span>
+                  <button className="btn btn-ghost btn-sm" onClick={() => load(root, id)}>
+                    {t('common.retry')}
+                  </button>
+                </div>
+              )}
+            </Fragment>
+          );
+        })}
       {rows.map((row) => {
         const { node, id, depth } = row;
         const expandable = hasChildren(node);

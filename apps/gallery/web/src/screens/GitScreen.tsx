@@ -190,7 +190,9 @@ export function GitScreen({ settings, onSave, go, initialDiffMode = 'split' }: {
     [status, view.view],
   );
 
-  const collapseAll = () => setClosedFolders(new Set(sections.flatMap((s) => (s.tree ? folderPaths(s.tree).map((p) => `${s.id}\0${p}`) : []))));
+  const allFolders = () => sections.flatMap((s) => (s.tree ? folderPaths(s.tree).map((p) => `${s.id} ${p}`) : []));
+  const anyOpen = allFolders().some((k) => !closedFolders.has(k));
+  const toggleAll = () => setClosedFolders(anyOpen ? new Set(allFolders()) : new Set());
   const toggleSection = (id: GitSection) => update((v) => ({ ...v, closed: v.closed.includes(id) ? v.closed.filter((x) => x !== id) : [...v.closed, id] }));
   const toggleFolder = (key: string) =>
     setClosedFolders((was) => {
@@ -298,7 +300,7 @@ export function GitScreen({ settings, onSave, go, initialDiffMode = 'split' }: {
   );
 
   const tree = view.view === 'tree';
-  const iconButton = (icon: 'refresh' | 'list-flat' | 'list-tree' | 'collapse-all', label: string, act: () => void, disabled = false) => (
+  const iconButton = (icon: 'refresh' | 'list-flat' | 'list-tree' | 'collapse-all' | 'expand-all', label: string, act: () => void, disabled = false) => (
     <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={act} disabled={disabled} title={label} aria-label={label}>
       <Icon name={icon} />
     </button>
@@ -309,7 +311,7 @@ export function GitScreen({ settings, onSave, go, initialDiffMode = 'split' }: {
       {tree
         ? iconButton('list-flat', t('git.viewList'), () => update((v) => ({ ...v, view: 'list' })))
         : iconButton('list-tree', t('git.viewTree'), () => update((v) => ({ ...v, view: 'tree' })))}
-      {tree && iconButton('collapse-all', t('git.collapseAll'), collapseAll)}
+      {tree && iconButton(anyOpen ? 'collapse-all' : 'expand-all', t(anyOpen ? 'git.collapseAll' : 'git.expandAll'), toggleAll)}
       <div className="menu-wrap" ref={moreWrap} onKeyDown={(e) => e.key === 'Escape' && setMoreOpen(false)}>
         <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={() => setMoreOpen(!moreOpen)} aria-expanded={moreOpen} aria-haspopup="menu" title={t('git.more')} aria-label={t('git.more')}>
           <Icon name="more" />

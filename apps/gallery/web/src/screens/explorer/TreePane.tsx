@@ -2,6 +2,7 @@ import { useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react
 import { Icon, useCommand } from '@deckbuilder/ui';
 import type { Project, SearchHit } from '../../api';
 import { commandById } from '../../commands';
+import { nodeId } from '../../explorer-paths';
 import { t } from '../../i18n';
 import { ProjectPicker, type ProjectPickerProps } from './ProjectPicker';
 import { ProjectSearch } from './ProjectSearch';
@@ -38,6 +39,8 @@ export function TreePane({ focused, showHidden = false, onFocus, exclude, sort, 
     newFolder: () => own.current?.newFolder(),
     refresh: () => own.current?.refresh(),
     collapseAll: () => own.current?.collapseAll(),
+    expandAll: () => own.current?.expandAll(),
+    canCollapse: () => own.current?.canCollapse() ?? false,
     reveal: (path) => own.current?.reveal(path),
     scrollTo: (path) => own.current?.scrollTo(path),
     finding: () => own.current?.finding() ?? false,
@@ -114,7 +117,9 @@ export function TreePane({ focused, showHidden = false, onFocus, exclude, sort, 
   useEffect(() => {
     if (finding) findInput.current?.focus();
   }, [finding]);
-  useCommand(commandById('explorer.collapseAll'), () => own.current?.collapseAll(), { enabled: focused });
+  const collapsible = tree.expanded.some((id) => id !== nodeId(project.id, ''));
+  const toggleAll = () => (collapsible ? own.current?.collapseAll() : own.current?.expandAll());
+  useCommand(commandById('explorer.collapseAll'), toggleAll, { enabled: focused });
 
   return (
     <div
@@ -143,6 +148,9 @@ export function TreePane({ focused, showHidden = false, onFocus, exclude, sort, 
             <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={() => own.current?.newFile()} title={t('explorer.newFile')} aria-label={t('explorer.newFile')}>
               <Icon name="file-plus" />
             </button>
+            <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={toggleAll} title={t(collapsible ? 'explorer.collapseAll' : 'explorer.expandAll')} aria-label={t(collapsible ? 'explorer.collapseAll' : 'explorer.expandAll')}>
+              <Icon name={collapsible ? 'collapse-all' : 'expand-all'} />
+            </button>
             <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={onGoToFile} disabled={!onGoToFile} title={t('explorer.goToFile')} aria-label={t('explorer.goToFile')}>
               <Icon name="locate" />
             </button>
@@ -155,7 +163,6 @@ export function TreePane({ focused, showHidden = false, onFocus, exclude, sort, 
                   {item('search', t('explorer.search.open'), openSearch)}
                   {item('folder-plus', t('explorer.newFolder'), () => own.current?.newFolder())}
                   {item('refresh', t('explorer.refresh'), () => own.current?.refresh())}
-                  {item('collapse-all', t('explorer.collapseAll'), () => own.current?.collapseAll())}
                   {tree.onOpenDetails && item('table', t('explorer.openDetails'), () => tree.onOpenDetails?.(project.id, own.current?.selectedFolder() ?? ''))}
                   {item(showExcluded ? 'eye' : 'eye-off', t('explorer.showExcluded'), () => setShowExcluded(!showExcluded), showExcluded)}
                   {onSplit && item('split-down', t('explorer.split'), onSplit)}
