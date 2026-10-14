@@ -411,6 +411,7 @@ html[data-tab-sizing="shrink"] .tab-chip { flex: 1 1 0; }
 html[data-tab-close="left"] .tab-close { order: -1; }
 html[data-tab-close="hidden"] .tab-chip:not(.dirty) .tab-close { display: none; }
 html[data-tab-close="hidden"] .tab-close .icon { display: none; }
+html[data-tab-close="hidden"] .tab-chip:not(.dirty) { padding-right: 12px; }
 html[data-tab-close="hidden"] .tab-chip.dirty:hover .tab-dot { display: block; }
 html[data-tab-icons="false"] .tab-icon { display: none; }
 html[data-status-bar="false"] .status-bar { display: none; }
@@ -570,7 +571,7 @@ html[data-status-bar="false"] .status-bar { display: none; }
 .split-column > .split-divider:hover::after, .split-column > .split-divider:focus-visible::after, .split-column > .split-divider:active::after { top: 1px; height: 3px; }
 
 /* ---- tree view */
-.tree { display: flex; flex-direction: column; padding: 4px; outline: none; user-select: none; }
+.tree { display: flex; flex-direction: column; box-sizing: border-box; min-height: 100%; padding: 4px; outline: none; user-select: none; }
 .tree-row, .tree-status {
   display: flex; align-items: center; gap: 6px; min-height: 26px; padding-right: 8px; border-radius: 6px;
   color: var(--text-2); font-size: 13px;

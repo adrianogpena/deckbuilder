@@ -242,6 +242,22 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
   const allRows = visibleRows(visibleOf ? roots.filter(visibleOf) : roots, childrenOf, expandedSet, idOf, compact ? { isFolder, stopAt: new Set(newEntry ? [newEntry.parentId] : []) } : undefined);
   const rootIds = new Set(hideRoots ? roots.map(idOf) : []);
   const rows = hideRoots ? allRows.filter((r) => r.depth > 0).map((r) => ({ ...r, depth: r.depth - 1, parentId: r.parentId !== null && rootIds.has(r.parentId) ? null : r.parentId })) : allRows;
+  // A new file goes after the parent's folders (and their open contents); a new folder goes first.
+  const newEntryAfter = (() => {
+    if (!newEntry || newEntry.kind !== 'file') return undefined;
+    const owner = rootIds.has(newEntry.parentId) ? null : newEntry.parentId;
+    const parentIndex = owner === null ? -1 : rows.findIndex((r) => r.id === owner);
+    if (owner !== null && parentIndex < 0) return undefined;
+    const baseDepth = owner === null ? 0 : rows[parentIndex]!.depth + 1;
+    let after: string | undefined;
+    for (let i = parentIndex + 1; i < rows.length && rows[i]!.depth >= baseDepth; i++) {
+      const r = rows[i]!;
+      if (r.depth === baseDepth && !isFolder(r.node)) break;
+      after = r.id;
+    }
+    return after;
+  })();
+  const newEntryDepth = newEntry && rootIds.has(newEntry.parentId) ? -1 : (rows.find((r) => r.id === newEntry?.parentId)?.depth ?? 0);
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
   const rowOf = (id: string | null) => (id === null ? undefined : rows.find((r) => r.id === id));
@@ -524,6 +540,12 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
       role="tree"
       aria-multiselectable="true"
       onKeyDown={onKeyDown}
+      onClick={(e) => {
+        if (e.target !== e.currentTarget) return;
+        anchor.current = null;
+        setPicked(new Set());
+        if (latest.current.selected === undefined) setOwnSelected(null);
+      }}
       onDragOver={
         draggable || onDropFiles
           ? (e) => {
@@ -554,7 +576,7 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
           const entry = cache.current.get(id);
           return (
             <Fragment key={id}>
-              {newEntry?.parentId === id && <NewEntryInput key={`new-${id}`} kind={newEntry.kind} depth={0} onSubmit={newEntry.onSubmit} onCancel={newEntry.onCancel} />}
+              {newEntry?.parentId === id && !newEntryAfter && <NewEntryInput key={`new-${id}`} kind={newEntry.kind} depth={-1} onSubmit={newEntry.onSubmit} onCancel={newEntry.onCancel} />}
               {entry?.status === 'loading' && !entry.children && (
                 <div className="tree-status" style={{ paddingLeft: INDENT + 4 }}>
                   <Spinner small />
@@ -697,7 +719,7 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
                 </span>
               ) : null}
             </div>
-            {isOpen && newEntry?.parentId === id && <NewEntryInput key={`new-${id}`} kind={newEntry.kind} depth={depth} onSubmit={newEntry.onSubmit} onCancel={newEntry.onCancel} />}
+            {isOpen && newEntry?.parentId === id && !newEntryAfter && <NewEntryInput key={`new-${id}`} kind={newEntry.kind} depth={depth} onSubmit={newEntry.onSubmit} onCancel={newEntry.onCancel} />}
             {entry?.status === 'loading' && !entry.children && (
               <div className="tree-status" style={statusIndent}>
                 <Spinner small />
@@ -713,6 +735,7 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
                 </button>
               </div>
             )}
+            {newEntry && newEntryAfter === id && <NewEntryInput key={`new-${newEntry.parentId}`} kind={newEntry.kind} depth={newEntryDepth} onSubmit={newEntry.onSubmit} onCancel={newEntry.onCancel} />}
           </Fragment>
         );
       })}
