@@ -352,12 +352,31 @@ export interface GitRepoInfo {
   error?: string;
 }
 
-/** `GET /api/git/file`: a file at HEAD or in the index. */
+/** `GET /api/git/file`: a file at HEAD, in the index, at a commit or at its first parent. */
 export interface GitFileContent {
   text?: string;
   binary?: boolean;
   tooLarge?: boolean;
   missing?: boolean;
+}
+
+/** One entry of `GET /api/git/log`, newest first. */
+export interface GitCommit {
+  hash: string;
+  short: string;
+  author: string;
+  /** ISO 8601 author date. */
+  date: string;
+  subject: string;
+  /** Branch and tag names pointing at it, as `git log --format=%D` prints them. */
+  refs?: string;
+}
+
+/** A file changed by a commit (`GET /api/git/commit`), compared with its first parent; root-relative. */
+export interface GitCommitFile {
+  path: string;
+  origPath?: string;
+  status: GitCode;
 }
 
 /** `GET /api/git/diff`. */

@@ -214,7 +214,7 @@ function renderScreen(screen: ScreenId, settings: Settings, save: (patch: Partia
     case 'terminal':
       return <Suspense fallback={<PanelLoading />}><TerminalScreen settings={settings} onSave={save} /></Suspense>;
     case 'git':
-      return <Suspense fallback={<PanelLoading />}><GitScreen settings={settings} go={go} initialDiffMode={gitSettingsOf(settings).diffMode} /></Suspense>;
+      return <Suspense fallback={<PanelLoading />}><GitScreen settings={settings} onSave={save} go={go}initialDiffMode={gitSettingsOf(settings).diffMode} /></Suspense>;
     default:
       return <Home />;
   }

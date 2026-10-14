@@ -4,6 +4,8 @@ import {
   invalid,
   notFound,
   type GitCode,
+  type GitCommit,
+  type GitCommitFile,
   type GitDiff,
   type GitFile,
   type GitFileContent,
@@ -25,6 +27,10 @@ const STATUS_TIMEOUT_MS = 10_000;
 const QUICK_TIMEOUT_MS = 5_000;
 const MAX_FILE_BYTES = 2_000_000;
 const MAX_DIFF_CHARS = 1_000_000;
+const LOG_PAGE = 50;
+const MAX_LOG_PAGE = 200;
+const HASH = /^[0-9a-f]{7,40}$/;
+const LOG_FORMAT = ['%H', '%h', '%an', '%aI', '%D', '%s'].join('%x1f');
 
 const gitMissing = () => new AppError('internal', 'gitMissing', 'Git was not found on PATH.');
 const notARepo = () => invalid('notARepo', 'This folder is not in a Git repository.');
@@ -81,6 +87,36 @@ export function parsePorcelainV2(text: string): PorcelainStatus {
   return out;
 }
 
+/** Parses `git log -z --format=<LOG_FORMAT>` output. */
+export function parseLog(text: string): GitCommit[] {
+  return text
+    .split('\0')
+    .map((record) => record.replace(/^\n/, ''))
+    .filter(Boolean)
+    .map((record) => {
+      const [hash = '', short = '', author = '', date = '', refs = '', ...subject] = record.split('\x1f');
+      return { hash, short, author, date, subject: subject.join('\x1f'), ...(refs && { refs }) };
+    });
+}
+
+/** Parses `git diff-tree -r -z --name-status -M` output. */
+export function parseNameStatus(text: string): GitCommitFile[] {
+  const tokens = text.split('\0');
+  const out: GitCommitFile[] = [];
+  for (let i = 0; i < tokens.length; i++) {
+    const code = tokens[i]!.trim();
+    if (!code) continue;
+    const status = code[0] as GitCode;
+    if (status === 'R' || status === 'C') {
+      const origPath = tokens[++i] ?? '';
+      out.push({ path: tokens[++i] ?? '', origPath, status });
+    } else {
+      out.push({ path: tokens[++i] ?? '', status });
+    }
+  }
+  return out;
+}
+
 function addEntry(files: GitFile[], xy: string, path: string, origPath?: string): void {
   const index = xy[0] as GitCode;
   const worktree = xy[1] as GitCode;
@@ -97,7 +133,7 @@ const defaultRun: Runner = (cmd, timeoutMs) => {
 };
 
 /**
- * Read-only Git routes over the registered roots: `GET /api/git/repos|status|file|diff`. The client
+ * Read-only Git routes over the registered roots: `GET /api/git/repos|status|file|diff|log|commit`. The client
  * sends a root id and a root-relative path; every call runs `git -C <root>` with the path after `--`
  * (or inside a `HEAD:` / `:` revision), so no client string is ever an option.
  */
@@ -132,6 +168,18 @@ export function gitRoutes(opts: GitRoutesOptions): Routes {
   async function prefixOf(root: FsRoot): Promise<string> {
     const out = await gitOut(root, ['rev-parse', '--show-toplevel', '--show-prefix']);
     return (out.split(/\r?\n/)[1] ?? '').trim();
+  }
+
+  function commitOf(query: URLSearchParams): string {
+    const hash = query.get('commit') ?? '';
+    if (!HASH.test(hash)) throw invalid('badRequest', 'Invalid request.');
+    return hash;
+  }
+
+  /** `diff-tree` arguments comparing a commit with its first parent, or with the empty tree for a root commit. */
+  async function rangeOf(root: FsRoot, hash: string): Promise<string[]> {
+    const parents = (await gitOut(root, ['rev-list', '--parents', '-n1', hash])).trim().split(' ');
+    return parents[1] ? [parents[1], hash] : ['--root', hash];
   }
 
   function filePath(query: URLSearchParams): string {
@@ -172,9 +220,14 @@ export function gitRoutes(opts: GitRoutesOptions): Routes {
       const root = await findRoot(query.get('root'));
       const path = filePath(query);
       const from = query.get('from');
-      if (from !== 'head' && from !== 'index') throw invalid('badRequest', 'Invalid request.');
       const prefix = await prefixOf(root);
-      const rev = `${from === 'head' ? 'HEAD' : ''}:${prefix}${path}`;
+      let tree: string;
+      if (from === 'head') tree = 'HEAD';
+      else if (from === 'index') tree = '';
+      else if (from === 'commit') tree = commitOf(query);
+      else if (from === 'parent') tree = `${commitOf(query)}^`;
+      else throw invalid('badRequest', 'Invalid request.');
+      const rev = `${tree}:${prefix}${path}`;
       const size = await git(root, ['cat-file', '-s', rev]);
       if (size.code !== 0) {
         if (/not a git repository/i.test(size.stderr)) throw notARepo();
@@ -187,10 +240,32 @@ export function gitRoutes(opts: GitRoutesOptions): Routes {
       return { text } satisfies GitFileContent;
     },
 
+    'GET /api/git/log': async ({ query }) => {
+      const root = await findRoot(query.get('root'));
+      const skip = Math.max(0, Math.floor(Number(query.get('skip')) || 0));
+      const limit = Math.min(MAX_LOG_PAGE, Math.max(1, Math.floor(Number(query.get('limit')) || LOG_PAGE)));
+      const r = await git(root, ['log', '-z', `--format=${LOG_FORMAT}`, `--skip=${skip}`, `-n${limit}`, '--', '.'], STATUS_TIMEOUT_MS);
+      if (r.code !== 0) {
+        if (/does not have any commits/i.test(r.stderr)) return [] satisfies GitCommit[];
+        throw /not a git repository/i.test(r.stderr) ? notARepo() : gitFailed(r.stderr);
+      }
+      return parseLog(r.stdout);
+    },
+
+    'GET /api/git/commit': async ({ query }) => {
+      const root = await findRoot(query.get('root'));
+      const range = await rangeOf(root, commitOf(query));
+      const text = await gitOut(root, ['diff-tree', '-r', '-z', '--no-commit-id', '--name-status', '-M', '--relative', ...range, '--'], STATUS_TIMEOUT_MS);
+      return parseNameStatus(text);
+    },
+
     'GET /api/git/diff': async ({ query }) => {
       const root = await findRoot(query.get('root'));
       const path = filePath(query);
-      const args = ['diff', ...(query.get('staged') === '1' ? ['--cached'] : []), '--no-color', '--', path];
+      const commit = query.get('commit');
+      const args = commit
+        ? ['diff-tree', '-p', '--no-commit-id', '--no-color', '--relative', ...(await rangeOf(root, commitOf(query))), '--', path]
+        : ['diff', ...(query.get('staged') === '1' ? ['--cached'] : []), '--no-color', '--', path];
       const text = await gitOut(root, args);
       return (text.length > MAX_DIFF_CHARS ? { text: text.slice(0, MAX_DIFF_CHARS), truncated: true } : { text, truncated: false }) satisfies GitDiff;
     },

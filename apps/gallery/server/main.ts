@@ -47,6 +47,8 @@ export interface Settings extends BaseSettings {
   gridLayout?: GridItem[];
   /** Explorer screen: sidebar fractions, collapsed state, expanded tree ids per project and the tab layout. */
   explorer?: ExplorerSettings;
+  /** Git screen: focused project, sidebar fractions and collapsed state, list or tree, closed sections, History panel; checked by `validGitView`. */
+  gitView?: GitViewSettings;
   /** Log viewer: highlight words (global) and bookmarks per `<projectId>:<path>`. */
   logs?: LogSettings;
   /** Files opened as another type: a name glob and the extension to treat them as. */
@@ -168,6 +170,42 @@ function validExplorer(raw: unknown): ExplorerSettings | null {
     ...(wrapLines !== undefined && { wrapLines }),
     ...(sqlPair && { sqlSizes: sqlPair }),
     ...(tabs !== undefined && { tabs }),
+  };
+}
+
+export interface GitViewSettings {
+  project?: string;
+  sizes?: [number, number];
+  collapsed?: boolean;
+  view?: 'list' | 'tree';
+  closedSections?: ('merge' | 'staged' | 'changes')[];
+  historyOpen?: boolean;
+  historySize?: number;
+}
+
+const GIT_SECTIONS: unknown[] = ['merge', 'staged', 'changes'];
+
+/** A copy of `raw` when it is a well-formed Git screen state, else null. */
+export function validGitView(raw: unknown): GitViewSettings | null {
+  const r = raw as Partial<GitViewSettings> | null;
+  if (typeof r !== 'object' || r === null || Array.isArray(r)) return null;
+  const { project, sizes, collapsed, view, closedSections, historyOpen, historySize } = r;
+  if (project !== undefined && (typeof project !== 'string' || project.length > MAX_ID_LENGTH)) return null;
+  const pair = sizes === undefined ? undefined : validPair(sizes);
+  if (sizes !== undefined && !pair) return null;
+  if (collapsed !== undefined && typeof collapsed !== 'boolean') return null;
+  if (view !== undefined && view !== 'list' && view !== 'tree') return null;
+  if (closedSections !== undefined && (!Array.isArray(closedSections) || closedSections.length > GIT_SECTIONS.length || !closedSections.every((s) => GIT_SECTIONS.includes(s)))) return null;
+  if (historyOpen !== undefined && typeof historyOpen !== 'boolean') return null;
+  if (historySize !== undefined && (typeof historySize !== 'number' || !(historySize >= 0.1 && historySize <= 0.9))) return null;
+  return {
+    ...(project !== undefined && { project }),
+    ...(pair && { sizes: pair }),
+    ...(collapsed !== undefined && { collapsed }),
+    ...(view !== undefined && { view }),
+    ...(closedSections !== undefined && { closedSections: [...new Set(closedSections)] }),
+    ...(historyOpen !== undefined && { historyOpen }),
+    ...(historySize !== undefined && { historySize }),
   };
 }
 
@@ -405,6 +443,8 @@ const settings = settingsStore<Settings>({
     if (gridLayout) next.gridLayout = gridLayout;
     const explorer = validExplorer(patch.explorer);
     if (explorer) next.explorer = explorer;
+    const gitView = validGitView(patch.gitView);
+    if (gitView) next.gitView = gitView;
     const logs = validLogSettings(patch.logs);
     if (logs) next.logs = logs;
     const fileAssociations = validFileAssociations(patch.fileAssociations);

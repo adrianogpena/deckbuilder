@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { RunResult } from '@deckbuilder/platform';
-import { gitRoutes, parsePorcelainV2 } from './git.ts';
+import { gitRoutes, parseLog, parseNameStatus, parsePorcelainV2 } from './git.ts';
 
 const done = (stdout: string, code = 0, stderr = ''): RunResult => ({ kind: 'done', code, stdout, stderr });
 const roots = async () => [{ id: 'r1', path: 'C:/proj' }];
@@ -90,4 +90,38 @@ test.skipIf(Bun.which('git') === null)('live repo: status, file and diff', async
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('parseLog reads commits with refs and a subject holding the separator', () => {
+  const text = ['a1\x1fa\x1fAna\x1f2026-01-02T03:04:05+00:00\x1fHEAD -> main\x1fFix x', '\nb2\x1fb\x1fBo\x1f2026-01-01T00:00:00+00:00\x1f\x1fone\x1ftwo', ''].join('\0');
+  expect(parseLog(text)).toEqual([
+    { hash: 'a1', short: 'a', author: 'Ana', date: '2026-01-02T03:04:05+00:00', refs: 'HEAD -> main', subject: 'Fix x' },
+    { hash: 'b2', short: 'b', author: 'Bo', date: '2026-01-01T00:00:00+00:00', subject: 'one\x1ftwo' },
+  ]);
+});
+
+test('parseNameStatus reads plain entries and renames', () => {
+  expect(parseNameStatus(['M', 'src/a.ts', 'R087', 'old.ts', 'new.ts', 'D', 'gone.txt', ''].join('\0'))).toEqual([
+    { path: 'src/a.ts', status: 'M' },
+    { path: 'new.ts', origPath: 'old.ts', status: 'R' },
+    { path: 'gone.txt', status: 'D' },
+  ]);
+});
+
+test('commit and file at a commit refuse a bad hash', async () => {
+  const routes = gitRoutes({ roots, run: async () => done('') });
+  await expect(routes['GET /api/git/commit']!(q({ root: 'r1', commit: '--all' }))).rejects.toMatchObject({ code: 'badRequest' });
+  await expect(routes['GET /api/git/file']!(q({ root: 'r1', path: 'a.ts', from: 'parent', commit: 'HEAD~1' }))).rejects.toMatchObject({ code: 'badRequest' });
+});
+
+test('commit diffs against the first parent, or the empty tree for a root commit', async () => {
+  const calls: string[][] = [];
+  const run = (parents: string) => async (cmd: string[]) => {
+    calls.push(cmd);
+    return cmd.includes('rev-list') ? done(parents) : done('A\0a.ts\0');
+  };
+  expect(await gitRoutes({ roots, run: run('abc1234 p1 p2\n') })['GET /api/git/commit']!(q({ root: 'r1', commit: 'abc1234' }))).toEqual([{ path: 'a.ts', status: 'A' }]);
+  expect(calls[1]!.slice(-3)).toEqual(['p1', 'abc1234', '--']);
+  await gitRoutes({ roots, run: run('abc1234\n') })['GET /api/git/commit']!(q({ root: 'r1', commit: 'abc1234' }));
+  expect(calls[3]!.slice(-3)).toEqual(['--root', 'abc1234', '--']);
 });

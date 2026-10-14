@@ -1,7 +1,7 @@
 import { type ArchiveContent, type SqliteContent, type SqlFormatOptions } from '@deckbuilder/editor';
 import type { HttpRequestDraft } from '@deckbuilder/editor/http';
 import type { ThemeSettings } from '@deckbuilder/server-core/palettes';
-import type { BackupInspect, EditorInfo, FsArchiveFormat, FsCompressResult, FsDuProgress, FsExtractResult, FsHash, FsInfo, GitDiff, GitFileContent, GitRepoInfo, GitStatus, HttpRequestSpec, HttpResponseInfo, ImportResult, RestEnvironment, RestEnvironmentInput, RestHistoryEntry, SqlHistoryEntry, TailChunk, UpdateState } from '@deckbuilder/server-core/protocol';
+import type { BackupInspect, EditorInfo, FsArchiveFormat, FsCompressResult, FsDuProgress, FsExtractResult, FsHash, FsInfo, GitCommit, GitCommitFile, GitDiff, GitFileContent, GitRepoInfo, GitStatus, HttpRequestSpec, HttpResponseInfo, ImportResult, RestEnvironment, RestEnvironmentInput, RestHistoryEntry, SqlHistoryEntry, TailChunk, UpdateState } from '@deckbuilder/server-core/protocol';
 
 export type { EditorInfo, FsDuProgress, FsHash, FsInfo, ImportResult, TailChunk };
 import type { SessionInfo } from '@deckbuilder/terminal';
@@ -26,6 +26,8 @@ export interface Settings extends ThemeSettings {
   gridLayout?: unknown;
   /** State of the Explorer screen; the server validates it. */
   explorer?: ExplorerSettings;
+  /** State of the Git screen; the server validates it. */
+  gitView?: GitViewSettings;
   /** Log viewer: highlight words and bookmarks (keyed `<projectId>:<path>`); the server validates it. */
   logs?: LogSettings;
   /** Files opened as another type; the server validates it. */
@@ -292,6 +294,25 @@ export interface ExplorerSettings {
   tabs?: unknown;
 }
 
+/** Change groups of the Git screen, VS Code's Source Control sections. */
+export type GitSection = 'merge' | 'staged' | 'changes';
+
+export interface GitViewSettings {
+  /** Id of the focused project. */
+  project?: string;
+  /** Fractions of the sidebar and the diff. */
+  sizes?: [number, number];
+  collapsed?: boolean;
+  /** Changes as a flat list or nested under folders; list when omitted. */
+  view?: 'list' | 'tree';
+  /** Sections shown collapsed. */
+  closedSections?: GitSection[];
+  /** Whether the History panel under the changes is open; closed when omitted. */
+  historyOpen?: boolean;
+  /** Fraction of the sidebar height the open History panel takes. */
+  historySize?: number;
+}
+
 export type BackupInfo = BackupInspect;
 
 export interface Project {
@@ -380,8 +401,11 @@ export const api = {
     request<FsCompressResult>('POST', '/api/fs/compress', {}, { root, paths, name, format }),
   gitRepos: () => request<GitRepoInfo[]>('GET', '/api/git/repos'),
   gitStatus: (root: string) => request<GitStatus>('GET', '/api/git/status', { root }),
-  gitFile: (root: string, path: string, from: 'head' | 'index') => request<GitFileContent>('GET', '/api/git/file', { root, path, from }),
-  gitDiff: (root: string, path: string, staged: boolean) => request<GitDiff>('GET', '/api/git/diff', { root, path, staged: staged ? '1' : '0' }),
+  gitFile: (root: string, path: string, from: 'head' | 'index' | 'commit' | 'parent', commit?: string) => request<GitFileContent>('GET', '/api/git/file', { root, path, from, ...(commit && { commit }) }),
+  gitLog: (root: string, skip: number, limit: number) => request<GitCommit[]>('GET', '/api/git/log', { root, skip, limit }),
+  gitCommit: (root: string, commit: string) => request<GitCommitFile[]>('GET', '/api/git/commit', { root, commit }),
+  gitDiff: (root: string, path: string, staged: boolean, commit?: string) =>
+    request<GitDiff>('GET', '/api/git/diff', { root, path, staged: staged ? '1' : '0', ...(commit && { commit }) }),
   fsCreate: (root: string, path: string, kind: 'file' | 'dir') => request<FsEntry>('POST', '/api/fs/create', {}, { root, path, kind }),
   fsTail: (root: string, path: string, from?: number, max?: number) =>
     request<TailChunk>('GET', '/api/fs/tail', { root, path, from, max }),

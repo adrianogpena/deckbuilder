@@ -8,9 +8,10 @@ export interface ProjectPickerProps {
   projects: Project[];
   current: Project | undefined;
   onPick(project: Project): void;
-  onAdd(): void;
-  onEdit(project: Project): void;
-  onRemove(project: Project): void;
+  /** Add, edit and remove are listed only when given (the Git screen picks only). */
+  onAdd?(): void;
+  onEdit?(project: Project): void;
+  onRemove?(project: Project): void;
   /** Extra header buttons on the right. */
   actions?: ReactNode;
 }
@@ -51,7 +52,7 @@ export function ProjectPicker({ projects, current, onPick, onAdd, onEdit, onRemo
       okLabel: t('explorer.delete'),
       danger: true,
     });
-    if (ok) onRemove(project);
+    if (ok) onRemove?.(project);
   };
 
   return (
@@ -64,7 +65,7 @@ export function ProjectPicker({ projects, current, onPick, onAdd, onEdit, onRemo
           title={current?.path}
           aria-expanded={open}
           aria-haspopup="menu"
-          onClick={() => (current || projects.length > 0 ? setOpen(!open) : onAdd())}
+          onClick={() => (current || projects.length > 0 ? setOpen(!open) : onAdd?.())}
         >
           <Icon name="folder" size={14} />
           <span className="xp-picker-name">{current?.name ?? t('explorer.addAProject')}</span>
@@ -81,12 +82,14 @@ export function ProjectPicker({ projects, current, onPick, onAdd, onEdit, onRemo
                 </span>
               </button>
             ))}
-            {projects.length > 0 && <div className="menu-sep" />}
-            <button type="button" className="menu-item" role="menuitem" onClick={close(onAdd)}>
-              <span className="menu-icon"><Icon name="plus" size={14} /></span>
-              <span className="menu-label">{t('explorer.addProjectItem')}</span>
-            </button>
-            {current && (
+            {projects.length > 0 && onAdd && <div className="menu-sep" />}
+            {onAdd && (
+              <button type="button" className="menu-item" role="menuitem" onClick={close(onAdd)}>
+                <span className="menu-icon"><Icon name="plus" size={14} /></span>
+                <span className="menu-label">{t('explorer.addProjectItem')}</span>
+              </button>
+            )}
+            {current && onEdit && onRemove && (
               <>
                 <button type="button" className="menu-item" role="menuitem" onClick={close(() => onEdit(current))}>
                   <span className="menu-icon"><Icon name="edit" size={14} /></span>

@@ -1,4 +1,4 @@
-import type { GitFile, GitFileContent } from '@deckbuilder/server-core/protocol';
+import type { GitCommitFile, GitFile, GitFileContent } from '@deckbuilder/server-core/protocol';
 import { api } from '../../api';
 
 const EMPTY: GitFileContent = { text: '' };
@@ -38,10 +38,24 @@ export async function sidesOf(root: string, file: GitFile): Promise<{ original?:
   }
 }
 
+/** The two sides of a file changed by a commit: its first parent (or empty) vs the commit (or empty when deleted). */
+export async function commitSidesOf(root: string, commit: string, file: GitCommitFile): Promise<{ original: GitFileContent; modified: GitFileContent }> {
+  const [original, modified] = await Promise.all([
+    file.status === 'A' ? EMPTY : api.gitFile(root, file.origPath ?? file.path, 'parent', commit).then(orEmpty),
+    file.status === 'D' ? EMPTY : api.gitFile(root, file.path, 'commit', commit).then(orEmpty),
+  ]);
+  return { original, modified };
+}
+
+const toneOf = (letter: string) => (letter === 'A' ? 'ok' : letter === 'D' ? 'err' : 'warn');
+
+/** The letter and colour class of a file changed by a commit. */
+export const commitStatusOf = (file: GitCommitFile): { letter: string; tone: 'ok' | 'warn' | 'err' } => ({ letter: file.status, tone: toneOf(file.status) });
+
 /** The letter shown next to a file and its colour class. */
 export function statusOf(file: GitFile): { letter: string; tone: 'ok' | 'warn' | 'err' } {
   if (file.group === 'conflict') return { letter: '!', tone: 'err' };
   if (file.group === 'untracked') return { letter: 'U', tone: 'ok' };
   const letter = file.group === 'staged' ? file.index : file.worktree;
-  return { letter, tone: letter === 'A' ? 'ok' : letter === 'D' ? 'err' : 'warn' };
+  return { letter, tone: toneOf(letter) };
 }

@@ -133,7 +133,7 @@ export const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffV
           ))}
         </div>
       )}
-      <div ref={host} className={`diff-view-body ${mode}`} />
+      <div ref={host} className={`diff-view-body diff-${mode}`} />
     </div>
   );
 });

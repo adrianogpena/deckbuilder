@@ -29,6 +29,7 @@ export function commands(): CommandDef[] {
     { id: 'explorer.collapseAll', scope: 'explorer', label: t('keys.explorer.collapseAll'), keys: ['Ctrl+K Ctrl+Shift+0'] },
     { id: 'explorer.breadcrumbs', scope: 'explorer', label: t('keys.explorer.breadcrumbs'), keys: ['Ctrl+Shift+.', 'Ctrl+Shift+>'], inInput: true },
     { id: 'explorer.zen', scope: 'explorer', label: t('keys.explorer.zen'), keys: ['Ctrl+K Z'], inInput: true },
+    ...explorerCommands('git'),
     { id: 'git.refresh', scope: 'git', label: t('keys.git.refresh'), keys: [] },
     { id: 'git.nextChange', scope: 'git', label: t('keys.git.nextChange'), keys: ['F7'] },
     { id: 'git.prevChange', scope: 'git', label: t('keys.git.prevChange'), keys: ['Shift+F7'] },
