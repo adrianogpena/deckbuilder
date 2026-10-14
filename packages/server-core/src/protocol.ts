@@ -116,6 +116,88 @@ export interface HttpRequestDraft {
   followRedirects?: boolean;
 }
 
+/** Body of `POST /api/http/send`; `{{name}}` in the request is resolved on the server from `environment` and the built-ins. */
+export interface HttpSendInput {
+  request: HttpRequestSpec;
+  /** Saved request id whose secret Authorization is added (same origin as the resolved URL only). */
+  secretRef?: string;
+  /** Environment id; omitted = built-ins only. */
+  environment?: string;
+  /** The editor's unresolved draft, kept in the request history as is (Authorization dropped); without it the history keeps `request`. */
+  draft?: HttpRequestDraft;
+}
+
+/** A sent REST request in the history (`GET /api/rest/history?q=`, newest first). */
+export interface RestHistoryEntry {
+  id: string;
+  /** Send time, ms since epoch. */
+  at: number;
+  method: HttpMethod;
+  /** As typed, `{{name}}` unresolved. */
+  url: string;
+  /** HTTP status; 0 when no response came (see `error`). */
+  status: number;
+  ms: number;
+  /** Unresolved, without Authorization headers. */
+  draft: HttpRequestDraft;
+  /** Error code when the request failed before a response (`unknownVariable`, `badUrl`, a network error…). */
+  error?: string;
+}
+
+export const REST_ENV_MAX_VARS = 200;
+export const REST_ENV_NAME_CHARS = 80;
+/** A variable name as `{{name}}` refers to it. */
+export const REST_VAR_NAME = /^[A-Za-z_][\w.-]{0,99}$/;
+/** Names `{{$name}}` resolves without an environment. */
+export const REST_BUILTIN_VARIABLES = ['$timestamp', '$isoTimestamp', '$uuid', '$randomInt'] as const;
+/** A `{{name}}` reference (global; group 1 is the name); spaces inside the braces are allowed. */
+export const REST_VAR_REFERENCE = /\{\{\s*(\$?[A-Za-z_][\w.-]*)\s*\}\}/g;
+
+/** One `{{name}}` in a text: the name and the offsets of the whole reference. */
+export interface RestVarRef {
+  name: string;
+  from: number;
+  to: number;
+}
+
+/** Every `{{name}}` reference in `text`, in order. */
+export function restVarRefs(text: string): RestVarRef[] {
+  return [...text.matchAll(REST_VAR_REFERENCE)].map((m) => ({ name: m[1]!, from: m.index, to: m.index + m[0].length }));
+}
+
+/** A variable as the server returns it: a secret one has `value: ''` and `set` when a value is stored. */
+export interface RestEnvVar {
+  name: string;
+  value: string;
+  secret: boolean;
+  enabled: boolean;
+  set?: boolean;
+}
+
+/** A variable as the client saves it. Secret: a string `value` sets or replaces it (`''` clears); no `value` keeps the stored one (of `from`, the old name, when renamed). */
+export interface RestEnvVarInput {
+  name: string;
+  value?: string;
+  secret: boolean;
+  enabled: boolean;
+  from?: string;
+}
+
+/** `GET /api/rest/environments` items. */
+export interface RestEnvironment {
+  id: string;
+  name: string;
+  vars: RestEnvVar[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Body of `POST /api/rest/environments` and `PUT /api/rest/environments?id=`. */
+export interface RestEnvironmentInput {
+  name: string;
+  vars: RestEnvVarInput[];
+}
+
 export interface HttpResponseInfo {
   /** Key for POST /api/http/save. */
   id: string;

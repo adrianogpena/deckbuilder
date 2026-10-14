@@ -851,6 +851,17 @@ html[data-status-bar="false"] .status-bar { display: none; }
 .req-top { display: flex; align-items: center; gap: 8px; }
 .req-method { flex-shrink: 0; width: 104px; font-family: var(--font-mono); font-weight: 600; }
 .req-url { flex: 1; min-width: 0; font-family: var(--font-mono); }
+.req-url-wrap { position: relative; flex: 1; min-width: 0; display: flex; }
+.req-url-mirror { position: absolute; inset: 0; box-sizing: border-box; display: flex; align-items: center; overflow: hidden; white-space: pre; border-style: solid; border-color: transparent; color: transparent; pointer-events: none; }
+.req-var { border-radius: 3px; }
+.var-suggest-wrap { position: relative; display: flex; min-width: 0; }
+.var-suggest-wrap > input { flex: 1; min-width: 0; }
+.var-suggest { left: 0; right: auto; max-width: min(420px, 90vw); max-height: 240px; overflow-y: auto; margin: 0; list-style: none; }
+.var-suggest .menu-item { font-family: var(--font-mono); font-size: 12px; }
+.var-suggest .menu-item.active { background: var(--hover); color: var(--text); }
+.var-suggest-detail { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.req-var-ok { background: var(--ok-soft); box-shadow: inset 0 -1px var(--ok); }
+.req-var-bad { background: var(--err-soft); box-shadow: inset 0 -1px var(--err); }
 .req-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border-soft); }
 .req-tab { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; margin-bottom: -1px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--text-3); font-size: 12.5px; font-weight: 500; cursor: pointer; }
 .req-tab:hover { color: var(--text); }

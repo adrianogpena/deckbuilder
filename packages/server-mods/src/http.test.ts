@@ -299,3 +299,38 @@ test('save writes the kept bytes through the dialog, and an evicted id is respon
   expect(await call(second.id)).toEqual({ path: null });
   await Bun.file(written[0]!).delete();
 });
+
+test('send resolves environment variables in URL, headers, body, form and saved auth', async () => {
+  const asked: string[] = [];
+  const routes = httpRoutes(httpExecutor(), {
+    environmentVars: async (id) => {
+      asked.push(id);
+      return { base, token: 't0k', who: 'me', field: 'f' };
+    },
+    secretHeaders: async (_ref, url, resolve) => (url.startsWith(resolve('{{base}}')) ? [['Authorization', 'Bearer {{token}}']] : []),
+  });
+  const send = (request: unknown, extra: Record<string, unknown> = {}) =>
+    Promise.resolve(
+      routes['POST /api/http/send']!({ req: new Request('http://x/'), json: async () => ({ request, environment: 'dev', ...extra }) } as unknown as RouteContext),
+    ) as Promise<{ text: string }>;
+  const json = JSON.parse((await send({ method: 'POST', url: '{{base}}/echo', headers: [['x-who', '{{who}}']], body: '{"t":"{{token}}"}' }, { secretRef: 'r' })).text);
+  expect(json.headers['x-who']).toBe('me');
+  expect(json.headers.authorization).toBe('Bearer t0k');
+  expect(json.body).toBe('{"t":"t0k"}');
+  const form = JSON.parse((await send({ method: 'POST', url: '{{base}}/echo', headers: [], bodyKind: 'form', form: [['{{field}}', '{{who}}']] })).text);
+  expect(form.body).toBe('f=me');
+  expect(asked).toEqual(['dev', 'dev']);
+});
+
+test('unknown variables fail before sending and list every name', async () => {
+  let fetched = 0;
+  const executor = httpExecutor({ fetchImpl: (async () => (fetched++, new Response('x'))) as unknown as typeof fetch });
+  const routes = httpRoutes(executor, { environmentVars: async () => ({ base }), secretHeaders: async () => [['Authorization', '{{secret}}']] });
+  const send = (request: unknown, secretRef?: string) =>
+    Promise.resolve(routes['POST /api/http/send']!({ req: new Request('http://x/'), json: async () => ({ request, environment: 'e', secretRef }) } as unknown as RouteContext));
+  const err = (await send({ method: 'GET', url: '{{host}}/a', headers: [['a', '{{x}}{{host}}']] }).catch((e) => e)) as AppError;
+  expect(err.code).toBe('unknownVariable');
+  expect(err.opts.params).toEqual({ names: 'host, x' });
+  expect(((await send({ method: 'GET', url: '{{base}}/a', headers: [] }, 'r').catch((e) => e)) as AppError).code).toBe('unknownVariable');
+  expect(fetched).toBe(0);
+});

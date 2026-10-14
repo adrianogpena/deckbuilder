@@ -22,6 +22,8 @@ export interface ExplorerSqlProps {
   sizes?: [number, number];
   onSizesChange(sizes: [number, number]): void;
   go(screen: ScreenId): void;
+  /** Active REST environment id ('' = none); `.curl` runs substitute its variables. */
+  restEnvironment?: string;
 }
 
 interface Options {

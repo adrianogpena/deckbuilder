@@ -40,6 +40,7 @@ const general: SectionPath = ['general'];
 const editor: SectionPath = ['editor'];
 const explorer: SectionPath = ['explorer'];
 const workbench: SectionPath = ['workbench'];
+const rest: SectionPath = ['rest'];
 const results: SectionPath = ['workbench', 'results'];
 const sqlFormatter: SectionPath = ['workbench', 'sqlFormatter'];
 
@@ -282,6 +283,20 @@ settingsRegistry.registerSettings([
     max: 10000,
     get: (s) => s.workbench?.historySize ?? 500,
     set: (s, historySize) => withWorkbench(s, { historySize }),
+  },
+
+  {
+    id: 'rest.historySize',
+    kind: 'number',
+    section: rest,
+    order: 10,
+    label: 'settings.rest.historySize',
+    description: 'settings.rest.historySize.hint',
+    default: 100,
+    min: 0,
+    max: 5000,
+    get: (s) => s.rest?.historySize ?? 100,
+    set: (s, historySize) => ({ rest: { ...s.rest, historySize } }),
   },
 
   resultText('nullText', 10),

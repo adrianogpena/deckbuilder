@@ -59,6 +59,25 @@
 
 /* REST screen: fixed-width list of saved requests, then the editor and response split. */
 .rest-body { display: flex; flex: 1; min-height: 0; }
+.modal:has(.rest-env) { width: min(820px, 100%); }
+.rest-env { display: flex; gap: 12px; min-height: 260px; }
+.rest-env-list { width: 180px; flex-shrink: 0; display: flex; flex-direction: column; gap: 4px; padding-right: 8px; border-right: 1px solid var(--border-soft); overflow-y: auto; }
+.rest-env-vars { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.rest-env-table { width: 100%; border-collapse: collapse; }
+.rest-env-table th { text-align: left; font-weight: 500; font-size: 11.5px; color: var(--text-2); padding: 2px 4px; }
+.rest-env-table td { padding: 2px 4px; vertical-align: middle; }
+.rest-env-table td input:not([type='checkbox']) { width: 100%; }
+.rest-history { width: 300px; flex-shrink: 0; display: flex; flex-direction: column; gap: 6px; padding: 8px; overflow: hidden; border-left: 1px solid var(--border-soft); }
+.rest-history-head { display: flex; align-items: center; gap: 6px; }
+.rest-history-head .spacer { flex: 1; }
+.rest-history-search { width: 100%; }
+.rest-history-list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.rest-history-item { display: grid; grid-template-columns: 44px 1fr auto; gap: 2px 6px; padding: 5px 6px; border: 0; border-radius: 6px; background: transparent; color: var(--text); text-align: left; cursor: pointer; }
+.rest-history-item:hover { background: var(--hover); }
+.rest-history-url { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); font-size: 11.5px; }
+.rest-history-status { font-family: var(--font-mono); font-size: 11px; }
+.rest-history-status.err { color: var(--err); }
+.rest-history-meta { grid-column: 2 / 4; font-size: 11px; color: var(--text-3); }
 .rest-list { width: 220px; flex-shrink: 0; display: flex; flex-direction: column; gap: 4px; padding: 8px; overflow-y: auto; border-right: 1px solid var(--border-soft); }
 .rest-list-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
 .rest-item { position: relative; display: flex; align-items: center; border-radius: 6px; }

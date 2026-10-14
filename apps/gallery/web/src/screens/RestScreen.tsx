@@ -1,15 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { draftToSpec, hasAuthHeader, type HttpRequestDraft, type ImportedRequest, RequestEditor, ResponseView, toCurl } from '@deckbuilder/editor';
-import type { HttpResponseInfo } from '@deckbuilder/server-core/protocol';
+import type { HttpResponseInfo, RestEnvVar } from '@deckbuilder/server-core/protocol';
 import { type ApiError, ErrorBanner, errorOf, Icon, PageHead, SplitView, useAsync, useCommand, useDebouncedSave, useDialogs } from '@deckbuilder/ui';
 import { commandById } from '../commands';
 import { api, type RestSettings, type SavedRequest, type Settings } from '../api';
 import { t } from '../i18n';
 import { ImportDialog, requestLabel } from './rest/ImportDialog';
 import { CurlDialog } from './rest/CurlDialog';
+import { HistoryPanel } from './rest/HistoryPanel';
+import { EnvironmentsDialog } from './rest/EnvironmentsDialog';
 import { RestTabBar } from './rest/RestTabBar';
 import { restTabs, runtimeOf, useRestTabs } from './rest/tabs-store';
 
+const NO_VARS: RestEnvVar[] = [];
 const MAX_NAME = 80;
 
 /** `name`, or `name (2)`, `name (3)`… when taken; the result stays within the name limit. */
@@ -41,12 +44,27 @@ export function RestScreen({ settings, onSave }: { settings: Settings; onSave: (
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
 
-  const persist = useDebouncedSave((next: RestSettings) => onSave({ rest: next }));
+  const environments = useAsync(() => api.restEnvironments(), []);
+  const [managing, setManaging] = useState(false);
+  /** Active environment id ('' = none); only sent while it still exists. */
+  const environment = settings.rest?.environment ?? '';
+  const activeEnv = environments.data?.find((e) => e.id === environment);
+  const setEnvironment = (id: string) => onSave({ rest: { ...settings.rest, environment: id } });
+
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyTick, setHistoryTick] = useState(0);
+  const historyOpenRef = useRef(historyOpen);
+  historyOpenRef.current = historyOpen;
+
+  const persist = useDebouncedSave((next: RestSettings) => onSave({ rest: { ...settings.rest, sizes: next.sizes } }));
   const sizes = state.sizes?.main ?? DEFAULT_MAIN;
 
   const setDraft = (next: HttpRequestDraft) => restTabs.update(tab.id, { draft: next });
   const setAuth = (value: string) => restTabs.setRuntime(tab.id, { auth: value });
-  const send = () => void restTabs.send(tab.id, auth && !hasAuthHeader(draft.headers) ? [['Authorization', auth]] : undefined);
+  const send = () =>
+    void restTabs
+      .send(tab.id, auth && !hasAuthHeader(draft.headers) ? [['Authorization', auth]] : undefined, environments.data ? activeEnv?.id : environment || undefined)
+      .then(() => historyOpenRef.current && setHistoryTick((n) => n + 1));
   const cancel = () => restTabs.cancel(tab.id);
 
   const loadImported = (item: ImportedRequest) => restTabs.loadImported(tab.id, item.draft, item.name ?? '', item.auth);
@@ -225,7 +243,12 @@ export function RestScreen({ settings, onSave }: { settings: Settings; onSave: (
           ))}
         </aside>
         <div className="rest-main">
-        <RestTabBar tabs={tabs} active={tab.id} saved={saved.data} />
+        <RestTabBar
+          tabs={tabs}
+          active={tab.id}
+          saved={saved.data}
+          env={{ environments: environments.data, environment, onEnvironment: setEnvironment, onManage: () => setManaging(true), history: historyOpen, onHistory: () => setHistoryOpen((v) => !v) }}
+        />
         <SplitView
           direction="column"
           sizes={[sizes[0], sizes[1]]}
@@ -243,6 +266,7 @@ export function RestScreen({ settings, onSave }: { settings: Settings; onSave: (
               onSend={send}
               onCancel={cancel}
               sending={sending}
+              variables={activeEnv?.vars ?? NO_VARS}
               auth={{
                 value: auth,
                 onChange: setAuth,
@@ -259,8 +283,17 @@ export function RestScreen({ settings, onSave }: { settings: Settings; onSave: (
           </div>
         </SplitView>
         </div>
+        {historyOpen && <HistoryPanel refresh={historyTick} confirm={confirm} onClose={() => setHistoryOpen(false)} />}
       </div>
       {importing && <ImportDialog onLoad={loadImported} onSaveMany={saveImported} onClose={() => setImporting(false)} />}
+      {managing && (
+        <EnvironmentsDialog
+          environments={environments.data}
+          onChanged={environments.reload}
+          onDeleted={(id) => id === environment && setEnvironment('')}
+          onClose={() => setManaging(false)}
+        />
+      )}
       {curl !== undefined && <CurlDialog curl={curl} onClose={() => setCurl(undefined)} />}
       {element}
     </div>

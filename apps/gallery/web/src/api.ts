@@ -1,7 +1,7 @@
 import { type ArchiveContent, type SqliteContent, type SqlFormatOptions } from '@deckbuilder/editor';
 import type { HttpRequestDraft } from '@deckbuilder/editor/http';
 import type { ThemeSettings } from '@deckbuilder/server-core/palettes';
-import type { BackupInspect, EditorInfo, FsDuProgress, FsHash, FsInfo, GitDiff, GitFileContent, GitRepoInfo, GitStatus, HttpRequestSpec, HttpResponseInfo, ImportResult, SqlHistoryEntry, TailChunk, UpdateState } from '@deckbuilder/server-core/protocol';
+import type { BackupInspect, EditorInfo, FsDuProgress, FsHash, FsInfo, GitDiff, GitFileContent, GitRepoInfo, GitStatus, HttpRequestSpec, HttpResponseInfo, ImportResult, RestEnvironment, RestEnvironmentInput, RestHistoryEntry, SqlHistoryEntry, TailChunk, UpdateState } from '@deckbuilder/server-core/protocol';
 
 export type { EditorInfo, FsDuProgress, FsHash, FsInfo, ImportResult, TailChunk };
 import type { SessionInfo } from '@deckbuilder/terminal';
@@ -120,6 +120,10 @@ export interface TerminalSettings {
 
 export interface RestSettings {
   sizes?: { main: [number, number] };
+  /** Id of the active REST environment; '' or absent = none. */
+  environment?: string;
+  /** Entries kept in the REST request history; 0 turns history off. */
+  historySize?: number;
 }
 
 export interface SavedRequest {
@@ -440,8 +444,19 @@ export const api = {
   /** The REST screen's open tabs; never holds an Authorization value. */
   restTabs: () => request<RestTabsFile>('GET', '/api/rest-tabs'),
   saveRestTabs: (file: RestTabsFile) => request<{ ok: true }>('PUT', '/api/rest-tabs', {}, file),
-  httpSend: (httpRequest: HttpRequestSpec, secretRef: string | undefined, signal: AbortSignal) =>
-    request<HttpResponseInfo>('POST', '/api/http/send', {}, { request: httpRequest, secretRef }, { signal }),
+  /** Sends `httpRequest` after substituting `{{name}}` from `environment` (id; omitted = built-ins only); `draft` is the unresolved editor draft for the history. */
+  httpSend: (httpRequest: HttpRequestSpec, secretRef: string | undefined, signal: AbortSignal, env: { environment?: string; draft?: HttpRequestDraft } = {}) =>
+    request<HttpResponseInfo>('POST', '/api/http/send', {}, { request: httpRequest, secretRef, ...env }, { signal }),
+  /** REST environments; secret variables come back with `value: ''` and `set`. */
+  restEnvironments: () => request<RestEnvironment[]>('GET', '/api/rest/environments'),
+  restEnvironment: (id: string) => request<RestEnvironment>('GET', '/api/rest/environments/item', { id }),
+  createRestEnvironment: (input: RestEnvironmentInput) => request<RestEnvironment>('POST', '/api/rest/environments', {}, input),
+  updateRestEnvironment: (id: string, input: RestEnvironmentInput) => request<RestEnvironment>('PUT', '/api/rest/environments', { id }, input),
+  deleteRestEnvironment: (id: string) => request<{ ok: true }>('DELETE', '/api/rest/environments', { id }),
+  reorderRestEnvironments: (ids: string[]) => request<{ ok: true }>('POST', '/api/rest/environments/order', {}, { ids }),
+  /** Sent REST requests, newest first; `q` matches method and URL. */
+  restHistory: (q = '') => request<RestHistoryEntry[]>('GET', '/api/rest/history', q ? { q } : {}),
+  clearRestHistory: () => request<{ ok: true }>('DELETE', '/api/rest/history'),
   httpSave: (id: string) => request<{ path: string | null; bytes?: number }>('POST', '/api/http/save', {}, { id }),
   /** Ids of the shells installed on this machine (no `'auto'`). */
   terminalShells: () => request<string[]>('GET', '/api/terminal/shells'),

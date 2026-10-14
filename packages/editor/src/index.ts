@@ -19,3 +19,4 @@ export * from './text-save';
 export { splitStatements, statementAt, type Statement } from './sql/statements';
 export * from './theme';
 export * from './editorOptions';
+export * from './VarSuggest';

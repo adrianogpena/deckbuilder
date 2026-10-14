@@ -1,6 +1,6 @@
-import { HTTP_MAX_FORM_FIELDS, HTTP_METHODS, HTTP_TIMEOUT_MAX_MS, HTTP_TIMEOUT_MIN_MS, type HttpMethod } from '@deckbuilder/server-core/protocol';
+import { HTTP_MAX_FORM_FIELDS, HTTP_METHODS, HTTP_TIMEOUT_MAX_MS, HTTP_TIMEOUT_MIN_MS, type HttpMethod, type RestEnvVar, restVarRefs } from '@deckbuilder/server-core/protocol';
 import { Icon, Spinner, t } from '@deckbuilder/ui';
-import { type ReactNode, useState } from 'react';
+import { type MouseEvent, type ReactNode, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { CodeEditor } from './CodeEditor';
 import {
   type HttpHeaderDraft,
@@ -17,6 +17,8 @@ import {
   timeoutFromSeconds,
   withQueryParams,
 } from './http';
+import { VarInput, useVarSuggest } from './VarSuggest';
+import { variableAutocomplete, variableClass, variableHighlight, variableInfo } from './variables';
 
 type Tab = 'params' | 'headers' | 'auth' | 'body' | 'options';
 const TABS: Tab[] = ['params', 'headers', 'auth', 'body', 'options'];
@@ -44,10 +46,12 @@ export interface RequestEditorProps {
   headersFooter?: ReactNode;
   /** Enables the Auth tab. */
   auth?: RequestAuthProps;
+  /** The active environment's variables; given, `{{name}}` in the URL and body is marked defined or undefined. */
+  variables?: readonly RestEnvVar[];
 }
 
 /** Method, URL, headers, body and options of one HTTP request; sending is up to the app. */
-export function RequestEditor({ value, onChange, onSend, onCancel, sending, headersFooter, auth }: RequestEditorProps) {
+export function RequestEditor({ value, onChange, onSend, onCancel, sending, headersFooter, auth, variables }: RequestEditorProps) {
   const [tab, setTab] = useState<Tab>('params');
   const params = queryParams(value.url);
   const set = (patch: Partial<HttpRequestDraft>) => onChange({ ...value, ...patch });
@@ -63,17 +67,7 @@ export function RequestEditor({ value, onChange, onSend, onCancel, sending, head
         <select className="req-method" value={value.method} onChange={(e) => set({ method: e.target.value as HttpMethod })} aria-label={t('http.method')}>
           {HTTP_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
         </select>
-        <input
-          className="req-url"
-          value={value.url}
-          placeholder="https://"
-          spellCheck={false}
-          aria-label={t('http.url')}
-          onChange={(e) => set({ url: e.target.value })}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') send();
-          }}
-        />
+        <UrlInput value={value.url} onChange={(url) => set({ url })} onEnter={send} variables={variables} />
         {sending ? (
           <button className="btn" onClick={onCancel} disabled={!onCancel}>{t('dialog.cancel')}</button>
         ) : (
@@ -93,17 +87,81 @@ export function RequestEditor({ value, onChange, onSend, onCancel, sending, head
         ))}
       </div>
       <div className="req-panel">
-        {tab === 'params' && <ParamsTab params={params} onChange={(next) => set({ url: withQueryParams(value.url, next) })} />}
+        {tab === 'params' && <ParamsTab params={params} onChange={(next) => set({ url: withQueryParams(value.url, next) })} variables={variables} />}
         {tab === 'headers' && (
           <>
-            <HeadersTab headers={value.headers} onChange={(headers) => set({ headers })} authKind={authRowKind(value, auth)} />
+            <HeadersTab headers={value.headers} onChange={(headers) => set({ headers })} authKind={authRowKind(value, auth)} variables={variables} />
             {headersFooter}
           </>
         )}
-        {tab === 'auth' && auth && <AuthTab value={value} onChange={set} auth={auth} />}
-        {tab === 'body' && <BodyTab value={value} onChange={set} onSend={send} />}
+        {tab === 'auth' && auth && <AuthTab value={value} onChange={set} auth={auth} variables={variables} />}
+        {tab === 'body' && <BodyTab value={value} onChange={set} onSend={send} variables={variables} />}
         {tab === 'options' && <OptionsTab value={value} onChange={set} />}
       </div>
+    </div>
+  );
+}
+
+/** The URL field; with `variables`, a mirror over the input marks each `{{name}}` and hovering one shows its value. */
+function UrlInput({ value, onChange, onEnter, variables }: { value: string; onChange(url: string): void; onEnter(): void; variables?: readonly RestEnvVar[] }) {
+  const input = useRef<HTMLInputElement>(null);
+  const mirror = useRef<HTMLDivElement>(null);
+  const refs = variables ? restVarRefs(value) : [];
+  const suggest = useVarSuggest(variables, input, onChange);
+  const sync = () => {
+    if (mirror.current && input.current) mirror.current.scrollLeft = input.current.scrollLeft;
+  };
+  useLayoutEffect(() => {
+    const i = input.current;
+    const m = mirror.current;
+    if (!i || !m) return;
+    const cs = getComputedStyle(i);
+    Object.assign(m.style, { padding: cs.padding, borderWidth: cs.borderWidth, font: cs.font, letterSpacing: cs.letterSpacing });
+    sync();
+  });
+  const segments: ReactNode[] = [];
+  let at = 0;
+  for (const r of refs) {
+    const info = variableInfo(r.name, variables!);
+    segments.push(value.slice(at, r.from), <span key={r.from} className={variableClass(info.defined)} data-title={info.title}>{value.slice(r.from, r.to)}</span>);
+    at = r.to;
+  }
+  segments.push(value.slice(at));
+  const hover = (e: MouseEvent<HTMLInputElement>) => {
+    let title = '';
+    for (const span of mirror.current?.querySelectorAll<HTMLElement>('[data-title]') ?? []) {
+      const r = span.getBoundingClientRect();
+      if (e.clientX >= r.left && e.clientX <= r.right) title = span.dataset.title ?? '';
+    }
+    e.currentTarget.title = title;
+  };
+  return (
+    <div className="req-url-wrap">
+      <input
+        ref={input}
+        className="req-url"
+        value={value}
+        placeholder="https://"
+        spellCheck={false}
+        aria-label={t('http.url')}
+        onChange={(e) => {
+          onChange(e.target.value);
+          suggest.update(e.target);
+        }}
+        onKeyDown={(e) => {
+          if (suggest.keyDown(e)) return;
+          if (e.key === 'Enter') onEnter();
+        }}
+        onBlur={suggest.close}
+        onScroll={sync}
+        onSelect={(e) => {
+          sync();
+          suggest.update(e.currentTarget);
+        }}
+        onMouseMove={refs.length ? hover : undefined}
+      />
+      {refs.length > 0 && <div ref={mirror} className="req-url-mirror" aria-hidden="true">{segments}</div>}
+      {suggest.list}
     </div>
   );
 }
@@ -118,7 +176,7 @@ function authRowKind(value: HttpRequestDraft, auth: RequestAuthProps | undefined
   return auth.value !== '' || auth.hasSaved ? kind : undefined;
 }
 
-function HeadersTab({ headers, onChange, authKind }: { headers: HttpHeaderDraft[]; onChange(h: HttpHeaderDraft[]): void; authKind?: 'basic' | 'bearer' }) {
+function HeadersTab({ headers, onChange, authKind, variables }: { headers: HttpHeaderDraft[]; onChange(h: HttpHeaderDraft[]): void; authKind?: 'basic' | 'bearer'; variables?: readonly RestEnvVar[] }) {
   const [bulk, setBulk] = useState<string | null>(null);
   const rows = [...headers, BLANK];
   const toggle = (
@@ -174,7 +232,7 @@ function HeadersTab({ headers, onChange, authKind }: { headers: HttpHeaderDraft[
           <div key={i} className="req-header-row">
             <input type="checkbox" checked={h.enabled} disabled={isBlank} aria-label={t('http.headerEnabled')} onChange={(e) => update(i, { enabled: e.target.checked })} />
             <input value={h.name} placeholder={t('http.headerName')} spellCheck={false} aria-label={t('http.headerName')} onChange={(e) => update(i, { name: e.target.value })} />
-            <input value={h.value} placeholder={t('http.headerValue')} spellCheck={false} aria-label={t('http.headerValue')} onChange={(e) => update(i, { value: e.target.value })} />
+            <VarInput value={h.value} placeholder={t('http.headerValue')} spellCheck={false} aria-label={t('http.headerValue')} variables={variables} onValueChange={(v) => update(i, { value: v })} />
             <button
               className="btn btn-ghost btn-sm btn-icon"
               disabled={isBlank}
@@ -194,7 +252,7 @@ function HeadersTab({ headers, onChange, authKind }: { headers: HttpHeaderDraft[
 const BLANK_PARAM: QueryParam = { name: '', value: '' };
 
 /** Rows of the URL query; the URL is the source of truth, so every edit rewrites it. */
-function ParamsTab({ params, onChange, removeLabel = 'http.removeParam', max = Infinity }: { params: QueryParam[]; onChange(p: QueryParam[]): void; removeLabel?: 'http.removeParam' | 'http.removeField'; max?: number }) {
+function ParamsTab({ params, onChange, removeLabel = 'http.removeParam', max = Infinity, variables }: { params: QueryParam[]; onChange(p: QueryParam[]): void; removeLabel?: 'http.removeParam' | 'http.removeField'; max?: number; variables?: readonly RestEnvVar[] }) {
   const rows = params.length < max ? [...params, BLANK_PARAM] : params;
   const update = (i: number, patch: Partial<QueryParam>) => onChange(rows.map((p, j) => (j === i ? { ...p, ...patch } : p)));
   return (
@@ -204,7 +262,7 @@ function ParamsTab({ params, onChange, removeLabel = 'http.removeParam', max = I
         return (
           <div key={i} className="req-header-row req-param-row">
             <input value={p.name} placeholder={t('http.paramName')} spellCheck={false} aria-label={t('http.paramName')} onChange={(e) => update(i, { name: e.target.value })} />
-            <input value={p.value} placeholder={t('http.paramValue')} spellCheck={false} aria-label={t('http.paramValue')} onChange={(e) => update(i, { value: e.target.value })} />
+            <VarInput value={p.value} placeholder={t('http.paramValue')} spellCheck={false} aria-label={t('http.paramValue')} variables={variables} onValueChange={(v) => update(i, { value: v })} />
             <button
               className="btn btn-ghost btn-sm btn-icon"
               disabled={isBlank}
@@ -221,7 +279,7 @@ function ParamsTab({ params, onChange, removeLabel = 'http.removeParam', max = I
   );
 }
 
-function AuthTab({ value, onChange, auth }: { value: HttpRequestDraft; onChange(patch: Partial<HttpRequestDraft>): void; auth: RequestAuthProps }) {
+function AuthTab({ value, onChange, auth, variables }: { value: HttpRequestDraft; onChange(patch: Partial<HttpRequestDraft>): void; auth: RequestAuthProps; variables?: readonly RestEnvVar[] }) {
   const parts = parseAuthValue(auth.value);
   const kind = value.authKind ?? parts.kind;
   const placeholder = auth.value === '' ? auth.placeholder : undefined;
@@ -253,18 +311,18 @@ function AuthTab({ value, onChange, auth }: { value: HttpRequestDraft; onChange(
         <>
           <label className="field">
             <span>{t('http.authUser')}</span>
-            <input value={parts.user} placeholder={placeholder} disabled={auth.disabled} spellCheck={false} autoComplete="off" onChange={(e) => edit({ user: e.target.value })} />
+            <VarInput value={parts.user} placeholder={placeholder} disabled={auth.disabled} spellCheck={false} autoComplete="off" variables={variables} onValueChange={(user) => edit({ user })} />
           </label>
           <label className="field">
             <span>{t('http.authPassword')}</span>
-            <input type="password" value={parts.password} placeholder={placeholder} disabled={auth.disabled} autoComplete="off" onChange={(e) => edit({ password: e.target.value })} />
+            <VarInput type="password" value={parts.password} placeholder={placeholder} disabled={auth.disabled} autoComplete="off" variables={variables} onValueChange={(password) => edit({ password })} />
           </label>
         </>
       )}
       {kind === 'bearer' && (
         <label className="field">
           <span>{t('http.authToken')}</span>
-          <input type="password" value={parts.token} placeholder={placeholder} disabled={auth.disabled} autoComplete="off" onChange={(e) => edit({ token: e.target.value })} />
+          <VarInput type="password" value={parts.token} placeholder={placeholder} disabled={auth.disabled} autoComplete="off" variables={variables} onValueChange={(token) => edit({ token })} />
         </label>
       )}
       {auth.hint && <span className="req-hint">{auth.hint}</span>}
@@ -273,8 +331,9 @@ function AuthTab({ value, onChange, auth }: { value: HttpRequestDraft; onChange(
   );
 }
 
-function BodyTab({ value, onChange, onSend }: { value: HttpRequestDraft; onChange(patch: Partial<HttpRequestDraft>): void; onSend(): void }) {
+function BodyTab({ value, onChange, onSend, variables }: { value: HttpRequestDraft; onChange(patch: Partial<HttpRequestDraft>): void; onSend(): void; variables?: readonly RestEnvVar[] }) {
   const [formatError, setFormatError] = useState<string | null>(null);
+  const highlight = useMemo(() => (variables ? [variableHighlight(variables), variableAutocomplete(variables)] : []), [variables]);
   const bodyless = !sendsBody(value.method);
   const format = () => {
     try {
@@ -310,7 +369,7 @@ function BodyTab({ value, onChange, onSend }: { value: HttpRequestDraft; onChang
       {value.bodyLang === 'form' || value.bodyLang === 'multipart' ? (
         <div className={bodyless ? 'req-body-form disabled' : 'req-body-form'}>
           {value.bodyLang === 'multipart' && <span className="req-hint">{t('http.multipartTextOnly')}</span>}
-          <ParamsTab params={value.form ?? []} onChange={(form) => onChange({ form })} removeLabel="http.removeField" max={HTTP_MAX_FORM_FIELDS} />
+          <ParamsTab params={value.form ?? []} onChange={(form) => onChange({ form })} removeLabel="http.removeField" max={HTTP_MAX_FORM_FIELDS} variables={variables} />
         </div>
       ) : (
         <div className={bodyless ? 'req-body-editor disabled' : 'req-body-editor'}>
@@ -318,6 +377,7 @@ function BodyTab({ value, onChange, onSend }: { value: HttpRequestDraft; onChang
             value={value.body}
             lang={value.bodyLang}
             placeholder={t('http.bodyPlaceholder')}
+            extensions={highlight}
             onChange={(body) => {
               setFormatError(null);
               onChange({ body });

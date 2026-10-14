@@ -232,6 +232,7 @@ export function ExplorerScreen({ settings, onSave, go }: { settings: Settings; o
     sizes: state.sqlSizes,
     onSizesChange: (sqlSizes) => update((s) => ({ ...s, sqlSizes })),
     go,
+    restEnvironment: settings.rest?.environment ?? '',
   };
   const [logs, setLogs] = useState<LogSettings | undefined>(settings.logs);
   const saveLogs = useDebouncedSave((l: LogSettings) => onSave({ logs: l }));

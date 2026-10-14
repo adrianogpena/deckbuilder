@@ -69,7 +69,7 @@ export function useExplorerCurl({ name, active, draft, sql }: Options) {
     setError(undefined);
     setResponse(undefined);
     try {
-      const result = await api.httpSend(draftToSpec(withAuth(request)), undefined, controller.signal);
+      const result = await api.httpSend(draftToSpec(withAuth(request)), undefined, controller.signal, { environment: sql?.restEnvironment || undefined });
       if (!controller.signal.aborted) setResponse(result);
     } catch (err) {
       if (!controller.signal.aborted) setError(errorOf(err));

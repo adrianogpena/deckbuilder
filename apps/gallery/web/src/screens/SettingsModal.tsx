@@ -202,6 +202,7 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
       case 'editor.fileTypes': return <FileTypesCard value={draft.fileAssociations ?? []} onChange={(fileAssociations) => change({ fileAssociations })} />;
       case 'editor.externalEditors': return <EditorsCard />;
       case 'explorer': return <ExplorerCard settings={draft} onChange={change} />;
+      case 'rest': return <SettingRows ids={groupIds('rest')} settings={draft} onChange={change} />;
       case 'workbench': return <WorkbenchCard settings={draft} onChange={change} />;
       case 'workbench.results': return <ResultsCard settings={draft} onChange={change} />;
       case 'workbench.sqlFormatter': return <FormatterCard settings={draft} onChange={change} />;

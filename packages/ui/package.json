@@ -9,6 +9,7 @@
     "./file-settings": "./src/file-settings.ts",
     "./fuzzy": "./src/fuzzy.ts",
     "./grid": "./src/grid.ts",
+    "./i18n": "./src/i18n.ts",
     "./keybindings": "./src/keybindings.ts",
     "./log": "./src/log.ts",
     "./rel-path": "./src/rel-path.ts",

@@ -4,8 +4,9 @@ import { basename, isAbsolute, join } from 'node:path';
 import { appHome, createToaster, openWithDefault, pickFile, revealInFolder, saveFileAs, secretStore, writeFileAtomic } from '@deckbuilder/platform';
 import type { HttpRequestDraft } from '@deckbuilder/editor/http';
 import { dbRoutes, dbSessions, parseOracleUrl, sqlHistory, validConnection, type DbConnectionFields } from '@deckbuilder/db';
-import { AppError, forbidden, invalid, isRecord, ndjson, type Routes } from '@deckbuilder/server-core';
-import { dialogRoutes, editorRoutes, fromPlatform, httpExecutor, gitRoutes, httpRoutes, pickedPaths, recordRoutes, recordStore, restTabsRoutes, rootedFs, validateDraft } from '@deckbuilder/server-mods';
+import { AppError, forbidden, invalid, isRecord, ndjson, notFound, type Routes } from '@deckbuilder/server-core';
+import { REST_ENV_MAX_VARS, REST_ENV_NAME_CHARS, REST_VAR_NAME, type RestEnvVar } from '@deckbuilder/server-core/protocol';
+import { dialogRoutes, editorRoutes, fromPlatform, httpExecutor, gitRoutes, httpRoutes, pickedPaths, recordRoutes, recordStore, restHistory, restTabsRoutes, rootedFs, validateDraft } from '@deckbuilder/server-mods';
 import type { StartContext } from '@deckbuilder/shell';
 import { APP, MULTI_DELETE_ENABLED } from '../app.ts';
 
@@ -107,6 +108,9 @@ export const requests = recordStore<SavedRequest>({
   },
 });
 
+/** Sent REST requests; main.ts sets its size from `rest.historySize`. */
+export const restHistoryStore = restHistory({ dir: appHome(APP.id), max: 100 });
+
 const sameOrigin = (a: string, b: string) => {
   try {
     return new URL(a).origin === new URL(b).origin;
@@ -115,15 +119,100 @@ const sameOrigin = (a: string, b: string) => {
   }
 };
 
-/** The saved Authorization value, only for the origin the request was saved with. */
-const secretHeaders = async (ref: string, url: string): Promise<Array<[string, string]>> => {
+/**
+ * The saved Authorization value, only for the origin the request was saved with. Both URLs are
+ * compared resolved (the saved one with the same environment): the check is against the URL sent.
+ */
+const secretHeaders = async (ref: string, url: string, resolve: (text: string) => string): Promise<Array<[string, string]>> => {
   const saved = await requests.get(ref).catch((err: unknown) => {
     if (err instanceof AppError && err.kind === 'notfound') return null;
     throw err;
   });
-  if (!saved || !sameOrigin(url, saved.request.url)) return [];
+  if (!saved || !sameOrigin(url, resolve(saved.request.url))) return [];
   const value = await requests.secret(ref, 'auth');
   return value ? [['Authorization', value]] : [];
+};
+
+interface StoredEnvironment {
+  name: string;
+  /** A secret variable's value is `''` here; `set` tells whether `secrets` holds one. */
+  vars: RestEnvVar[];
+  /** JSON object name → value of the secret variables; a secret field. */
+  secrets?: unknown;
+}
+
+const MAX_VAR_VALUE_CHARS = 8192;
+const badEnvironment = () => invalid('badEnvironment', 'The environment is not valid.');
+
+/** REST environments for `{{name}}`; secret values live in the secret store, the client sees only `set`. */
+export const environments = recordStore<StoredEnvironment>({
+  dir: appHome(APP.id),
+  name: 'environments',
+  secretFields: ['secrets'],
+  secrets: secretStore(APP.id),
+  validate(input, prev, ctx) {
+    const { name, vars } = isRecord(input) ? input : ({} as Record<string, unknown>);
+    const trimmed = typeof name === 'string' ? name.trim() : '';
+    if (trimmed.length < 1 || trimmed.length > REST_ENV_NAME_CHARS) throw invalid('badEnvironmentName', 'The name must have 1 to 80 characters.');
+    if (!Array.isArray(vars) || vars.length > REST_ENV_MAX_VARS) throw badEnvironment();
+    const names = new Set<string>();
+    const out = vars.map((v): RestEnvVar => {
+      if (!isRecord(v) || typeof v.name !== 'string' || typeof v.value !== 'string' || typeof v.secret !== 'boolean') throw badEnvironment();
+      if (!REST_VAR_NAME.test(v.name)) throw invalid('badVariableName', 'A variable name may have letters, digits, _ . and -, and starts with a letter or _.');
+      if (names.has(v.name)) throw invalid('duplicateVariable', 'Two variables have the same name.');
+      names.add(v.name);
+      const enabled = v.enabled !== false;
+      if (!v.secret) {
+        if (v.value.length > MAX_VAR_VALUE_CHARS) throw badEnvironment();
+        return { name: v.name, value: v.value, secret: false, enabled };
+      }
+      // An import never carries secrets: a variable is set only when the stored record had it set.
+      const set = ctx?.imported ? Boolean(prev?.vars.find((p) => p.name === v.name && p.secret)?.set) : v.set === true;
+      return { name: v.name, value: '', secret: true, enabled, set };
+    });
+    return { name: trimmed, vars: out };
+  },
+});
+
+const storedSecrets = async (id: string): Promise<Map<string, string>> => {
+  const raw = await environments.secret(id, 'secrets');
+  if (!raw) return new Map();
+  const parsed: unknown = JSON.parse(raw);
+  return new Map(isRecord(parsed) ? Object.entries(parsed).filter((e): e is [string, string] => typeof e[1] === 'string') : []);
+};
+
+/**
+ * Client input as the store takes it: a secret variable with a string `value` sets or replaces it
+ * (`''` clears it), without one it keeps the stored value of `from` (old name) or its own name.
+ */
+async function environmentInput(raw: unknown, id?: string): Promise<unknown> {
+  if (!isRecord(raw) || !Array.isArray(raw.vars) || raw.vars.length > REST_ENV_MAX_VARS) throw badEnvironment();
+  const old = id ? await storedSecrets(id) : new Map<string, string>();
+  const secrets: Record<string, string> = {};
+  const vars = raw.vars.map((v) => {
+    if (!isRecord(v) || v.secret !== true || typeof v.name !== 'string') return v;
+    const value = typeof v.value === 'string' ? v.value : (old.get(typeof v.from === 'string' ? v.from : v.name) ?? '');
+    if (value.length > MAX_VAR_VALUE_CHARS) throw badEnvironment();
+    if (value !== '') secrets[v.name] = value;
+    return { name: v.name, value: '', secret: true, enabled: v.enabled, set: value !== '' };
+  });
+  return { name: raw.name, vars, secrets: Object.keys(secrets).length ? JSON.stringify(secrets) : '' };
+}
+
+/** The enabled variables of environment `id`, secrets included; a secret without a value is left out (unknown). */
+const environmentVars = async (id: string): Promise<Record<string, string>> => {
+  const env = await environments.get(id).catch((err: unknown) => {
+    if (err instanceof AppError && err.kind === 'notfound') throw notFound('environmentNotFound', 'The environment no longer exists.');
+    throw err;
+  });
+  const secrets = env.vars.some((v) => v.secret && v.enabled) ? await storedSecrets(id) : new Map<string, string>();
+  const vars: Record<string, string> = {};
+  for (const v of env.vars) {
+    if (!v.enabled) continue;
+    const value = v.secret ? secrets.get(v.name) : v.value;
+    if (value !== undefined) vars[v.name] = value;
+  }
+  return vars;
 };
 
 const MAX_IMPORT_BYTES = 1_000_000;
@@ -219,7 +308,19 @@ export const routes = (ctx: StartContext): Routes => ({
     if (file.size > MAX_IMPORT_BYTES) throw invalid('importTooLarge', 'The file is too large to import.');
     return { name: basename(path), text: await file.text() };
   },
-  ...httpRoutes(httpExecutor(), { secretHeaders }),
+  ...httpRoutes(httpExecutor(), { secretHeaders, environmentVars, onSend: (entry) => restHistoryStore.append(entry) }),
+  'GET /api/rest/history': async ({ query }) => restHistoryStore.list({ q: query.get('q') ?? undefined }),
+  'DELETE /api/rest/history': async () => {
+    await restHistoryStore.clear();
+    return {};
+  },
+  ...recordRoutes(environments, '/api/rest/environments'),
+  'POST /api/rest/environments': async ({ json }) => environments.create(await environmentInput(await json())),
+  'PUT /api/rest/environments': async ({ query, json }) => {
+    const id = query.get('id');
+    if (!id) throw invalid('badRequest', 'Invalid request.');
+    return environments.update(id, await environmentInput(await json(), id));
+  },
   // Example endpoint; delete it once real ones exist.
   'POST /api/echo': async ({ json }) => {
     const body = await json<{ text?: unknown }>();

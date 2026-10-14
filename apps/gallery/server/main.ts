@@ -25,7 +25,7 @@ import { type FileSettings, validFileSettings } from '@deckbuilder/ui/file-setti
 import { type LogSettings, validLogSettings } from '@deckbuilder/ui/log';
 import { APP } from '../app.ts';
 import pkg from '../package.json';
-import { dbConnections, openRoutes, projects, requests, resolveCwd, routes, sqlHistoryStore } from './routes.ts';
+import { dbConnections, environments, openRoutes, projects, requests, resolveCwd, restHistoryStore, routes, sqlHistoryStore } from './routes.ts';
 
 export interface Settings extends BaseSettings {
   /** Start at Windows login (exe only). */
@@ -76,6 +76,10 @@ export interface Settings extends BaseSettings {
 
 export interface RestSettings {
   sizes?: { main: [number, number] };
+  /** Id of the active REST environment; '' or absent = none. */
+  environment?: string;
+  /** Entries kept in the REST request history; 0 turns history off. */
+  historySize?: number;
 }
 
 export interface WorkbenchSettings {
@@ -277,6 +281,14 @@ function validRest(raw: unknown): RestSettings | null {
     if (!main) return null;
     out.sizes = { main };
   }
+  if (raw.environment !== undefined) {
+    if (typeof raw.environment !== 'string' || (raw.environment !== '' && !/^[\w-]{1,64}$/.test(raw.environment))) return null;
+    out.environment = raw.environment;
+  }
+  if (raw.historySize !== undefined) {
+    if (!Number.isInteger(raw.historySize) || (raw.historySize as number) < 0 || (raw.historySize as number) > 5000) return null;
+    out.historySize = raw.historySize as number;
+  }
   return out;
 }
 
@@ -367,6 +379,11 @@ const historySizeOf = (s: Settings) => {
   const n = s.workbench?.historySize;
   return typeof n === 'number' && Number.isInteger(n) && n >= 0 ? n : 500;
 };
+/** `rest.historySize` (default 100; 0 = no REST history). */
+const restHistorySizeOf = (s: Settings) => {
+  const n = s.rest?.historySize;
+  return typeof n === 'number' && Number.isInteger(n) && n >= 0 ? n : 100;
+};
 
 /** The folder the update-folder dialog returned; `apply` takes it once. */
 const pickedUpdateFolder = pickedPaths({ max: 1 });
@@ -421,6 +438,7 @@ const settings = settingsStore<Settings>({
   onChange(next, prev) {
     if (next.autostart !== prev.autostart) void autostart.set(next.autostart);
     sqlHistoryStore.setMax(historySizeOf(next));
+    restHistoryStore.setMax(restHistorySizeOf(next));
     if (next.updateFolder !== prev.updateFolder) void updater.check();
   },
 });
@@ -436,6 +454,7 @@ const updater = createUpdater({
 
 const { closeToTray } = await settings.load();
 sqlHistoryStore.setMax(historySizeOf(await settings.load()));
+restHistoryStore.setMax(restHistorySizeOf(await settings.load()));
 
 /** Shells of every Terminal tab; they outlive the window's sockets and end at app quit. */
 const sessions = terminalSessions();
@@ -455,7 +474,7 @@ await runApp({
     },
     ...updateRoutes(updater, ctx.quit),
     // Machine-specific: autostart writes the Run key, updateFolder is a local or share path.
-    ...backupRoutes({ app: { id: APP.id, version: pkg.version }, settings, stores: { projects, dbConnections, requests }, excludeSettings: ['autostart', 'updateFolder'] }),
+    ...backupRoutes({ app: { id: APP.id, version: pkg.version }, settings, stores: { projects, dbConnections, requests, environments }, excludeSettings: ['autostart', 'updateFolder'] }),
     ...routes(ctx),
     ...terminal.routes,
   }),

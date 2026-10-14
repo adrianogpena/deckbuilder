@@ -219,8 +219,8 @@ export const restTabs = {
     });
   },
   setRuntime,
-  /** Sends tab `id`; `extraHeaders` (e.g. a typed Authorization value) go after the draft's headers. */
-  async send(id: string, extraHeaders?: Array<[string, string]>) {
+  /** Sends tab `id` with REST environment `environment` (id); `extraHeaders` (e.g. a typed Authorization value) go after the draft's headers. */
+  async send(id: string, extraHeaders?: Array<[string, string]>, environment?: string) {
     const tab = snap.tabs.find((t) => t.id === id);
     if (!tab || runtimeOf(id).sending) return;
     const abort = new AbortController();
@@ -229,7 +229,7 @@ export const restTabs = {
     try {
       const spec = draftToSpec(tab.draft);
       if (extraHeaders) spec.headers.push(...extraHeaders);
-      const response = await api.httpSend(spec, tab.savedId, abort.signal);
+      const response = await api.httpSend(spec, tab.savedId, abort.signal, { environment: environment || undefined, draft: tab.draft });
       if (!abort.signal.aborted) setRuntime(id, { response });
     } catch (err) {
       if (!abort.signal.aborted) setRuntime(id, { response: undefined, error: errorOf(err) });

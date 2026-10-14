@@ -14,9 +14,11 @@ import {
   type HttpRequestDraft,
   type HttpRequestSpec,
   type HttpResponseInfo,
+  type RestHistoryEntry,
 } from '@deckbuilder/server-core/protocol';
 import { isBinary } from './bytes.ts';
 import { fromPlatform } from './platform-errors.ts';
+import { variableResolver, type VariableResolver } from './rest-env.ts';
 
 export interface HttpExecutorOptions {
   /** Most body bytes read; the rest is cut and the response is marked `truncated`. */
@@ -39,8 +41,16 @@ export interface HttpExecutor {
 }
 
 export interface HttpRoutesOptions {
-  /** Headers to add for a saved request's secret, for names the request doesn't have; the values never reach the client. */
-  secretHeaders?: (ref: string, url: string) => Promise<Array<[string, string]>>;
+  /**
+   * Headers to add for a saved request's secret, for names the request doesn't have; the values never reach the client.
+   * `url` is the resolved URL being sent; `resolve` substitutes the environment in other text (unknown names stay as they are).
+   * The returned values are resolved by the route; an unknown name there is `unknownVariable`.
+   */
+  secretHeaders?: (ref: string, url: string, resolve: (text: string) => string) => Promise<Array<[string, string]>>;
+  /** The variables of environment `id` for `{{name}}` (secrets included); throws for an unknown id. */
+  environmentVars?: (id: string) => Promise<Record<string, string>>;
+  /** Called once per send, failures included (status 0 and `error`), with the unresolved request minus Authorization. */
+  onSend?: (entry: Omit<RestHistoryEntry, 'id'>) => unknown;
   save?: typeof saveFileAs;
 }
 
@@ -96,6 +106,31 @@ export function validateRequest(input: unknown): HttpRequestSpec {
     spec.form = fields;
   }
   return spec;
+}
+
+const resolvePairs = (list: unknown, resolve: (text: string) => string, names: boolean) =>
+  Array.isArray(list)
+    ? list.map((pair) =>
+        Array.isArray(pair) && pair.length === 2 && typeof pair[0] === 'string' && typeof pair[1] === 'string'
+          ? [names ? resolve(pair[0]) : pair[0], resolve(pair[1])]
+          : pair,
+      )
+    : list;
+
+/**
+ * Raw send input with `{{name}}` resolved in the URL, header values, body and form fields; other
+ * values are left for `validateRequest` to reject. Unknown names are collected in `vars.missing`.
+ */
+export function resolveRequest(input: unknown, vars: VariableResolver): unknown {
+  if (!isRecord(input)) return input;
+  const out: Record<string, unknown> = { ...input };
+  if (typeof out.url === 'string') out.url = vars.resolve(out.url);
+  if (typeof out.body === 'string') out.body = vars.resolve(out.body);
+  out.headers = resolvePairs(out.headers, vars.resolve, false);
+  out.form = resolvePairs(out.form, vars.resolve, true);
+  if (out.headers === undefined) delete out.headers;
+  if (out.form === undefined) delete out.form;
+  return out;
 }
 
 const BODY_LANGS = ['json', 'xml', 'text', 'form', 'multipart'] as const;
@@ -157,6 +192,51 @@ export function validateDraft(raw: unknown): HttpRequestDraft {
     out.followRedirects = followRedirects;
   }
   return out;
+}
+
+const AUTH_HEADERS = new Set(['authorization', 'proxy-authorization']);
+
+/** A copy of the draft without Authorization and Proxy-Authorization headers. */
+export function withoutAuthorization(draft: HttpRequestDraft): HttpRequestDraft {
+  return { ...draft, headers: draft.headers.filter((h) => !AUTH_HEADERS.has(h.name.trim().toLowerCase())) };
+}
+
+const pairsOf = (list: unknown) =>
+  Array.isArray(list) ? list.filter((p): p is [string, string] => Array.isArray(p) && typeof p[0] === 'string' && typeof p[1] === 'string') : [];
+
+/**
+ * The draft the history keeps for a send body: its `draft` when valid, else one built from the
+ * unresolved `request` (body language from Content-Type). Null when neither is usable.
+ */
+export function historyDraft(body: Record<string, unknown>): HttpRequestDraft | null {
+  try {
+    if (body.draft !== undefined) return withoutAuthorization(validateDraft(body.draft));
+  } catch {
+    // fall back to the request
+  }
+  const req = body.request;
+  if (!isRecord(req)) return null;
+  const headers = pairsOf(req.headers);
+  const type = (headers.find(([n]) => n.toLowerCase() === 'content-type')?.[1] ?? '').toLowerCase();
+  const scheme = headers.find(([n]) => n.toLowerCase() === 'authorization')?.[1].trim().split(/\s+/)[0]?.toLowerCase();
+  const kind = req.bodyKind === 'form' || req.bodyKind === 'multipart' ? req.bodyKind : undefined;
+  const raw: Record<string, unknown> = {
+    method: req.method,
+    url: req.url,
+    headers: headers.map(([name, value]) => ({ name, value, enabled: true })),
+    body: typeof req.body === 'string' ? req.body : '',
+    bodyLang: kind ?? (type.includes('json') ? 'json' : type.includes('xml') ? 'xml' : 'text'),
+    timeoutMs: req.timeoutMs,
+    insecure: req.insecure,
+    followRedirects: req.followRedirects,
+  };
+  if (kind) raw.form = pairsOf(req.form).map(([name, value]) => ({ name, value }));
+  if (scheme === 'basic' || scheme === 'bearer') raw.authKind = scheme;
+  try {
+    return withoutAuthorization(validateDraft(raw));
+  } catch {
+    return null;
+  }
 }
 
 const isTextType = (contentType: string) => {
@@ -297,23 +377,56 @@ export function suggestedName(url: string, contentType: string): string {
   return name;
 }
 
-/** `POST /api/http/send` (`{ request, secretRef? }`) and `POST /api/http/save` (`{ id }`, asks for the target in a server-side dialog). */
+/** `POST /api/http/send` (`HttpSendInput`: `{ request, secretRef?, environment? }`, `{{name}}` resolved before sending) and `POST /api/http/save` (`{ id }`, asks for the target in a server-side dialog). */
 export function httpRoutes(executor: HttpExecutor, opts: HttpRoutesOptions = {}): Routes {
-  const { secretHeaders, save = saveFileAs } = opts;
+  const { secretHeaders, environmentVars, onSend, save = saveFileAs } = opts;
+
+  async function send(body: Record<string, unknown>, signal: AbortSignal): Promise<HttpResponseInfo> {
+    const values = typeof body.environment === 'string' && environmentVars ? await environmentVars(body.environment) : {};
+    const vars = variableResolver(values);
+    const request = resolveRequest(body.request, vars);
+    vars.check();
+    const spec = validateRequest(request);
+    if (typeof body.secretRef === 'string' && secretHeaders) {
+      const have = new Set(spec.headers.map(([name]) => name.toLowerCase()));
+      const loose = variableResolver(values);
+      for (const [name, raw] of await secretHeaders(body.secretRef, spec.url, loose.resolve)) {
+        if (have.has(name.toLowerCase())) continue;
+        const value = vars.resolve(raw);
+        vars.check();
+        if (HEADER_VALUE_BAD.test(value)) throw invalid('badHeader', 'A header name or value is not valid.');
+        have.add(name.toLowerCase());
+        spec.headers.push([name, value]);
+      }
+    }
+    return executor.send(spec, signal);
+  }
+
   return {
     'POST /api/http/send': async ({ req, json }) => {
       const body = await json();
-      if (!isRecord(body)) throw badRequest();
-      const spec = validateRequest(body.request);
-      if (typeof body.secretRef === 'string' && secretHeaders) {
-        const have = new Set(spec.headers.map(([name]) => name.toLowerCase()));
-        for (const [name, value] of await secretHeaders(body.secretRef, spec.url)) {
-          if (have.has(name.toLowerCase())) continue;
-          have.add(name.toLowerCase());
-          spec.headers.push([name, value]);
+      if (!isRecord(body) || (body.environment !== undefined && typeof body.environment !== 'string')) throw badRequest();
+      if (!onSend) return send(body, req.signal);
+      const at = Date.now();
+      const record = (status: number, ms: number, error?: string) => {
+        const draft = historyDraft(body);
+        if (!draft) return;
+        const entry: Omit<RestHistoryEntry, 'id'> = { at, method: draft.method, url: draft.url, status, ms, draft };
+        if (error) entry.error = error;
+        try {
+          void Promise.resolve(onSend(entry)).catch(() => {});
+        } catch {
+          // history must never fail a send
         }
+      };
+      try {
+        const res = await send(body, req.signal);
+        record(res.status, res.totalMs);
+        return res;
+      } catch (err) {
+        record(0, Date.now() - at, err instanceof AppError ? err.code : 'error');
+        throw err;
       }
-      return executor.send(spec, req.signal);
     },
 
     'POST /api/http/save': async ({ json }) => {

@@ -8,6 +8,8 @@ export * from './http.ts';
 export * from './info.ts';
 export * from './platform-errors.ts';
 export * from './records.ts';
+export * from './rest-env.ts';
+export * from './rest-history.ts';
 export * from './rest-tabs.ts';
 export * from './rooted-fs.ts';
 export * from './settings.ts';

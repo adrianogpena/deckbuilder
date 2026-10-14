@@ -2,7 +2,7 @@ import { join } from 'node:path';
 import { readJsonFile, writeJsonAtomic } from '@deckbuilder/platform';
 import { invalid, isRecord, type Routes } from '@deckbuilder/server-core';
 import type { HttpRequestDraft } from '@deckbuilder/server-core/protocol';
-import { validateDraft } from './http.ts';
+import { validateDraft, withoutAuthorization } from './http.ts';
 
 export const REST_TABS_MAX = 30;
 const ID = /^[\w-]{1,64}$/;
@@ -32,11 +32,10 @@ export function validateRestTabs(raw: unknown): RestTabsFile {
     seen.add(tab.id);
     let draft: HttpRequestDraft;
     try {
-      draft = validateDraft(tab.draft);
+      draft = withoutAuthorization(validateDraft(tab.draft));
     } catch {
       throw badTabs();
     }
-    draft.headers = draft.headers.filter((h) => h.name.trim().toLowerCase() !== 'authorization');
     const out: RestTab = { id: tab.id, draft };
     if (tab.savedId !== undefined) {
       if (typeof tab.savedId !== 'string' || !ID.test(tab.savedId)) throw badTabs();
