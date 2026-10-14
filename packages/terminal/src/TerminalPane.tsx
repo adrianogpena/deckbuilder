@@ -101,6 +101,7 @@ export function TerminalPane(props: TerminalPaneProps) {
     let retries = 0;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let ended = false;
+    let sessionChecked = false;
     const encoder = new TextEncoder();
 
     const view: XtermView = createXtermView(host, {
@@ -212,6 +213,9 @@ export function TerminalPane(props: TerminalPaneProps) {
     async function connect(fresh: boolean) {
       clearTimeout(timer);
       ended = false;
+      // A session id from a saved layout may belong to an earlier app run: then open a new shell instead.
+      const restored = !fresh && !!sessionId && !sessionChecked;
+      sessionChecked = true;
       try {
         let ticketed;
         if (fresh || !sessionId) {
@@ -233,7 +237,10 @@ export function TerminalPane(props: TerminalPaneProps) {
         openSocket(ticketed.ticket);
       } catch (err) {
         if (disposed) return;
-        if (isSessionGone(err)) stop({ kind: 'ended' });
+        if (isSessionGone(err)) {
+          if (restored && !preview) void connect(true);
+          else stop({ kind: 'ended' });
+        }
         else if (errorOf(err).kind === 'offline') retryLater();
         else stop({ kind: 'error', message: errorMessage(errorOf(err)) });
       }
