@@ -193,6 +193,13 @@ export const routes = (ctx: StartContext): Routes => ({
   },
   ...dbApi,
   ...recordRoutes(requests, '/api/requests'),
+  // The saved Authorization value, only for Copy as curl.
+  'GET /api/requests/auth': async ({ query }) => {
+    const id = query.get('id');
+    if (!id) throw invalid('badRequest', 'Invalid request.');
+    await requests.get(id);
+    return { value: (await requests.secret(id, 'auth')) ?? null };
+  },
   ...restTabsRoutes({ dir: appHome(APP.id) }),
   ...gitRoutes({ roots: projectRoots }),
   // The target comes from the save dialog on this side; the client never names a path.

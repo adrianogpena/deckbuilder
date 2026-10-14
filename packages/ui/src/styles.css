@@ -860,6 +860,10 @@ html[data-status-bar="false"] .status-bar { display: none; }
 .req-headers { display: flex; flex-direction: column; gap: 6px; }
 .req-header-row { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(0, 2fr) auto; align-items: center; gap: 6px; }
 .req-header-row input:not([type="checkbox"]) { font-family: var(--font-mono); font-size: 12.5px; }
+.req-param-row { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto; }
+.req-header-auto { opacity: 0.6; }
+.req-header-auto .muted { font-size: 12px; white-space: nowrap; }
+.req-auth .field input { width: 320px; max-width: 100%; }
 .req-headers-bulk { width: 100%; resize: vertical; font-family: var(--font-mono); font-size: 12.5px; white-space: pre; }
 .req-editor { flex: 1; }
 .req-panel { flex: 1; }
@@ -869,6 +873,8 @@ html[data-status-bar="false"] .status-bar { display: none; }
 .req-body-editor > .code-editor { position: absolute; inset: 0; }
 .code-editor > .cm-editor { height: 100%; }
 .req-body-editor.disabled { opacity: 0.5; }
+.req-body-form { display: flex; flex-direction: column; gap: 6px; flex: 1; min-height: 0; overflow: auto; }
+.req-body-form.disabled { opacity: 0.5; }
 .req-hint { font-size: 12px; color: var(--text-3); }
 .req-hint.tone-warn { color: var(--warn); }
 .req-options { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }

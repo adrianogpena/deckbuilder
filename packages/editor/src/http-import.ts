@@ -1,5 +1,5 @@
-import { HTTP_METHODS, type HttpMethod, type HttpRequestDraft } from '@deckbuilder/server-core/protocol';
-import { emptyDraft, timeoutFromSeconds } from './http';
+import { HTTP_METHODS, type HttpFormField, type HttpMethod, type HttpRequestDraft } from '@deckbuilder/server-core/protocol';
+import { emptyDraft, parseAuthValue, timeoutFromSeconds } from './http';
 
 /**
  * A request read from a cURL command or an `.http` file. `warnings` are `<code>:<argument>`
@@ -32,8 +32,17 @@ function parsesAsJson(text: string): boolean {
   }
 }
 
-/** Builds the draft; the last Authorization header leaves the headers and becomes `auth`. */
-function buildRequest(method: HttpMethod, url: string, pairs: Array<[string, string]>, body: string, warnings: string[]): ImportedRequest {
+interface FormBody {
+  lang: 'form' | 'multipart';
+  rows: HttpFormField[];
+}
+
+/**
+ * Builds the draft; the last Authorization header leaves the headers and becomes `auth`, its
+ * Basic/Bearer scheme the draft's `authKind`. With `form` the body is form rows; a multipart
+ * Content-Type header is dropped then, as its boundary no longer matches.
+ */
+function buildRequest(method: HttpMethod, url: string, pairs: Array<[string, string]>, body: string, warnings: string[], form?: FormBody): ImportedRequest {
   let auth: string | undefined;
   let contentType = '';
   const headers = [];
@@ -43,18 +52,82 @@ function buildRequest(method: HttpMethod, url: string, pairs: Array<[string, str
       auth = value;
       continue;
     }
-    if (lower === 'content-type') contentType = value;
+    if (lower === 'content-type') {
+      contentType = value;
+      if (form?.lang === 'multipart') continue;
+    }
     headers.push({ name, value, enabled: true });
   }
-  const draft: HttpRequestDraft = {
-    ...emptyDraft(),
-    method,
-    url,
-    headers,
-    body,
-    bodyLang: body === '' || isJsonType(contentType) || parsesAsJson(body) ? 'json' : 'text',
-  };
+  const draft: HttpRequestDraft = form
+    ? { ...emptyDraft(), method, url, headers, body: '', bodyLang: form.lang, form: form.rows }
+    : {
+        ...emptyDraft(),
+        method,
+        url,
+        headers,
+        body,
+        bodyLang: body === '' || isJsonType(contentType) || parsesAsJson(body) ? 'json' : 'text',
+      };
+  const authKind = auth !== undefined ? parseAuthValue(auth).kind : undefined;
+  if (authKind) draft.authKind = authKind;
   return { draft, ...(auth !== undefined ? { auth } : {}), warnings };
+}
+
+/** An `application/x-www-form-urlencoded` body as rows (`+` is a space); undefined when it does not decode. */
+function urlencodedRows(body: string): HttpFormField[] | undefined {
+  const text = body.replace(/\n/g, '');
+  if (text === '') return undefined;
+  try {
+    return text
+      .split('&')
+      .filter((pair) => pair !== '')
+      .map((pair) => {
+        const eq = pair.indexOf('=');
+        const decode = (s: string) => decodeURIComponent(s.replace(/\+/g, ' '));
+        return eq < 0 ? { name: decode(pair), value: '' } : { name: decode(pair.slice(0, eq)), value: decode(pair.slice(eq + 1)) };
+      });
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * A `multipart/form-data` body as rows when every part is a plain text field (only a
+ * `Content-Disposition: form-data; name="…"` header, no filename, no `<` file include); undefined otherwise.
+ */
+function multipartRows(body: string, contentType: string): HttpFormField[] | undefined {
+  const boundary = /boundary=(?:"([^"]+)"|([^;\s]+))/i.exec(contentType);
+  const mark = boundary ? `--${boundary[1] ?? boundary[2]}` : undefined;
+  if (!mark) return undefined;
+  const chunks = body.replace(/\r\n/g, '\n').split(mark);
+  const end = chunks.findIndex((c, i) => i > 0 && c.startsWith('--'));
+  if (end < 0 || chunks[0].trim() !== '') return undefined;
+  const rows: HttpFormField[] = [];
+  for (const chunk of chunks.slice(1, end)) {
+    const part = chunk.replace(/^\n/, '').replace(/\n$/, '');
+    const split = part.indexOf('\n\n');
+    const head = split < 0 ? part : part.slice(0, split);
+    const value = split < 0 ? '' : part.slice(split + 2);
+    const lines = head.split('\n').filter((l) => l.trim() !== '');
+    const named = lines.length === 1 ? /^content-disposition:\s*form-data;\s*name="([^"]*)"\s*$/i.exec(lines[0].trim()) : null;
+    if (!named || /^<\s/.test(value)) return undefined;
+    rows.push({ name: named[1], value });
+  }
+  return rows.length ? rows : undefined;
+}
+
+/** The form rows an `.http` body maps to by its Content-Type, if it is a simple form. */
+function httpFormBody(pairs: Array<[string, string]>, body: string): FormBody | undefined {
+  const type = [...pairs].reverse().find(([n]) => n.toLowerCase() === 'content-type')?.[1] ?? '';
+  if (/^application\/x-www-form-urlencoded\b/i.test(type)) {
+    const rows = urlencodedRows(body);
+    return rows && { lang: 'form', rows };
+  }
+  if (/^multipart\/form-data\b/i.test(type)) {
+    const rows = multipartRows(body, type);
+    return rows && { lang: 'multipart', rows };
+  }
+  return undefined;
 }
 
 // --- cURL ---
@@ -219,10 +292,12 @@ const LONG_VALUE: Record<string, string> = {
   referer: 'e',
   'max-time': 'm',
   url: 'url',
+  form: 'F',
+  'form-string': 'formString',
 };
 const LONG_BOOL: Record<string, string> = { get: 'G', insecure: 'k', location: 'L', head: 'I' };
 const IGNORED_LONG = new Set(['compressed', 'silent', 'show-error', 'verbose', 'include', 'fail', 'globoff', 'http1.1', 'http2', 'no-progress-meter']);
-const VALUE_SHORT = 'XHdubAem';
+const VALUE_SHORT = 'XHdubAemF';
 const BOOL_SHORT = 'GkLI';
 const IGNORED_SHORT = 'sSvifg';
 
@@ -253,6 +328,9 @@ export function parseCurl(text: string): ImportedRequest {
   const warnings: string[] = [];
   const headers: Array<[string, string]> = [];
   const data: string[] = [];
+  /** `--data-urlencode name=value` rows; undefined once other data (or a nameless/file value) makes the body raw. */
+  let formRows: HttpFormField[] | undefined = [];
+  const multipart: HttpFormField[] = [];
   let url: string | undefined;
   let method: string | undefined;
   let asGet = false;
@@ -270,6 +348,25 @@ export function parseCurl(text: string): ImportedRequest {
   const addData = (value: string) => {
     if (value.startsWith('@')) warnings.push(`dataFile:${value}`);
     data.push(value);
+    formRows = undefined;
+  };
+  const addUrlencoded = (value: string) => {
+    data.push(urlencodedData(value, warnings));
+    const eq = value.indexOf('=');
+    const at = value.indexOf('@');
+    if (eq > 0 && (at < 0 || at > eq)) formRows?.push({ name: value.slice(0, eq), value: value.slice(eq + 1) });
+    else formRows = undefined;
+  };
+  /** `-F name=value`; file parts (`@file`, `<file`) are skipped with a `bodyFile` warning. */
+  const addPart = (value: string, literal: boolean) => {
+    const eq = value.indexOf('=');
+    if (eq <= 0) {
+      warnings.push(`extraArgument:-F ${value}`);
+      return;
+    }
+    const content = value.slice(eq + 1);
+    if (!literal && /^[@<]/.test(content)) warnings.push(`bodyFile:${content.slice(1)}`);
+    else multipart.push({ name: value.slice(0, eq), value: content });
   };
   const withValue = (key: string, value: string) => {
     switch (key) {
@@ -283,7 +380,13 @@ export function parseCurl(text: string): ImportedRequest {
         addData(value);
         break;
       case 'urlencode':
-        data.push(urlencodedData(value, warnings));
+        addUrlencoded(value);
+        break;
+      case 'F':
+        addPart(value, false);
+        break;
+      case 'formString':
+        addPart(value, true);
         break;
       case 'json':
         addData(value);
@@ -358,12 +461,18 @@ export function parseCurl(text: string): ImportedRequest {
     target += `${target.includes('?') ? '&' : '?'}${body}`;
     body = '';
   }
-  let verb: HttpMethod = body ? 'POST' : head ? 'HEAD' : 'GET';
+  const form: FormBody | undefined =
+    multipart.length && !data.length
+      ? { lang: 'multipart', rows: multipart }
+      : !asGet && formRows?.length && data.length === formRows.length
+        ? { lang: 'form', rows: formRows }
+        : undefined;
+  let verb: HttpMethod = body || form ? 'POST' : head ? 'HEAD' : 'GET';
   if (method !== undefined) {
     if (METHODS.includes(method)) verb = method as HttpMethod;
     else warnings.push(`badMethod:${method}`);
   }
-  const result = buildRequest(verb, target, headers, body, warnings);
+  const result = buildRequest(verb, target, headers, body, warnings, form);
   if (timeoutMs !== undefined) result.draft.timeoutMs = timeoutMs;
   if (insecure !== undefined) result.draft.insecure = insecure;
   if (followRedirects !== undefined) result.draft.followRedirects = followRedirects;
@@ -467,13 +576,9 @@ export function parseHttpFile(text: string): ImportedRequest[] {
   return raws.map((raw) => {
     const missing = new Set<string>();
     const sub = (value: string) => substitute(value, missing);
-    const result = buildRequest(
-      raw.method,
-      sub(raw.url),
-      raw.headers.map(([n, v]) => [sub(n), sub(v)]),
-      sub(raw.body),
-      raw.warnings,
-    );
+    const headers = raw.headers.map(([n, v]): [string, string] => [sub(n), sub(v)]);
+    const body = sub(raw.body);
+    const result = buildRequest(raw.method, sub(raw.url), headers, body, raw.warnings, httpFormBody(headers, body));
     if (raw.name !== undefined) result.name = sub(raw.name);
     if (result.auth !== undefined) result.auth = sub(result.auth);
     for (const key of missing) result.warnings.push(`unresolvedVar:${key}`);

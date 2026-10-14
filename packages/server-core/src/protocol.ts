@@ -65,6 +65,8 @@ export const HTTP_MAX_BODY_BYTES = 10_000_000;
 /** Request limits, shared by the send route, saved drafts and the editor. */
 export const HTTP_MAX_HEADERS = 100;
 export const HTTP_MAX_BODY_CHARS = 900_000;
+/** Most form fields in a form or multipart body; their names and values share HTTP_MAX_BODY_CHARS. */
+export const HTTP_MAX_FORM_FIELDS = 100;
 export const HTTP_MAX_URL_CHARS = 4096;
 export const HTTP_TIMEOUT_MIN_MS = 1_000;
 export const HTTP_TIMEOUT_MAX_MS = 300_000;
@@ -74,6 +76,9 @@ export interface HttpRequestSpec {
   url: string;
   headers: Array<[string, string]>;
   body?: string;
+  /** Set with `form` instead of `body`: the server encodes the fields (urlencoded or multipart text fields). */
+  bodyKind?: 'form' | 'multipart';
+  form?: Array<[string, string]>;
   /** Default 60_000, HTTP_TIMEOUT_MIN_MS..HTTP_TIMEOUT_MAX_MS. */
   timeoutMs?: number;
   /** Default false: skip TLS certificate checks. */
@@ -88,13 +93,24 @@ export interface HttpHeaderDraft {
   enabled: boolean;
 }
 
+export interface HttpFormField {
+  name: string;
+  value: string;
+}
+
+export type HttpAuthKind = 'basic' | 'bearer';
+
 /** A request as the editor holds and saves it; `draftToSpec` (editor) turns it into a spec. */
 export interface HttpRequestDraft {
   method: HttpMethod;
   url: string;
   headers: HttpHeaderDraft[];
   body: string;
-  bodyLang: 'json' | 'xml' | 'text';
+  bodyLang: 'json' | 'xml' | 'text' | 'form' | 'multipart';
+  /** The fields when `bodyLang` is form or multipart. */
+  form?: HttpFormField[];
+  /** Mode hint for the saved secret; the secret itself is only in the saved record's `auth`. */
+  authKind?: HttpAuthKind;
   timeoutMs?: number;
   insecure?: boolean;
   followRedirects?: boolean;

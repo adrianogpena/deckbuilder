@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { draftToSpec, type HttpRequestDraft, type ImportedRequest, RequestEditor, ResponseView, toCurl } from '@deckbuilder/editor';
+import { draftToSpec, hasAuthHeader, type HttpRequestDraft, type ImportedRequest, RequestEditor, ResponseView, toCurl } from '@deckbuilder/editor';
 import type { HttpResponseInfo } from '@deckbuilder/server-core/protocol';
-import { type ApiError, ErrorBanner, errorOf, Icon, PageHead, SplitView, useAsync, useDebouncedSave, useDialogs } from '@deckbuilder/ui';
+import { type ApiError, ErrorBanner, errorOf, Icon, PageHead, SplitView, useAsync, useCommand, useDebouncedSave, useDialogs } from '@deckbuilder/ui';
+import { commandById } from '../commands';
 import { api, type RestSettings, type SavedRequest, type Settings } from '../api';
 import { t } from '../i18n';
 import { ImportDialog, requestLabel } from './rest/ImportDialog';
@@ -45,7 +46,7 @@ export function RestScreen({ settings, onSave }: { settings: Settings; onSave: (
 
   const setDraft = (next: HttpRequestDraft) => restTabs.update(tab.id, { draft: next });
   const setAuth = (value: string) => restTabs.setRuntime(tab.id, { auth: value });
-  const send = () => void restTabs.send(tab.id);
+  const send = () => void restTabs.send(tab.id, auth && !hasAuthHeader(draft.headers) ? [['Authorization', auth]] : undefined);
   const cancel = () => restTabs.cancel(tab.id);
 
   const loadImported = (item: ImportedRequest) => restTabs.loadImported(tab.id, item.draft, item.name ?? '', item.auth);
@@ -78,7 +79,9 @@ export function RestScreen({ settings, onSave }: { settings: Settings; onSave: (
           })) ?? undefined;
         if (!name) return;
       }
-      const input = { name, request: draft, ...(auth ? { auth } : {}) };
+      // Switching a saved request from Basic/Bearer to None clears its secret ('' removes it).
+      const cleared = !auth && !draft.authKind && !!loaded?.request.authKind && !asNew;
+      const input = { name, request: draft, ...(auth ? { auth } : cleared ? { auth: '' } : {}) };
       const record = asNew || !savedId ? await api.createRequest(input) : await api.updateRequest(savedId, input);
       restTabs.markSaved(id, record);
       saved.reload();
@@ -86,6 +89,7 @@ export function RestScreen({ settings, onSave }: { settings: Settings; onSave: (
       setActionError(errorOf(err));
     }
   };
+  useCommand(commandById('rest.save'), () => void save(false));
 
   const remove = async (item: SavedRequest) => {
     if (!(await confirm({ title: t('rest.deleteTitle', { name: item.name }), okLabel: t('rest.delete'), danger: true }))) return;
@@ -133,10 +137,19 @@ export function RestScreen({ settings, onSave }: { settings: Settings; onSave: (
     }
   };
 
-  const showCurl = () => {
+  const showCurl = async () => {
     const spec = draftToSpec(draft);
-    if (auth && !spec.headers.some(([name]) => name.toLowerCase() === 'authorization')) spec.headers.push(['Authorization', auth]);
-    setCurl(toCurl(spec));
+    let value = auth || undefined;
+    if (!value && tab.savedId && loaded?.auth?.hasSecret && !hasAuthHeader(draft.headers)) {
+      setActionError(undefined);
+      try {
+        value = (await api.requestAuth(tab.savedId)).value ?? undefined;
+      } catch (err) {
+        setActionError(errorOf(err));
+        return;
+      }
+    }
+    setCurl(toCurl(spec, value));
   };
 
   const saveResponse = async (info: HttpResponseInfo) => {
@@ -155,7 +168,7 @@ export function RestScreen({ settings, onSave }: { settings: Settings; onSave: (
       <PageHead title={t('nav.rest')}>
         <div className="row">
           <button className="btn btn-sm" onClick={() => setImporting(true)}>{t('rest.import')}</button>
-          <button className="btn btn-sm" onClick={showCurl}>{t('rest.code')}</button>
+          <button className="btn btn-sm" onClick={() => void showCurl()}>{t('rest.code')}</button>
           <button className="btn btn-sm" onClick={() => save(false)}>{t('rest.save')}</button>
           <button className="btn btn-sm" onClick={() => save(true)}>{t('rest.saveAs')}</button>
         </div>
@@ -230,22 +243,14 @@ export function RestScreen({ settings, onSave }: { settings: Settings; onSave: (
               onSend={send}
               onCancel={cancel}
               sending={sending}
-              headersFooter={(
-                <label className="field rest-auth">
-                  <span className="mono-label">{t('rest.auth')}</span>
-                  <input
-                    type="password"
-                    value={auth}
-                    disabled={!tab.savedId && !imported?.auth}
-                    placeholder={loaded?.auth?.hasSecret ? t('rest.authSaved') : ''}
-                    onChange={(e) => setAuth(e.target.value)}
-                    autoComplete="off"
-                  />
-                  <span className="muted">
-                    {tab.savedId ? t('rest.authHint') : imported?.auth ? t('rest.authImported') : t('rest.authNeedsSave')}
-                  </span>
-                </label>
-              )}
+              auth={{
+                value: auth,
+                onChange: setAuth,
+                disabled: !tab.savedId && !imported?.auth,
+                placeholder: loaded?.auth?.hasSecret ? t('rest.authSaved') : undefined,
+                hasSaved: !!loaded?.auth?.hasSecret,
+                hint: tab.savedId ? t('rest.authHint') : imported?.auth ? t('rest.authImported') : t('rest.authNeedsSave'),
+              }}
             />
           </div>
           <div key="response" className="rest-pane">

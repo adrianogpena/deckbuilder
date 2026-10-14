@@ -149,6 +149,67 @@ test('validateDraft refuses drafts out of range and returns a fresh object', () 
   expect(out.headers[0]).not.toBe(draft.headers[0]);
 });
 
+test('validateDraft keeps form rows and authKind and refuses bad ones', () => {
+  const draft = {
+    method: 'POST',
+    url: 'http://localhost/',
+    headers: [],
+    body: '',
+    bodyLang: 'multipart',
+    form: [{ name: 'a', value: '1' }],
+    authKind: 'bearer',
+  };
+  expect(validateDraft({ ...draft, extra: 1 })).toEqual(draft as ReturnType<typeof validateDraft>);
+  expect(validateDraft({ ...draft, bodyLang: 'form' }).bodyLang).toBe('form');
+  const fail = (input: Record<string, unknown>) => {
+    try {
+      validateDraft({ ...draft, ...input });
+    } catch (err) {
+      return (err as AppError).code;
+    }
+    return 'ok';
+  };
+  expect(fail({ bodyLang: 'yaml' })).toBe('badSavedRequest');
+  expect(fail({ authKind: 'digest' })).toBe('badSavedRequest');
+  expect(fail({ form: [{ name: 'a', value: 1 }] })).toBe('badSavedRequest');
+  expect(fail({ form: Array.from({ length: 101 }, () => ({ name: 'f', value: 'v' })) })).toBe('badSavedRequest');
+  expect(fail({ form: [{ name: 'a', value: 'x'.repeat(900_000) }] })).toBe('badSavedRequest');
+});
+
+test('validateRequest checks form bodies', () => {
+  const fail = (input: Record<string, unknown>) => {
+    try {
+      validateRequest({ method: 'POST', url: 'http://localhost/', ...input });
+    } catch (err) {
+      return (err as AppError).code;
+    }
+    return 'ok';
+  };
+  expect(fail({ bodyKind: 'form', form: [['a', 'b']] })).toBe('ok');
+  expect(fail({ bodyKind: 'xml', form: [['a', 'b']] })).toBe('badRequest');
+  expect(fail({ bodyKind: 'form', form: [['a']] })).toBe('badRequest');
+  expect(fail({ bodyKind: 'form', form: [['a', 'b']], body: 'x' })).toBe('badRequest');
+  expect(fail({ form: [['a', 'b']] })).toBe('badRequest');
+  expect(fail({ method: 'GET', bodyKind: 'multipart', form: [['a', 'b']] })).toBe('bodyNotAllowed');
+});
+
+test('form bodies are sent urlencoded and as multipart text fields', async () => {
+  const form: Array<[string, string]> = [['a', '1 2'], ['b', 'x&y']];
+  const urlencoded = JSON.parse((await httpExecutor().send(spec('/echo', { method: 'POST', bodyKind: 'form', form }))).text!);
+  expect(urlencoded.headers['content-type']).toBe('application/x-www-form-urlencoded');
+  expect(urlencoded.body).toBe('a=1+2&b=x%26y');
+  const own = JSON.parse(
+    (await httpExecutor().send(spec('/echo', { method: 'POST', bodyKind: 'form', form, headers: [['Content-Type', 'application/x-www-form-urlencoded; charset=utf-8']] }))).text!,
+  );
+  expect(own.headers['content-type']).toBe('application/x-www-form-urlencoded; charset=utf-8');
+  const multipart = JSON.parse(
+    (await httpExecutor().send(spec('/echo', { method: 'POST', bodyKind: 'multipart', form, headers: [['content-type', 'text/plain']] }))).text!,
+  );
+  expect(multipart.headers['content-type']).toStartWith('multipart/form-data; boundary=');
+  expect(multipart.body).toContain('name="a"\r\n\r\n1 2\r\n');
+  expect(multipart.body).toContain('name="b"\r\n\r\nx&y\r\n');
+});
+
 test('a saved Authorization does not follow a redirect to another origin', async () => {
   const seen: Array<string | null> = [];
   const target = Bun.serve({

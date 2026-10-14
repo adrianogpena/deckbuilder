@@ -1,11 +1,38 @@
-import { HTTP_METHODS, HTTP_TIMEOUT_MAX_MS, HTTP_TIMEOUT_MIN_MS, type HttpMethod } from '@deckbuilder/server-core/protocol';
+import { HTTP_MAX_FORM_FIELDS, HTTP_METHODS, HTTP_TIMEOUT_MAX_MS, HTTP_TIMEOUT_MIN_MS, type HttpMethod } from '@deckbuilder/server-core/protocol';
 import { Icon, Spinner, t } from '@deckbuilder/ui';
 import { type ReactNode, useState } from 'react';
 import { CodeEditor } from './CodeEditor';
-import { type HttpHeaderDraft, type HttpRequestDraft, headersFromText, formatXml, headersToText, sendsBody, timeoutFromSeconds } from './http';
+import {
+  type HttpHeaderDraft,
+  type HttpRequestDraft,
+  type QueryParam,
+  authHeaderValue,
+  formatXml,
+  hasAuthHeader,
+  headersFromText,
+  headersToText,
+  parseAuthValue,
+  queryParams,
+  sendsBody,
+  timeoutFromSeconds,
+  withQueryParams,
+} from './http';
 
-type Tab = 'headers' | 'body' | 'options';
-const TABS: Tab[] = ['headers', 'body', 'options'];
+type Tab = 'params' | 'headers' | 'auth' | 'body' | 'options';
+const TABS: Tab[] = ['params', 'headers', 'auth', 'body', 'options'];
+
+/** The Authorization value the Auth tab edits; the app keeps it (e.g. as a secret), the draft holds only `authKind`. */
+export interface RequestAuthProps {
+  value: string;
+  onChange(value: string): void;
+  disabled?: boolean;
+  /** Shown in the empty fields, e.g. when a saved value exists but is not loaded. */
+  placeholder?: string;
+  /** Note under the fields (where the value is kept, why it is disabled). */
+  hint?: ReactNode;
+  /** A saved value exists that `value` does not hold (e.g. a write-only secret). */
+  hasSaved?: boolean;
+}
 
 export interface RequestEditorProps {
   value: HttpRequestDraft;
@@ -15,11 +42,14 @@ export interface RequestEditorProps {
   sending: boolean;
   /** Extra content under the headers list (the Headers tab only). */
   headersFooter?: ReactNode;
+  /** Enables the Auth tab. */
+  auth?: RequestAuthProps;
 }
 
 /** Method, URL, headers, body and options of one HTTP request; sending is up to the app. */
-export function RequestEditor({ value, onChange, onSend, onCancel, sending, headersFooter }: RequestEditorProps) {
-  const [tab, setTab] = useState<Tab>('headers');
+export function RequestEditor({ value, onChange, onSend, onCancel, sending, headersFooter, auth }: RequestEditorProps) {
+  const [tab, setTab] = useState<Tab>('params');
+  const params = queryParams(value.url);
   const set = (patch: Partial<HttpRequestDraft>) => onChange({ ...value, ...patch });
   const enabledHeaders = value.headers.filter((h) => h.enabled && h.name.trim() !== '').length;
   const canSend = value.url.trim() !== '';
@@ -54,20 +84,23 @@ export function RequestEditor({ value, onChange, onSend, onCancel, sending, head
         {sending && <Spinner small />}
       </div>
       <div className="req-tabs" role="tablist">
-        {TABS.map((id) => (
+        {TABS.filter((id) => id !== 'auth' || auth).map((id) => (
           <button key={id} role="tab" aria-selected={tab === id} className={`req-tab${tab === id ? ' active' : ''}`} onClick={() => setTab(id)}>
             {t(`http.tab.${id}`)}
+            {id === 'params' && params.length > 0 && <span className="req-tab-count">{params.length}</span>}
             {id === 'headers' && enabledHeaders > 0 && <span className="req-tab-count">{enabledHeaders}</span>}
           </button>
         ))}
       </div>
       <div className="req-panel">
+        {tab === 'params' && <ParamsTab params={params} onChange={(next) => set({ url: withQueryParams(value.url, next) })} />}
         {tab === 'headers' && (
           <>
-            <HeadersTab headers={value.headers} onChange={(headers) => set({ headers })} />
+            <HeadersTab headers={value.headers} onChange={(headers) => set({ headers })} authKind={authRowKind(value, auth)} />
             {headersFooter}
           </>
         )}
+        {tab === 'auth' && auth && <AuthTab value={value} onChange={set} auth={auth} />}
         {tab === 'body' && <BodyTab value={value} onChange={set} onSend={send} />}
         {tab === 'options' && <OptionsTab value={value} onChange={set} />}
       </div>
@@ -77,7 +110,15 @@ export function RequestEditor({ value, onChange, onSend, onCancel, sending, head
 
 const BLANK: HttpHeaderDraft = { name: '', value: '', enabled: true };
 
-function HeadersTab({ headers, onChange }: { headers: HttpHeaderDraft[]; onChange(h: HttpHeaderDraft[]): void }) {
+/** The Auth tab's kind when it sends an Authorization header the Headers tab does not list. */
+function authRowKind(value: HttpRequestDraft, auth: RequestAuthProps | undefined): 'basic' | 'bearer' | undefined {
+  if (!auth || hasAuthHeader(value.headers)) return undefined;
+  const kind = value.authKind ?? parseAuthValue(auth.value).kind;
+  if (!kind) return undefined;
+  return auth.value !== '' || auth.hasSaved ? kind : undefined;
+}
+
+function HeadersTab({ headers, onChange, authKind }: { headers: HttpHeaderDraft[]; onChange(h: HttpHeaderDraft[]): void; authKind?: 'basic' | 'bearer' }) {
   const [bulk, setBulk] = useState<string | null>(null);
   const rows = [...headers, BLANK];
   const toggle = (
@@ -119,6 +160,14 @@ function HeadersTab({ headers, onChange }: { headers: HttpHeaderDraft[]; onChang
   return (
     <div className="req-headers">
       {toggle}
+      {authKind && (
+        <div className="req-header-row req-header-auto" title={t('http.fromAuthTab')}>
+          <input type="checkbox" checked disabled aria-label={t('http.headerEnabled')} />
+          <input value="Authorization" readOnly disabled aria-label={t('http.headerName')} />
+          <input value={`${authKind === 'basic' ? 'Basic' : 'Bearer'} ••••`} readOnly disabled aria-label={t('http.headerValue')} />
+          <span className="muted">{t('http.fromAuthTab')}</span>
+        </div>
+      )}
       {rows.map((h, i) => {
         const isBlank = i === headers.length;
         return (
@@ -142,6 +191,88 @@ function HeadersTab({ headers, onChange }: { headers: HttpHeaderDraft[]; onChang
   );
 }
 
+const BLANK_PARAM: QueryParam = { name: '', value: '' };
+
+/** Rows of the URL query; the URL is the source of truth, so every edit rewrites it. */
+function ParamsTab({ params, onChange, removeLabel = 'http.removeParam', max = Infinity }: { params: QueryParam[]; onChange(p: QueryParam[]): void; removeLabel?: 'http.removeParam' | 'http.removeField'; max?: number }) {
+  const rows = params.length < max ? [...params, BLANK_PARAM] : params;
+  const update = (i: number, patch: Partial<QueryParam>) => onChange(rows.map((p, j) => (j === i ? { ...p, ...patch } : p)));
+  return (
+    <div className="req-headers">
+      {rows.map((p, i) => {
+        const isBlank = i === params.length;
+        return (
+          <div key={i} className="req-header-row req-param-row">
+            <input value={p.name} placeholder={t('http.paramName')} spellCheck={false} aria-label={t('http.paramName')} onChange={(e) => update(i, { name: e.target.value })} />
+            <input value={p.value} placeholder={t('http.paramValue')} spellCheck={false} aria-label={t('http.paramValue')} onChange={(e) => update(i, { value: e.target.value })} />
+            <button
+              className="btn btn-ghost btn-sm btn-icon"
+              disabled={isBlank}
+              title={t(removeLabel)}
+              aria-label={t(removeLabel)}
+              onClick={() => onChange(params.filter((_, j) => j !== i))}
+            >
+              <Icon name="close" />
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function AuthTab({ value, onChange, auth }: { value: HttpRequestDraft; onChange(patch: Partial<HttpRequestDraft>): void; auth: RequestAuthProps }) {
+  const parts = parseAuthValue(auth.value);
+  const kind = value.authKind ?? parts.kind;
+  const placeholder = auth.value === '' ? auth.placeholder : undefined;
+  const setKind = (next: typeof kind) => {
+    onChange({ authKind: next });
+    if (auth.value !== '') auth.onChange('');
+  };
+  const edit = (patch: Partial<typeof parts>) => {
+    if (!kind) return;
+    if (value.authKind !== kind) onChange({ authKind: kind });
+    auth.onChange(authHeaderValue(kind, { ...parts, ...patch }));
+  };
+  return (
+    <div className="req-options req-auth">
+      <div className="req-body-bar">
+        {([undefined, 'basic', 'bearer'] as const).map((k) => (
+          <button
+            key={k ?? 'none'}
+            className={`btn btn-sm${kind === k ? ' btn-primary' : ' btn-ghost'}`}
+            aria-pressed={kind === k}
+            disabled={auth.disabled}
+            onClick={() => setKind(k)}
+          >
+            {t(`http.auth.${k ?? 'none'}`)}
+          </button>
+        ))}
+      </div>
+      {kind === 'basic' && (
+        <>
+          <label className="field">
+            <span>{t('http.authUser')}</span>
+            <input value={parts.user} placeholder={placeholder} disabled={auth.disabled} spellCheck={false} autoComplete="off" onChange={(e) => edit({ user: e.target.value })} />
+          </label>
+          <label className="field">
+            <span>{t('http.authPassword')}</span>
+            <input type="password" value={parts.password} placeholder={placeholder} disabled={auth.disabled} autoComplete="off" onChange={(e) => edit({ password: e.target.value })} />
+          </label>
+        </>
+      )}
+      {kind === 'bearer' && (
+        <label className="field">
+          <span>{t('http.authToken')}</span>
+          <input type="password" value={parts.token} placeholder={placeholder} disabled={auth.disabled} autoComplete="off" onChange={(e) => edit({ token: e.target.value })} />
+        </label>
+      )}
+      {auth.hint && <span className="req-hint">{auth.hint}</span>}
+      {hasAuthHeader(value.headers) && <span className="req-hint tone-warn">{t('http.authOverridden')}</span>}
+    </div>
+  );
+}
+
 function BodyTab({ value, onChange, onSend }: { value: HttpRequestDraft; onChange(patch: Partial<HttpRequestDraft>): void; onSend(): void }) {
   const [formatError, setFormatError] = useState<string | null>(null);
   const bodyless = !sendsBody(value.method);
@@ -156,7 +287,7 @@ function BodyTab({ value, onChange, onSend }: { value: HttpRequestDraft; onChang
   return (
     <div className="req-body">
       <div className="req-body-bar">
-        {(['json', 'xml', 'text'] as const).map((lang) => (
+        {(['json', 'xml', 'text', 'form', 'multipart'] as const).map((lang) => (
           <button
             key={lang}
             className={`btn btn-sm${value.bodyLang === lang ? ' btn-primary' : ' btn-ghost'}`}
@@ -170,24 +301,31 @@ function BodyTab({ value, onChange, onSend }: { value: HttpRequestDraft; onChang
           </button>
         ))}
         <span className="spacer" />
-        {value.bodyLang !== 'text' && (
+        {(value.bodyLang === 'json' || value.bodyLang === 'xml') && (
           <button className="btn btn-ghost btn-sm" onClick={format} disabled={value.body.trim() === ''}>{t('http.format')}</button>
         )}
       </div>
       {formatError && <span className="field-error">{t(value.bodyLang === 'xml' ? 'preview.xmlError' : 'preview.jsonError', { message: formatError })}</span>}
       {bodyless && <span className="req-hint">{t('http.bodyIgnored', { method: value.method })}</span>}
-      <div className={bodyless ? 'req-body-editor disabled' : 'req-body-editor'}>
-        <CodeEditor
-          value={value.body}
-          lang={value.bodyLang}
-          placeholder={t('http.bodyPlaceholder')}
-          onChange={(body) => {
-            setFormatError(null);
-            onChange({ body });
-          }}
-          onRun={onSend}
-        />
-      </div>
+      {value.bodyLang === 'form' || value.bodyLang === 'multipart' ? (
+        <div className={bodyless ? 'req-body-form disabled' : 'req-body-form'}>
+          {value.bodyLang === 'multipart' && <span className="req-hint">{t('http.multipartTextOnly')}</span>}
+          <ParamsTab params={value.form ?? []} onChange={(form) => onChange({ form })} removeLabel="http.removeField" max={HTTP_MAX_FORM_FIELDS} />
+        </div>
+      ) : (
+        <div className={bodyless ? 'req-body-editor disabled' : 'req-body-editor'}>
+          <CodeEditor
+            value={value.body}
+            lang={value.bodyLang}
+            placeholder={t('http.bodyPlaceholder')}
+            onChange={(body) => {
+              setFormatError(null);
+              onChange({ body });
+            }}
+            onRun={onSend}
+          />
+        </div>
+      )}
     </div>
   );
 }

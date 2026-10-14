@@ -1,6 +1,7 @@
 import {
   HTTP_TIMEOUT_MAX_MS,
   HTTP_TIMEOUT_MIN_MS,
+  type HttpAuthKind,
   type HttpMethod,
   type HttpRequestDraft,
   type HttpRequestSpec,
@@ -81,6 +82,89 @@ export function formatXml(source: string): string {
   return lines.join('\n');
 }
 
+export interface QueryParam {
+  name: string;
+  value: string;
+}
+
+/** The URL split at the query: text before `?`, the raw query (undefined without `?`) and the `#fragment`. */
+function splitQuery(url: string): { base: string; query?: string; hash: string } {
+  const h = url.indexOf('#');
+  const hash = h < 0 ? '' : url.slice(h);
+  const rest = h < 0 ? url : url.slice(0, h);
+  const q = rest.indexOf('?');
+  return q < 0 ? { base: rest, hash } : { base: rest.slice(0, q), query: rest.slice(q + 1), hash };
+}
+
+/** The query of `url` as raw (not decoded) name/value pairs; empty segments are skipped. */
+export function queryParams(url: string): QueryParam[] {
+  const { query } = splitQuery(url);
+  if (!query) return [];
+  return query
+    .split('&')
+    .filter((s) => s !== '')
+    .map((s) => {
+      const eq = s.indexOf('=');
+      return eq < 0 ? { name: s, value: '' } : { name: s.slice(0, eq), value: s.slice(eq + 1) };
+    });
+}
+
+const escapeQueryPart = (s: string, isName: boolean) =>
+  s.replace(isName ? /[&#=]/g : /[&#]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
+
+/** `url` with its query replaced by `params`; everything else (scheme-less, `{{vars}}`, fragment) stays as typed. */
+export function withQueryParams(url: string, params: QueryParam[]): string {
+  const { base, hash } = splitQuery(url);
+  const query = params
+    .filter((p) => p.name !== '' || p.value !== '')
+    .map((p) => escapeQueryPart(p.name, true) + (p.value === '' ? '' : `=${escapeQueryPart(p.value, false)}`))
+    .join('&');
+  return query === '' ? base + hash : `${base}?${query}${hash}`;
+}
+
+export interface AuthParts {
+  kind?: HttpAuthKind;
+  user: string;
+  password: string;
+  token: string;
+}
+
+const toBase64 = (s: string) => btoa(Array.from(new TextEncoder().encode(s), (b) => String.fromCharCode(b)).join(''));
+
+function fromBase64(s: string): string | undefined {
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(Uint8Array.from(atob(s), (c) => c.charCodeAt(0)));
+  } catch {
+    return undefined;
+  }
+}
+
+/** The Authorization header value for `kind`: `Basic base64(user:password)` or `Bearer token`; '' when the fields are empty. */
+export function authHeaderValue(kind: HttpAuthKind, parts: Pick<AuthParts, 'user' | 'password' | 'token'>): string {
+  if (kind === 'bearer') return parts.token.trim() === '' ? '' : `Bearer ${parts.token.trim()}`;
+  return parts.user === '' && parts.password === '' ? '' : `Basic ${toBase64(`${parts.user}:${parts.password}`)}`;
+}
+
+/** Splits an Authorization value back into the Auth tab's fields; `kind` is undefined when it is neither Basic nor Bearer. */
+export function parseAuthValue(value: string): AuthParts {
+  const empty = { user: '', password: '', token: '' };
+  const m = /^(\w+)\s+(.*)$/s.exec(value.trim());
+  if (!m) return empty;
+  const scheme = m[1].toLowerCase();
+  if (scheme === 'bearer') return { ...empty, kind: 'bearer', token: m[2] };
+  if (scheme !== 'basic') return empty;
+  const decoded = fromBase64(m[2].trim());
+  if (decoded === undefined) return { ...empty, kind: 'basic' };
+  const colon = decoded.indexOf(':');
+  return colon < 0
+    ? { ...empty, kind: 'basic', user: decoded }
+    : { ...empty, kind: 'basic', user: decoded.slice(0, colon), password: decoded.slice(colon + 1) };
+}
+
+/** True when an enabled header named Authorization (any case) is set by hand; it wins over the Auth tab. */
+export const hasAuthHeader = (headers: HttpHeaderDraft[]): boolean =>
+  headers.some((h) => h.enabled && h.name.trim().toLowerCase() === 'authorization');
+
 export const emptyDraft =(): HttpRequestDraft => ({ method: 'GET', url: '', headers: [], body: '', bodyLang: 'json' });
 
 /** GET and HEAD requests carry no body. */
@@ -91,7 +175,13 @@ export function draftToSpec(draft: HttpRequestDraft): HttpRequestSpec {
     .filter((h) => h.enabled && h.name.trim() !== '')
     .map((h) => [h.name.trim(), h.value]);
   const spec: HttpRequestSpec = { method: draft.method, url: draft.url, headers };
-  if (sendsBody(draft.method) && draft.body !== '') {
+  if (draft.bodyLang === 'form' || draft.bodyLang === 'multipart') {
+    const form = (draft.form ?? []).filter((f) => f.name.trim() !== '').map((f): [string, string] => [f.name.trim(), f.value]);
+    if (sendsBody(draft.method) && form.length) {
+      spec.bodyKind = draft.bodyLang;
+      spec.form = form;
+    }
+  } else if (sendsBody(draft.method) && draft.body !== '') {
     spec.body = draft.body;
     if (draft.bodyLang !== 'text' && !headers.some(([name]) => name.toLowerCase() === 'content-type')) {
       headers.push(['Content-Type', draft.bodyLang === 'xml' ? 'application/xml' : 'application/json']);
@@ -105,16 +195,29 @@ export function draftToSpec(draft: HttpRequestDraft): HttpRequestSpec {
 
 const shq = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
 
-/** The request as a multi-line cURL command for a POSIX shell. */
-export function toCurl(spec: HttpRequestSpec): string {
+/**
+ * The request as a multi-line cURL command for a POSIX shell. `auth` is the Authorization value
+ * from the Auth tab (Basic → `-u user:pass`, otherwise a header); an Authorization header in the
+ * spec wins over it. Form rows become `--data-urlencode 'n=v'`, multipart rows `-F 'n=v'`
+ * (`--form-string` when the value starts with `@`/`<` or holds `;`, which `-F` would read as a file or part option).
+ */
+export function toCurl(spec: HttpRequestSpec, auth?: string): string {
   const parts = [`curl ${shq(spec.url)}`];
-  const bodyless = spec.method === 'GET' && spec.body === undefined;
+  const form = spec.bodyKind && spec.form?.length ? spec.form : undefined;
+  const bodyless = spec.method === 'GET' && spec.body === undefined && !form;
   if (!bodyless) parts.push(`-X ${spec.method}`);
   if (spec.followRedirects !== false) parts.push('-L');
   if (spec.insecure) parts.push('--insecure');
   if (spec.timeoutMs !== undefined) parts.push(`--max-time ${Math.round(spec.timeoutMs / 1000)}`);
+  if (auth && !spec.headers.some(([name]) => name.toLowerCase() === 'authorization')) {
+    const parsed = parseAuthValue(auth);
+    const basic = parsed.kind === 'basic' && authHeaderValue('basic', parsed) === auth.trim();
+    parts.push(basic ? `-u ${shq(`${parsed.user}:${parsed.password}`)}` : `-H ${shq(`Authorization: ${auth.trim()}`)}`);
+  }
   for (const [name, value] of spec.headers) parts.push(`-H ${shq(`${name}: ${value}`)}`);
-  if (spec.body !== undefined) parts.push(`--data-raw ${shq(spec.body)}`);
+  if (form && spec.bodyKind === 'form') for (const [name, value] of form) parts.push(`--data-urlencode ${shq(`${name}=${value}`)}`);
+  else if (form) for (const [name, value] of form) parts.push(`${/^[@<]|;/.test(value) ? '--form-string' : '-F'} ${shq(`${name}=${value}`)}`);
+  else if (spec.body !== undefined) parts.push(`--data-raw ${shq(spec.body)}`);
   return parts.join(' \\\n  ');
 }
 

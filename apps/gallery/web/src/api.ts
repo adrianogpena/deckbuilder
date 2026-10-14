@@ -435,6 +435,7 @@ export const api = {
   importRequestsFile: () => request<{ name?: string; text: string | null }>('POST', '/api/requests/import-file'),
   saveCurl: (text: string) => request<{ path: string | null }>('POST', '/api/requests/save-curl', {}, { text }),
   reorderRequests: (ids: string[]) => request<{ ok: true }>('POST', '/api/requests/order', {}, { ids }),
+  requestAuth: (id: string) => request<{ value: string | null }>('GET', '/api/requests/auth', { id }),
   deleteRequest: (id: string) => request<{ ok: true }>('DELETE', '/api/requests', { id }),
   /** The REST screen's open tabs; never holds an Authorization value. */
   restTabs: () => request<RestTabsFile>('GET', '/api/rest-tabs'),

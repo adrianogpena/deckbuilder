@@ -34,6 +34,7 @@ export function commands(): CommandDef[] {
     { id: 'git.prevChange', scope: 'git', label: t('keys.git.prevChange'), keys: ['Shift+F7'] },
     { id: 'workbench.format', scope: 'workbench', label: t('keys.workbench.format'), keys: ['Alt+Shift+F'], inInput: true },
     { id: 'workbench.explain', scope: 'workbench', label: t('keys.workbench.explain'), keys: ['Ctrl+E'], inInput: true },
+    { id: 'rest.save', scope: 'rest', label: t('keys.rest.save'), keys: ['Ctrl+S'], inInput: true },
     { id: 'explorer.file.save', scope: 'explorer', label: t('keys.file.save'), keys: ['Ctrl+S'], inInput: true },
     { id: 'explorer.file.wrap', scope: 'explorer', label: t('keys.file.wrap'), keys: ['Alt+Z'], inInput: true },
     { id: 'explorer.sql.format', scope: 'explorer', label: t('keys.explorer.sqlFormat'), keys: ['Alt+Shift+F'], inInput: true },

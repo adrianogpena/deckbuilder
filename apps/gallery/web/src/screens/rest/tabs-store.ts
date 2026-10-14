@@ -219,14 +219,17 @@ export const restTabs = {
     });
   },
   setRuntime,
-  async send(id: string) {
+  /** Sends tab `id`; `extraHeaders` (e.g. a typed Authorization value) go after the draft's headers. */
+  async send(id: string, extraHeaders?: Array<[string, string]>) {
     const tab = snap.tabs.find((t) => t.id === id);
     if (!tab || runtimeOf(id).sending) return;
     const abort = new AbortController();
     controllers.set(id, abort);
     setRuntime(id, { sending: true, error: undefined, savedPath: undefined });
     try {
-      const response = await api.httpSend(draftToSpec(tab.draft), tab.savedId, abort.signal);
+      const spec = draftToSpec(tab.draft);
+      if (extraHeaders) spec.headers.push(...extraHeaders);
+      const response = await api.httpSend(spec, tab.savedId, abort.signal);
       if (!abort.signal.aborted) setRuntime(id, { response });
     } catch (err) {
       if (!abort.signal.aborted) setRuntime(id, { response: undefined, error: errorOf(err) });

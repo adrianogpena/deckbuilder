@@ -28,6 +28,7 @@ describe('parseCurl', () => {
         { name: 'content-type', value: 'application/json', enabled: true },
       ],
       body: '{"name":"a b","n":1}',
+      authKind: 'bearer',
       bodyLang: 'json',
     });
     expect(bash.auth).toBe('Bearer abc');
@@ -45,6 +46,30 @@ describe('parseCurl', () => {
     expect(auth).toBe(`Basic ${btoa('user:pa55')}`);
     expect(draft.headers).toEqual([]);
     expect(draft.method).toBe('GET');
+  });
+
+  test('-u and an Authorization header set authKind', () => {
+    expect(parseCurl('curl -u user:pa55 http://x').draft.authKind).toBe('basic');
+    const bearer = parseCurl("curl http://x -H 'Authorization: Bearer t0k'");
+    expect(bearer.auth).toBe('Bearer t0k');
+    expect(bearer.draft.authKind).toBe('bearer');
+    expect(parseCurl("curl http://x -H 'Authorization: Digest x'").draft.authKind).toBeUndefined();
+  });
+
+  test('--data-urlencode name=value gives form rows', () => {
+    const { draft } = parseCurl("curl http://x --data-urlencode 'q=a b&c' --data-urlencode 'n='");
+    expect(draft.method).toBe('POST');
+    expect(draft.bodyLang).toBe('form');
+    expect(draft.body).toBe('');
+    expect(draft.form).toEqual([{ name: 'q', value: 'a b&c' }, { name: 'n', value: '' }]);
+  });
+
+  test('-F gives multipart rows and skips file parts', () => {
+    const { draft, warnings } = parseCurl("curl http://x -F 'a=1' --form 'b=x y' -F 'f=@pic.png' --form-string 'c=@lit'");
+    expect(draft.method).toBe('POST');
+    expect(draft.bodyLang).toBe('multipart');
+    expect(draft.form).toEqual([{ name: 'a', value: '1' }, { name: 'b', value: 'x y' }, { name: 'c', value: '@lit' }]);
+    expect(warnings).toEqual(['bodyFile:pic.png']);
   });
 
   test('--data-urlencode encodes values and joins with &', () => {
@@ -144,6 +169,36 @@ describe('parseHttpFile', () => {
     const [request] = parseHttpFile('POST http://x\nContent-Type: text/plain\n\n< ./body.txt\n');
     expect(request.draft.body).toBe('');
     expect(request.warnings).toEqual(['bodyFile:./body.txt']);
+  });
+
+  test('maps Authorization to auth and authKind', () => {
+    const [request] = parseHttpFile(`GET http://x\nAuthorization: Basic ${btoa('u:p')}\n`);
+    expect(request.auth).toBe(`Basic ${btoa('u:p')}`);
+    expect(request.draft.authKind).toBe('basic');
+    expect(request.draft.headers).toEqual([]);
+  });
+
+  test('reads an urlencoded body as form rows', () => {
+    const [request] = parseHttpFile('POST http://x\nContent-Type: application/x-www-form-urlencoded\n\na=1&q=a+b%26c\n&n=\n');
+    expect(request.draft.bodyLang).toBe('form');
+    expect(request.draft.body).toBe('');
+    expect(request.draft.form).toEqual([{ name: 'a', value: '1' }, { name: 'q', value: 'a b&c' }, { name: 'n', value: '' }]);
+  });
+
+  test('reads a simple multipart body as rows and drops its Content-Type', () => {
+    const body = ['--B', 'Content-Disposition: form-data; name="a"', '', '1', '--B', 'Content-Disposition: form-data; name="t"', '', 'two\nlines', '--B--'].join('\n');
+    const [request] = parseHttpFile(`POST http://x\nContent-Type: multipart/form-data; boundary=B\n\n${body}\n`);
+    expect(request.draft.bodyLang).toBe('multipart');
+    expect(request.draft.headers).toEqual([]);
+    expect(request.draft.form).toEqual([{ name: 'a', value: '1' }, { name: 't', value: 'two\nlines' }]);
+  });
+
+  test('keeps a multipart body with a file part raw', () => {
+    const body = ['--B', 'Content-Disposition: form-data; name="f"; filename="a.txt"', 'Content-Type: text/plain', '', '< ./a.txt', '--B--'].join('\n');
+    const [request] = parseHttpFile(`POST http://x\nContent-Type: multipart/form-data; boundary=B\n\n${body}\n`);
+    expect(request.draft.bodyLang).toBe('text');
+    expect(request.draft.body).toBe(body);
+    expect(request.draft.form).toBeUndefined();
   });
 });
 
