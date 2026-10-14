@@ -1,8 +1,9 @@
 import { copyText, t } from '@deckbuilder/ui';
 import { classHighlighter, highlightTree } from '@lezer/highlight';
-import { type MouseEvent, useLayoutEffect, useMemo, useRef } from 'react';
+import { type MouseEvent, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { langOfFile, type Parser, parserOf } from './languages';
 import { renderMarkdown } from './markdown';
+import { MarkdownToc, type TocHeading } from './MarkdownToc';
 
 /** Replaces a code element's text with `tok-*` spans (classHighlighter); styled by `.markdown .tok-*`. */
 function highlightCode(code: HTMLElement, parser: Parser) {
@@ -21,9 +22,13 @@ function highlightCode(code: HTMLElement, parser: Parser) {
   code.replaceChildren(out);
 }
 
-/** Rendered, sanitized markdown; code blocks highlighted when their fence names a file extension with a parser. */
-export function MarkdownView({ markdown, resolveImage }: { markdown: string; resolveImage?(src: string): string | null }) {
+/**
+ * Rendered, sanitized markdown; code blocks highlighted when their fence names a file extension with a parser.
+ * `toc` adds a heading rail (MarkdownToc) that tracks the nearest scrolling ancestor.
+ */
+export function MarkdownView({ markdown, resolveImage, toc }: { markdown: string; resolveImage?(src: string): string | null; toc?: boolean }) {
   const host = useRef<HTMLDivElement>(null);
+  const [headings, setHeadings] = useState<TocHeading[]>([]);
   const html = useMemo(
     () => renderMarkdown(markdown, { resolveImage, blockedLabel: t('preview.remoteImageBlocked') }),
     [markdown, resolveImage],
@@ -47,6 +52,12 @@ export function MarkdownView({ markdown, resolveImage }: { markdown: string; res
     }
   }, [html]);
 
+  useLayoutEffect(() => {
+    if (!toc) return;
+    setHeadings([...(host.current?.querySelectorAll<HTMLElement>('h1, h2, h3') ?? [])]
+      .map((el) => ({ el, level: Number(el.tagName[1]), text: el.textContent?.trim() ?? '' })));
+  }, [html, toc]);
+
   const onClick = async (e: MouseEvent<HTMLDivElement>) => {
     const button = e.target as HTMLElement;
     if (button.closest('a[href^="#"]')) {
@@ -62,5 +73,12 @@ export function MarkdownView({ markdown, resolveImage }: { markdown: string; res
     }, 1500);
   };
 
-  return <div ref={host} className="markdown" onClick={onClick} dangerouslySetInnerHTML={{ __html: html }} />;
+  const view = <div ref={host} className="markdown" onClick={onClick} dangerouslySetInnerHTML={{ __html: html }} />;
+  if (!toc) return view;
+  return (
+    <div className={'md-toc-wrap' + (headings.length >= 2 ? ' has-toc' : '')}>
+      <MarkdownToc headings={headings} content={host} />
+      {view}
+    </div>
+  );
 }

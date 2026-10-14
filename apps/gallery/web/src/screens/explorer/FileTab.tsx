@@ -405,12 +405,12 @@ function TextFileTab({ project, projectName, path, focused, preview, markdownMod
         {state.status === 'loading' && <PanelLoading />}
         {state.status === 'error' && <ErrorBanner error={state.error} onRetry={() => void load()} />}
         {content && (mdEditor
-          ? <MarkdownEditor value={draft} onChange={setDraft} mode={markdownMode} layout={mdLayout} wrap={wrapLines} autoFocus={!preview} onSelection={setSelection} />
+          ? <MarkdownEditor value={draft} onChange={setDraft} mode={markdownMode} layout={mdLayout} wrap={wrapLines} autoFocus={!preview} onSelection={setSelection} toc={files.markdownToc} />
           : active
           ? curlUi.enabled
             ? curlUi.layout(<CodeEditor ref={curlUi.editor} value={draft} lang={langOfFile(name)} onChange={setDraft} height="100%" wrap={wrapLines} autoFocus={!preview} onSelection={setSelection} {...curlUi.editorProps} />)
             : sqlUi.layout(<CodeEditor ref={sqlUi.editor} value={draft} lang={langOfFile(name)} onChange={setDraft} height="100%" wrap={wrapLines} autoFocus={!preview} onSelection={setSelection} {...sqlUi.editorProps} />)
-          : <FilePreview name={name} content={content} onImageInfo={setImage} />)}
+          : <FilePreview name={name} content={content} onImageInfo={setImage} toc={files.markdownToc} />)}
       </div>
       {status.length > 0 && <StatusBar items={status} />}
     </div>

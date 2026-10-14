@@ -687,7 +687,8 @@ html[data-status-bar="false"] .status-bar { display: none; }
 .md-editor[data-layout="left"] { --md-width: 860px; --md-margin: 0; }
 .md-editor[data-layout="center"] { --md-width: 860px; --md-margin: 0 auto; }
 .md-editor[data-layout="full"] { --md-width: none; --md-margin: 0; }
-.md-editor-preview .markdown { max-width: var(--md-width, none); margin: var(--md-margin, 0); }
+.md-editor-preview .markdown, .md-editor-preview .md-toc-wrap { max-width: var(--md-width, none); margin: var(--md-margin, 0); }
+.md-editor-preview .md-toc-wrap .markdown { max-width: none; margin: 0; }
 .md-editor-body { display: flex; flex: 1; min-height: 0; }
 .md-editor-body > .split, .md-editor-body > .code-editor { flex: 1; min-width: 0; }
 .md-editor-body .code-editor { height: 100%; border: 0; border-radius: 0; overflow: hidden; }
@@ -734,6 +735,23 @@ html[data-status-bar="false"] .status-bar { display: none; }
 .markdown .tok-bool, .markdown .tok-atom, .markdown .tok-literal { color: var(--y-bool); }
 .markdown .tok-comment { color: var(--y-comment); font-style: italic; }
 
+
+/* ---- markdown table of contents */
+/* A zero-height sticky row holds the rail in the wrapper's left padding; the panel opens beside it. */
+.md-toc-wrap.has-toc { padding-left: 34px; }
+.md-toc { position: sticky; top: 0; height: 0; z-index: 5; }
+.md-toc-rail { position: absolute; left: -34px; top: 8px; width: 28px; padding: 6px 0 0; border: 0; border-radius: 6px; background: transparent; cursor: pointer; }
+.md-toc-rail:hover, .md-toc-rail[aria-expanded="true"] { background: var(--hover); }
+.md-toc-rail:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.md-toc-tick { display: block; height: 2px; margin: 0 0 6px 6px; border-radius: 1px; background: var(--text-3); opacity: .55; transition: background .15s, opacity .15s; }
+.md-toc-rail:hover .md-toc-tick { opacity: .85; }
+.md-toc-tick.active { background: var(--accent); opacity: 1; }
+.md-toc-indicator { position: absolute; left: 1px; top: 2px; width: 2px; height: 10px; border-radius: 1px; background: var(--accent); transition: transform .2s ease; }
+.md-toc-panel { position: absolute; left: -2px; top: 4px; z-index: 20; width: 280px; max-width: 70vw; max-height: 60vh; overflow: auto; padding: 4px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: 9px; box-shadow: var(--shadow); }
+.md-toc-panel ul { margin: 0; padding: 0; list-style: none; }
+.md-toc-item { display: block; width: 100%; padding: 5px 9px; border: 0; border-radius: 6px; background: transparent; color: var(--text-2); font: inherit; font-size: 13px; text-align: left; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.md-toc-item:hover, .md-toc-item:focus-visible { background: var(--hover); color: var(--text); outline: none; }
+.md-toc-item.active { color: var(--accent); font-weight: 600; }
 /* ---- json tree */
 .json-tree { font-family: var(--font-mono); font-size: 12.5px; line-height: 1.6; color: var(--text); }
 .json-row { display: flex; align-items: center; gap: 4px; min-height: 22px; border-radius: 4px; white-space: nowrap; }

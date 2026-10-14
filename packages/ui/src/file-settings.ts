@@ -40,6 +40,8 @@ export interface FileSettings {
   showHidden?: boolean;
   /** Reopen the tabs of the last session. */
   restoreTabs?: boolean;
+  /** Show the heading rail beside rendered Markdown. */
+  markdownToc?: boolean;
 }
 
 export const FILE_DEFAULTS: Required<FileSettings> = {
@@ -58,6 +60,7 @@ export const FILE_DEFAULTS: Required<FileSettings> = {
   confirmDragDrop: false,
   showHidden: false,
   restoreTabs: true,
+  markdownToc: true,
 };
 
 /** `raw` with the defaults filled in; fields of the wrong type fall back to their default. */
@@ -81,6 +84,7 @@ export function validFileSettings(raw: unknown): FileSettings | null {
   if (typeof raw.confirmDragDrop === 'boolean') out.confirmDragDrop = raw.confirmDragDrop;
   if (typeof raw.showHidden === 'boolean') out.showHidden = raw.showHidden;
   if (typeof raw.restoreTabs === 'boolean') out.restoreTabs = raw.restoreTabs;
+  if (typeof raw.markdownToc === 'boolean') out.markdownToc = raw.markdownToc;
   if (isRecord(raw.nestingPatterns)) {
     const entries = Object.entries(raw.nestingPatterns);
     if (entries.length <= MAX_EXCLUDES && entries.every(([k, v]) => k.trim() !== '' && k.length <= 200 && typeof v === 'string' && v.length <= 500)) {

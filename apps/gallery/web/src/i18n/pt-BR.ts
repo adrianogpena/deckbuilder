@@ -188,6 +188,8 @@ export const ptBR: Messages<typeof en> = {
   'settings.explorer.showHidden.hint': 'Inicia cada árvore mostrando as entradas que combinam com #files.exclude#. O cabeçalho da árvore ainda alterna isso.',
   'settings.explorer.restoreTabs': 'Restaurar abas',
   'settings.explorer.restoreTabs.hint': 'Reabre as abas da última sessão ao abrir o Explorer.',
+  'settings.explorer.markdownToc': 'Sumário',
+  'settings.explorer.markdownToc.hint': 'Mostra uma barra de títulos ao lado do Markdown renderizado na visualização; clique nela para ir a um título.',
   'explorer.dirtyMove': '{count} arquivos abertos têm alterações não salvas. Eles continuam abertos no novo caminho.',
   'explorer.newNameHint': 'Enter para criar, Esc para cancelar',
   'explorer.copy': 'Copiar',

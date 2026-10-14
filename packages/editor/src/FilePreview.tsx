@@ -23,12 +23,14 @@ export type PreviewContent = { text: string; truncated?: boolean } | { binary: t
   | { bytes: Uint8Array } | { sqlite: SqliteContent; load(table: string, offset: number): Promise<SqliteContent> };
 
 /** Shows a file by its extension: rendered markdown, a JSON tree, highlighted code, a log, an image or plain text. */
-export function FilePreview({ name, content, resolveImage, onImageInfo }: {
+export function FilePreview({ name, content, resolveImage, onImageInfo, toc = true }: {
   name: string;
   content: PreviewContent;
   resolveImage?(src: string): string | null;
   /** An image's size and zoom, for a status bar. */
   onImageInfo?(info: ImageInfo): void;
+  /** Show the heading rail on rendered markdown; default on. */
+  toc?: boolean;
 }) {
   const kind = previewKind(name);
 
@@ -49,7 +51,7 @@ export function FilePreview({ name, content, resolveImage, onImageInfo }: {
   return (
     <div className="file-preview">
       {content.truncated && <PanelBanner tone="warn" icon="alert">{t('preview.truncated')}</PanelBanner>}
-      {kind === 'markdown' ? <MarkdownPreview text={content.text} resolveImage={resolveImage} />
+      {kind === 'markdown' ? <MarkdownPreview text={content.text} resolveImage={resolveImage} toc={toc} />
         : kind === 'table' ? <TableView name={name} text={content.text} />
           : kind === 'notebook' ? <NotebookView text={content.text} />
             : kind === 'har' ? <HarView text={content.text} />
@@ -61,7 +63,7 @@ export function FilePreview({ name, content, resolveImage, onImageInfo }: {
   );
 }
 
-function MarkdownPreview({ text, resolveImage }: { text: string; resolveImage?(src: string): string | null }) {
+function MarkdownPreview({ text, resolveImage, toc }: { text: string; resolveImage?(src: string): string | null; toc: boolean }) {
   const [source, setSource] = useState(false);
   return (
     <>
@@ -71,7 +73,7 @@ function MarkdownPreview({ text, resolveImage }: { text: string; resolveImage?(s
         </button>
       </div>
       <div className="file-preview-body">
-        {source ? <CodeView value={text} lang="markdown" wrap lineNumbers /> : <MarkdownView markdown={text} resolveImage={resolveImage} />}
+        {source ? <CodeView value={text} lang="markdown" wrap lineNumbers /> : <MarkdownView markdown={text} resolveImage={resolveImage} toc={toc} />}
       </div>
     </>
   );

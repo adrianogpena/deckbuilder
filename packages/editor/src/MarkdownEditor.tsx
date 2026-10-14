@@ -51,10 +51,12 @@ export interface MarkdownEditorProps {
   /** Wrap long lines in the editor; default on. */
   wrap?: boolean;
   onSelection?(info: SelectionInfo): void;
+  /** Show the heading rail in the Preview view; default on. */
+  toc?: boolean;
 }
 
 /** A markdown editor in one of four views: Live (rendered while editing), Source, Split (source and preview) or Preview. */
-export function MarkdownEditor({ value, onChange, mode, layout = 'center', resolveImage, autoFocus, wrap = true, onSelection }: MarkdownEditorProps) {
+export function MarkdownEditor({ value, onChange, mode, layout = 'center', resolveImage, autoFocus, wrap = true, onSelection, toc = true }: MarkdownEditorProps) {
   const deferred = useDeferredValue(value);
   const preview = useRef<HTMLDivElement>(null);
   const liveExt = useMemo(() => markdownLive(resolveImage), [resolveImage]);
@@ -72,7 +74,7 @@ export function MarkdownEditor({ value, onChange, mode, layout = 'center', resol
   );
   const rendered = (
     <div key="preview" ref={preview} className="md-editor-preview">
-      <MarkdownView markdown={deferred} resolveImage={resolveImage} />
+      <MarkdownView markdown={deferred} resolveImage={resolveImage} toc={toc && mode === 'preview'} />
     </div>
   );
 

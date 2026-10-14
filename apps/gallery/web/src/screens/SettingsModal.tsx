@@ -515,6 +515,8 @@ function ExplorerCard({ settings, onChange }: { settings: Settings; onChange: (p
         <Row id="files.previewTabs" settings={settings} onChange={onChange} />
         <Row id="files.autoReveal" settings={settings} onChange={onChange} />
         <Row id="files.breadcrumbs" settings={settings} onChange={onChange} />
+        <Row id="files.restoreTabs" settings={settings} onChange={onChange} />
+        <Row id="files.markdownToc" settings={settings} onChange={onChange} />
       </div>
     </section>
     <section className="section">
@@ -524,6 +526,9 @@ function ExplorerCard({ settings, onChange }: { settings: Settings; onChange: (p
         <Row id="files.sortOrder" settings={settings} onChange={onChange} />
         <Row id="files.fileNesting" settings={settings} onChange={onChange} />
         <Row id="git.explorerDecorations" settings={settings} onChange={onChange} />
+        <Row id="files.showHidden" settings={settings} onChange={onChange} />
+        <Row id="files.confirmDelete" settings={settings} onChange={onChange} />
+        <Row id="files.confirmDragDrop" settings={settings} onChange={onChange} />
         {files.fileNesting && <NestingField value={files.nestingPatterns} onChange={(nestingPatterns) => set({ nestingPatterns })} />}
         <ExcludeField value={files.exclude} onChange={(exclude) => set({ exclude })} />
       </div>

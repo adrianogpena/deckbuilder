@@ -186,6 +186,8 @@ export const en = {
   'settings.explorer.showHidden.hint': 'Start each tree with the entries matching #files.exclude# shown. The tree header can still toggle them.',
   'settings.explorer.restoreTabs': 'Restore tabs',
   'settings.explorer.restoreTabs.hint': 'Reopen the tabs of the last session when the Explorer opens.',
+  'settings.explorer.markdownToc': 'Table of contents',
+  'settings.explorer.markdownToc.hint': 'Show a heading rail beside rendered Markdown in Preview; click it to jump to a heading.',
   'explorer.dirtyMove': '{count} open files have unsaved changes. They stay open at the new path.',
   'explorer.newNameHint': 'Enter to create, Escape to cancel',
   'explorer.copy': 'Copy',

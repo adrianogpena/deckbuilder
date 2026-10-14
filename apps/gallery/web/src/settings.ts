@@ -47,7 +47,7 @@ const sqlFormatter: SectionPath = ['workbench', 'sqlFormatter'];
 const fileGet = <K extends keyof FileSettings>(k: K) => (s: Settings) => fileSettingsOf(s.files)[k] as Required<FileSettings>[K];
 const fileSet = (k: keyof FileSettings) => (s: Settings, v: unknown): Partial<Settings> => ({ files: { ...fileSettingsOf(s.files), [k]: v } });
 
-type FileBool = 'trimTrailingWhitespace' | 'insertFinalNewline' | 'previewTabs' | 'autoReveal' | 'breadcrumbs' | 'compactFolders' | 'fileNesting' | 'confirmDelete' | 'confirmDragDrop' | 'showHidden' | 'restoreTabs';
+type FileBool = 'trimTrailingWhitespace' | 'insertFinalNewline' | 'previewTabs' | 'autoReveal' | 'breadcrumbs' | 'compactFolders' | 'fileNesting' | 'confirmDelete' | 'confirmDragDrop' | 'showHidden' | 'restoreTabs' | 'markdownToc';
 
 const fileBool = (key: FileBool, section: SectionPath, order: number, label: string): BooleanSetting<Settings> => ({
   id: `files.${key}`,
@@ -222,6 +222,7 @@ settingsRegistry.registerSettings([
   fileBool('confirmDragDrop', explorer, 100, 'settings.explorer.confirmDragDrop'),
   fileBool('showHidden', explorer, 110, 'settings.explorer.showHidden'),
   fileBool('restoreTabs', explorer, 120, 'settings.explorer.restoreTabs'),
+  fileBool('markdownToc', explorer, 130, 'settings.explorer.markdownToc'),
 
   { id: 'workbench.explorerProjects', kind: 'custom', section: workbench, order: 10, label: 'settings.workbench.projects', description: 'settings.workbench.projects.hint', default: [] as string[] },
   {
