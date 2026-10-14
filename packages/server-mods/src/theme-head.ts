@@ -1,3 +1,4 @@
+import { resolveLayout } from '@deckbuilder/server-core/layouts';
 import { type Palette, paletteFor, TOKENS } from '@deckbuilder/server-core/palettes';
 import type { BaseSettings, SettingsStore } from './settings.ts';
 
@@ -13,6 +14,12 @@ function block(palette: Palette): string {
 export function themeHtml(html: string, settings: BaseSettings): string {
   const end = html.indexOf('</head>');
   if (end < 0) return html;
+  const layout = resolveLayout(settings.layout).id;
+  if (/<html\b[^>]*\bdata-layout=/.test(html)) {
+    html = html.replace(/(<html\b[^>]*\bdata-layout=)(["'])[^"']*\2/, `$1$2${layout}$2`);
+  } else {
+    html = html.replace(/<html\b([^>]*)>/, `<html$1 data-layout="${layout}">`);
+  }
   let css: string;
   if (settings.theme === 'system') {
     css = `${block(paletteFor(settings, 'dark'))}@media (prefers-color-scheme: light){${block(paletteFor(settings, 'light'))}}`;

@@ -7,7 +7,7 @@
   overflow: hidden;
   background: var(--bg-sunken);
 }
-.terminal-host { flex: 1; min-width: 0; min-height: 0; padding: 4px 0 0 8px; }
+.terminal-host { flex: 1; min-width: 0; min-height: 0; padding: var(--space-4) 0 0 var(--space-8); }
 .terminal-pane.preview .terminal-host { flex: none; padding: 0; transform-origin: 0 0; pointer-events: none; }
 .terminal-host .xterm { height: 100%; }
 .terminal-host .xterm-viewport { background: var(--bg-sunken) !important; }
@@ -18,14 +18,14 @@
   transform: translateX(-50%);
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-10);
   max-width: calc(100% - 32px);
-  padding: 8px 12px;
+  padding: var(--space-8) var(--space-12);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--panel);
   color: var(--text-2);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 .terminal-overlay .terminal-error { color: var(--err); }
 
@@ -36,11 +36,11 @@
   z-index: 2;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
+  gap: var(--space-6);
+  padding: var(--space-4) var(--space-8);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--panel);
 }
 .terminal-find input { width: 220px; min-width: 0; }
-.terminal-find-count { font-size: 11.5px; white-space: nowrap; }
+.terminal-find-count { font-size: var(--fs-xs-plus); white-space: nowrap; }

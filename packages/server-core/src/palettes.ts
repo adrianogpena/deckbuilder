@@ -11,6 +11,8 @@ export interface ThemeSettings {
   paletteLight?: string;
   /** Zoom of the app window, one of `ZOOM_LEVELS`; unset means 1. */
   zoom?: number;
+  /** Layout id from LAYOUTS; unset means DEFAULT_LAYOUT. */
+  layout?: string;
 }
 
 export const ZOOM_LEVELS = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2] as const;

@@ -1,6 +1,8 @@
 import { effectiveKind, familySibling, PALETTES, resolvePalette, type ThemeKind, type ThemePreference, type ThemeSettings, ZOOM_LEVELS } from '@deckbuilder/server-core/palettes';
+import { DEFAULT_LAYOUT, LAYOUTS, resolveLayout } from '@deckbuilder/server-core/layouts';
 import { isDesktop } from '../api';
-import { t } from '../i18n';
+import { t, tryT } from '../i18n';
+import { SettingItem } from './SettingFields';
 import { useSystemKind } from '../theme';
 
 interface Props {
@@ -58,5 +60,20 @@ export function ZoomField({ value, onChange }: Props) {
       )}
       <span className="muted">{t(isDesktop ? 'zoom.hint' : 'zoom.browser')}</span>
     </label>
+  );
+}
+
+/** The layout select; own setting row (modified bar when not the default layout). */
+export function LayoutField({ value, onChange }: Props) {
+  const current = resolveLayout(value.layout);
+  return (
+    <SettingItem id="theme.layout" modified={current.id !== DEFAULT_LAYOUT}>
+      <label className="field">
+        <span className="mono-label">{t('theme.layout')}</span>
+        <select value={current.id} onChange={(e) => onChange({ layout: e.target.value })}>
+          {LAYOUTS.map((l) => <option key={l.id} value={l.id}>{tryT(`layout.${l.id}`) ?? l.label}</option>)}
+        </select>
+      </label>
+    </SettingItem>
   );
 }

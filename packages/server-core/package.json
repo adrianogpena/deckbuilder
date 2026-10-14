@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./palettes": "./src/palettes.ts",
+    "./layouts": "./src/layouts.ts",
     "./protocol": "./src/protocol.ts"
   }
 }

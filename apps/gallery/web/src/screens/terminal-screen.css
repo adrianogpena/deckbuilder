@@ -1,6 +1,6 @@
 .terminal-screen { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
 .terminal-toolbar {
-  display: flex; align-items: center; gap: 4px; flex-shrink: 0; padding: 4px 8px;
+  display: flex; align-items: center; gap: var(--space-4); flex-shrink: 0; padding: var(--space-4) var(--space-8);
   border-bottom: 1px solid var(--border-soft); background: var(--bg-elev);
 }
-.terminal-toolbar .btn { gap: 6px; }
+.terminal-toolbar .btn { gap: var(--space-6); }

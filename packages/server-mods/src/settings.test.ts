@@ -66,3 +66,10 @@ test('settings that are not a plain object count as corrupt', async () => {
   }
   expect((await readdir(dir)).some((name) => name.startsWith('settings.json.corrupt-'))).toBe(true);
 });
+
+test('layout is saved when known, ignored when unknown, cleared by an empty string', async () => {
+  const { store: s } = await store();
+  expect(await s.save({ layout: 'original' })).toEqual({ theme: 'dark', layout: 'original' });
+  expect(await s.save({ layout: 'nope' })).toEqual({ theme: 'dark', layout: 'original' });
+  expect(await s.save({ layout: '' })).toEqual({ theme: 'dark' });
+});

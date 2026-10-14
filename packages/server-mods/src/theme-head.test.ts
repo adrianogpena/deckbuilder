@@ -18,7 +18,7 @@ const bg = (id: string) => paletteById(id)!.tokens['--bg'];
 
 test('dark: the palette tokens go after the stylesheet link, data-theme stays dark', () => {
   const out = themeHtml(HTML, { theme: 'dark', paletteDark: 'nord' });
-  expect(out).toContain('<html lang="en" data-theme="dark">');
+  expect(out).toContain('<html lang="en" data-theme="dark" data-layout="original">');
   const style = out.indexOf('<style id="deckbuilder-theme">:root[data-theme]{color-scheme:dark;');
   expect(style).toBeGreaterThan(out.indexOf('<link rel="stylesheet"'));
   expect(style).toBeLessThan(out.indexOf('</head>'));
@@ -28,7 +28,7 @@ test('dark: the palette tokens go after the stylesheet link, data-theme stays da
 
 test('light: data-theme becomes light and the light palette is emitted', () => {
   const out = themeHtml(HTML, { theme: 'light', paletteLight: 'solarized-light' });
-  expect(out).toContain('<html lang="en" data-theme="light">');
+  expect(out).toContain('<html lang="en" data-theme="light" data-layout="original">');
   expect(out).toContain(`:root[data-theme]{color-scheme:light;--bg:${bg('solarized-light')};`);
 });
 
@@ -57,4 +57,13 @@ test('themeHead reads the saved settings', async () => {
   const store = settingsStore<BaseSettings>({ dir, defaults: { theme: 'dark' } });
   await store.save({ theme: 'light', paletteLight: 'catppuccin-latte' });
   expect(await themeHead(store)(HTML)).toContain(`--bg:${bg('catppuccin-latte')};`);
+});
+
+test('data-layout is inserted, replaced, and an unknown id falls back to original', () => {
+  expect(themeHtml(HTML, { theme: 'dark' })).toContain('<html lang="en" data-theme="dark" data-layout="original">');
+  const withLayout = HTML.replace('<html lang="en"', '<html lang="en" data-layout="x"');
+  const out = themeHtml(withLayout, { theme: 'system', layout: 'original' });
+  expect(out).toContain('data-layout="original"');
+  expect(out).not.toContain('data-layout="x"');
+  expect(themeHtml(HTML, { theme: 'dark', layout: 'nope' })).toContain('data-layout="original"');
 });
