@@ -261,8 +261,10 @@ const theme = EditorView.theme({
   '.cm-content': { maxWidth: 'var(--md-width, 860px)', margin: 'var(--md-margin, 0 auto)', padding: '0' },
   '.cm-md-h span': { color: 'inherit' },
   '.cm-md-h': { fontWeight: '600', lineHeight: '1.25', letterSpacing: '-.01em' },
-  '.cm-md-h1': { fontSize: '24px', paddingTop: '16px', paddingBottom: '6px', borderBottom: '1px solid var(--border-soft)', marginBottom: '8px' },
-  '.cm-md-h2': { fontSize: '19px', paddingTop: '14px', paddingBottom: '4px', borderBottom: '1px solid var(--border-soft)', marginBottom: '8px' },
+  // No margins on lines: CodeMirror's height map ignores them, so clicks would land on a later line.
+  // The underline is a background 8px above the padded bottom instead of a border plus margin.
+  '.cm-md-h1': { fontSize: '24px', paddingTop: '16px', paddingBottom: '15px', background: 'linear-gradient(var(--border-soft), var(--border-soft)) left bottom 8px / 100% 1px no-repeat' },
+  '.cm-md-h2': { fontSize: '19px', paddingTop: '14px', paddingBottom: '13px', background: 'linear-gradient(var(--border-soft), var(--border-soft)) left bottom 8px / 100% 1px no-repeat' },
   '.cm-md-h3': { fontSize: '16px', paddingTop: '12px' },
   '.cm-md-h4, .cm-md-h5, .cm-md-h6': { fontSize: '14px', paddingTop: '10px', color: 'var(--text-2)' },
   '.cm-md-strong': { fontWeight: '700' },
@@ -272,7 +274,7 @@ const theme = EditorView.theme({
   '.cm-md-link, .cm-md-link span': { color: 'var(--accent)' },
   '.cm-md-quote': { borderLeft: '3px solid var(--border)', paddingLeft: '12px', color: 'var(--text-2)' },
   '.cm-md-quote span': { color: 'inherit' },
-  '.cm-md-hr': { borderBottom: '1px solid var(--border)', paddingBottom: '9px', marginBottom: '9px' },
+  '.cm-md-hr': { paddingBottom: '19px', background: 'linear-gradient(var(--border), var(--border)) left bottom 9px / 100% 1px no-repeat' },
   '.cm-md-fence': { fontFamily: 'var(--font-mono)', fontSize: '12.5px', lineHeight: '1.55', backgroundColor: 'var(--bg-sunken)', padding: '0 12px', borderLeft: '1px solid var(--border-soft)', borderRight: '1px solid var(--border-soft)' },
   '.cm-md-fence-edge': { padding: '5px 12px', lineHeight: '1.3', color: 'var(--text-3)' },
   '.cm-md-fence-label': { color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.04em' },
