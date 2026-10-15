@@ -31,6 +31,9 @@ describe('sqlParams', () => {
     expect(ps[0]).toMatchObject({ markers: 1, unguarded: 1, count: 3 });
     expect(ps[1]).toMatchObject({ markers: 1, unguarded: 0 });
     expect(ps[0]!.firstFrom).toBe(SQL.indexOf('{1}'));
+    expect(ps[0]!.uses.map((u) => u.kind)).toEqual(['condition', 'guarded', 'unguarded']);
+    expect(ps[0]!.uses.map((u) => u.from)).toEqual([...SQL.matchAll(/\{1\}/g)].map((m) => m.index!));
+    expect(ps[0]!.uses[2]!.to - ps[0]!.uses[2]!.from).toBe(3);
   });
 });
 

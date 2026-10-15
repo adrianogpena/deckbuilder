@@ -340,6 +340,8 @@ function TextFileTab({ project, projectName, path, focused, preview, markdownMod
       onClose={() => setStepsOpen(false)}
       tab={stepsTab}
       onTab={setStepsTab}
+      paramValues={sqlUi.paramValues}
+      onParamValue={sqlUi.setParamValue}
     />
   ) : undefined;
   const openSteps = () => {

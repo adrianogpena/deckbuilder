@@ -58,7 +58,7 @@ function ParamsDialog({ params, initial, onSubmit, onClose }: { params: SqlParam
         {params.map((p, i) => (
           <label key={p.n} style={{ display: 'grid', gap: 4 }}>
             <span><code>{`{${p.n}}`}</code> <span className="muted">{t(p.unguarded === 0 ? 'explorer.sql.paramOptional' : 'explorer.sql.paramRequired')}</span></span>
-            <input className="input" autoFocus={i === 0} value={values[p.n] ?? ''} onChange={(e) => setValues({ ...values, [p.n]: e.target.value })} />
+            <input className="input" autoFocus={i === 0} onFocus={i === 0 ? (e) => e.target.select() : undefined} value={values[p.n] ?? ''} onChange={(e) => setValues({ ...values, [p.n]: e.target.value })} />
           </label>
         ))}
         <button type="submit" hidden />
@@ -109,12 +109,11 @@ export function useExplorerSql({ project, name, active, focused, draft, sql, con
   };
   const run = (text: string, mode: RunMode) => {
     if (!db) return;
-    const known = remembered[fileKey];
-    if (sqlParams(text).some((p) => known?.[p.n] === undefined)) {
+    if (sqlParams(text).length > 0) {
       setDialog({ text, mode });
       return;
     }
-    execute(text, mode, known ?? {});
+    execute(text, mode, remembered[fileKey] ?? {});
   };
   const editParams = () => setDialog('edit');
   const submitParams = (values: Record<number, string>) => {
@@ -212,5 +211,8 @@ export function useExplorerSql({ project, name, active, focused, draft, sql, con
 
   const closeResults = () => setOpen(false);
 
-  return { enabled, editor, editorProps, actions, layout, closeResults };
+  const paramValues = remembered[fileKey] ?? {};
+  const setParamValue = (n: number, value: string) => setRemembered((r) => ({ ...r, [fileKey]: { ...r[fileKey], [n]: value } }));
+
+  return { enabled, editor, editorProps, actions, layout, closeResults, paramValues, setParamValue };
 }

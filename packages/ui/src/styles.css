@@ -1246,6 +1246,12 @@ html[data-status-bar="false"] .status-bar { display: none; }
 .sqlsteps-problem:hover { background: var(--hover); }
 .sqlsteps-problem-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-2); }
 .sqlsteps-optional { color: var(--accent); }
+.sqlsteps-param { display: flex; flex-direction: column; gap: 4px; }
+.sqlsteps-param-detail { display: flex; flex-direction: column; gap: 4px; padding: 0 0 6px 16px; }
+.sqlsteps-param-use { display: flex; gap: 8px; align-items: baseline; text-align: left; background: none; border: 0; padding: 2px 4px; border-radius: 4px; cursor: pointer; color: inherit; min-width: 0; }
+.sqlsteps-param-use:hover { background: var(--hover, rgba(128,128,128,.15)); }
+.sqlsteps-param-line { flex: none; min-width: 3ch; text-align: right; font-variant-numeric: tabular-nums; }
+.sqlsteps-param-use .sqlsteps-code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sqlsteps-param-name { flex: none; font-family: var(--font-mono, monospace); color: var(--accent); }
 .sqlsteps-problem-where { display: flex; gap: var(--space-8); }
 .sqlsteps-problem-step { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono, monospace); }

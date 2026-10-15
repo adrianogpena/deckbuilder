@@ -22,6 +22,9 @@ export interface SqlStepsProps {
   onWidth?(width: number): void;
   /** Fill a bottom panel (no fixed width, no resize edge) instead of a right side panel. */
   bottom?: boolean;
+  /** Values of the `{n}` parameters; the Parameters tab shows an input per parameter when `onParamValue` is given. */
+  paramValues?: Record<number, string>;
+  onParamValue?(n: number, value: string): void;
 }
 
 const MAIN = 'main';
@@ -111,24 +114,63 @@ function ProblemList({ problems, text, outline, filter, onClearFilter, onJump }:
   );
 }
 
-function ParamList({ params, onJump }: { params: readonly SqlParam[]; onJump(from: number, to?: number): void }) {
+function ParamList({ params, text, cursor, onJump, values, onValue }: { params: readonly SqlParam[]; text: string; cursor?: number; onJump(from: number, to?: number): void; values?: Record<number, string>; onValue?(n: number, value: string): void }) {
+  const [selected, setSelected] = useState<number>();
+  const starts = useMemo(() => lineStarts(text), [text]);
   if (params.length === 0) {
     return <PanelNotice icon={<Icon name="list-flat" size={20} />} title={t('sqlSteps.params.none')} message={t('sqlSteps.params.noneHint')} />;
   }
+  const lineText = (line: number) => text.slice(starts[line - 1] ?? 0, starts[line] ?? text.length).trim();
   return (
     <div className="sqlsteps-list">
-      {params.map((p) => (
-        <button key={p.n} className="sqlsteps-problem" onClick={() => onJump(p.firstFrom, p.firstFrom + String(p.n).length + 2)} title={t('sqlSteps.params.jump')}>
-          <code className="sqlsteps-param-name">{`{${p.n}}`}</code>
-          <span className="sqlsteps-problem-body">
-            <span className="sqlsteps-problem-msg">{t('sqlSteps.params.uses', { count: p.count })}</span>
-            <span className="muted sqlsteps-problem-where">
-              <span>{t('sqlSteps.params.guarded', { count: p.markers })}</span>
-              <span>{t('sqlSteps.params.unguarded', { count: p.unguarded })}</span>
-            </span>
-          </span>
-        </button>
-      ))}
+      {params.map((p) => {
+        const open = selected === p.n;
+        return (
+          <div key={p.n} className="sqlsteps-param">
+            <button
+              className="sqlsteps-problem"
+              aria-expanded={open}
+              onClick={() => {
+                setSelected(open ? undefined : p.n);
+                const first = p.uses[0];
+                const here = cursor !== undefined && p.uses.some((u) => lineOf(starts, u.from) === lineOf(starts, cursor));
+                if (!open && first && !here) onJump(first.from, first.to);
+              }}
+            >
+              <code className="sqlsteps-param-name">{`{${p.n}}`}</code>
+              <span className="sqlsteps-problem-body">
+                <span className="sqlsteps-problem-msg">{t('sqlSteps.params.uses', { count: p.count })}</span>
+                <span className="muted sqlsteps-problem-where">
+                  <span>{t('sqlSteps.params.guarded', { count: p.markers })}</span>
+                  <span>{t('sqlSteps.params.unguarded', { count: p.unguarded })}</span>
+                </span>
+              </span>
+            </button>
+            {open && (
+              <div className="sqlsteps-param-detail">
+                {onValue && (
+                  <input
+                    className="input"
+                    value={values?.[p.n] ?? ''}
+                    onChange={(e) => onValue(p.n, e.target.value)}
+                    placeholder={t('sqlSteps.params.value')}
+                    aria-label={t('sqlSteps.params.valueOf', { n: p.n })}
+                  />
+                )}
+                {p.uses.map((use, i) => {
+                  const line = lineOf(starts, use.from);
+                  return (
+                    <button key={i} className="sqlsteps-param-use" onClick={() => onJump(use.from, use.to)} title={t(`sqlSteps.params.kind.${use.kind}`)}>
+                      <span className="muted sqlsteps-param-line">{line}</span>
+                      <code className="sqlsteps-code">{lineText(line)}</code>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -160,7 +202,7 @@ function Items({ items }: { items: string[] }) {
 }
 
 /** Explains a SQL script as its CTE steps: what each reads, joins, filters and feeds. */
-export function SqlSteps({ text, onJump, cursor, onClose, tab: tabProp, onTab, width, onWidth, bottom }: SqlStepsProps) {
+export function SqlSteps({ text, onJump, cursor, onClose, tab: tabProp, onTab, width, onWidth, bottom, paramValues, onParamValue }: SqlStepsProps) {
   const deferred = useDeferredValue(text);
   const outline = useMemo(() => sqlOutline(deferred), [deferred]);
   // Shared by every tab, so a tab switch or cursor move never recomputes them.
@@ -313,7 +355,7 @@ export function SqlSteps({ text, onJump, cursor, onClose, tab: tabProp, onTab, w
       {tab === 'graph' ? (
         <SqlGraph outline={outline} problems={problems} cursor={cursor} onJump={onJump} />
       ) : tab === 'params' ? (
-        <ParamList params={params} onJump={onJump} />
+        <ParamList params={params} text={deferred} cursor={cursor} onJump={onJump} values={paramValues} onValue={onParamValue} />
       ) : tab === 'problems' ? (
         <ProblemList problems={problems} text={deferred} outline={outline} filter={problemFilter} onClearFilter={() => setProblemFilter(undefined)} onJump={onJump} />
       ) : (

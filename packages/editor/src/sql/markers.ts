@@ -16,6 +16,15 @@ export interface SqlParam {
   /** Uses outside any marker comment or fragment. */
   unguarded: number;
   firstFrom: number;
+  /** Every `{n}` occurrence in document order. */
+  uses: SqlParamUse[];
+}
+
+export interface SqlParamUse {
+  from: number;
+  to: number;
+  /** `condition` inside a marker comment, `guarded` in a marker's fragment, else `unguarded`. */
+  kind: 'condition' | 'guarded' | 'unguarded';
 }
 
 const MARKER = /\/\*%JS=([\s\S]*?)%\*\//g;
@@ -64,12 +73,17 @@ export function sqlParams(text: string): SqlParam[] {
       const n = Number(m[1]);
       let p = map.get(n);
       if (!p) {
-        p = { n, count: 0, markers: 0, unguarded: 0, firstFrom: at };
+        p = { n, count: 0, markers: 0, unguarded: 0, firstFrom: at, uses: [] };
         map.set(n, p);
       }
       p.count++;
-      if (markers.some((k) => at >= k.fragmentFrom && at < k.fragmentTo)) p.markers++;
-      else if (!markers.some((k) => at >= k.from && at < k.to)) p.unguarded++;
+      let kind: SqlParamUse['kind'] = 'unguarded';
+      if (markers.some((k) => at >= k.fragmentFrom && at < k.fragmentTo)) {
+        p.markers++;
+        kind = 'guarded';
+      } else if (markers.some((k) => at >= k.from && at < k.to)) kind = 'condition';
+      else p.unguarded++;
+      p.uses.push({ from: at, to: at + m[0].length, kind });
     }
   } catch {
     return [];

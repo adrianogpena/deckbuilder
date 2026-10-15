@@ -106,6 +106,30 @@ describe('sqlLint', () => {
     expect(sqlLint('')).toEqual([]);
   });
 
+  test('marker and parameter rules', () => {
+    const ok = "select 1 from c where 1=1\n/*%JS=result=('{1}'!='') %*/and c.a = {1}";
+    expect(sqlLint(ok)).toEqual([]);
+
+    const onlyCond = "select 1 from c\n/*%JS=result=('{1}'!='') %*/and c.a = 1";
+    expect(of(onlyCond, 'paramOnlyInCondition').map((p) => p.params)).toEqual([{ n: '1' }]);
+    expect(of(onlyCond, 'markerFragmentNoParam').length).toBe(1);
+    expect(of(onlyCond, 'paramOnlyInCondition')[0]!.severity).toBe('warning');
+
+    const gap = 'select {1}, {3} from dual';
+    expect(of(gap, 'paramGap').map((p) => p.params)).toEqual([{ n: '2' }]);
+    expect(of(gap, 'paramGap')[0]!.severity).toBe('info');
+    expect(of('select {1}, {2} from dual', 'paramGap')).toEqual([]);
+
+    expect(spans('select 1 from c where a in ({1})', 'unguardedIn')).toEqual(['{1}']);
+    expect(of('select 1 from c where a in ({1})', 'unguardedIn')[0]!.severity).toBe('warning');
+    expect(of("select 1 from c where 1=1\n/*%JS=result=('{1}'!='') %*/and a in ({1})", 'unguardedIn')).toEqual([]);
+
+    const open = 'select 1 from c\n/*%JS=result=true and a = 1';
+    expect(of(open, 'markerUnterminated').length).toBe(1);
+    expect(of('select 1 from c\n/*%JS=result=true %*/', 'markerNoFragment').length).toBe(1);
+    expect(of('select 1 from c\n/*%JS=result=true %*/and a = 1', 'markerNoFragment')).toEqual([]);
+  });
+
   test('lints a 5,000-line file quickly', () => {
     const one = `with a as (
   select x.id, y.name

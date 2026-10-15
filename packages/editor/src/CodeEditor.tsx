@@ -10,6 +10,7 @@ import { type EditorOptions, editorOptionsExtension, useEditorOptions } from './
 import { type Lang, languageFor, type SqlDialect, type SqlSchema } from './languages';
 import { formatSql, type SqlFormatOptions } from './sql/format';
 import { type SqlProblem, sqlLint as runSqlLint } from './sql/lint';
+import { sqlMarkerHighlight } from './sql/markerHighlight';
 import { statementAt } from './sql/statements';
 import { sqlProblemMessage } from './sqlProblems';
 import { themeExtension } from './theme';
@@ -74,6 +75,11 @@ export function selectionInfo(state: EditorState): SelectionInfo {
   const { main, ranges } = state.selection;
   const line = state.doc.lineAt(main.head);
   return { line: line.number, col: main.head - line.from + 1, selected: ranges.reduce((n, r) => n + r.to - r.from, 0), selections: ranges.length, pos: main.head };
+}
+
+function langExt(lang: Lang, sqlDialect?: SqlDialect, sqlSchema?: SqlSchema): Extension {
+  const base = languageFor(lang, { sqlDialect, sqlSchema });
+  return lang === 'sql' ? [base, sqlMarkerHighlight] : base;
 }
 
 /** Marks the transaction that loads an outside `value`, so it doesn't echo back through onChange. */
@@ -164,7 +170,7 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(function
           autocompletion(),
           highlightSelectionMatches(),
           keymap.of([...closeBracketsKeymap, ...defaultKeymap, ...searchKeymap, ...historyKeymap, ...completionKeymap, indentWithTab]),
-          compartments.lang.of(languageFor(lang, { sqlDialect, sqlSchema })),
+          compartments.lang.of(langExt(lang, sqlDialect, sqlSchema)),
           compartments.readOnly.of(readOnlyExt(readOnly)),
           compartments.placeholder.of(placeholder ? placeholderExt(placeholder) : []),
           themeExtension,
@@ -197,7 +203,7 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(function
   }, []);
 
   useEffect(() => {
-    view.current?.dispatch({ effects: compartments.lang.reconfigure(languageFor(lang, { sqlDialect, sqlSchema })) });
+    view.current?.dispatch({ effects: compartments.lang.reconfigure(langExt(lang, sqlDialect, sqlSchema)) });
   }, [lang, sqlDialect, sqlSchema]);
 
   useEffect(() => {

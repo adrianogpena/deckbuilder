@@ -12,6 +12,7 @@ import {
   type SqlOutline,
   type SqlStatementOutline,
 } from './outline.ts';
+import { sqlMarkers, sqlParams } from './markers.ts';
 import { tokenize, type Token } from './tokens.ts';
 
 export type SqlLintCode =
@@ -24,7 +25,13 @@ export type SqlLintCode =
   | 'unbalancedParens'
   | 'unionDistinct'
   | 'selectStar'
-  | 'cartesianJoin';
+  | 'cartesianJoin'
+  | 'paramOnlyInCondition'
+  | 'markerFragmentNoParam'
+  | 'paramGap'
+  | 'unguardedIn'
+  | 'markerUnterminated'
+  | 'markerNoFragment';
 
 export type SqlLintSeverity = 'error' | 'warning' | 'info';
 
@@ -52,6 +59,12 @@ export const SQL_LINT_SEVERITY: Readonly<Record<SqlLintCode, SqlLintSeverity>> =
   unionDistinct: 'info',
   selectStar: 'info',
   cartesianJoin: 'warning',
+  paramOnlyInCondition: 'warning',
+  markerFragmentNoParam: 'warning',
+  paramGap: 'info',
+  unguardedIn: 'warning',
+  markerUnterminated: 'warning',
+  markerNoFragment: 'warning',
 };
 
 const TRIVIA = new Set(['whitespace', 'newline', 'lineComment', 'blockComment', 'slash']);
@@ -521,11 +534,58 @@ function lintStatement(ts: Token[], st: SqlStatementOutline, index: number, out:
   }
 }
 
+function lintMarkers(text: string, ol: SqlOutline, out: SqlProblem[]): void {
+  const markers = sqlMarkers(text);
+  const params = sqlParams(text);
+  const emit = (code: SqlLintCode, from: number, to: number, p?: Record<string, string>): void => {
+    let statement = ol.statements.findIndex((s) => from >= s.from && from <= s.to);
+    if (statement < 0) statement = 0;
+    const problem: SqlProblem = { code, severity: SQL_LINT_SEVERITY[code], from, to, statement };
+    if (p) problem.params = p;
+    out.push(problem);
+  };
+
+  for (let i = text.indexOf('/*%JS='); i >= 0; i = text.indexOf('/*%JS=', i + 1)) {
+    if (!markers.some((m) => m.from === i)) emit('markerUnterminated', i, i + 6);
+  }
+  for (const m of markers) {
+    if (!text.slice(m.fragmentFrom, m.fragmentTo).trim()) emit('markerNoFragment', m.from, m.to);
+    else if (m.params.length > 0 && m.fragmentParams.length === 0) emit('markerFragmentNoParam', m.from, m.to);
+  }
+  for (const p of params) {
+    if (p.uses.some((u) => u.kind === 'condition') && p.markers === 0 && p.unguarded === 0) {
+      const u = p.uses.find((x) => x.kind === 'condition')!;
+      emit('paramOnlyInCondition', u.from, u.to, { n: String(p.n) });
+    }
+  }
+  for (let k = 1; k < params.length; k++) {
+    const prev = params[k - 1]!.n;
+    const cur = params[k]!;
+    for (let n = prev + 1; n < cur.n; n++) emit('paramGap', cur.firstFrom, cur.firstFrom + String(cur.n).length + 2, { n: String(n) });
+  }
+
+  const IN = /\bin\s*\(([^()]*)\)/gi;
+  for (const m of text.matchAll(IN)) {
+    const inner = m[1]!;
+    const base = m.index! + m[0].length - 1 - inner.length;
+    for (const u of inner.matchAll(/\{(\d+)\}/g)) {
+      const at = base + u.index!;
+      if (markers.some((k) => at >= k.from && at < k.fragmentTo)) continue;
+      emit('unguardedIn', at, at + u[0].length, { n: u[1]! });
+    }
+  }
+}
+
 /** Finds silent logic errors in SQL text (Oracle-first, standard SQL tolerated). Pure; never throws. */
 export function sqlLint(text: string, outline?: SqlOutline): SqlProblem[] {
   const out: SqlProblem[] = [];
   try {
     const ol = outline ?? sqlOutline(text);
+    try {
+      lintMarkers(text, ol, out);
+    } catch {
+      // best effort
+    }
     const all = tokenize(text);
     let k = 0;
     ol.statements.forEach((st, index) => {
