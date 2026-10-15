@@ -11,7 +11,7 @@ import { killTree, waitForUrl } from '../packages/platform/src/run.ts';
 
 const USAGE = `Usage: bun scripts/screenshot.ts --out <png> [--hash <route>] [--settings '<json>'] [--seed '<json>']
        [--eval '<js>']
-       [--size 1280x820] [--wait <ms>] [--no-build]
+       [--size 1280x820] [--wait <ms>] [--no-build] [--port <n>]
 
   --out <png>         where to write the screenshot
   --hash <route>      screen to load (#<route>), e.g. settings
@@ -22,11 +22,10 @@ const USAGE = `Usage: bun scripts/screenshot.ts --out <png> [--hash <route>] [--
   --eval <js>         run in the page after loading (awaited), 500 ms before the capture
   --size WxH          viewport size (default 1280x820)
   --wait <ms>         wait after the load event (default 1500)
-  --no-build          reuse the last UI build instead of running build:web`;
+  --no-build          reuse the last UI build instead of running build:web
+  --port <n>          dev server port (default 7799); use different ports to run several at once`;
 
 const ROOT = join(import.meta.dir, '..');
-const PORT = 7799;
-const APP_URL = `http://127.0.0.1:${PORT}`;
 
 const { values: args } = parseArgs({
   options: {
@@ -38,6 +37,7 @@ const { values: args } = parseArgs({
     size: { type: 'string', default: '1280x820' },
     wait: { type: 'string', default: '1500' },
     'no-build': { type: 'boolean', default: false },
+    port: { type: 'string', default: '7799' },
     help: { type: 'boolean', default: false },
   },
 });
@@ -45,6 +45,12 @@ if (args.help || !args.out) {
   console.log(USAGE);
   process.exit(args.help ? 0 : 1);
 }
+const PORT = Number(args.port);
+if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
+  console.error(USAGE);
+  process.exit(1);
+}
+const APP_URL = `http://127.0.0.1:${PORT}`;
 const size = /^(\d+)x(\d+)$/.exec(args.size);
 const wait = Number(args.wait);
 if (!size || !(wait >= 0)) {
