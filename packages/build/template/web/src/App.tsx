@@ -167,7 +167,7 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
   );
 
   return (
-    <LayoutProvider layout={settings.layout} icons={settings.icons}>
+    <LayoutProvider layout={settings.layout} icons={settings.icons} mainMenu={settings.mainMenu}>
     <AppFrame tools={footer} sidebar={<Sidebar name={APP.name} sections={sections} current={screen} onSelect={go} footer={footer} />}>
       <main className="main">{renderScreen(screen)}</main>
       {overlay && (

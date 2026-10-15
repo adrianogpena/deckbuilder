@@ -1,5 +1,5 @@
 import { effectiveKind, familySibling, PALETTES, resolvePalette, type ThemeKind, type ThemePreference, type ThemeSettings, ZOOM_LEVELS } from '@deckbuilder/server-core/palettes';
-import { DEFAULT_LAYOUT, ICON_SET_IDS, LAYOUTS, resolveLayout } from '@deckbuilder/server-core/layouts';
+import { DEFAULT_LAYOUT, hasLabelledMenu, ICON_SET_IDS, LAYOUTS, resolveLayout } from '@deckbuilder/server-core/layouts';
 import { isDesktop } from '../api';
 import { t, tryT } from '../i18n';
 import { SettingItem } from './SettingFields';
@@ -73,6 +73,24 @@ export function LayoutField({ value, onChange }: Props) {
         <select value={current.id} onChange={(e) => onChange({ layout: e.target.value })}>
           {LAYOUTS.map((l) => <option key={l.id} value={l.id}>{tryT(`layout.${l.id}`) ?? l.label}</option>)}
         </select>
+      </label>
+    </SettingItem>
+  );
+}
+
+/** Main menu style (labels or icons); rendered only when the active layout has a labelled menu. */
+export function MainMenuField({ value, onChange }: Props) {
+  if (!hasLabelledMenu(resolveLayout(value.layout).structure)) return null;
+  const mode = value.mainMenu ?? 'labels';
+  return (
+    <SettingItem id="theme.mainMenu" modified={mode !== 'labels'}>
+      <label className="field">
+        <span className="mono-label">{t('settings.appearance.mainMenu')}</span>
+        <select value={mode} onChange={(e) => onChange({ mainMenu: e.target.value as 'labels' | 'icons' })}>
+          <option value="labels">{t('settings.appearance.mainMenuLabels')}</option>
+          <option value="icons">{t('settings.appearance.mainMenuIcons')}</option>
+        </select>
+        <span className="muted">{t('settings.appearance.mainMenuDesc')}</span>
       </label>
     </SettingItem>
   );

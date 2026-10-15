@@ -15,6 +15,18 @@ export interface LayoutStructure {
   navFooter: 'sidebar' | 'none';
 }
 
+export type MainMenu = 'labels' | 'icons';
+
+/** True when the structure shows a labelled main menu (an expanded sidebar). */
+export function hasLabelledMenu(s: LayoutStructure): boolean {
+  return s.sidebarMode === 'expanded';
+}
+
+/** The structure with the main menu style applied: 'icons' collapses an expanded sidebar. */
+export function applyMainMenu(s: LayoutStructure, mode?: MainMenu): LayoutStructure {
+  return mode === 'icons' && s.sidebarMode === 'expanded' ? { ...s, sidebarMode: 'collapsed' } : s;
+}
+
 export interface Layout {
   id: string;
   label: string;

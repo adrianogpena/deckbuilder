@@ -48,6 +48,8 @@ export function settingsStore<T extends BaseSettings>(opts: SettingsOptions<T>):
     else if (typeof patch.layout === 'string' && layoutById(patch.layout)) next.layout = patch.layout;
     if (patch.icons === '') delete next.icons;
     else if (typeof patch.icons === 'string' && ICON_SET_IDS.includes(patch.icons)) next.icons = patch.icons;
+    if (patch.mainMenu === '') delete next.mainMenu;
+    else if (patch.mainMenu === 'labels' || patch.mainMenu === 'icons') next.mainMenu = patch.mainMenu;
     if (typeof patch.language === 'string' && /^[a-z]{2}(-[A-Z]{2})?$/.test(patch.language)) next.language = patch.language;
     opts.apply?.(patch, next);
     cache = next;
