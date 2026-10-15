@@ -828,6 +828,7 @@ html[data-status-bar="false"] .status-bar { display: none; }
 .file-preview-bar { display: flex; justify-content: flex-end; gap: var(--space-4); }
 .file-preview-body { flex: 1; min-height: 0; overflow: auto; }
 .file-preview-body > .code-view, .file-preview-body > .code-view-plain { height: 100%; }
+.file-preview-html { display: block; width: 100%; height: 100%; border: 0; background: #fff; }
 .file-preview-log { display: flex; overflow: hidden; }
 .file-preview-image { display: grid; place-items: center; padding: var(--space-12); }
 .file-preview-image img { max-width: 100%; max-height: 100%; object-fit: contain; background: var(--bg-sunken); border-radius: var(--radius-md); }

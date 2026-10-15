@@ -61,7 +61,7 @@ const AUTO_SAVE_DELAY = 1000;
 /** Text kinds whose tab opens in the preview (the toggle switches to the editor). */
 const PREVIEW_FIRST = new Set(['table', 'notebook', 'har']);
 /** Text kinds with a preview the toggle can switch to. */
-const TOGGLES = new Set(['json', 'env', 'table', 'notebook', 'har']);
+const TOGGLES = new Set(['json', 'html', 'env', 'table', 'notebook', 'har']);
 const BLOB_KINDS = new Set(['image', 'svg', 'audio', 'video']);
 const ENCODING_LABELS: Record<TextEncoding, string> = {
   utf8: 'UTF-8', utf8bom: 'UTF-8 with BOM', utf16le: 'UTF-16 LE', utf16be: 'UTF-16 BE', windows1252: 'Windows 1252',

@@ -30,7 +30,7 @@ function langOfEffective(name: string): Lang {
 }
 
 export type PreviewKind =
-  | 'markdown' | 'json' | 'code' | 'image' | 'svg' | 'pdf' | 'archive' | 'log' | 'text'
+  | 'markdown' | 'json' | 'html' | 'code' | 'image' | 'svg' | 'pdf' | 'archive' | 'log' | 'text'
   | 'audio' | 'video' | 'table' | 'font' | 'notebook' | 'har' | 'sqlite' | 'hex' | 'env';
 
 const IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico']);
@@ -64,6 +64,6 @@ export function previewKind(original: string): PreviewKind {
   if (ext === 'pdf') return 'pdf';
   if (ARCHIVE_EXTS.has(ext)) return 'archive';
   const lang = langOfEffective(name);
-  if (lang === 'markdown' || lang === 'json') return lang;
+  if (lang === 'markdown' || lang === 'json' || lang === 'html') return lang;
   return lang === 'text' ? 'text' : 'code';
 }

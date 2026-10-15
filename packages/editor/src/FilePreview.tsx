@@ -56,6 +56,7 @@ export function FilePreview({ name, content, resolveImage, onImageInfo, toc = tr
           : kind === 'notebook' ? <NotebookView text={content.text} />
             : kind === 'har' ? <HarView text={content.text} />
               : kind === 'env' ? <EnvView text={content.text} />
+        : kind === 'html' ? <div className="file-preview-body"><iframe className="file-preview-html" title={name} sandbox="" srcDoc={content.text} /></div>
         : kind === 'json' ? <JsonPreview text={content.text} />
           : kind === 'log' ? <LogPreview text={content.text} />
           : <div className="file-preview-body"><CodeView value={content.text} lang={kind === 'code' ? langOfFile(name) : 'text'} lineNumbers /></div>}
