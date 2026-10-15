@@ -13,6 +13,7 @@ import {
   type SqlStatementOutline,
 } from './outline.ts';
 import { sqlMarkers, sqlParams } from './markers.ts';
+import { isPlsqlStart } from './statements.ts';
 import { tokenize, type Token } from './tokens.ts';
 
 export type SqlLintCode =
@@ -31,7 +32,20 @@ export type SqlLintCode =
   | 'paramGap'
   | 'unguardedIn'
   | 'markerUnterminated'
-  | 'markerNoFragment';
+  | 'markerNoFragment'
+  | 'setColumnCount'
+  | 'rownumOrder'
+  | 'fetchNoOrder'
+  | 'constantCondition'
+  | 'unusedOuterJoin'
+  | 'unknownAlias'
+  | 'duplicateColumn'
+  | 'distinctGroupBy'
+  | 'distinctParens'
+  | 'emptyStatement'
+  | 'emptyStringCompare'
+  | 'rownumNever'
+  | 'mixedJoinSyntax';
 
 export type SqlLintSeverity = 'error' | 'warning' | 'info';
 
@@ -65,6 +79,19 @@ export const SQL_LINT_SEVERITY: Readonly<Record<SqlLintCode, SqlLintSeverity>> =
   unguardedIn: 'warning',
   markerUnterminated: 'warning',
   markerNoFragment: 'warning',
+  setColumnCount: 'error',
+  rownumOrder: 'warning',
+  fetchNoOrder: 'warning',
+  constantCondition: 'warning',
+  unusedOuterJoin: 'warning',
+  unknownAlias: 'error',
+  duplicateColumn: 'warning',
+  distinctGroupBy: 'info',
+  distinctParens: 'info',
+  emptyStatement: 'info',
+  emptyStringCompare: 'error',
+  rownumNever: 'error',
+  mixedJoinSyntax: 'error',
 };
 
 const TRIVIA = new Set(['whitespace', 'newline', 'lineComment', 'blockComment', 'slash']);
@@ -77,11 +104,22 @@ const NOT_COLUMN = new Set([
   'sysdate', 'systimestamp', 'current_date', 'current_timestamp', 'localtimestamp', 'rownum', 'rowid', 'level',
   'user', 'true', 'false', 'date', 'timestamp', 'interval', 'like', 'escape', 'exists', 'prior',
 ]);
+const NOT_BARE = new Set([
+  'else', 'asc', 'desc', 'nulls', 'first', 'last', 'between', 'rows', 'row', 'only', 'next', 'siblings', 'any', 'some',
+  'ties', 'percent', 'within', 'keep', 'nocycle', 'day', 'month', 'year', 'hour', 'minute', 'second', 'to',
+]);
+const NOT_ALIAS_AFTER = new Set(['prior', 'connect_by_root', 'date', 'timestamp', 'interval', 'distinct', 'unique', 'all']);
+const SET_OPS = new Set(['union', 'intersect', 'minus', 'except']);
+const CMP_ALL = new Set(['=', '<>', '!=', '^=', '~=', '>=', '<=', '>', '<']);
+const FLIP: Record<string, string> = { '<': '>', '>': '<', '<=': '>=', '>=': '<=', '=': '=' };
+const ANSI_JOIN = new Set<ItemJoin>(['inner', 'left', 'right', 'full', 'cross']);
+const PSEUDO_PREFIX = /^(sys|sys_\w*|dbms_\w*|utl_\w*|apex_\w*|owa_\w*|htp|htf|ctx_\w*|mdsys|xdb|public|new|old|standard)$|pkg|pck|pack/;
 
 type ItemJoin = SqlJoinType | 'first';
 interface Item {
   join: ItemJoin;
   key: string;
+  table: string;
   label: string;
   from: number;
   to: number;
@@ -94,10 +132,24 @@ interface Block {
   where: Array<[number, number]>;
   ons: Array<[number, number, number]>;
   unsure: boolean;
+  start: number;
+  end: number;
+  selFrom: number;
+  selTo: number;
+  distinct: number;
+  group: boolean;
+  order: boolean;
+  fetch: number[];
+  parent: Block | null;
+  named: boolean;
+  first: boolean;
 }
 interface Frame {
   own: boolean;
   block: Block | null;
+  parent: Block | null;
+  named: boolean;
+  setOp: number;
   clause: string;
   expect: boolean;
   pending: ItemJoin | null;
@@ -161,14 +213,23 @@ function operandEnd(ctx: Ctx, k: number): number {
   return ts[k]!.to;
 }
 
-function scan(ctx: Ctx, emit: Emit): { blocks: Block[]; stars: Star[] } {
+interface Scan {
+  blocks: Block[];
+  stars: Star[];
+  owner: Array<Block | null>;
+  setOps: Array<[Block, number, Block]>;
+}
+
+function scan(ctx: Ctx, emit: Emit): Scan {
   const { ts, match } = ctx;
   const n = ts.length;
   const blocks: Block[] = [];
   const stars: Star[] = [];
-  const frame = (own: boolean, block: Block | null, exists = false, derived = false): Frame => ({
-    own, block, clause: 'other', expect: false, pending: null, joinWords: [], sec: null, secStart: 0, set: false,
-    exists, derived,
+  const owner: Array<Block | null> = new Array<Block | null>(n).fill(null);
+  const setOps: Array<[Block, number, Block]> = [];
+  const frame = (own: boolean, block: Block | null, exists = false, derived = false, parent: Block | null = null, named = false): Frame => ({
+    own, block, parent, named, setOp: -1, clause: 'other', expect: false, pending: null, joinWords: [], sec: null, secStart: 0,
+    set: false, exists, derived,
   });
   const stack: Frame[] = [frame(true, null)];
 
@@ -179,9 +240,15 @@ function scan(ctx: Ctx, emit: Emit): { blocks: Block[]; stars: Star[] } {
     }
     f.sec = null;
   };
-  const addItem = (f: Frame, keyText: string, from: number, to: number, keyFrom: number, keyTo: number, complex: boolean): void => {
+  const closeSel = (f: Frame, at: number): void => {
+    if (f.block && f.clause === 'select' && f.block.selTo < 0) f.block.selTo = at;
+  };
+  const addItem = (
+    f: Frame, keyText: string, from: number, to: number, keyFrom: number, keyTo: number, complex: boolean, table = '',
+  ): void => {
     f.block!.items.push({
-      join: f.pending ?? 'first', key: keyText ? nameKey(keyText) : '', label: keyText, from, to, keyFrom, keyTo, complex,
+      join: f.pending ?? 'first', key: keyText ? nameKey(keyText) : '', table: table ? nameKey(table) : '', label: keyText,
+      from, to, keyFrom, keyTo, complex,
     });
     f.pending = null;
     f.expect = false;
@@ -191,21 +258,25 @@ function scan(ctx: Ctx, emit: Emit): { blocks: Block[]; stars: Star[] } {
   for (let i = 0; i < n; i++) {
     const t = ts[i]!;
     const f = stack[stack.length - 1]!;
+    owner[i] = f.block;
     if (t.kind === 'punctuation' && t.text === '(') {
       if (QUERY_START.has(word(ctx, i + 1))) {
-        stack.push(frame(true, null, word(ctx, i - 1) === 'exists', f.own && f.expect && f.block !== null));
+        const derived = f.own && f.expect && f.block !== null;
+        const named = derived || (word(ctx, i - 1) === 'as' && !isPunct(ctx, i - 2, ')'));
+        stack.push(frame(true, null, word(ctx, i - 1) === 'exists', derived, f.block, named));
       } else {
         if (f.own && f.expect && f.block) {
           f.block.unsure = true;
           f.expect = false;
         }
-        stack.push(frame(false, f.block));
+        stack.push(frame(false, f.block, false, false, f.parent));
       }
       continue;
     }
     if (t.kind === 'punctuation' && t.text === ')') {
       if (stack.length === 1) continue;
       closeSec(f, i);
+      closeSel(f, i);
       stack.pop();
       const p = stack[stack.length - 1]!;
       if (f.derived && p.block) {
@@ -221,6 +292,11 @@ function scan(ctx: Ctx, emit: Emit): { blocks: Block[]; stars: Star[] } {
       if (COMPARE.has(t.text) && !f.set) {
         if (word(ctx, i + 1) === 'null' && i > 0) emit('nullCompare', operandStart(ctx, i - 1), ts[i + 1]!.to);
         else if (word(ctx, i - 1) === 'null') emit('nullCompare', ts[i - 1]!.from, operandEnd(ctx, i + 1));
+        else if (ts[i + 1]?.kind === 'string' && ts[i + 1]!.text === "''" && i > 0) {
+          emit('emptyStringCompare', operandStart(ctx, i - 1), ts[i + 1]!.to);
+        } else if (ts[i - 1]?.kind === 'string' && ts[i - 1]!.text === "''") {
+          emit('emptyStringCompare', ts[i - 1]!.from, operandEnd(ctx, i + 1));
+        }
       } else if (t.text === '*' && f.own && f.block && f.clause === 'select') {
         const pv = ts[i - 1];
         if (pv && ((pv.kind === 'punctuation' && (pv.text === ',' || pv.text === '.')) || STAR_BEFORE.has(word(ctx, i - 1)))) {
@@ -248,12 +324,12 @@ function scan(ctx: Ctx, emit: Emit): { blocks: Block[]; stars: Star[] } {
           continue;
         }
         const al = parseAlias(ctx, nm.next, n);
+        const last = nm.name.replace(/@.*$/, '').split('.').pop() ?? nm.name;
         if (al.alias) {
           const at = ts[al.next - 1]!;
-          addItem(f, al.alias, nm.from, at.to, at.from, at.to, false);
+          addItem(f, al.alias, nm.from, at.to, at.from, at.to, false, last);
         } else {
-          const last = nm.name.replace(/@.*$/, '').split('.').pop() ?? nm.name;
-          addItem(f, last, nm.from, nm.to, nm.from, nm.to, false);
+          addItem(f, last, nm.from, nm.to, nm.from, nm.to, false, last);
         }
         i = al.next - 1;
         continue;
@@ -276,7 +352,15 @@ function scan(ctx: Ctx, emit: Emit): { blocks: Block[]; stars: Star[] } {
     if (lw === 'where' || lw === 'when' || lw === 'returning') f.set = false;
     if (lw === 'select') {
       closeSec(f, i);
-      const blk: Block = { items: [], where: [], ons: [], unsure: false };
+      closeSel(f, i);
+      const w1 = word(ctx, i + 1);
+      const dist = w1 === 'distinct' || w1 === 'unique';
+      const blk: Block = {
+        items: [], where: [], ons: [], unsure: false, start: i, end: i, selFrom: dist || w1 === 'all' ? i + 2 : i + 1, selTo: -1,
+        distinct: dist ? i + 1 : -1, group: false, order: false, fetch: [], parent: f.parent, named: f.named, first: !f.block,
+      };
+      if (f.block && f.setOp >= 0) setOps.push([f.block, f.setOp, blk]);
+      f.setOp = -1;
       blocks.push(blk);
       f.block = blk;
       f.clause = 'select';
@@ -287,6 +371,7 @@ function scan(ctx: Ctx, emit: Emit): { blocks: Block[]; stars: Star[] } {
     if (lw === 'from') {
       if (f.clause === 'select') {
         closeSec(f, i);
+        closeSel(f, i);
         f.clause = 'from';
         f.expect = true;
         f.pending = null;
@@ -332,12 +417,252 @@ function scan(ctx: Ctx, emit: Emit): { blocks: Block[]; stars: Star[] } {
     ) {
       closeSec(f, i);
       if (lw === 'using' && f.clause === 'from') continue;
+      closeSel(f, i);
+      if (lw === 'group') f.block.group = true;
+      else if (lw === 'order') f.block.order = true;
+      else if (SET_OPS.has(lw)) f.setOp = i;
+      else if ((lw === 'fetch' && (nx === 'first' || nx === 'next')) || (lw === 'offset' && /^rows?$/.test(word(ctx, i + 2)))) {
+        f.block.fetch.push(i);
+      }
       f.clause = 'other';
       f.expect = false;
     }
   }
-  for (const f of stack) closeSec(f, n);
-  return { blocks, stars };
+  for (const f of stack) {
+    closeSec(f, n);
+    closeSel(f, n);
+  }
+  owner.forEach((b, k) => {
+    if (b) b.end = k;
+  });
+  return { blocks, stars, owner, setOps };
+}
+
+function splitTop(ctx: Ctx, a: number, b: number): Array<[number, number]> {
+  const out: Array<[number, number]> = [];
+  let start = a;
+  let d = 0;
+  for (let k = a; k < b; k++) {
+    if (isPunct(ctx, k, '(')) d++;
+    else if (isPunct(ctx, k, ')')) d--;
+    else if (d === 0 && isPunct(ctx, k, ',')) {
+      out.push([start, k]);
+      start = k + 1;
+    }
+  }
+  if (b > start) out.push([start, b]);
+  return out;
+}
+
+const selectItems = (ctx: Ctx, blk: Block): Array<[number, number]> =>
+  blk.selTo > blk.selFrom ? splitTop(ctx, blk.selFrom, blk.selTo) : [];
+
+const isStarItem = (ctx: Ctx, b: number): boolean => ctx.ts[b - 1]?.kind === 'operator' && ctx.ts[b - 1]!.text === '*';
+
+function chainEnd(ctx: Ctx, k: number): number {
+  if (!isNameLike(ctx.ts[k])) return -1;
+  while (isPunct(ctx, k + 1, '.') && isNameLike(ctx.ts[k + 2])) k += 2;
+  return k;
+}
+
+/** Output name token of a select item, and whether it is an alias. */
+function outName(ctx: Ctx, a: number, b: number): { k: number; alias: boolean } | null {
+  const { ts } = ctx;
+  if (b - a >= 3 && word(ctx, b - 2) === 'as' && isNameLike(ts[b - 1])) return { k: b - 1, alias: true };
+  if (b - a >= 2 && isNameTok(ctx, b - 1, b) && !NOT_BARE.has(word(ctx, b - 1))) {
+    const p = ts[b - 2]!;
+    const ok =
+      (p.kind === 'punctuation' && p.text === ')') || p.kind === 'number' || p.kind === 'string' ||
+      (isNameLike(p) && !NOT_ALIAS_AFTER.has(word(ctx, b - 2)) && (p.kind === 'quotedIdentifier' || isNameTok(ctx, b - 2, b)));
+    if (ok) return { k: b - 1, alias: true };
+  }
+  return chainEnd(ctx, a) === b - 1 ? { k: b - 1, alias: false } : null;
+}
+
+function strip(ctx: Ctx, a: number, b: number): [number, number] {
+  while (b - a > 1 && isPunct(ctx, a, '(') && ctx.match[a] === b - 1) {
+    a++;
+    b--;
+  }
+  return [a, b];
+}
+
+function findPlus(ctx: Ctx, a: number, b: number): number {
+  for (let k = a; k < b; k++) {
+    if (!isPunct(ctx, k, '(')) continue;
+    if (QUERY_START.has(word(ctx, k + 1))) k = closeAt(ctx, k);
+    else if (ctx.ts[k + 1]?.text === '+' && isPunct(ctx, k + 2, ')')) return k;
+  }
+  return -1;
+}
+
+interface Shared {
+  inSpan: (pos: number) => boolean;
+  aliasIdx: Set<number>;
+}
+
+function checkMore(ctx: Ctx, blk: Block, sh: Shared, emit: Emit): void {
+  const { ts } = ctx;
+  const n = ts.length;
+  const { items } = blk;
+  const sel = selectItems(ctx, blk);
+  if (blk.distinct >= 0) {
+    if (blk.group) emit('distinctGroupBy', ts[blk.distinct]!.from, ts[blk.distinct]!.to);
+    if (isPunct(ctx, blk.distinct + 1, '(') && sel.length > 1) {
+      emit('distinctParens', ts[blk.distinct]!.from, ts[closeAt(ctx, blk.distinct + 1)]!.to);
+    }
+  }
+  if (!blk.order) for (const k of blk.fetch) emit('fetchNoOrder', ts[k]!.from, ts[k]!.to);
+  if (blk.named && blk.first) {
+    const seen = new Set<string>();
+    for (const [a, b] of sel) {
+      const o = outName(ctx, a, b);
+      if (!o) continue;
+      const key = nameKey(ts[o.k]!.text);
+      if (seen.has(key)) emit('duplicateColumn', ts[o.k]!.from, ts[o.k]!.to, { name: ts[o.k]!.text });
+      seen.add(key);
+    }
+  }
+
+  const where = blk.where.flatMap(([a, b]) => conjuncts(ctx, a, b));
+  for (const [a0, b0] of where) {
+    const [a, b] = strip(ctx, a0, b0);
+    const span = (): [number, number] => [ts[a]!.from, ts[b - 1]!.to];
+    if (b - a < 3) continue;
+    const head = word(ctx, a) === 'rownum';
+    const tail = word(ctx, b - 1) === 'rownum';
+    if (!head && !tail) continue;
+    const opTok = ts[head ? a + 1 : b - 2]!;
+    if (opTok.kind !== 'operator' || !FLIP[opTok.text]) continue;
+    const op = head ? opTok.text : FLIP[opTok.text]!;
+    if (blk.order && (op === '<' || op === '<=' || op === '=')) emit('rownumOrder', ...span());
+    if (b - a !== 3) continue;
+    const num = ts[head ? a + 2 : a]!;
+    if (num.kind !== 'number') continue;
+    const v = Number(num.text);
+    if ((op === '>' && v >= 1) || ((op === '>=' || op === '=') && v > 1)) emit('rownumNever', ...span());
+  }
+
+  const conds = [...where, ...blk.ons.flatMap(([, a, b]) => conjuncts(ctx, a, b))];
+  for (const [a0, b0] of conds) {
+    const [a, b] = strip(ctx, a0, b0);
+    if (!isNameTok(ctx, a, b) || NOT_COLUMN.has(word(ctx, a))) continue;
+    const j = chainEnd(ctx, a);
+    const op = ts[j + 1];
+    if (!op || op.kind !== 'operator' || !CMP_ALL.has(op.text)) continue;
+    if (!isNameTok(ctx, j + 2, b) || chainEnd(ctx, j + 2) !== b - 1 || b - 1 - (j + 2) !== j - a) continue;
+    let same = true;
+    for (let k = 0; k <= j - a && same; k++) same = nameKey(ts[a + k]!.text) === nameKey(ts[j + 2 + k]!.text);
+    if (same) emit('constantCondition', ts[a]!.from, ts[b - 1]!.to);
+  }
+
+  if (items.some((it) => ANSI_JOIN.has(it.join))) {
+    const ranges = [...blk.where, ...blk.ons.map(([, a, b]): [number, number] => [a, b])].sort((x, y) => x[0] - y[0]);
+    for (const [a, b] of ranges) {
+      const k = findPlus(ctx, a, b);
+      if (k >= 0) {
+        emit('mixedJoinSyntax', ts[k]!.from, ts[k + 2]!.to);
+        break;
+      }
+    }
+  }
+
+  const outer = items.filter((it) => it.key && (it.join === 'left' || it.join === 'right' || it.join === 'full'));
+  if (blk.unsure || outer.length === 0 || sel.some(([a, b]) => b - a === 1 && isStarItem(ctx, b))) return;
+  for (let k = blk.start + 1; k <= blk.end; k++) {
+    const w = word(ctx, k);
+    if (
+      (ts[k]!.kind === 'quotedIdentifier' || (isNameTok(ctx, k, n) && !NOT_COLUMN.has(w) && !NOT_BARE.has(w))) &&
+      !isPunct(ctx, k - 1, '.') && !isPunct(ctx, k + 1, '.') && !isPunct(ctx, k + 1, '(') && word(ctx, k - 1) !== 'as' &&
+      !sh.aliasIdx.has(k) && !sh.inSpan(ts[k]!.from)
+    ) {
+      return;
+    }
+  }
+  for (const it of outer) {
+    const k = items.indexOf(it);
+    const own = blk.ons.filter((o) => o[0] === k);
+    let used = false;
+    for (let x = 0; x < n && !used; x++) {
+      const t = ts[x]!;
+      used =
+        isNameLike(t) && isPunct(ctx, x + 1, '.') && nameKey(t.text) === it.key && !(t.from >= it.from && t.to <= it.to) &&
+        !own.some(([, a, b]) => x >= a && x < b);
+    }
+    if (!used) emit('unusedOuterJoin', it.from, it.to, { alias: it.label });
+  }
+}
+
+function checkAliases(ctx: Ctx, st: SqlStatementOutline, sc: Scan, sh: Shared, emit: Emit): void {
+  if (st.kind !== 'select' && st.kind !== 'insert' && st.kind !== 'create') return;
+  const { ts } = ctx;
+  const ctes = new Set(st.steps.filter((s) => s.kind === 'cte').map((s) => nameKey(s.name)));
+  ts.forEach((t, k) => {
+    if (isNameLike(t) && word(ctx, k + 1) === 'as' && isPunct(ctx, k + 2, '(')) ctes.add(nameKey(t.text));
+  });
+  const scopes = new Map<Block, Set<string> | null>();
+  const scope = (b: Block): Set<string> | null => {
+    if (scopes.has(b)) return scopes.get(b)!;
+    let s: Set<string> | null = null;
+    if (!b.unsure) {
+      const up = b.parent ? scope(b.parent) : new Set<string>();
+      if (up) {
+        s = new Set(up);
+        for (const it of b.items) {
+          if (it.key) s.add(it.key);
+          if (it.table) s.add(it.table);
+        }
+      }
+    }
+    scopes.set(b, s);
+    return s;
+  };
+  ts.forEach((t, k) => {
+    const b = sc.owner[k];
+    if (!b || !isNameLike(t) || !isPunct(ctx, k + 1, '.') || !isNameLike(ts[k + 2])) return;
+    if (isPunct(ctx, k - 1, '.') || isPunct(ctx, k - 1, '@') || isPunct(ctx, k + 3, '.') || isPunct(ctx, k + 3, '(') || isPunct(ctx, k + 3, '@')) return;
+    const col = word(ctx, k + 2);
+    const q = nameKey(t.text);
+    if (col === 'nextval' || col === 'currval' || PSEUDO_PREFIX.test(q) || ctes.has(q) || sh.inSpan(t.from)) return;
+    const s = scope(b);
+    if (s && !s.has(q)) emit('unknownAlias', t.from, t.to, { alias: t.text });
+  });
+}
+
+function checkSetOps(ctx: Ctx, sc: Scan, emit: Emit): void {
+  for (const [x, op, y] of sc.setOps) {
+    const a = selectItems(ctx, x);
+    const b = selectItems(ctx, y);
+    if (a.length === 0 || b.length === 0 || [...a, ...b].some(([, q]) => isStarItem(ctx, q))) continue;
+    if (a.length !== b.length) {
+      emit('setColumnCount', ctx.ts[op]!.from, ctx.ts[op]!.to, { left: String(a.length), right: String(b.length) });
+    }
+  }
+}
+
+function lintTerminators(all: Token[], ol: SqlOutline, out: SqlProblem[]): void {
+  let started = false;
+  let plsql = false;
+  let term = false;
+  const hit = (t: Token): void => {
+    if (!started && term) {
+      const statement = Math.max(0, ol.statements.filter((s) => s.to <= t.from).length - 1);
+      out.push({ code: 'emptyStatement', severity: SQL_LINT_SEVERITY.emptyStatement, from: t.from, to: t.to, statement });
+    }
+    started = false;
+    plsql = false;
+    term = true;
+  };
+  for (let i = 0; i < all.length; i++) {
+    const t = all[i]!;
+    if (t.kind === 'slash') hit(t);
+    else if (TRIVIA.has(t.kind)) continue;
+    else if (t.kind === 'punctuation' && t.text === ';' && !plsql) hit(t);
+    else if (!started) {
+      started = true;
+      plsql = isPlsqlStart(all, i);
+    }
+  }
 }
 
 function conjuncts(ctx: Ctx, a: number, b: number): Array<[number, number]> {
@@ -515,8 +840,21 @@ function lintStatement(ts: Token[], st: SqlStatementOutline, index: number, out:
   if (st.kind === 'plsql' || ts.length === 0) return;
 
   const ctx: Ctx = { ts, match: matchParens(ts), ctes: new Set() };
-  const { blocks, stars } = scan(ctx, emit);
+  const sc = scan(ctx, emit);
+  const { blocks, stars } = sc;
   for (const blk of blocks) checkBlock(ctx, blk, emit);
+  const spans = blocks.flatMap((b) => b.items.map((it) => [it.from, it.to] as const));
+  const aliasIdx = new Set<number>();
+  for (const blk of blocks) {
+    for (const [a, b] of selectItems(ctx, blk)) {
+      const o = outName(ctx, a, b);
+      if (o?.alias) aliasIdx.add(o.k);
+    }
+  }
+  const sh: Shared = { inSpan: (pos) => spans.some(([a, b]) => pos >= a && pos < b), aliasIdx };
+  for (const blk of blocks) checkMore(ctx, blk, sh, emit);
+  checkSetOps(ctx, sc, emit);
+  checkAliases(ctx, st, sc, sh, emit);
 
   const feedsWrite = st.kind === 'insert' || st.kind === 'create';
   for (const s of stars) {
@@ -587,6 +925,11 @@ export function sqlLint(text: string, outline?: SqlOutline): SqlProblem[] {
       // best effort
     }
     const all = tokenize(text);
+    try {
+      lintTerminators(all, ol, out);
+    } catch {
+      // best effort
+    }
     let k = 0;
     ol.statements.forEach((st, index) => {
       while (k < all.length && all[k]!.from < st.from) k++;

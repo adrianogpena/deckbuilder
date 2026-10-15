@@ -99,6 +99,117 @@ describe('sqlLint', () => {
     expect(of('select 1 from a join b on a.id = b.id', 'cartesianJoin')).toEqual([]);
   });
 
+  test('setColumnCount', () => {
+    const p = of('select a, b from x union all select c from y', 'setColumnCount');
+    expect(p.map((x) => x.params)).toEqual([{ left: '2', right: '1' }]);
+    expect(p[0]!.severity).toBe('error');
+    expect(spans('select a, nvl(b, 1) from x minus select a from y', 'setColumnCount')).toEqual(['minus']);
+    expect(of('select a, decode(b, 1, 2) from x union select c, d from y', 'setColumnCount')).toEqual([]);
+    expect(of('select * from x union select c from y', 'setColumnCount')).toEqual([]);
+    expect(of('select x.* from x union select c from y', 'setColumnCount')).toEqual([]);
+    expect(of('select a from x where b in (select 1, 2 from z) union select c from y', 'setColumnCount')).toEqual([]);
+  });
+
+  test('rownumOrder and fetchNoOrder', () => {
+    expect(spans('select a from t where rownum <= 10 order by a', 'rownumOrder')).toEqual(['rownum <= 10']);
+    expect(spans('select a from t where x = 1 and 5 > rownum order by a', 'rownumOrder')).toEqual(['5 > rownum']);
+    expect(of('select * from (select a from t order by a) where rownum <= 10', 'rownumOrder')).toEqual([]);
+    expect(of('select a from t where rownum <= 10', 'rownumOrder')).toEqual([]);
+    expect(spans('select a from t fetch first 5 rows only', 'fetchNoOrder')).toEqual(['fetch']);
+    expect(spans('select a from t offset 5 rows', 'fetchNoOrder')).toEqual(['offset']);
+    expect(of('select a from t order by a fetch first 5 rows only', 'fetchNoOrder')).toEqual([]);
+    expect(of('select offset from t', 'fetchNoOrder')).toEqual([]);
+  });
+
+  test('constantCondition', () => {
+    expect(spans('select 1 from a where a.id = A.ID and a.x = 1', 'constantCondition')).toEqual(['a.id = A.ID']);
+    expect(spans('select 1 from a join b on b.id = b.id', 'constantCondition')).toEqual(['b.id = b.id']);
+    expect(spans('select 1 from a where (x >= x)', 'constantCondition')).toEqual(['x >= x']);
+    expect(of('select 1 from a where 1 = 1 and 1 = 0', 'constantCondition')).toEqual([]);
+    expect(of('select 1 from a, b where a.id = b.id', 'constantCondition')).toEqual([]);
+    expect(of('select 1 from a, b where a.id = a.id(+)', 'constantCondition')).toEqual([]);
+  });
+
+  test('unusedOuterJoin', () => {
+    const p = of('select a.id from a left join b on b.aid = a.id where a.x = 1', 'unusedOuterJoin');
+    expect(p.map((x) => x.params)).toEqual([{ alias: 'b' }]);
+    expect(spans('select a.id from a left join bt b on b.aid = a.id', 'unusedOuterJoin')).toEqual(['bt b']);
+    expect(of('select a.id, b.v from a left join b on b.aid = a.id', 'unusedOuterJoin')).toEqual([]);
+    expect(of('select a.id from a left join b on b.aid = a.id where exists (select 1 from c where c.id = b.id)', 'unusedOuterJoin')).toEqual([]);
+    expect(of('select a.id, v from a left join b on b.aid = a.id', 'unusedOuterJoin')).toEqual([]);
+    expect(of('select * from a left join b on b.aid = a.id', 'unusedOuterJoin')).toEqual([]);
+    expect(of('select a.id from a join b on b.aid = a.id', 'unusedOuterJoin')).toEqual([]);
+    expect(of('select a.id x from a left join b on b.aid = a.id', 'unusedOuterJoin')).toHaveLength(1);
+  });
+
+  test('unknownAlias', () => {
+    const p = of('select a.id, z.name from a join b on b.aid = a.id', 'unknownAlias');
+    expect(p.map((x) => x.params)).toEqual([{ alias: 'z' }]);
+    expect(p[0]!.severity).toBe('error');
+    expect(spans('select 1 from emp e where e.id = 1 and d.id = 2', 'unknownAlias')).toEqual(['d']);
+    expect(of('select 1 from a where exists (select 1 from b where b.id = a.id)', 'unknownAlias')).toEqual([]);
+    expect(of('select emp.id from hr.emp', 'unknownAlias')).toEqual([]);
+    expect(of('select s.nextval, pkg.fn(1), dbms_random.value, x.y.z from dual', 'unknownAlias')).toEqual([]);
+    expect(of('with c as (select 1 v from dual) select c.v from c', 'unknownAlias')).toEqual([]);
+    expect(of('select v.x from (select 1 x from dual) v', 'unknownAlias')).toEqual([]);
+    expect(of('update t set a = (select max(b.v) from b where b.id = t.id)', 'unknownAlias')).toEqual([]);
+    expect(spans('select q.x from t, (select 1 from dual)', 'unknownAlias')).toEqual(['q']);
+    expect(of('select q.x from (t)', 'unknownAlias')).toEqual([]);
+    expect(of('select t.a from t, table(f(1))', 'unknownAlias')).toEqual([]);
+  });
+
+  test('duplicateColumn', () => {
+    const sql = 'with c as (select a.id, b.id from a, b) select 1 from c';
+    expect(spans(sql, 'duplicateColumn')).toEqual(['id']);
+    expect(of(sql, 'duplicateColumn')[0]!.params).toEqual({ name: 'id' });
+    expect(spans('select 1 from (select x n, y as N from t) v', 'duplicateColumn')).toEqual(['N']);
+    expect(of('select a.id, b.id from a, b', 'duplicateColumn')).toEqual([]);
+    expect(of('with c as (select a.id, b.id bid from a, b) select 1 from c', 'duplicateColumn')).toEqual([]);
+    expect(of('with c (x, y) as (select a.id, b.id from a, b) select 1 from c', 'duplicateColumn')).toEqual([]);
+    expect(of('with c as (select 1 a, 2 b from dual union all select 1 a, 2 a from dual) select 1 from c', 'duplicateColumn')).toEqual([]);
+    expect(of('select 1 from (select x + 1, x + 1 from t) v', 'duplicateColumn')).toEqual([]);
+  });
+
+  test('distinctGroupBy and distinctParens', () => {
+    expect(spans('select distinct a from t group by a', 'distinctGroupBy')).toEqual(['distinct']);
+    expect(of('select distinct a from t', 'distinctGroupBy')).toEqual([]);
+    expect(of('select count(distinct a) from t group by b', 'distinctGroupBy')).toEqual([]);
+    expect(spans('select distinct (a), b from t', 'distinctParens')).toEqual(['distinct (a)']);
+    expect(of('select distinct (a) from t', 'distinctParens')).toEqual([]);
+    expect(of('select distinct a, (b) from t', 'distinctParens')).toEqual([]);
+  });
+
+  test('emptyStatement', () => {
+    const sql = 'select 1 from dual;;\nselect 2 from dual;\n/\n';
+    expect(of(sql, 'emptyStatement').map((p) => p.from)).toEqual([sql.indexOf(';;') + 1, sql.indexOf('/')]);
+    expect(of(sql, 'emptyStatement')[0]!.severity).toBe('info');
+    expect(of('begin null; end;\n/\nselect 1 from dual;', 'emptyStatement')).toEqual([]);
+    expect(of('select 1 from dual;\nselect 2 from dual;', 'emptyStatement')).toEqual([]);
+  });
+
+  test('emptyStringCompare', () => {
+    expect(spans("select 1 from t where a = '' and '' <> t.b", 'emptyStringCompare')).toEqual(["a = ''", "'' <> t.b"]);
+    expect(spans("update t set a = '' where b != ''", 'emptyStringCompare')).toEqual(["b != ''"]);
+    expect(of("select 1 from t where a = ' '", 'emptyStringCompare')).toEqual([]);
+    expect(of("select 1 from t where a is null", 'emptyStringCompare')).toEqual([]);
+  });
+
+  test('rownumNever', () => {
+    expect(spans('select 1 from t where rownum > 1', 'rownumNever')).toEqual(['rownum > 1']);
+    expect(spans('select 1 from t where rownum = 2', 'rownumNever')).toEqual(['rownum = 2']);
+    expect(spans('select 1 from t where 3 <= rownum', 'rownumNever')).toEqual(['3 <= rownum']);
+    expect(of('select 1 from t where rownum = 1', 'rownumNever')).toEqual([]);
+    expect(of('select 1 from t where rownum >= 1', 'rownumNever')).toEqual([]);
+    expect(of('select 1 from t where rownum > 0', 'rownumNever')).toEqual([]);
+    expect(of('select 1 from t where rownum < 5', 'rownumNever')).toEqual([]);
+  });
+
+  test('mixedJoinSyntax', () => {
+    expect(spans('select 1 from a join b on b.id = a.id, c where c.id(+) = a.id', 'mixedJoinSyntax')).toEqual(['(+)']);
+    expect(of('select 1 from a join b on b.id = a.id where b.x = 1', 'mixedJoinSyntax')).toEqual([]);
+    expect(of('select 1 from a, b where b.id(+) = a.id', 'mixedJoinSyntax')).toEqual([]);
+  });
+
   test('statement index and no throw on junk', () => {
     const p = sqlLint('select 1 from dual;\nselect a from t where a = null');
     expect(p.map((x) => x.statement)).toEqual([1]);
