@@ -1,6 +1,6 @@
-import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  applyEol, CodeEditor, detectEol, type Eol, FilePreview, HEX_LIMIT, type ImageInfo, langLabel, langOfFile, MARKDOWN_LAYOUTS, MARKDOWN_MODES, MarkdownEditor,
+  applyEol, parseXmlQueries, applyCombinedXml, combineXmlStatements, mergeXmlStatements, CodeEditor, detectEol, type Eol, FilePreview, HEX_LIMIT, type ImageInfo, langLabel, langOfFile, MARKDOWN_LAYOUTS, MARKDOWN_MODES, MarkdownEditor,
   type MarkdownMode, normalizeEol, prepareForSave, previewKind, type PreviewContent, type SelectionInfo, useMarkdownLayout,
   SqlSteps, type SqlStepsTab, useEditorOptions,
 } from '@deckbuilder/editor';
@@ -328,13 +328,23 @@ function TextFileTab({ project, projectName, path, focused, preview, markdownMod
     if (ok) void save({ overwrite: true });
   };
 
-  const sqlUi = useExplorerSql({ project, name, active, focused, draft, sql, confirm, onRunStart: () => setStepsOpen(false) });
+  const xml = useMemo(() => (/\.xml$/i.test(name) ? parseXmlQueries(draft) : null), [name, draft]);
+  const [xmlRaw, setXmlRaw] = useState(false);
+  const xmlStmts = xml && !xmlRaw ? xml.statements : undefined;
+  const [merged, setMerged] = useState(false);
+  const mergeOn = merged && !!xmlStmts && xmlStmts.length > 1;
+  const editorValue = useMemo(() => (xmlStmts ? (mergeOn ? mergeXmlStatements(xmlStmts) : combineXmlStatements(xmlStmts)) : draft), [xmlStmts, draft, mergeOn]);
+  const onEditorChange = (v: string) => {
+    if (mergeOn) return;
+    setDraft(xmlStmts ? applyCombinedXml(draft, xmlStmts, v) : v);
+  };
+  const sqlUi = useExplorerSql({ project, name, asSql: !!xmlStmts, active, focused, draft: editorValue, sql, confirm, onRunStart: () => setStepsOpen(false) });
   const curlUi = useExplorerCurl({ name, active, draft, sql });
   const chordOf = useChordOf();
   const stepsPanel = (): ReactNode => isSql && stepsOpen ? (
     <SqlSteps
       bottom
-      text={draft}
+      text={editorValue}
       cursor={selection?.pos}
       onJump={(from, to) => sqlUi.editor.current?.reveal(from, to)}
       onClose={() => setStepsOpen(false)}
@@ -355,7 +365,13 @@ function TextFileTab({ project, projectName, path, focused, preview, markdownMod
     sql.go('workbench');
   };
   const actions: TabAction[] = [...sqlUi.actions, ...curlUi.actions];
-  const isSql = langOfFile(name) === 'sql';
+  const isSql = langOfFile(name) === 'sql' || !!xmlStmts;
+  if (xml && active) {
+    actions.push({ id: 'xml.sql', group: 'primary', icon: 'database', label: t('explorer.sql.xmlView'), checked: !xmlRaw, run: () => setXmlRaw(!xmlRaw) });
+  }
+  if (active && xmlStmts && xmlStmts.length > 1) {
+    actions.push({ id: 'sql.merge', group: 'primary', icon: 'copy', label: t('explorer.sql.merge'), checked: mergeOn, run: () => setMerged(!mergeOn) });
+  }
   if (isSql && editable) {
     actions.push({ id: 'sql.steps', group: 'primary', icon: 'list-flat', label: t('explorer.sql.steps'), checked: stepsOpen, run: () => (stepsOpen ? setStepsOpen(false) : openSteps()) });
   }
@@ -439,7 +455,7 @@ function TextFileTab({ project, projectName, path, focused, preview, markdownMod
           : active
           ? curlUi.enabled
             ? curlUi.layout(<CodeEditor ref={curlUi.editor} value={draft} lang={langOfFile(name)} onChange={setDraft} height="100%" wrap={wrapLines} autoFocus={!preview} onSelection={setSelection} {...curlUi.editorProps} />)
-            : sqlUi.layout(<CodeEditor ref={sqlUi.editor} value={draft} lang={langOfFile(name)} onChange={setDraft} height="100%" wrap={wrapLines} autoFocus={!preview} onSelection={setSelection} sqlLint={isSql} {...sqlUi.editorProps} />, stepsPanel())
+            : sqlUi.layout(<CodeEditor ref={sqlUi.editor} value={editorValue} lang={xmlStmts ? 'sql' : langOfFile(name)} onChange={onEditorChange} readOnly={mergeOn} height="100%" wrap={wrapLines} autoFocus={!preview} onSelection={setSelection} sqlLint={isSql} {...sqlUi.editorProps} />, stepsPanel())
           : <FilePreview name={name} content={content} onImageInfo={setImage} toc={files.markdownToc} resolveImage={resolveImage} />)}
       </div>
       {status.length > 0 && <StatusBar items={status} />}

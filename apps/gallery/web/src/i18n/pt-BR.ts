@@ -325,6 +325,8 @@ export const ptBR: Messages<typeof en> = {
   'explorer.sql.openWorkbench': 'Abrir no Workbench',
   'explorer.sql.close': 'Fechar resultados',
   'explorer.sql.steps': 'Etapas',
+  'explorer.sql.xmlView': 'Visão SQL',
+  'explorer.sql.merge': 'Mesclar SQL',
   'explorer.sql.params': 'Parâmetros',
   'explorer.sql.paramsHint': 'Os valores entram como digitados no SQL; coloque aspas no texto.',
   'explorer.sql.paramOptional': 'opcional: só usado em linha condicional',

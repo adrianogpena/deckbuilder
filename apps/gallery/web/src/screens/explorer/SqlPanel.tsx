@@ -29,6 +29,8 @@ export interface ExplorerSqlProps {
 interface Options {
   project: string;
   name: string;
+  /** Treat the file as SQL whatever its extension (SQL view of a query XML). */
+  asSql?: boolean;
   /** The text editor shows (not a preview). */
   active: boolean;
   focused: boolean;
@@ -72,9 +74,9 @@ function ParamsDialog({ params, initial, onSubmit, onClose }: { params: SqlParam
  * below the editor. Only `.sql` files of projects in `workbench.explorerProjects`; the rest get nothing.
  * The connection's DB session is the Workbench's.
  */
-export function useExplorerSql({ project, name, active, focused, draft, sql, confirm, onRunStart }: Options) {
+export function useExplorerSql({ project, name, asSql, active, focused, draft, sql, confirm, onRunStart }: Options) {
   const settings = useMemo(() => withWorkbenchDefaults(sql?.workbench), [sql?.workbench]);
-  const enabled = !!sql && active && langOfFile(name) === 'sql' && settings.explorerProjects.includes(project);
+  const enabled = !!sql && active && (asSql || langOfFile(name) === 'sql') && settings.explorerProjects.includes(project);
   const connections = useAsync(() => (enabled ? api.dbConnections() : Promise.resolve<DbConnection[]>([])), [enabled]);
   const connection = connections.data?.find((c) => c.id === settings.explorerConnections[project]);
   const db = enabled ? connection?.id : undefined;
@@ -123,7 +125,7 @@ export function useExplorerSql({ project, name, active, focused, draft, sql, con
     if (pending && pending !== 'edit') execute(pending.text, pending.mode, values);
   };
   const format = () => editor.current?.format(settings.format);
-  useCommand(commandById('explorer.sql.format'), format, { enabled: focused && enabled });
+  useCommand(commandById('explorer.sql.format'), format, { enabled: focused && enabled && !asSql });
 
   const changeConnection = (value: string) => {
     if (!sql) return;
@@ -149,7 +151,7 @@ export function useExplorerSql({ project, name, active, focused, draft, sql, con
     { id: 'sql.run', group: 'primary', icon: 'play', label: t('workbench.run'), hint: noConnection ?? 'Ctrl+Enter', disabled: !db || runner.busy, run: () => run(editor.current?.getRunText() ?? draft, 'statement') },
     { id: 'sql.runAll', group: 'primary', icon: 'forward', label: t('workbench.runAll'), hint: noConnection ?? 'Ctrl+Shift+Enter', disabled: !db || runner.busy, run: () => run(draft, 'all') },
     ...(sqlParams(draft).length > 0 ? [{ id: 'sql.params', group: 'primary' as const, icon: 'code' as const, label: t('explorer.sql.params'), run: editParams }] : []),
-    { id: 'sql.format', group: 'primary', icon: 'braces', label: t('workbench.format'), hint: chordOf('explorer.sql.format'), run: format },
+    ...(asSql ? [] : [{ id: 'sql.format', group: 'primary' as const, icon: 'braces' as const, label: t('workbench.format'), hint: chordOf('explorer.sql.format'), run: format }]),
   ] : [];
 
   const editorProps: Pick<CodeEditorProps, 'onRun' | 'sqlDialect' | 'sqlSchema'> = enabled ? { onRun: run, sqlDialect: 'plsql', sqlSchema } : {};

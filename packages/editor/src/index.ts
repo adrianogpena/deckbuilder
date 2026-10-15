@@ -51,3 +51,4 @@ export {
 export * from './theme';
 export * from './editorOptions';
 export * from './VarSuggest';
+export * from './sql/xmlQuery';

@@ -323,6 +323,8 @@ export const en = {
   'explorer.sql.openWorkbench': 'Open in Workbench',
   'explorer.sql.close': 'Close results',
   'explorer.sql.steps': 'Steps',
+  'explorer.sql.xmlView': 'SQL view',
+  'explorer.sql.merge': 'Merge SQL',
   'explorer.sql.params': 'Parameters',
   'explorer.sql.paramsHint': 'Values are inserted as typed into the SQL; quote text yourself.',
   'explorer.sql.paramOptional': 'optional: only used in a conditional line',
