@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import type { Dirent } from 'node:fs';
 import { chmod, cp, lstat, mkdir, readdir, readlink, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import { basename, dirname, extname, isAbsolute, join, resolve, sep } from 'node:path';
@@ -114,7 +115,7 @@ export interface SearchHit {
 
 export interface RootedFs {
   routes: Routes;
-  /** Routes outside the session token check (`unauthenticated` of the server): `GET /api/fs/download` takes the one-time ticket from `POST /api/fs/download-ticket`. */
+  /** Routes outside the session token check (`unauthenticated` of the server): `GET /api/fs/download` takes the one-time ticket from `POST /api/fs/download-ticket`; `GET /api/fs/view/<id>/*` serves the files around an HTML page for `POST /api/fs/view-ticket`. */
   openRoutes: Routes;
   resolve(rootId: string, rel: string, opts?: { mustExist?: boolean }): Promise<Resolved>;
 }
@@ -256,6 +257,17 @@ const MAX_CONTENT_BYTES = 1_000_000;
 const MAX_HITS_PER_FILE = 20;
 const SKIP_DIRS = new Set(['node_modules', '.git']);
 
+const VIEW_TTL_MS = 60 * 60_000;
+const VIEW_TYPES: Record<string, string> = {
+  '.html': 'text/html; charset=utf-8',
+  '.htm': 'text/html; charset=utf-8',
+  '.xhtml': 'text/html; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+};
+
 const TEXT = 'text/plain; charset=utf-8';
 const RAW_TYPES: Record<string, string> = {
   '.png': 'image/png',
@@ -364,6 +376,9 @@ export function rootedFs(opts: RootedFsOptions): RootedFs {
   const saveAs = opts.saveAs ?? saveFileAs;
   // The OS fetches a dragged-out file with no headers, so the URL carries a ticket instead of the session token.
   const downloads = socketTickets<{ file: string; name: string }>({ ttlMs: 60_000 });
+
+  /** Open HTML pages by id: the page's project and folder, valid for an hour. */
+  const views = new Map<string, { root: string; dir: string[]; expires: number }>();
 
   async function locate(rootId: unknown, rel: unknown, mustExist = false) {
     const root = typeof rootId === 'string' ? (await opts.roots()).find((r) => r.id === rootId) : undefined;
@@ -736,6 +751,18 @@ export function rootedFs(opts: RootedFsOptions): RootedFs {
       return { ticket: downloads.issue({ file: loc.real, name }), name };
     },
 
+    'POST /api/fs/view-ticket': async ({ json }) => {
+      const b = await body(json);
+      const loc = await locate(b.root, b.path, true);
+      if (!loc.segments.length || (await stat(loc.real)).isDirectory()) throw notAFile();
+      const now = Date.now();
+      for (const [id, v] of views) if (v.expires < now) views.delete(id);
+      while (views.size >= 50) views.delete(views.keys().next().value!);
+      const id = randomBytes(16).toString('hex');
+      views.set(id, { root: b.root as string, dir: loc.segments.slice(0, -1), expires: now + VIEW_TTL_MS });
+      return { url: `/api/fs/view/${id}/${encodeURIComponent(loc.segments.at(-1)!)}` };
+    },
+
     'POST /api/fs/write': async ({ json }) => {
       const b = await body(json);
       const loc = await locate(b.root, b.path);
@@ -893,6 +920,29 @@ export function rootedFs(opts: RootedFsOptions): RootedFs {
     };
 
   const openRoutes: Routes = {
+    'GET /api/fs/view/*': guard(async ({ url }) => {
+      const [, id, ...rest] = url.pathname.slice('/api/fs/view/'.length - 1).split('/');
+      const view = views.get(id ?? '');
+      if (!view || view.expires < Date.now()) throw forbidden('invalidTicket', 'This preview expired. Open it again.');
+      let segments: string[];
+      try {
+        segments = rest.map(decodeURIComponent);
+      } catch {
+        throw invalid('badPath', 'Invalid path.');
+      }
+      const loc = await locate(view.root, [...view.dir, ...segments].join('/'), true);
+      if ((await stat(loc.real)).isDirectory()) throw notAFile();
+      const ext = extname(loc.real).toLowerCase();
+      return new Response(Bun.file(loc.real), {
+        headers: {
+          'Content-Type': VIEW_TYPES[ext] ?? RAW_TYPES[ext] ?? 'application/octet-stream',
+          'X-Content-Type-Options': 'nosniff',
+          // Scripts run, but in an opaque origin that can reach nothing of the app; nothing leaves the machine.
+          'Content-Security-Policy': "default-src 'self' data: blob:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; sandbox allow-scripts",
+          'Cache-Control': 'no-store',
+        },
+      });
+    }),
     'GET /api/fs/download': guard(async ({ query }) => {
       const found = downloads.redeem(query.get('t') ?? '');
       if (!found) throw forbidden('invalidTicket', 'Invalid or expired download link.');

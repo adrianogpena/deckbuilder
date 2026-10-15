@@ -5,6 +5,7 @@ import { CodeView } from './CodeView';
 import { EnvView } from './EnvView';
 import { HarView } from './HarView';
 import { HexView } from './HexView';
+import { HtmlPreview } from './HtmlPreview';
 import { langOfFile, previewKind } from './languages';
 import { MarkdownView } from './MarkdownView';
 import { MediaView } from './MediaView';
@@ -23,10 +24,12 @@ export type PreviewContent = { text: string; truncated?: boolean } | { binary: t
   | { bytes: Uint8Array } | { sqlite: SqliteContent; load(table: string, offset: number): Promise<SqliteContent> };
 
 /** Shows a file by its extension: rendered markdown, a JSON tree, highlighted code, a log, an image or plain text. */
-export function FilePreview({ name, content, resolveImage, onImageInfo, toc = true }: {
+export function FilePreview({ name, content, resolveImage, viewHtml, onImageInfo, toc = true }: {
   name: string;
   content: PreviewContent;
   resolveImage?(src: string): string | null;
+  /** URL the sandboxed frame of an HTML page loads, so its scripts and relative files work; without it the text is shown with scripts blocked. */
+  viewHtml?(): Promise<string>;
   /** An image's size and zoom, for a status bar. */
   onImageInfo?(info: ImageInfo): void;
   /** Show the heading rail on rendered markdown; default on. */
@@ -56,7 +59,7 @@ export function FilePreview({ name, content, resolveImage, onImageInfo, toc = tr
           : kind === 'notebook' ? <NotebookView text={content.text} />
             : kind === 'har' ? <HarView text={content.text} />
               : kind === 'env' ? <EnvView text={content.text} />
-        : kind === 'html' ? <div className="file-preview-body"><iframe className="file-preview-html" title={name} sandbox="" srcDoc={content.text} /></div>
+        : kind === 'html' ? <div className="file-preview-body"><HtmlPreview name={name} text={content.text} viewHtml={viewHtml} /></div>
         : kind === 'json' ? <JsonPreview text={content.text} />
           : kind === 'log' ? <LogPreview text={content.text} />
           : <div className="file-preview-body"><CodeView value={content.text} lang={kind === 'code' ? langOfFile(name) : 'text'} lineNumbers /></div>}

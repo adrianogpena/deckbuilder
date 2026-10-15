@@ -470,6 +470,7 @@ export const api = {
   fsUpload: (root: string, path: string, body: Blob, onExisting?: 'replace' | 'keepBoth') =>
     requestUpload<FsEntry>('/api/fs/upload', { root, path, onExisting }, body),
   /** A one-time link for `GET /api/fs/download`, for dragging a file out to the OS. */
+  fsViewTicket: (root: string, path: string) => request<{ url: string }>('POST', '/api/fs/view-ticket', {}, { root, path }),
   fsDownloadTicket: (root: string, path: string) => request<{ ticket: string; name: string }>('POST', '/api/fs/download-ticket', {}, { root, path }),
   fsDelete: (root: string, paths: string[]) => request<{ ok: true }>('POST', '/api/fs/delete', {}, { root, paths }),
   fsReveal: (root: string, path: string) => request<{ ok: true }>('POST', '/api/fs/reveal', {}, { root, path }),

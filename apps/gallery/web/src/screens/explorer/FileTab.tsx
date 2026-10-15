@@ -90,6 +90,7 @@ function TextFileTab({ project, projectName, path, focused, preview, markdownMod
   const name = relPath.basename(path);
   const markdown = previewKind(name) === 'markdown';
   const resolveImage = useLocalImages(project, path);
+  const viewHtml = useCallback(async () => (await api.fsViewTicket(project, path)).url, [project, path]);
   const [state, setState] = useState<State>({ status: 'loading' });
   const [previewing, setPreviewing] = useState(false);
   const [draft, setDraft] = useState('');
@@ -456,7 +457,7 @@ function TextFileTab({ project, projectName, path, focused, preview, markdownMod
           ? curlUi.enabled
             ? curlUi.layout(<CodeEditor ref={curlUi.editor} value={draft} lang={langOfFile(name)} onChange={setDraft} height="100%" wrap={wrapLines} autoFocus={!preview} onSelection={setSelection} {...curlUi.editorProps} />)
             : sqlUi.layout(<CodeEditor ref={sqlUi.editor} value={editorValue} lang={xmlStmts ? 'sql' : langOfFile(name)} onChange={onEditorChange} readOnly={mergeOn} height="100%" wrap={wrapLines} autoFocus={!preview} onSelection={setSelection} sqlLint={isSql} {...sqlUi.editorProps} />, stepsPanel())
-          : <FilePreview name={name} content={content} onImageInfo={setImage} toc={files.markdownToc} resolveImage={resolveImage} />)}
+          : <FilePreview name={name} content={content} onImageInfo={setImage} toc={files.markdownToc} resolveImage={resolveImage} viewHtml={viewHtml} />)}
       </div>
       {status.length > 0 && <StatusBar items={status} />}
     </div>

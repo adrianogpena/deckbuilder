@@ -38,7 +38,7 @@ export type SocketRoutes = Record<string, SocketRoute<any>>;
 
 export interface ServerOptions {
   routes: Routes;
-  /** Routes outside the session token check; each handler checks its own credentials. */
+  /** Routes outside the session token check; each handler checks its own credentials. A key ending in `/*` matches every path below it. */
   unauthenticated?: Routes;
   token: string;
   /** Launch codes that `POST /api/session` trades for the token. */
@@ -68,6 +68,8 @@ const MAX_BODY = 1_000_000;
 export function startServer(opts: ServerOptions) {
   const tokenBuf = Buffer.from(opts.token);
   const serveStatic = staticHandler(opts.web, opts.web.transformIndex);
+  const openPrefixes = Object.keys(opts.unauthenticated ?? {}).filter((k) => k.endsWith('/*')).map((k) => k.slice(0, -1));
+  const openFor = (key: string) => opts.unauthenticated?.[key] ?? opts.unauthenticated?.[`${openPrefixes.find((p) => key.startsWith(p))}*`];
 
   function authorized(req: Request): boolean {
     const given = Buffer.from(req.headers.get(TOKEN_HEADER) ?? '');
@@ -122,7 +124,7 @@ export function startServer(opts: ServerOptions) {
       const key = `${req.method} ${url.pathname}`;
       if (key === `POST ${SESSION_PATH}`) return session(req);
 
-      const open = opts.unauthenticated?.[key];
+      const open = openFor(key);
       if (!open && !authorized(req)) {
         return json(401, { kind: 'forbidden', code: 'invalidToken', message: 'Invalid session. Open the address printed in the terminal.' });
       }
