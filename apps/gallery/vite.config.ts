@@ -10,8 +10,17 @@ export default defineConfig({
   build: {
     outDir: '../dist/web',
     emptyOutDir: true,
+    // Chunk budget: 700 kB. Never raise it; split with manualChunks instead.
     // The editor chunks (CodeMirror and its language parsers) load lazily with the first file tab; the editor/terminal barrels must not be imported statically at startup (use the ./options and ./session subpaths).
-    chunkSizeWarningLimit: 900,
+    chunkSizeWarningLimit: 700,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('@codemirror/legacy-modes')) return 'cm-legacy-modes';
+          if (id.includes('@codemirror/') || id.includes('@lezer/') || id.includes('/codemirror/')) return 'codemirror';
+        },
+      },
+    },
   },
   server: {
     proxy: {
