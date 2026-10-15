@@ -1,5 +1,5 @@
 import { effectiveKind, familySibling, PALETTES, resolvePalette, type ThemeKind, type ThemePreference, type ThemeSettings, ZOOM_LEVELS } from '@deckbuilder/server-core/palettes';
-import { DEFAULT_LAYOUT, LAYOUTS, resolveLayout } from '@deckbuilder/server-core/layouts';
+import { DEFAULT_LAYOUT, ICON_SET_IDS, LAYOUTS, resolveLayout } from '@deckbuilder/server-core/layouts';
 import { isDesktop } from '../api';
 import { t, tryT } from '../i18n';
 import { SettingItem } from './SettingFields';
@@ -72,6 +72,23 @@ export function LayoutField({ value, onChange }: Props) {
         <span className="mono-label">{t('theme.layout')}</span>
         <select value={current.id} onChange={(e) => onChange({ layout: e.target.value })}>
           {LAYOUTS.map((l) => <option key={l.id} value={l.id}>{tryT(`layout.${l.id}`) ?? l.label}</option>)}
+        </select>
+      </label>
+    </SettingItem>
+  );
+}
+
+/** The icon-set select; '' follows the layout's own set. */
+export function IconsField({ value, onChange }: Props) {
+  const own = resolveLayout(value.layout).icons;
+  const name = (id: string) => tryT(`iconSet.${id}`) ?? id;
+  return (
+    <SettingItem id="theme.icons" modified={!!value.icons}>
+      <label className="field">
+        <span className="mono-label">{t('theme.icons')}</span>
+        <select value={value.icons ?? ''} onChange={(e) => onChange({ icons: e.target.value })}>
+          <option value="">{t('icons.layoutDefault', { name: name(own) })}</option>
+          {ICON_SET_IDS.map((id) => <option key={id} value={id}>{name(id)}</option>)}
         </select>
       </label>
     </SettingItem>

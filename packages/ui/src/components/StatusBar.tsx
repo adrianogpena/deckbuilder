@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useLayout } from '../layout';
 
 export interface StatusItem {
   id: string;
@@ -11,7 +12,18 @@ export interface StatusItem {
 }
 
 /** A thin row of status items; clickable ones are buttons. Items keep their order within each side. */
-export function StatusBar({ items }: { items: StatusItem[] }) {
+export function StatusBar(props: StatusBarProps) {
+  const { StatusBar: Shell } = useLayout().shell;
+  return <Shell {...props} />;
+}
+
+export interface StatusBarProps {
+  items: StatusItem[];
+}
+
+export function BaseStatusBar({ items }: StatusBarProps) {
+  const { structure } = useLayout();
+  if (!structure.statusBar) return null;
   const render = (item: StatusItem) =>
     item.onClick ? (
       <button key={item.id} type="button" className="status-item status-action" title={item.title} onClick={item.onClick}>

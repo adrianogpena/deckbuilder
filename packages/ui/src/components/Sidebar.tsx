@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useLayout } from '../layout';
 import { BrandMark, Icon, type IconName } from './ui';
 
 export interface NavItem<Id extends string = string> {
@@ -15,7 +16,7 @@ export interface NavSection<Id extends string = string> {
   items: NavItem<Id>[];
 }
 
-interface Props<Id extends string> {
+export interface SidebarProps<Id extends string> {
   /** App name next to the brand mark. */
   name: string;
   sections: NavSection<Id>[];
@@ -31,13 +32,23 @@ interface Props<Id extends string> {
   toggleLabel?: string;
 }
 
-export function Sidebar<Id extends string>({ name, sections, current, onSelect, footer, collapsed = false, onCollapsedChange, toggleLabel }: Props<Id>) {
+export function Sidebar<Id extends string>(props: SidebarProps<Id>) {
+  const { Sidebar: Shell } = useLayout().shell;
+  return <Shell {...props} />;
+}
+
+export function BaseSidebar<Id extends string>({ name, sections, current, onSelect, footer: footerProp, collapsed: collapsedProp, onCollapsedChange, toggleLabel }: SidebarProps<Id>) {
+  const { structure } = useLayout();
+  const collapsed = collapsedProp ?? structure.sidebarMode === 'collapsed';
+  const footer = structure.navFooter === 'none' ? undefined : footerProp;
   return (
     <nav className={`sidebar${collapsed ? ' collapsed' : ''}`}>
-      <div className="brand">
-        <BrandMark />
-        {!collapsed && <span>{name}</span>}
-      </div>
+      {structure.sidebarBrand && (
+        <div className="brand">
+          <BrandMark />
+          {!collapsed && <span>{name}</span>}
+        </div>
+      )}
       <div className="side-scroll">
         {sections.map((section) => (
           <div key={section.title} className="side-section">

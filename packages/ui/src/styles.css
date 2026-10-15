@@ -257,6 +257,11 @@ kbd {
 /* Zen mode: no nav and no status bars, only the tabs and the editor. */
 .app.zen { grid-template-columns: 1fr; }
 .app.zen > .sidebar, .app.zen .status-bar { display: none; }
+.app.sidebar-right { grid-template-columns: 1fr var(--sidebar-w); }
+.app.sidebar-right.nav-collapsed { grid-template-columns: 1fr var(--sidebar-w-collapsed); }
+.app.sidebar-right.zen { grid-template-columns: 1fr; }
+.app.sidebar-right > .sidebar { order: 2; border-right: 0; border-left: 1px solid var(--border-soft); }
+.app.sidebar-right .side-item.active::before { left: auto; right: 0; }
 .sidebar.collapsed .brand { justify-content: center; padding: var(--space-10) 0 var(--space-8); }
 .sidebar.collapsed .side-scroll { padding: var(--space-4) 0 var(--space-24); }
 .sidebar.collapsed .side-section { margin-top: var(--space-8); }
@@ -415,6 +420,12 @@ kbd {
 .tab-chip.active::before {
   content: ""; position: absolute; left: 10px; right: 10px; top: -1px; height: 2px; border-radius: 0 0 var(--radius-2xs) var(--radius-2xs); background: var(--accent);
 }
+.pane.tabbar-bottom.focused .tabbar { box-shadow: inset 0 -2px 0 var(--accent); }
+.pane.tabbar-bottom .tabbar { border-bottom: 0; border-top: 1px solid var(--border-soft); }
+.pane.tabbar-bottom .tabs-strip { margin-bottom: 0; margin-top: -1px; }
+.pane.tabbar-bottom .tab-chip { margin-top: 0; margin-bottom: var(--space-6); border-radius: 0 0 var(--radius-xl) var(--radius-xl); border-bottom: 1px solid transparent; border-top: 0; }
+.pane.tabbar-bottom .tab-chip.active { border-color: var(--border-soft); border-top: 0; }
+.pane.tabbar-bottom .tab-chip.active::before { top: auto; bottom: -1px; border-radius: var(--radius-2xs) var(--radius-2xs) 0 0; }
 .tab-chip.drop-before { box-shadow: inset 2px 0 0 var(--accent); }
 .tab-chip.preview .tab-title { font-style: italic; }
 .tab-dir { margin-left: var(--space-8); font-weight: 400; font-size: var(--fs-xs-plus); color: var(--text-3); }

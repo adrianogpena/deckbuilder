@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PALETTES } from '@deckbuilder/server-core/palettes';
-import { type CommandDef, CommandPalette, detectLanguage, effectiveKeys, ErrorBanner, GLOBAL, Icon, type IconName, isDesktop, KeybindingProvider, paletteCommand, type PaletteItem, setLanguage, Sidebar, Spinner, useAsync, useCommand, useCommandPalette, useHashRoute, useHeartbeat, useKeybindings, useTheme, useZoom } from '@deckbuilder/ui';
+import { AppFrame, type CommandDef, CommandPalette, detectLanguage, effectiveKeys, ErrorBanner, GLOBAL, Icon, type IconName, isDesktop, KeybindingProvider, LayoutProvider, paletteCommand, type PaletteItem, setLanguage, Sidebar, Spinner, useAsync, useCommand, useCommandPalette, useHashRoute, useHeartbeat, useKeybindings, useTheme, useZoom } from '@deckbuilder/ui';
 import { APP } from '../../app';
 import { api, type Settings } from './api';
 import { type MessageKey, t } from './i18n';
@@ -148,34 +148,30 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
 
   const sections = NAV.map((s) => ({ title: t(s.title), items: s.items.map((i) => ({ ...i, label: t(i.label), hint: chordOf(navCommandId(i.id)) })) }));
 
+  const footer = (
+        <>
+          <button className="btn btn-ghost btn-sm btn-icon" onClick={() => save({ theme: nextTheme })} title={t(`nav.theme.${nextTheme}`)} aria-label={t(`nav.theme.${nextTheme}`)}>
+            <Icon name={kind === 'dark' ? 'sun' : 'moon'} />
+          </button>
+          <button className={`btn btn-ghost btn-sm${overlay ? ' active' : ''} btn-icon`} onClick={() => setOverlay('settings')} title={t('nav.settings')} aria-label={t('nav.settings')}>
+            <Icon name="settings" />
+          </button>
+          <button className="btn btn-ghost btn-sm btn-icon" onClick={() => palette.setOpen(true)} title={t('nav.palette')} aria-label={t('nav.palette')}>
+            <Icon name="search" />
+          </button>
+        </>
+  );
+
   return (
-    <div className="app nav-collapsed">
-      <Sidebar
-        name={APP.name}
-        sections={sections}
-        current={screen}
-        onSelect={go}
-        collapsed
-        footer={
-          <>
-            <button className="btn btn-ghost btn-sm btn-icon" onClick={() => save({ theme: nextTheme })} title={t(`nav.theme.${nextTheme}`)} aria-label={t(`nav.theme.${nextTheme}`)}>
-              <Icon name={kind === 'dark' ? 'sun' : 'moon'} />
-            </button>
-            <button className={`btn btn-ghost btn-sm${overlay ? ' active' : ''} btn-icon`} onClick={() => setOverlay('settings')} title={t('nav.settings')} aria-label={t('nav.settings')}>
-              <Icon name="settings" />
-            </button>
-            <button className="btn btn-ghost btn-sm btn-icon" onClick={() => palette.setOpen(true)} title={t('nav.palette')} aria-label={t('nav.palette')}>
-              <Icon name="search" />
-            </button>
-          </>
-        }
-      />
+    <LayoutProvider layout={settings.layout} icons={settings.icons}>
+    <AppFrame tools={footer} sidebar={<Sidebar name={APP.name} sections={sections} current={screen} onSelect={go} footer={footer} />}>
       <main className="main">{renderScreen(screen)}</main>
       {overlay && (
         <SettingsModal key={overlay} settings={settings} onChange={save} onQuit={() => setStopped(true)} onClose={() => setOverlay(null)} initialSection={overlay === 'keys' ? 'keyboard.shortcuts' : undefined} />
       )}
       {palette.open && <CommandPalette items={items} onClose={() => palette.setOpen(false)} />}
-    </div>
+    </AppFrame>
+    </LayoutProvider>
   );
 }
 

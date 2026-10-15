@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PALETTES } from '@deckbuilder/server-core/palettes';
-import { CommandPalette, detectLanguage, effectiveKeys, ErrorBanner, Icon, isDesktop, KeybindingProvider, type PaletteItem, PanelLoading, setFileAssociations, setLanguage, Sidebar, Spinner, ToastProvider, useAsync, useCommand, useCommandPalette, useHashRoute, useHeartbeat, useKeybindings, useTheme, useZoom } from '@deckbuilder/ui';
+import { CommandPalette, detectLanguage, effectiveKeys, ErrorBanner, AppFrame, Icon, isDesktop, KeybindingProvider, LayoutProvider, type PaletteItem, PanelLoading, setFileAssociations, setLanguage, Sidebar, Spinner, ToastProvider, useAsync, useCommand, useCommandPalette, useHashRoute, useHeartbeat, useKeybindings, useTheme, useZoom } from '@deckbuilder/ui';
 import { EditorOptionsContext } from '@deckbuilder/editor/options';
 import { TerminalOptionsContext } from '@deckbuilder/terminal/options';
 import { APP } from '../../app';
@@ -165,37 +165,37 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
   const settingsChord = chordOf(SETTINGS_COMMAND);
   const settingsTitle = settingsChord ? `${t('nav.settings')} (${settingsChord})` : t('nav.settings');
 
+  const footer = (
+    <>
+      <button className={`btn btn-ghost btn-sm${overlay ? ' active' : ''} btn-icon`} onClick={() => setOverlay('settings')} title={settingsTitle} aria-label={settingsTitle}>
+        <Icon name="settings" />
+      </button>
+      <button className="btn btn-ghost btn-sm btn-icon" onClick={() => palette.setOpen(true)} title={t('nav.palette')} aria-label={t('nav.palette')}>
+        <Icon name="search" />
+      </button>
+    </>
+  );
+
   return (
+    <LayoutProvider layout={settings.layout} icons={settings.icons}>
     <ToastProvider defaultTimeout={general.toastDuration}>
       <EditorOptionsContext.Provider value={editorOptions}>
       <TerminalOptionsContext.Provider value={terminalOptions}>
-      <div className={`app nav-collapsed${zen ? ' zen' : ''}`}>
-        <Sidebar
-          name={APP.name}
-          sections={sections}
-          current={screen}
-          onSelect={go}
-          collapsed
-          footer={
-            <>
-              <button className={`btn btn-ghost btn-sm${overlay ? ' active' : ''} btn-icon`} onClick={() => setOverlay('settings')} title={settingsTitle} aria-label={settingsTitle}>
-                <Icon name="settings" />
-              </button>
-              <button className="btn btn-ghost btn-sm btn-icon" onClick={() => palette.setOpen(true)} title={t('nav.palette')} aria-label={t('nav.palette')}>
-                <Icon name="search" />
-              </button>
-            </>
-          }
-        />
+      <AppFrame
+        zen={zen}
+        tools={footer}
+        sidebar={<Sidebar name={APP.name} sections={sections} current={screen} onSelect={go} footer={footer} />}
+      >
         <main className="main">{renderScreen(screen, settings, save, go)}</main>
         {overlay && (
           <SettingsModal key={overlay} settings={settings} onChange={save} onQuit={() => setStopped(true)} onClose={() => setOverlay(null)} initialSection={overlay === 'keys' ? 'keyboard.shortcuts' : undefined} />
         )}
         {palette.open && <CommandPalette items={items} initialQuery={palette.initialQuery} onClose={() => palette.setOpen(false)} />}
-      </div>
+      </AppFrame>
       </TerminalOptionsContext.Provider>
       </EditorOptionsContext.Provider>
     </ToastProvider>
+    </LayoutProvider>
   );
 }
 

@@ -87,3 +87,15 @@ export const PATHS = {
 } as const satisfies Record<string, string>;
 
 export type IconName = keyof typeof PATHS;
+
+export interface IconSet { id: string; mode: 'stroke' | 'fill'; viewBox: string; paths: Record<IconName, string> }
+
+// A fill set (Material/Atom style, see .claude/skills/frontend-design/references/icons.md
+// "Adopting a non-original pack") declares mode 'fill' and its own viewBox, and must cover every IconName.
+export const ICON_SETS: Record<string, IconSet> = {
+  original: { id: 'original', mode: 'stroke', viewBox: '0 0 24 24', paths: PATHS },
+};
+
+export function iconSetById(id: string): IconSet {
+  return ICON_SETS[id] ?? ICON_SETS.original!;
+}

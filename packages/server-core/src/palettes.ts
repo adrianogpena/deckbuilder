@@ -13,6 +13,8 @@ export interface ThemeSettings {
   zoom?: number;
   /** Layout id from LAYOUTS; unset means DEFAULT_LAYOUT. */
   layout?: string;
+  /** Icon-set id from ICON_SET_IDS; unset means the layout's own set. */
+  icons?: string;
 }
 
 export const ZOOM_LEVELS = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2] as const;

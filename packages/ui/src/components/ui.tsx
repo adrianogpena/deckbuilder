@@ -2,7 +2,8 @@ import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type 
 import { errorMessage, type ApiError } from '../api';
 import { copyText } from '../hooks';
 import { t } from '../i18n';
-import { type IconName, PATHS } from '../icons';
+import { type IconName, iconSetById } from '../icons';
+import { useLayout } from '../layout';
 
 export type Tone = 'ok' | 'warn' | 'err' | 'info' | 'muted';
 
@@ -384,10 +385,18 @@ export function BrandMark({ size = 30 }: { size?: number }) {
 }
 
 export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
+  const set = iconSetById(useLayout().iconSet);
+  if (set.mode === 'fill') {
+    return (
+      <svg className="icon" width={size} height={size} viewBox={set.viewBox} fill="currentColor" aria-hidden="true">
+        <path d={set.paths[name]} />
+      </svg>
+    );
+  }
   return (
-    <svg className="icon" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    <svg className="icon" width={size} height={size} viewBox={set.viewBox} fill="none" stroke="currentColor"
       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d={PATHS[name]} />
+      <path d={set.paths[name]} />
     </svg>
   );
 }

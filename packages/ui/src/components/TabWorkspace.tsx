@@ -29,6 +29,7 @@ import {
   type SplitNode,
   type Tab,
 } from '../tabs';
+import { useLayout } from '../layout';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { useCommand, useKeybindings } from './Keybindings';
 import { SplitView } from './SplitView';
@@ -75,7 +76,7 @@ const actionKey = (list: TabAction[]) =>
 
 const withHint = (label: string, hint?: string) => (hint ? `${label} (${hint})` : label);
 
-interface TabBarProps<R> {
+export interface TabBarProps<R> {
   pane: Pane<R>;
   focused: boolean;
   canSplit: boolean;
@@ -101,7 +102,7 @@ interface TabBarProps<R> {
   onDropTab: (tabId: string, index: number) => void;
 }
 
-function TabBar<R>(props: TabBarProps<R>) {
+export function BaseTabBar<R>(props: TabBarProps<R>) {
   const { pane, focused, titleOf } = props;
   const [dropAt, setDropAt] = useState<number | null>(null);
   const [menu, setMenu] = useState<{ at: { x: number; y: number }; items: Array<ContextMenuItem | 'sep'> } | null>(null);
@@ -429,6 +430,9 @@ export function TabWorkspace<R>({ layout, onChange, renderTab, titleOf, menuOf, 
   const commands = tabCommands(scope);
   const command = (name: string) => commands.find((d) => d.id === `${scope}.${name}`)!;
   const keys = useKeybindings();
+  const { shell, structure } = useLayout();
+  const TabBar = shell.TabBar;
+  const barBottom = structure.tabBarPosition === 'bottom';
   const maximizeHint = keys ? effectiveKeys(keys.defs, keys.keymap).get(`${scope}.pane.maximize`)?.[0] : undefined;
   useTabKeys(layout, onChange, newRoute, scope, closeById);
   useCommand(command('tab.saveAll'), saveAll);
@@ -437,12 +441,7 @@ export function TabWorkspace<R>({ layout, onChange, renderTab, titleOf, menuOf, 
   const renderPane = (pane: Pane<R>) => {
     const paneFocused = pane.id === layout.focused;
     const activeId = pane.tabs.some((x) => x.id === pane.active) ? pane.active : pane.tabs[0]?.id;
-    return (
-      <section
-        key={pane.id}
-        className={`pane${paneFocused && layout.panes.length > 1 && !maximized ? ' focused' : ''}${pane.id === maximized ? ' maximized' : ''}`}
-        onMouseDownCapture={() => !paneFocused && update((l) => ({ ...l, focused: pane.id }))}
-      >
+    const bar = (
         <TabBar
           pane={pane}
           focused={paneFocused}
@@ -471,6 +470,14 @@ export function TabWorkspace<R>({ layout, onChange, renderTab, titleOf, menuOf, 
             })
           }
         />
+    );
+    return (
+      <section
+        key={pane.id}
+        className={`pane${paneFocused && layout.panes.length > 1 && !maximized ? ' focused' : ''}${pane.id === maximized ? ' maximized' : ''}${barBottom ? ' tabbar-bottom' : ''}`}
+        onMouseDownCapture={() => !paneFocused && update((l) => ({ ...l, focused: pane.id }))}
+      >
+        {!barBottom && bar}
         <div className="pane-body">
           {pane.tabs.map((tab) => {
             const visible = tab.id === activeId;
@@ -491,6 +498,7 @@ export function TabWorkspace<R>({ layout, onChange, renderTab, titleOf, menuOf, 
             );
           })}
         </div>
+        {barBottom && bar}
       </section>
     );
   };
