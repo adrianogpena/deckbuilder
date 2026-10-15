@@ -7,10 +7,19 @@
   overflow: hidden;
   background: var(--bg-sunken);
 }
-.terminal-host { flex: 1; min-width: 0; min-height: 0; padding: var(--space-4) 0 0 var(--space-8); }
+.terminal-host {
+  position: relative;
+  isolation: isolate;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  /* Top half the padding and no bottom one: the screen edges already leave room there. */
+  padding: calc(var(--terminal-padding, 8px) / 2) var(--terminal-padding, 8px) 0 var(--terminal-padding, 8px);
+}
 .terminal-pane.preview .terminal-host { flex: none; padding: 0; transform-origin: 0 0; pointer-events: none; }
 .terminal-host .xterm { height: 100%; }
-.terminal-host .xterm-viewport { background: var(--bg-sunken) !important; }
+.terminal-host .xterm-viewport { background: var(--terminal-bg, var(--bg-sunken)) !important; }
+.terminal-host { background: var(--terminal-bg, transparent); }
 .terminal-overlay {
   position: absolute;
   left: 50%;
@@ -44,3 +53,24 @@
 }
 .terminal-find input { width: 220px; min-width: 0; }
 .terminal-find-count { font-size: var(--fs-xs-plus); white-space: nowrap; }
+.terminal-host.ligatures .xterm-rows { font-variant-ligatures: normal !important; font-feature-settings: "liga" 1, "calt" 1; }
+.terminal-host .xterm-decoration.terminal-mark { left: -7px !important; width: 5px !important; display: flex; align-items: center; pointer-events: auto; cursor: default; }
+.terminal-mark::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--text-3); }
+.terminal-mark.running::before { background: var(--text-2); }
+.terminal-mark.ok::before { background: var(--ok); }
+.terminal-mark.err::before { background: var(--err); }
+.terminal-host.scrollbar-hidden .xterm-scrollable-element > .scrollbar { display: none !important; }
+.terminal-host:not(.scrollbar-hover):not(.scrollbar-hidden) .xterm-scrollable-element > .scrollbar.invisible { opacity: 1; pointer-events: auto; }
+.terminal-host.scrollbar-hover .xterm-scrollable-element > .scrollbar.invisible { opacity: 0; }
+.terminal-host.scrollbar-hover:hover .xterm-scrollable-element > .scrollbar { opacity: 1; pointer-events: auto; }
+/* A pane without the focus in a split: veiled in its own background by --terminal-dim (0 to 0.8). */
+.terminal-pane.dimmed .terminal-host::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background: var(--terminal-bg, var(--bg-sunken));
+  opacity: var(--terminal-dim, 0);
+  pointer-events: none;
+}
+.terminal-paste-preview { max-height: 160px; overflow: auto; margin: var(--space-8) 0; padding: var(--space-6) var(--space-8); border-radius: var(--radius-md); background: var(--bg-sunken); font-family: var(--font-mono); font-size: var(--fs-xs-plus); white-space: pre; }

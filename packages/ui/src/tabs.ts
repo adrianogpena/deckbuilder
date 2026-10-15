@@ -406,3 +406,82 @@ export function distinguishingFolders(items: Array<{ title: string; location?: s
     return segs[i].join('/');
   });
 }
+
+export type PaneDirection = 'left' | 'right' | 'up' | 'down';
+interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** Where each pane sits in the unit square, from the split tree. */
+export function paneRects<R>(layout: Layout<R>): Map<string, Rect> {
+  const out = new Map<string, Rect>();
+  const walk = (node: SplitNode, r: Rect) => {
+    if ('pane' in node) return void out.set(node.pane, r);
+    let at = 0;
+    node.children.forEach((c, i) => {
+      const s = node.sizes[i];
+      walk(c, node.dir === 'row' ? { x: r.x + at * r.w, y: r.y, w: s * r.w, h: r.h } : { x: r.x, y: r.y + at * r.h, w: r.w, h: s * r.h });
+      at += s;
+    });
+  };
+  walk(layoutTree(layout), { x: 0, y: 0, w: 1, h: 1 });
+  return out;
+}
+
+/** The pane next to the focused one in `dir` (the one overlapping it most along the edge); undefined when none. */
+export function paneInDirection<R>(layout: Layout<R>, dir: PaneDirection): string | undefined {
+  const rects = paneRects(layout);
+  const from = rects.get(layout.focused);
+  if (!from) return undefined;
+  const eps = 1e-6;
+  let best: { id: string; gap: number; overlap: number } | undefined;
+  for (const [id, r] of rects) {
+    if (id === layout.focused) continue;
+    const horizontal = dir === 'left' || dir === 'right';
+    const gap =
+      dir === 'right' ? r.x - (from.x + from.w) : dir === 'left' ? from.x - (r.x + r.w) : dir === 'down' ? r.y - (from.y + from.h) : from.y - (r.y + r.h);
+    if (gap < -eps) continue;
+    const overlap = horizontal ? Math.min(from.y + from.h, r.y + r.h) - Math.max(from.y, r.y) : Math.min(from.x + from.w, r.x + r.w) - Math.max(from.x, r.x);
+    if (overlap <= eps) continue;
+    if (!best || gap < best.gap - eps || (Math.abs(gap - best.gap) <= eps && overlap > best.overlap)) best = { id, gap, overlap };
+  }
+  return best?.id;
+}
+
+/**
+ * Moves the split edge nearest the focused pane in `dir` by `step` (a share of that split): the
+ * edge after the pane for right/down when there is one, else the one before it. Sizes stay above
+ * `min`; nothing changes without a split in that direction.
+ */
+export function nudgeSplit<R>(layout: Layout<R>, dir: PaneDirection, step = 0.05, min = 0.1): Layout<R> {
+  const want = dir === 'left' || dir === 'right' ? 'row' : 'column';
+  const trail: { path: number[]; node: Extract<SplitNode, { dir: string }>; index: number }[] = [];
+  const find = (node: SplitNode, path: number[]): boolean => {
+    if ('pane' in node) return node.pane === layout.focused;
+    for (let i = 0; i < node.children.length; i++) {
+      if (find(node.children[i], [...path, i])) {
+        trail.push({ path, node, index: i });
+        return true;
+      }
+    }
+    return false;
+  };
+  if (!find(layoutTree(layout), [])) return layout;
+  const hit = trail.find((x) => x.node.dir === want);
+  if (!hit) return layout;
+  const { node, index: i, path } = hit;
+  const forward = dir === 'right' || dir === 'down';
+  // The edge between children a and a+1 moves by +step (forward) or -step.
+  const a = forward ? (i < node.children.length - 1 ? i : i - 1) : i > 0 ? i - 1 : i;
+  const delta = forward ? step : -step;
+  const sizes = [...node.sizes];
+  const left = sizes[a] + delta;
+  const right = sizes[a + 1] - delta;
+  if (left < min || right < min) return layout;
+  sizes[a] = left;
+  sizes[a + 1] = right;
+  return resizeSplit(layout, path, sizes);
+}

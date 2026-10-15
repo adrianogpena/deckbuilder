@@ -22,6 +22,25 @@ export interface CreateOptions {
   label: string;
   launcher?: string;
   meta?: Record<string, unknown>;
+  profile?: string;
+  shell?: string;
+}
+
+const MAX_CWD = 4096;
+
+/** The local path of an OSC 7 `file://host/path` payload (Windows drive paths get backslashes), or null. */
+export function cwdFromOsc7(data: string): string | null {
+  if (!data.startsWith('file://') || data.length > MAX_CWD) return null;
+  const rest = data.slice('file://'.length);
+  const slash = rest.search(/[/\\]/);
+  if (slash < 0) return null;
+  let path = rest.slice(slash);
+  try {
+    path = decodeURIComponent(path);
+  } catch {}
+  if (/^[/\\][A-Za-z]:/.test(path)) path = path.slice(1).replace(/\//g, '\\');
+  if (/^[A-Za-z]:$/.test(path)) path += '\\';
+  return path && !path.includes('\0') ? path : null;
 }
 
 export interface Session {
@@ -38,6 +57,8 @@ export interface TerminalSessions {
   detach(id: string, sink: Sink): void;
   write(id: string, sink: Sink, data: string | Uint8Array): void;
   resize(id: string, sink: Sink, cols: number, rows: number): void;
+  /** Drops the replay buffer's scrollback (the interactive view cleared its screen). */
+  clear(id: string, sink: Sink): void;
   close(id: string, sink?: Sink): void;
   closeAll(): void;
   setLabel(id: string, label: string): void;
@@ -62,6 +83,10 @@ interface Viewer {
 }
 
 interface Entry extends Session {
+  cwd: string;
+  profile?: string;
+  shell?: string;
+  running?: boolean;
   pty: Pty;
   term: Terminal;
   serializer: SerializeAddon;
@@ -121,6 +146,8 @@ export function terminalSessions({ spawn = spawnPty, max = 20, now = Date.now }:
       label: opts.label.slice(0, MAX_LABEL),
       launcher: opts.launcher,
       meta: opts.meta,
+      profile: opts.profile,
+      shell: opts.shell,
       cols: opts.cols,
       rows: opts.rows,
       exited: undefined,
@@ -141,6 +168,18 @@ export function terminalSessions({ spawn = spawnPty, max = 20, now = Date.now }:
     });
     term.onBell(() => {
       e.bells++;
+    });
+    // Shell integration: OSC 7 reports the cwd, OSC 133 C/D bracket a running command.
+    term.parser.registerOscHandler(7, (data) => {
+      const cwd = cwdFromOsc7(data);
+      if (cwd) e.cwd = cwd;
+      return true;
+    });
+    term.parser.registerOscHandler(133, (data) => {
+      const mark = data.split(';', 1)[0];
+      if (mark === 'C') e.running = true;
+      else if (mark === 'D' || mark === 'A') e.running = false;
+      return true;
     });
 
     pty.onData((data) => {
@@ -219,6 +258,13 @@ export function terminalSessions({ spawn = spawnPty, max = 20, now = Date.now }:
     e.term.resize(cols, rows);
   }
 
+  function clear(id: string, sink: Sink): void {
+    const e = entries.get(id);
+    if (!e || !isInteractive(e, sink)) return;
+    // After the output already queued, like the view's own clear.
+    e.term.write('', () => e.term.clear());
+  }
+
   function close(id: string, sink?: Sink): void {
     const e = entries.get(id);
     if (!e) return;
@@ -240,6 +286,9 @@ export function terminalSessions({ spawn = spawnPty, max = 20, now = Date.now }:
         launcher: e.launcher,
         meta: e.meta,
         cwd: e.cwd,
+        profile: e.profile,
+        shell: e.shell,
+        running: e.running,
         cols: e.cols,
         rows: e.rows,
         createdAt: e.createdAt,
@@ -253,6 +302,7 @@ export function terminalSessions({ spawn = spawnPty, max = 20, now = Date.now }:
     detach,
     write,
     resize,
+    clear,
     close,
     closeAll: () => {
       for (const id of [...entries.keys()]) close(id);

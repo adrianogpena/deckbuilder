@@ -384,6 +384,7 @@ export function GitScreen({ settings, onSave, go, initialDiffMode = 'split' }: {
       collapsed={view.collapsed}
       onCollapsedChange={(collapsed) => update((v) => ({ ...v, collapsed }))}
       scope="git"
+      className="screen-edges"
     >
       <div className="git-diff">
         {selected ? (

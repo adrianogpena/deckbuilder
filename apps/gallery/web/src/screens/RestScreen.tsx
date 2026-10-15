@@ -182,7 +182,7 @@ export function RestScreen({ settings, onSave }: { settings: Settings; onSave: (
   };
 
   return (
-    <div className="content">
+    <div className="content screen-edges">
       <PageHead title={t('nav.rest')}>
         <div className="row">
           <button className="btn btn-sm" onClick={() => setImporting(true)}>{t('rest.import')}</button>

@@ -1,7 +1,9 @@
-import { copyText, Icon, effectiveKeys, errorMessage, errorOf, paletteCommand, t, useKeybindings, type CommandDef } from '@deckbuilder/ui';
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { copyText, Icon, effectiveKeys, errorMessage, errorOf, paletteCommand, t, useDialogs, useKeybindings, type CommandDef } from '@deckbuilder/ui';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { attachSession, closeSession, isSessionGone, openSession, socketUrl, type TerminalCwd, type TerminalLaunch } from './client.ts';
-import { terminalKeyAction } from './keys.ts';
+import { withAppearance, type ProfileAppearance } from './appearance.ts';
+import { PANE_COMMANDS, terminalKeyAction, type PaneCommand } from './keys.ts';
+import { pasteNeedsWarning, pasteSummary, sanitizePaste } from './paste.ts';
 import { decodeServerMessage, encodeControl } from './protocol.ts';
 import { useTerminalOptions } from './terminalOptions.ts';
 import { createXtermView, type TerminalOptions, type XtermView } from './xterm-view.ts';
@@ -15,6 +17,41 @@ const MAX_BACKOFF = 30_000;
 /** The command that opens the find bar (registered by the app); the key is the fallback without a keymap. */
 const FIND_COMMAND = 'terminal.find';
 const DEFAULT_FIND_KEY = 'Ctrl+Shift+F';
+/** Scroll to the previous / next prompt (shell integration); same fallback rule as find. */
+const PREV_COMMAND = 'terminal.prevCommand';
+const NEXT_COMMAND = 'terminal.nextCommand';
+const DEFAULT_PREV_KEY = 'Ctrl+ArrowUp';
+const DEFAULT_NEXT_KEY = 'Ctrl+ArrowDown';
+const MIN_FONT = 6;
+const MAX_FONT = 72;
+const DEFAULT_FONT = 13;
+
+/** What the app can make a pane do (tab menus): the pane commands. */
+export interface TerminalPaneHandle {
+  run(command: PaneCommand): void;
+}
+
+let audio: AudioContext | null = null;
+let lastBeep = 0;
+/** A short beep, at most one per 200 ms. */
+function beep() {
+  const now = Date.now();
+  if (now - lastBeep < 200) return;
+  lastBeep = now;
+  try {
+    audio ??= new AudioContext();
+    const osc = audio.createOscillator();
+    const gain = audio.createGain();
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.08, audio.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + 0.12);
+    osc.connect(gain).connect(audio.destination);
+    osc.start();
+    osc.stop(audio.currentTime + 0.12);
+  } catch {
+    // no audio here
+  }
+}
 
 export interface TerminalPaneProps {
   /** The session to attach to; none opens a new one and reports it through `onSession`. */
@@ -23,6 +60,12 @@ export interface TerminalPaneProps {
   cwd?: TerminalCwd;
   /** A launcher the app registered on the server, instead of the configured shell. */
   launch?: TerminalLaunch;
+  /** Profile id for a new session; none: the default one. */
+  profile?: string;
+  /** Absolute folder a new session starts in (wins over `cwd`); the server falls back when it is gone. */
+  dir?: string;
+  /** Opens a new shell when the session exits, instead of the exit overlay. */
+  restartOnExit?: boolean;
   /** Read-only, at the session's own size, scaled to the box. */
   preview?: boolean;
   /** App commands whose keys still work while the terminal has focus; default: the command palette. */
@@ -33,6 +76,19 @@ export interface TerminalPaneProps {
   onSession?: (id: string) => void;
   onExit?: (code: number | null) => void;
   onTitle?: (title: string) => void;
+  /** The shell's folder changed (OSC 7). */
+  onCwd?: (cwd: string) => void;
+  onBell?: () => void;
+  /** Shell integration: a command started (true) or finished (false). */
+  onRunning?: (running: boolean) => void;
+  /** The profile's look, over `options`. */
+  appearance?: ProfileAppearance;
+  /** Shell id of the session (`SessionInfo.shell`): how a sanitized paste continues lines. */
+  shell?: string;
+  /** False dims the pane by `options.dimUnfocused` (a split pane without the focus); true focuses it. */
+  focused?: boolean;
+  /** Gets the pane's handle once mounted, null when it goes. */
+  handle?: (h: TerminalPaneHandle | null) => void;
 }
 
 type Status =
@@ -67,7 +123,14 @@ export function TerminalPane(props: TerminalPaneProps) {
   const controller = useRef<Controller | null>(null);
   const viewRef = useRef<XtermView | null>(null);
   const contextOptions = useTerminalOptions();
-  const options = props.options ?? contextOptions;
+  const baseOptions = withAppearance(props.options ?? contextOptions, props.appearance);
+  const baseKey = baseOptions === undefined ? undefined : JSON.stringify(baseOptions);
+  const [zoom, setZoom] = useState(0);
+  const options = useMemo((): TerminalOptions | undefined => {
+    if (!zoom) return baseOptions;
+    const size = (baseOptions?.fontSize ?? props.fontSize ?? DEFAULT_FONT) + zoom;
+    return { ...baseOptions, fontSize: Math.max(MIN_FONT, Math.min(MAX_FONT, size)) };
+  }, [baseKey, zoom, props.fontSize]);
   const optionsRef = useRef(options);
   optionsRef.current = options;
 
@@ -92,6 +155,27 @@ export function TerminalPane(props: TerminalPaneProps) {
     return new Set((keys ?? [DEFAULT_FIND_KEY]).map((c) => c.split(' ')[0]));
   }, [kb]);
 
+  const paneChords = useRef(new Map<string, PaneCommand>());
+  paneChords.current = useMemo(() => {
+    const keys = kb ? effectiveKeys(kb.defs, kb.keymap) : undefined;
+    const out = new Map<string, PaneCommand>();
+    for (const [id, fallback] of Object.entries(PANE_COMMANDS) as [PaneCommand, readonly string[]][]) {
+      for (const c of keys?.get(id) ?? fallback) out.set(c.split(' ')[0], id);
+    }
+    return out;
+  }, [kb]);
+
+  const dialogs = useDialogs();
+  const dialogsRef = useRef(dialogs);
+  dialogsRef.current = dialogs;
+
+  const navChords = useRef({ prev: new Set<string>(), next: new Set<string>() });
+  navChords.current = useMemo(() => {
+    const keys = kb ? effectiveKeys(kb.defs, kb.keymap) : undefined;
+    const set = (id: string, fallback: string) => new Set((keys?.get(id) ?? [fallback]).map((c) => c.split(' ')[0]));
+    return { prev: set(PREV_COMMAND, DEFAULT_PREV_KEY), next: set(NEXT_COMMAND, DEFAULT_NEXT_KEY) };
+  }, [kb]);
+
   useEffect(() => {
     const host = hostRef.current!;
     let disposed = false;
@@ -108,9 +192,36 @@ export function TerminalPane(props: TerminalPaneProps) {
       readOnly: preview,
       fontSize: latest.current.fontSize,
       options: optionsRef.current,
+      onCwd: (cwd) => latest.current.onCwd?.(cwd),
+      onBell: () => {
+        const style = optionsRef.current?.bellStyle ?? 'tab';
+        if (style === 'sound' || style === 'both') beep();
+        latest.current.onBell?.();
+      },
+      onCommand: (running) => latest.current.onRunning?.(running),
+      onPaste: (text) => {
+        const o = optionsRef.current;
+        if (preview || !pasteNeedsWarning(text, o?.pasteWarning ?? 'multiLine', o?.pasteLargeSize ?? 5120)) return false;
+        void askPaste(text);
+        return true;
+      },
       onKey: (e) => {
         if (preview || e.type !== 'keydown') return true;
-        switch (terminalKeyAction(e, view.hasSelection(), appChords.current, findChords.current)) {
+        const action = terminalKeyAction(e, view.hasSelection(), appChords.current, findChords.current, navChords.current, paneChords.current);
+        if (action.startsWith('terminal.')) {
+          e.preventDefault();
+          runPane(action as PaneCommand);
+          return false;
+        }
+        switch (action) {
+          case 'prevCommand':
+            e.preventDefault();
+            view.scrollToPrompt(-1);
+            return false;
+          case 'nextCommand':
+            e.preventDefault();
+            view.scrollToPrompt(1);
+            return false;
           case 'find':
             e.preventDefault();
             setFinding(true);
@@ -128,6 +239,54 @@ export function TerminalPane(props: TerminalPaneProps) {
         }
       },
     });
+
+    async function askPaste(text: string) {
+      const { lines, chars, preview: sample } = pasteSummary(text);
+      const choice = await dialogsRef.current.choose({
+        title: lines > 1 ? t('terminal.paste.title', { lines }) : t('terminal.paste.titleLarge', { chars }),
+        body: (
+          <>
+            <p>{t('terminal.paste.body', { lines, chars })}</p>
+            <pre className="terminal-paste-preview">{sample}</pre>
+            <p className="muted">{t('terminal.paste.sanitizeHint')}</p>
+          </>
+        ),
+        choices: [
+          { id: 'sanitize', label: t('terminal.paste.sanitize') },
+          { id: 'paste', label: t('terminal.paste.paste') },
+        ],
+      });
+      if (disposed || !choice) return;
+      view.paste(choice === 'paste' ? text : sanitizePaste(text, { bracketed: view.bracketedPaste(), shell: latest.current.shell }));
+      view.focus();
+    }
+
+    function runPane(command: PaneCommand) {
+      switch (command) {
+        case 'terminal.zoomIn':
+          return setZoom((z) => z + 1);
+        case 'terminal.zoomOut':
+          return setZoom((z) => z - 1);
+        case 'terminal.zoomReset':
+          return setZoom(0);
+        case 'terminal.clear':
+          view.clear();
+          return send(encodeControl({ type: 'clear' }));
+        case 'terminal.scrollLineUp':
+          return view.scroll('lineUp');
+        case 'terminal.scrollLineDown':
+          return view.scroll('lineDown');
+        case 'terminal.scrollPageUp':
+          return view.scroll('pageUp');
+        case 'terminal.scrollPageDown':
+          return view.scroll('pageDown');
+        case 'terminal.scrollTop':
+          return view.scroll('top');
+        case 'terminal.scrollBottom':
+          return view.scroll('bottom');
+      }
+    }
+    if (!preview) latest.current.handle?.({ run: runPane });
 
     viewRef.current = view;
     view.onFindResults((index, count) => setFound({ index, count }));
@@ -192,6 +351,13 @@ export function TerminalPane(props: TerminalPaneProps) {
           }
           setStatus({ kind: 'live' });
         } else if (msg.type === 'exit') {
+          latest.current.onRunning?.(false);
+          if (latest.current.restartOnExit && !preview) {
+            ended = true;
+            latest.current.onExit?.(msg.code);
+            void connect(true);
+            return;
+          }
           stop({ kind: 'exited', code: msg.code });
           latest.current.onExit?.(msg.code);
         } else {
@@ -221,8 +387,8 @@ export function TerminalPane(props: TerminalPaneProps) {
         if (fresh || !sessionId) {
           view.fit();
           const { cols, rows } = view.size();
-          const { cwd, launch } = latest.current;
-          ticketed = await openSession({ cols, rows, cwd, launch });
+          const { cwd, launch, profile, dir } = latest.current;
+          ticketed = await openSession({ cols, rows, cwd, launch, profile, dir });
           if (disposed) {
             // Unmounted while opening (React strict mode remounts): nobody holds this session.
             void closeSession(ticketed.session).catch(() => {});
@@ -274,6 +440,7 @@ export function TerminalPane(props: TerminalPaneProps) {
       ws = null;
       controller.current = null;
       viewRef.current = null;
+      if (!preview) latest.current.handle?.(null);
       view.dispose();
     };
   }, [preview]);
@@ -281,6 +448,14 @@ export function TerminalPane(props: TerminalPaneProps) {
   useEffect(() => {
     if (options) viewRef.current?.setOptions(options);
   }, [options]);
+
+  // Focus moved to this pane (another split pane had it): the keys come here.
+  useEffect(() => {
+    if (props.focused && !preview && !boxRef.current?.contains(document.activeElement)) viewRef.current?.focus();
+  }, [props.focused]);
+
+  const dim = Math.max(0, Math.min(80, options?.dimUnfocused ?? 0));
+  const dimmed = !preview && props.focused === false && dim > 0;
 
   const step = (dir: 1 | -1) => {
     const view = viewRef.current;
@@ -326,7 +501,8 @@ export function TerminalPane(props: TerminalPaneProps) {
   return (
     <div
       ref={boxRef}
-      className={`terminal-pane${preview ? ' preview' : ''}`}
+      className={`terminal-pane${preview ? ' preview' : ''}${dimmed ? ' dimmed' : ''}`}
+      style={dimmed ? ({ '--terminal-dim': dim / 100 } as CSSProperties) : undefined}
       {...(preview ? {} : { 'data-keys': 'own', 'data-keys-allow': appKeys.map((d) => d.id).join(' ') })}
     >
       <div ref={hostRef} className="terminal-host" />
@@ -363,6 +539,7 @@ export function TerminalPane(props: TerminalPaneProps) {
         </div>
       )}
       {overlay && <div className="terminal-overlay">{overlay}</div>}
+      {dialogs.element}
     </div>
   );
 }

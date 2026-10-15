@@ -1,10 +1,71 @@
+import type { ProfileAppearance } from './appearance.ts';
+
 export const TERMINAL_SOCKET_PATH = '/api/terminal/socket';
 export const MAX_COLS = 1000;
 export const MAX_ROWS = 1000;
 export const MAX_CONTROL_BYTES = 64 * 1024;
 export const MAX_TITLE = 256;
 
-export type ClientControl = { type: 'resize'; cols: number; rows: number } | { type: 'close' };
+export const SHELL_IDS = ['auto', 'powershell', 'pwsh', 'cmd', 'git-bash', 'wsl', 'bash', 'zsh', 'fish', 'sh'] as const;
+export type ShellId = (typeof SHELL_IDS)[number];
+
+export const isShellId = (x: unknown): x is ShellId => typeof x === 'string' && (SHELL_IDS as readonly string[]).includes(x);
+
+/** Display names of the built-in profiles (one per installed shell). */
+export const SHELL_NAMES: Record<Exclude<ShellId, 'auto'>, string> = {
+  powershell: 'PowerShell',
+  pwsh: 'PowerShell 7',
+  cmd: 'Command Prompt',
+  'git-bash': 'Git Bash',
+  wsl: 'WSL',
+  bash: 'bash',
+  zsh: 'zsh',
+  fish: 'fish',
+  sh: 'sh',
+};
+
+/** Default icon names of the built-in profiles. */
+export const SHELL_ICONS: Record<Exclude<ShellId, 'auto'>, string> = {
+  powershell: 'shell-powershell',
+  pwsh: 'shell-powershell',
+  cmd: 'shell-cmd',
+  'git-bash': 'shell-git',
+  wsl: 'shell-linux',
+  bash: 'shell-bash',
+  zsh: 'shell-zsh',
+  fish: 'shell-fish',
+  sh: 'shell-bash',
+};
+
+/**
+ * A terminal profile. Built-ins have a shell id as `id`; a saved entry with that id overrides
+ * name, icon, args (appended to the shell's own), env, cwd, hidden, shellIntegration and appearance.
+ * Other ids are custom: `shell: 'custom'` runs `command` (absolute path) with `args`; a known
+ * `shell` runs that shell with `args` appended.
+ */
+export interface TerminalProfile {
+  id: string;
+  name: string;
+  shell: ShellId | 'custom';
+  command?: string;
+  args?: string[];
+  env?: Record<string, string>;
+  cwd?: string;
+  icon?: string;
+  hidden?: boolean;
+  shellIntegration?: boolean;
+  /** Look of this profile's panes over the global terminal settings. */
+  appearance?: ProfileAppearance;
+}
+
+/** A profile as `GET /api/terminal/profiles` lists it: built-ins first, then custom ones. */
+export interface TerminalProfileInfo extends TerminalProfile {
+  /** False when the shell or command is not on this machine. */
+  available: boolean;
+}
+
+/** `clear` drops the session's scrollback on the server too, so a reattach does not bring it back. */
+export type ClientControl = { type: 'resize'; cols: number; rows: number } | { type: 'close' } | { type: 'clear' };
 
 export type ServerControl =
   | { type: 'hello'; session: string; cols: number; rows: number }
@@ -20,7 +81,14 @@ export interface SessionInfo {
   label: string;
   launcher?: string;
   meta?: Record<string, unknown>;
+  /** Start directory, then the last one shell integration reported (OSC 7). */
   cwd: string;
+  /** Profile id the session was opened with, if any. */
+  profile?: string;
+  /** Shell id used (`custom` for a custom command); absent for launchers. */
+  shell?: string;
+  /** Shell integration (OSC 133): true while a command runs; absent without integration. */
+  running?: boolean;
   cols: number;
   rows: number;
   createdAt: number;
@@ -54,6 +122,7 @@ export function decodeClientMessage(frame: Frame): ClientMessage | null {
   const m = parseControl(frame);
   if (!m) return null;
   if (m.type === 'close') return { kind: 'control', msg: { type: 'close' } };
+  if (m.type === 'clear') return { kind: 'control', msg: { type: 'clear' } };
   if (m.type === 'resize' && isSize(m.cols, MAX_COLS) && isSize(m.rows, MAX_ROWS)) {
     return { kind: 'control', msg: { type: 'resize', cols: m.cols, rows: m.rows } };
   }

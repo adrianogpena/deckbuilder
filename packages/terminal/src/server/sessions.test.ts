@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { Pty } from './pty.ts';
-import { terminalSessions, type Sink } from './sessions.ts';
+import { cwdFromOsc7, terminalSessions, type Sink } from './sessions.ts';
 
 class FakePty implements Pty {
   written: Array<string | Uint8Array> = [];
@@ -251,5 +251,33 @@ describe('session reaping', () => {
     }).not.toThrow();
     expect(reg.list()).toHaveLength(0);
     expect(sink.closed).toBe(true);
+  });
+});
+
+describe('shell integration', () => {
+  test('cwdFromOsc7 decodes file URLs and Windows drive paths', () => {
+    expect(cwdFromOsc7('file://host/home/me/a%20b')).toBe('/home/me/a b');
+    expect(cwdFromOsc7('file://PC/C:/Users/me')).toBe('C:\\Users\\me');
+    expect(cwdFromOsc7('file://localhost/C:\\Work dir')).toBe('C:\\Work dir');
+    expect(cwdFromOsc7('file://localhost/D:')).toBe('D:\\');
+    expect(cwdFromOsc7('file://host/100%')).toBe('/100%');
+    expect(cwdFromOsc7('http://x/y')).toBeNull();
+    expect(cwdFromOsc7('file://host')).toBeNull();
+  });
+
+  test('OSC 7 updates cwd and OSC 133 C/D track running; profile and shell are listed', async () => {
+    const { reg, ptys } = setup();
+    const s = reg.create({ cmd: ['bash'], cwd: '/start', cols: 80, rows: 24, label: 'b', profile: 'bash', shell: 'bash' });
+    expect(reg.list()[0]).toMatchObject({ cwd: '/start', profile: 'bash', shell: 'bash', running: undefined });
+    ptys[0]!.emit('\x1b]7;file://h/tmp/x\x07\x1b]133;A\x07$ \x1b]133;B\x07');
+    await settle();
+    expect(reg.list()[0]).toMatchObject({ cwd: '/tmp/x', running: false });
+    ptys[0]!.emit('\x1b]133;C\x07');
+    await settle();
+    expect(reg.list()[0]!.running).toBe(true);
+    ptys[0]!.emit('\x1b]133;D;1\x1b\\');
+    await settle();
+    expect(reg.list()[0]!.running).toBe(false);
+    reg.close(s.id);
   });
 });

@@ -40,9 +40,13 @@ function commands(): CommandDef[] {
 const SESSION_ERRORS = ['invalidCode', 'invalidToken'];
 
 // Settings is a modal over the current screen, not a screen; 'keys' opens it at Keyboard › Shortcuts. App links
-// (toasts, second instances) still open them with `#/settings` and `#/keys`.
-type Overlay = 'settings' | 'keys';
-const overlayOfHash = (): Overlay | null => (/^#\/?(settings|keys)\/?$/.exec(window.location.hash)?.[1] as Overlay | undefined) ?? null;
+// (toasts, second instances) still open them with `#/settings` and `#/keys`; `#/settings/<section key>` opens a section.
+type Overlay = 'settings' | 'keys' | `settings/${string}`;
+const overlayOfHash = (): Overlay | null => {
+  const m = /^#\/?(settings|keys)(?:\/([\w.-]+))?\/?$/.exec(window.location.hash);
+  if (!m) return null;
+  return m[1] === 'settings' && m[2] ? `settings/${m[2]}` : (m[1] as Overlay);
+};
 
 /** Loads the settings first, so the first paint already has the right theme and language. */
 export function App() {
@@ -167,7 +171,7 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
     <AppFrame tools={footer} sidebar={<Sidebar name={APP.name} sections={sections} current={screen} onSelect={go} footer={footer} />}>
       <main className="main">{renderScreen(screen)}</main>
       {overlay && (
-        <SettingsModal key={overlay} settings={settings} onChange={save} onQuit={() => setStopped(true)} onClose={() => setOverlay(null)} initialSection={overlay === 'keys' ? 'keyboard.shortcuts' : undefined} />
+        <SettingsModal key={overlay} settings={settings} onChange={save} onQuit={() => setStopped(true)} onClose={() => setOverlay(null)} initialSection={overlay === 'keys' ? 'keyboard.shortcuts' : overlay.startsWith('settings/') ? overlay.slice('settings/'.length) : undefined} />
       )}
       {palette.open && <CommandPalette items={items} onClose={() => palette.setOpen(false)} />}
     </AppFrame>

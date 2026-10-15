@@ -82,7 +82,13 @@ export interface TabBarProps<R> {
   canSplit: boolean;
   canClosePane: boolean;
   titleOf: (route: R) => TabTitle;
-  menuOf?: (route: R) => Array<ContextMenuItem | 'sep'>;
+  menuOf?: (route: R, tab: Tab<R>) => Array<ContextMenuItem | 'sep'>;
+  /** Items of the chevron menu beside "+" (also on right-click of "+"); no chevron when unset. */
+  newMenu?: (paneId: string) => Array<ContextMenuItem | 'sep'>;
+  /** Called first on a tab double-click; returning true skips the default pin/maximize. */
+  onTabDoubleClick?: (tab: Tab<R>) => boolean;
+  /** Each new value opens the `newMenu` at this pane's "+" button (a shortcut). */
+  newMenuRequest?: number;
   /** Actions of the active tab. */
   actions: TabAction[];
   onActivate: (tabId: string) => void;
@@ -109,6 +115,13 @@ export function BaseTabBar<R>(props: TabBarProps<R>) {
   const active = pane.tabs.find((x) => x.id === pane.active) ?? pane.tabs[0];
   const titles = pane.tabs.map((tab) => titleOf(tab.route));
   const folders = distinguishingFolders(titles);
+  const newButton = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const el = newButton.current;
+    if (!props.newMenuRequest || !props.newMenu || !el) return;
+    const r = el.getBoundingClientRect();
+    setMenu({ at: { x: r.left, y: r.bottom }, items: props.newMenu(pane.id) });
+  }, [props.newMenuRequest]);
 
   const menuItems = (tab: Tab<R>, i: number): Array<ContextMenuItem | 'sep'> => {
     const closing: ContextMenuItem[] = [
@@ -118,7 +131,7 @@ export function BaseTabBar<R>(props: TabBarProps<R>) {
       { id: 'closeSaved', label: t('tabs.menu.closeSaved'), disabled: pane.tabs.every((x) => x.dirty), run: () => props.onCloseMode(tab.id, 'saved') },
       { id: 'closeAll', label: t('tabs.menu.closeAll'), run: () => props.onCloseMode(tab.id, 'all') },
     ];
-    const extra = props.menuOf?.(tab.route) ?? [];
+    const extra = props.menuOf?.(tab.route, tab) ?? [];
     return extra.length ? [...closing, 'sep', ...extra] : closing;
   };
 
@@ -200,7 +213,11 @@ export function BaseTabBar<R>(props: TabBarProps<R>) {
                 onDrop(e, i);
               }}
               onClick={() => props.onActivate(tab.id)}
-              onDoubleClick={() => (tab.preview ? props.onPin(tab.id) : props.onToggleMaximize())}
+              onDoubleClick={() => {
+                if (props.onTabDoubleClick?.(tab)) return;
+                if (tab.preview) props.onPin(tab.id);
+                else props.onToggleMaximize();
+              }}
               onContextMenu={(e) => {
                 e.preventDefault();
                 setMenu({ at: { x: e.clientX, y: e.clientY }, items: menuItems(tab, i) });
@@ -231,9 +248,33 @@ export function BaseTabBar<R>(props: TabBarProps<R>) {
             </div>
           );
         })}
-        <button className="btn btn-ghost btn-sm tab-new btn-icon" onClick={props.onNew} title={t('tabs.new')}>
+        <button
+          ref={newButton}
+          className="btn btn-ghost btn-sm tab-new btn-icon"
+          onClick={props.onNew}
+          onContextMenu={(e) => {
+            if (!props.newMenu) return;
+            e.preventDefault();
+            setMenu({ at: { x: e.clientX, y: e.clientY }, items: props.newMenu(pane.id) });
+          }}
+          title={t('tabs.new')}
+        >
           <Icon name="plus" />
         </button>
+        {props.newMenu && (
+          <button
+            className="btn btn-ghost btn-sm tab-new-menu btn-icon"
+            title={t('tabs.newMenu')}
+            aria-label={t('tabs.newMenu')}
+            aria-haspopup="menu"
+            onClick={(e) => {
+              const r = e.currentTarget.getBoundingClientRect();
+              setMenu({ at: { x: r.left, y: r.bottom }, items: props.newMenu!(pane.id) });
+            }}
+          >
+            <Icon name="chevron-down" size={12} />
+          </button>
+        )}
       </div>
       <div className="tabbar-tools">
         {props.actions.filter((a) => a.group === 'primary').map((a) => a.options ? (
@@ -349,7 +390,13 @@ interface TabWorkspaceProps<R> {
   renderTab: (tab: Tab<R>, ctx: TabContext<R>) => ReactNode;
   titleOf: (route: R) => TabTitle;
   /** Context menu of a tab; none when it returns no items. */
-  menuOf?: (route: R) => Array<ContextMenuItem | 'sep'>;
+  menuOf?: (route: R, tab: Tab<R>) => Array<ContextMenuItem | 'sep'>;
+  /** Items of the chevron menu beside each pane's "+" button (also on right-click of "+"). */
+  newMenu?: (paneId: string) => Array<ContextMenuItem | 'sep'>;
+  /** Called first on a tab double-click; returning true skips the default pin/maximize. */
+  onTabDoubleClick?: (tab: Tab<R>) => boolean;
+  /** Each new `n` opens the `newMenu` at pane `pane`'s "+" button (e.g. from a shortcut). */
+  newMenuRequest?: { pane: string; n: number };
   /** The route of a tab opened with the "+" button or Ctrl+T, and of the tab that replaces the last one closed. */
   newRoute: () => R;
   /** The view id the tab shortcuts belong to (see `tabCommands`). */
@@ -358,9 +405,11 @@ interface TabWorkspaceProps<R> {
   onMaximizedChange?: (maximized: boolean) => void;
   /** Ask before closing tabs with unsaved changes (default); when false they are saved first and kept open if a save fails. */
   confirmCloseDirty?: boolean;
+  /** Asked before closing tabs, before the unsaved-changes dialog; false keeps them all open. */
+  confirmClose?: (tabs: Tab<R>[]) => Promise<boolean>;
 }
 
-export function TabWorkspace<R>({ layout, onChange, renderTab, titleOf, menuOf, newRoute, scope, onMaximizedChange, confirmCloseDirty = true }: TabWorkspaceProps<R>) {
+export function TabWorkspace<R>({ layout, onChange, renderTab, titleOf, menuOf, newMenu, onTabDoubleClick, newMenuRequest, newRoute, scope, onMaximizedChange, confirmCloseDirty = true, confirmClose }: TabWorkspaceProps<R>) {
   const { choose, element } = useDialogs();
   const savers = useRef(new Map<string, () => Promise<boolean>>());
   // The latest list per tab (fresh `run`s); the bar re-renders only when what it shows changes.
@@ -395,6 +444,10 @@ export function TabWorkspace<R>({ layout, onChange, renderTab, titleOf, menuOf, 
 
   /** Closes the tabs, first asking once about the ones with unsaved changes; Cancel or a failed save keeps them all open. */
   const closeMany = async (tabIds: string[]) => {
+    if (confirmClose) {
+      const tabs = tabIds.flatMap((id) => findTab(latest.current, id) ?? []);
+      if (tabs.length && !(await confirmClose(tabs))) return;
+    }
     const dirty = tabIds.flatMap((id) => {
       const tab = findTab(latest.current, id);
       return tab?.dirty ? [tab] : [];
@@ -449,6 +502,9 @@ export function TabWorkspace<R>({ layout, onChange, renderTab, titleOf, menuOf, 
           canClosePane={layout.panes.length > 1}
           titleOf={titleOf}
           menuOf={menuOf}
+          newMenu={newMenu}
+          onTabDoubleClick={onTabDoubleClick}
+          newMenuRequest={newMenuRequest?.pane === pane.id ? newMenuRequest.n : undefined}
           actions={(activeId && actions.current.get(activeId)?.list) || []}
           onActivate={(tabId) => update((l) => activate(l, pane.id, tabId))}
           onClose={closeById}

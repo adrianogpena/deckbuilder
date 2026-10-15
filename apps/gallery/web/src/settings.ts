@@ -15,8 +15,10 @@ import {
   registerDefaultSections,
   settingsFromOptionMeta,
 } from '@deckbuilder/ui';
+import type { TerminalProfile } from '@deckbuilder/terminal/protocol';
 import type { AppearanceSettings, EditorSettings, GeneralSettings, GitSettings, KeyboardSettings, Settings, TerminalSettings, WindowSettings } from './api';
 import { SCREENS } from './nav';
+import { DEFAULT_WORD_SEPARATORS, TERMINAL_THEMES, type ColorScheme } from '@deckbuilder/terminal/options';
 import { COPY_FORMATS, type CopyFormat } from './screens/workbench/copy-format';
 
 export const settingsRegistry = createSettingsRegistry<Settings>();
@@ -124,6 +126,7 @@ const groupField = (group: Group, key: string, order: number, def: FieldDef, sec
   } as unknown as SettingDef<Settings>;
 };
 
+const FONT_WEIGHTS = ['normal', 'bold', '100', '200', '300', '400', '500', '600', '700', '800', '900'];
 const MONO_FONT = "'Geist Mono','Cascadia Code',Consolas,monospace";
 const bool = (default_: boolean): FieldDef => ({ kind: 'boolean', default: default_ });
 const str = (default_: string): FieldDef => ({ kind: 'string', default: default_ });
@@ -164,13 +167,42 @@ settingsRegistry.registerSettings([
   groupField('git', 'diffMode', 100, oneOf('split', ['split', 'inline'])),
   groupField('git', 'explorerDecorations', 110, bool(true), explorer),
 
-  groupField('terminal', 'fontFamily', 100, str(MONO_FONT)),
-  groupField('terminal', 'fontSize', 110, num(13, 8, 32)),
-  groupField('terminal', 'cursorStyle', 120, oneOf('block', ['block', 'bar', 'underline'])),
-  groupField('terminal', 'cursorBlink', 130, bool(true)),
-  groupField('terminal', 'scrollback', 140, num(5000, 100, 100_000)),
-  groupField('terminal', 'copyOnSelect', 150, bool(false)),
-  groupField('terminal', 'rightClickPaste', 160, bool(false)),
+  groupField('terminal', 'fontFamily', 100, str(MONO_FONT), ['terminal', 'appearance']),
+  groupField('terminal', 'fontSize', 110, num(13, 8, 32), ['terminal', 'appearance']),
+  groupField('terminal', 'cursorStyle', 120, oneOf('block', ['block', 'bar', 'underline']), ['terminal', 'appearance']),
+  groupField('terminal', 'cursorBlink', 130, bool(true), ['terminal', 'appearance']),
+  groupField('terminal', 'scrollback', 140, num(5000, 100, 100_000), ['terminal', 'behavior']),
+  groupField('terminal', 'copyOnSelect', 150, bool(false), ['terminal', 'behavior']),
+  groupField('terminal', 'rightClickPaste', 160, bool(false), ['terminal', 'behavior']),
+  groupField('terminal', 'lineHeight', 170, num(1, 1, 2), ['terminal', 'appearance']),
+  groupField('terminal', 'letterSpacing', 180, num(0, 0, 10), ['terminal', 'appearance']),
+  groupField('terminal', 'fontWeight', 190, oneOf('normal', FONT_WEIGHTS), ['terminal', 'appearance']),
+  groupField('terminal', 'fontWeightBold', 200, oneOf('bold', FONT_WEIGHTS), ['terminal', 'appearance']),
+  groupField('terminal', 'ligatures', 210, bool(false), ['terminal', 'appearance']),
+  groupField('terminal', 'theme', 220, oneOf('app', TERMINAL_THEMES), ['terminal', 'appearance']),
+  groupField('terminal', 'minimumContrastRatio', 230, num(1, 1, 21), ['terminal', 'appearance']),
+  groupField('terminal', 'gpuAcceleration', 240, oneOf('auto', ['auto', 'on', 'off']), ['terminal', 'appearance']),
+  groupField('terminal', 'padding', 250, num(8, 0, 48), ['terminal', 'appearance']),
+  groupField('terminal', 'scrollbar', 260, oneOf('visible', ['visible', 'hover', 'hidden']), ['terminal', 'appearance']),
+  groupField('terminal', 'dimUnfocused', 270, num(0, 0, 80), ['terminal', 'appearance']),
+  { id: 'terminal.schemes', kind: 'custom', section: ['terminal', 'appearance'], order: 280, label: 'settings.terminal.schemes', description: 'settings.terminal.schemes.hint', default: [] as ColorScheme[] },
+  groupField('terminal', 'wordSeparators', 300, str(DEFAULT_WORD_SEPARATORS), ['terminal', 'behavior']),
+  groupField('terminal', 'scrollSensitivity', 310, num(1, 1, 10), ['terminal', 'behavior']),
+  groupField('terminal', 'fastScrollSensitivity', 320, num(5, 1, 20), ['terminal', 'behavior']),
+  groupField('terminal', 'altIsMeta', 330, bool(false), ['terminal', 'behavior']),
+  groupField('terminal', 'pasteWarning', 335, oneOf('multiLine', ['multiLine', 'large', 'never']), ['terminal', 'behavior']),
+  groupField('terminal', 'pasteLargeSize', 336, num(5120, 256, 1_000_000), ['terminal', 'behavior']),
+  groupField('terminal', 'trimCopy', 337, bool(true), ['terminal', 'behavior']),
+  groupField('terminal', 'bellStyle', 340, oneOf('tab', ['tab', 'sound', 'both', 'none']), ['terminal', 'tabs']),
+  groupField('terminal', 'restoreTabs', 400, bool(true), ['terminal', 'tabs']),
+  groupField('terminal', 'tabTitle', 410, str('{name}'), ['terminal', 'tabs']),
+  groupField('terminal', 'defaultProfile', 420, str(''), ['terminal', 'profiles']),
+  groupField('terminal', 'defaultCwd', 430, str(''), ['terminal', 'profiles']),
+  groupField('terminal', 'onExit', 440, oneOf('keep', ['keep', 'close', 'closeIfClean', 'restart']), ['terminal', 'tabs']),
+  groupField('terminal', 'confirmCloseRunning', 450, bool(true), ['terminal', 'tabs']),
+  groupField('terminal', 'shellIntegration', 500, bool(true), ['terminal', 'profiles']),
+  groupField('terminal', 'commandDecorations', 510, bool(true), ['terminal', 'profiles']),
+  { id: 'terminal.profiles', kind: 'custom', section: ['terminal', 'profiles'], order: 600, label: 'settings.terminal.profiles', description: 'settings.terminal.profiles.hint', default: [] as TerminalProfile[] },
 
   {
     id: 'general.autostart',

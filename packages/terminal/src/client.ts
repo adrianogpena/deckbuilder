@@ -1,8 +1,8 @@
 import { errorOf, request } from '@deckbuilder/ui';
 import { TERMINAL_SOCKET_PATH } from './protocol.ts';
-import type { SessionInfo } from './protocol.ts';
+import type { SessionInfo, TerminalProfile, TerminalProfileInfo } from './protocol.ts';
 
-export type { SessionInfo };
+export type { SessionInfo, TerminalProfile, TerminalProfileInfo };
 
 /** A project directory: a root id and a path relative to it. */
 export interface TerminalCwd {
@@ -21,9 +21,18 @@ export interface Ticketed {
   ticket: string;
 }
 
-export function openSession(opts: { cols: number; rows: number; cwd?: TerminalCwd; launch?: TerminalLaunch }): Promise<Ticketed> {
-  const { cols, rows, cwd, launch } = opts;
-  return request<Ticketed>('POST', '/api/terminal/open', {}, { cols, rows, root: cwd?.root, path: cwd?.path, launch });
+/**
+ * Opens a session. `profile` is a profile id (default: the `defaultProfile` setting); `dir` is an
+ * absolute directory to start in (a missing one falls back to the profile/default cwd); `cwd` wins over both.
+ */
+export function openSession(opts: { cols: number; rows: number; cwd?: TerminalCwd; launch?: TerminalLaunch; profile?: string; dir?: string }): Promise<Ticketed> {
+  const { cols, rows, cwd, launch, profile, dir } = opts;
+  return request<Ticketed>('POST', '/api/terminal/open', {}, { cols, rows, root: cwd?.root, path: cwd?.path, launch, profile, dir });
+}
+
+/** Built-in profiles (installed shells, overrides applied), then custom ones. */
+export function listProfiles(): Promise<TerminalProfileInfo[]> {
+  return request<TerminalProfileInfo[]>('GET', '/api/terminal/profiles');
 }
 
 export function attachSession(session: string, view: 'interactive' | 'preview' = 'interactive'): Promise<Ticketed> {

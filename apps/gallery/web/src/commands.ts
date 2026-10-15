@@ -25,6 +25,9 @@ export function commands(): CommandDef[] {
     { id: 'explorer.find', scope: 'explorer', label: t('keys.explorer.find'), keys: ['Ctrl+F'], inInput: true },
     { id: 'explorer.search', scope: 'explorer', label: t('keys.explorer.search'), keys: ['Ctrl+Shift+F'], inInput: true },
     { id: 'terminal.find', scope: 'terminal', label: t('keys.terminal.find'), keys: ['Ctrl+Shift+F'] },
+    { id: 'terminal.prevCommand', scope: 'terminal', label: t('keys.terminal.prevCommand'), keys: ['Ctrl+ArrowUp'] },
+    { id: 'terminal.nextCommand', scope: 'terminal', label: t('keys.terminal.nextCommand'), keys: ['Ctrl+ArrowDown'] },
+    ...terminalCommands(),
     { id: 'explorer.revealInTree', scope: 'explorer', label: t('keys.explorer.revealInTree'), keys: ['Ctrl+K Ctrl+E'] },
     { id: 'explorer.collapseAll', scope: 'explorer', label: t('keys.explorer.collapseAll'), keys: ['Ctrl+K Ctrl+Shift+0'] },
     { id: 'explorer.breadcrumbs', scope: 'explorer', label: t('keys.explorer.breadcrumbs'), keys: ['Ctrl+Shift+.', 'Ctrl+Shift+>'], inInput: true },
@@ -46,9 +49,49 @@ export function commands(): CommandDef[] {
   ];
 }
 
+const PANE_DIRS = ['Left', 'Right', 'Up', 'Down'] as const;
+/** Terminal view commands the screen runs (panes, new tabs); they reach it while a terminal has focus. */
+export const TERMINAL_SCREEN_COMMANDS = [
+  ...PANE_DIRS.map((d) => `terminal.focus${d}`),
+  ...PANE_DIRS.map((d) => `terminal.resize${d}`),
+  'terminal.splitRight',
+  'terminal.splitDown',
+  ...Array.from({ length: 9 }, (_, i) => `terminal.newTabProfile${i + 1}`),
+  'terminal.newTabMenu',
+];
+
+/** Terminal pane, zoom, scroll and new-tab commands (the pane ones mirror `PANE_COMMANDS` of the terminal package). */
+function terminalCommands(): CommandDef[] {
+  const def = (name: string, keys: string[], label = t(`keys.terminal.${name}` as Parameters<typeof t>[0])): CommandDef => ({
+    id: `terminal.${name}`, scope: 'terminal', label, keys,
+  });
+  return [
+    def('zoomIn', ['Ctrl+=', 'Ctrl++', 'Ctrl+Shift++']),
+    def('zoomOut', ['Ctrl+-']),
+    def('zoomReset', ['Ctrl+0']),
+    def('scrollLineUp', ['Ctrl+Shift+ArrowUp']),
+    def('scrollLineDown', ['Ctrl+Shift+ArrowDown']),
+    def('scrollPageUp', ['Ctrl+Shift+PageUp']),
+    def('scrollPageDown', ['Ctrl+Shift+PageDown']),
+    def('scrollTop', ['Ctrl+Shift+Home']),
+    def('scrollBottom', ['Ctrl+Shift+End']),
+    def('clear', ['Ctrl+Shift+K']),
+    ...PANE_DIRS.map((d) => def(`focus${d}`, [`Alt+Arrow${d}`])),
+    ...PANE_DIRS.map((d) => def(`resize${d}`, [`Alt+Shift+Arrow${d}`])),
+    def('splitRight', ['Alt+Shift++', 'Alt+Shift+=']),
+    def('splitDown', ['Alt+Shift+_', 'Alt+Shift+-']),
+    ...Array.from({ length: 9 }, (_, i) => def(`newTabProfile${i + 1}`, [`Ctrl+Shift+${i + 1}`], t('keys.terminal.newTabProfile', { n: i + 1 }))),
+    def('newTabMenu', ['Ctrl+Shift+Space']),
+  ];
+}
+
 /** Commands whose keys reach the app while a terminal in view `scope` has focus; the rest goes to the shell. */
 export function terminalAppKeys(scope: string): CommandDef[] {
-  const ids = new Set(['palette.toggle', KEYS_COMMAND, `${scope}.tab.saveAll`, `${scope}.pane.maximize`, ...(scope === 'explorer' ? ['explorer.zen'] : [])]);
+  const ids = new Set([
+    'palette.toggle', KEYS_COMMAND, `${scope}.tab.saveAll`, `${scope}.pane.maximize`,
+    ...(scope === 'explorer' ? ['explorer.zen'] : []),
+    ...(scope === 'terminal' ? TERMINAL_SCREEN_COMMANDS : []),
+  ]);
   return commands().filter((d) => ids.has(d.id));
 }
 

@@ -23,6 +23,8 @@ export interface ExplorerProps {
   hidden?: boolean;
   /** Which side the sidebar sits on; `sizes` stay [sidebar, workspace] either way. */
   side?: 'left' | 'right';
+  /** Extra class on the root (e.g. `screen-edges`). */
+  className?: string;
 }
 
 /** Commands of an Explorer shown in view `scope`: Ctrl+B toggles the sidebar (not while typing). */
@@ -34,7 +36,7 @@ export function explorerCommands(scope: string): CommandDef[] {
  * A resizable sidebar (min 180 px) next to a workspace. Ctrl+B or the rail button toggle the
  * sidebar. Layout only: the app owns sizes, collapsed and what the sidebar and workspace show.
  */
-export function Explorer({ sidebar, sizes, onResize, collapsed: stored, onCollapsedChange, children, scope, hidden = false, side = 'left' }: ExplorerProps) {
+export function Explorer({ sidebar, sizes, onResize, collapsed: stored, onCollapsedChange, children, scope, hidden = false, side = 'left', className }: ExplorerProps) {
   const [toggle] = explorerCommands(scope);
   useCommand(toggle, () => onCollapsedChange(!stored), { enabled: !hidden });
   const collapsed = stored || hidden;
@@ -42,7 +44,7 @@ export function Explorer({ sidebar, sizes, onResize, collapsed: stored, onCollap
 
   // The workspace keeps its key and slot either way, so its tabs aren't remounted.
   return (
-    <div className="explorer">
+    <div className={className ? `explorer ${className}` : 'explorer'}>
       {collapsed && !hidden && (
         <div className="explorer-rail" style={{ order: right ? 1 : 0, ...(right ? { borderRight: 0, borderLeft: '1px solid var(--border-soft)' } : null) }}>
           <button className="btn btn-ghost btn-sm btn-icon" onClick={() => onCollapsedChange(false)} title={t('explorer.toggleSidebar')} aria-label={t('explorer.toggleSidebar')}>

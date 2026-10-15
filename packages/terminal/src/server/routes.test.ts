@@ -290,3 +290,72 @@ describe('backpressure', () => {
     expect(all.includes(Buffer.from([0x88, 0x0e, 0x0f, 0xa1]))).toBe(true);
   }, 30_000);
 });
+
+describe('profiles', () => {
+  const dirs = new Set(['/saved', '/prof', '/def', require('node:os').homedir()]);
+  const isDir = (p: string) => dirs.has(p);
+  const profiles = async () => [
+    { id: 'bash', name: 'My bash', shell: 'bash' as const, args: ['-x'], cwd: '/prof', env: { A: '1' } },
+    { id: 'tool', name: 'Tool', shell: 'custom' as const, command: '/opt/tool', args: ['--go'] },
+  ];
+
+  test('lists built-ins then custom profiles', async () => {
+    const { call } = start({ profiles, shellIntegration: async () => false });
+    const list = (await (await call('GET', '/api/terminal/profiles')).json()) as any[];
+    expect(list.map((p) => p.id)).toEqual(['pwsh', 'bash', 'zsh', 'fish', 'sh', 'tool']);
+    expect(list.find((p) => p.id === 'bash')).toMatchObject({ name: 'My bash', icon: 'shell-bash', available: true });
+    expect(list.at(-1)).toMatchObject({ id: 'tool', available: true });
+  });
+
+  test('open by profile: argv, env, label, cwd; unknown profile is a 400', async () => {
+    const { post, ptys } = start({ profiles, isDir, shellIntegration: async () => false });
+    expect((await post('/api/terminal/open', { ...open, profile: 'bash' })).status).toBe(200);
+    expect(ptys[0]!.cmd).toEqual(['/bin/bash', '-l', '-x']);
+    expect(ptys[0]!.cwd).toBe('/prof');
+    expect(ptys[0]!.env).toEqual({ A: '1' });
+    expect(sessions!.list()[0]).toMatchObject({ label: 'My bash', profile: 'bash', shell: 'bash' });
+    expect((await post('/api/terminal/open', { ...open, profile: 'tool' })).status).toBe(200);
+    expect(ptys[1]!.cmd).toEqual(['/opt/tool', '--go']);
+    expect((await post('/api/terminal/open', { ...open, profile: 'nope' })).body.code).toBe('terminalProfile');
+    expect((await post('/api/terminal/open', { ...open, profile: 3 })).status).toBe(400);
+  });
+
+  test('defaultProfile applies when none is named; an unknown default falls back to shell', async () => {
+    let def = 'tool';
+    const { post, ptys } = start({ profiles, defaultProfile: async () => def, shellIntegration: async () => false });
+    await post('/api/terminal/open', open);
+    expect(ptys[0]!.cmd).toEqual(['/opt/tool', '--go']);
+    def = 'nope';
+    await post('/api/terminal/open', open);
+    expect(ptys[1]!.cmd).toEqual(['/bin/sh', '-l']);
+  });
+
+  test('cwd order: root > dir > profile cwd > defaultCwd > home', async () => {
+    const { post, ptys } = start({ profiles, isDir, defaultCwd: async () => '/def', resolveCwd: async () => '/root', shellIntegration: async () => false });
+    await post('/api/terminal/open', { ...open, profile: 'bash', dir: '/saved', root: 'p' });
+    await post('/api/terminal/open', { ...open, profile: 'bash', dir: '/saved' });
+    await post('/api/terminal/open', { ...open, profile: 'bash', dir: '/missing' });
+    await post('/api/terminal/open', { ...open, dir: 'relative' });
+    expect(ptys.map((p) => p.cwd)).toEqual(['/root', '/saved', '/prof', '/def']);
+  });
+
+  test('defaultCwd ~ expands to home; a bad one falls back to home', async () => {
+    let def = '~';
+    const { post, ptys } = start({ isDir, defaultCwd: async () => def });
+    await post('/api/terminal/open', open);
+    def = '/nowhere';
+    await post('/api/terminal/open', open);
+    expect(ptys.map((p) => p.cwd)).toEqual([require('node:os').homedir(), require('node:os').homedir()]);
+  });
+
+  test('shell integration rewrites a bash argv unless disabled', async () => {
+    const dir = require('node:fs').mkdtempSync(require('node:path').join(require('node:os').tmpdir(), 'db-si-'));
+    let on = true;
+    const { post, ptys } = start({ profiles, integrationDir: dir, shellIntegration: async () => on });
+    await post('/api/terminal/open', { ...open, profile: 'bash' });
+    expect(ptys[0]!.cmd).toEqual(['/bin/bash', '--rcfile', require('node:path').join(dir, 'bash.sh').replace(/\\/g, '/'), '-x', '-i']);
+    on = false;
+    await post('/api/terminal/open', { ...open, profile: 'bash' });
+    expect(ptys[1]!.cmd).toEqual(['/bin/bash', '-l', '-x']);
+  });
+});

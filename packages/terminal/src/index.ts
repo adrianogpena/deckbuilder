@@ -1,7 +1,12 @@
-export { attachSession, closeSession, isSessionGone, listSessions, openSession, socketUrl, type SessionInfo, type TerminalCwd, type TerminalLaunch, type Ticketed } from './client.ts';
-export { terminalKeyAction, type TerminalKeyAction } from './keys.ts';
-export { TerminalPane, type TerminalPaneProps } from './TerminalPane.tsx';
-export { TerminalOptionsContext } from './terminalOptions.ts';
+export { attachSession, closeSession, isSessionGone, listProfiles, listSessions, openSession, socketUrl, type SessionInfo, type TerminalCwd, type TerminalLaunch, type TerminalProfile, type TerminalProfileInfo, type Ticketed } from './client.ts';
+export { PANE_COMMANDS, terminalKeyAction, type PaneCommand, type TerminalKeyAction } from './keys.ts';
+export { TerminalPane, type TerminalPaneHandle, type TerminalPaneProps } from './TerminalPane.tsx';
+export { DEFAULT_WORD_SEPARATORS, TerminalOptionsContext } from './terminalOptions.ts';
 export { readCssToken, xtermTheme } from './theme.ts';
+export { resolveThemeId, TERMINAL_THEMES, themeOf, type TerminalThemeId } from './themes.ts';
+export { validAppearance, withAppearance, type ProfileAppearance } from './appearance.ts';
+export { parseWindowsTerminalSchemes, schemeTheme, SCHEME_COLORS, validSchemes, type ColorScheme } from './schemes.ts';
+export { continuationOf, pasteNeedsWarning, pasteSummary, sanitizePaste, trimCopied, type PasteWarning } from './paste.ts';
+export { formatTabTitle, parseOsc133, parseOsc7, type PromptMark, type TitleVars } from './shell-integration.ts';
 export type { TerminalView } from './view.ts';
-export { createXtermView, type TerminalOptions, type XtermView, type XtermViewOptions } from './xterm-view.ts';
+export { createXtermView, type TerminalFontWeight, type TerminalOptions, type XtermView, type XtermViewOptions } from './xterm-view.ts';

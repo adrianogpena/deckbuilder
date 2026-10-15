@@ -1,7 +1,6 @@
-export const SHELL_IDS = ['auto', 'powershell', 'pwsh', 'cmd', 'git-bash', 'wsl', 'bash', 'zsh', 'fish', 'sh'] as const;
-export type ShellId = (typeof SHELL_IDS)[number];
+import { isShellId, SHELL_IDS, type ShellId } from '../protocol.ts';
 
-export const isShellId = (x: unknown): x is ShellId => typeof x === 'string' && (SHELL_IDS as readonly string[]).includes(x);
+export { isShellId, SHELL_IDS, type ShellId };
 
 export interface ShellLookup {
   platform: NodeJS.Platform;

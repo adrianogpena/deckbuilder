@@ -4,7 +4,7 @@ import type { ThemeSettings } from '@deckbuilder/server-core/palettes';
 import type { BackupInspect, EditorInfo, FsArchiveFormat, FsCompressRequest, FsCompressResult, FsDuProgress, FsExtractRequest, FsExtractResult, FsHash, FsInfo, GitCommit, GitCommitFile, GitDiff, GitFileContent, GitRepoInfo, GitStatus, HttpRequestSpec, HttpResponseInfo, ImportResult, RestEnvironment, RestEnvironmentInput, RestHistoryEntry, SqlHistoryEntry, TailChunk, UpdateState } from '@deckbuilder/server-core/protocol';
 
 export type { EditorInfo, FsDuProgress, FsHash, FsInfo, ImportResult, TailChunk };
-import type { SessionInfo } from '@deckbuilder/terminal';
+import type { ColorScheme, SessionInfo, TerminalProfile, TerminalProfileInfo } from '@deckbuilder/terminal';
 import type { CopyFormat } from './screens/workbench/copy-format';
 import { settingDefault, settingDefaults } from './settings';
 import { type FileAssociation, type FileSettings, type Keymap, type Language, type LogSettings, type ResultFormat, request, requestUpload, stream } from '@deckbuilder/ui';
@@ -118,7 +118,52 @@ export interface TerminalSettings {
   scrollback?: number;
   copyOnSelect?: boolean;
   rightClickPaste?: boolean;
+  restoreTabs?: boolean;
+  tabTitle?: string;
+  /** 1 to 2. */
+  lineHeight?: number;
+  /** Pixels, 0 to 10. */
+  letterSpacing?: number;
+  fontWeight?: TerminalFontWeight;
+  fontWeightBold?: TerminalFontWeight;
+  /** A preset id ('app', 'dark-plus', ...) or a `schemes` id; an unknown one follows the app. */
+  theme?: string;
+  /** Custom color schemes (at most 100). */
+  schemes?: ColorScheme[];
+  /** Pixels, 0 to 48. */
+  padding?: number;
+  scrollbar?: 'visible' | 'hover' | 'hidden';
+  /** Percent, 0 to 80. */
+  dimUnfocused?: number;
+  pasteWarning?: 'multiLine' | 'large' | 'never';
+  /** Characters, 256 to 1 000 000. */
+  pasteLargeSize?: number;
+  trimCopy?: boolean;
+  /** 1 to 21. */
+  minimumContrastRatio?: number;
+  ligatures?: boolean;
+  gpuAcceleration?: 'auto' | 'on' | 'off';
+  bellStyle?: 'tab' | 'sound' | 'both' | 'none';
+  wordSeparators?: string;
+  /** 1 to 10. */
+  scrollSensitivity?: number;
+  /** 1 to 20. */
+  fastScrollSensitivity?: number;
+  altIsMeta?: boolean;
+  onExit?: 'keep' | 'close' | 'closeIfClean' | 'restart';
+  confirmCloseRunning?: boolean;
+  /** OSC 133/OSC 7 scripts injected into supported shells; default true. */
+  shellIntegration?: boolean;
+  commandDecorations?: boolean;
+  /** Start directory when the tab and profile give none; `~` = home. */
+  defaultCwd?: string;
+  /** Profile id for new tabs; '' = the `shell` setting. */
+  defaultProfile?: string;
+  /** Overrides of built-in profiles (shell id as `id`) and custom profiles. */
+  profiles?: TerminalProfile[];
 }
+
+export type TerminalFontWeight = 'normal' | 'bold' | '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900';
 
 export interface RestSettings {
   sizes?: { main: [number, number] };
@@ -487,6 +532,8 @@ export const api = {
   httpSave: (id: string) => request<{ path: string | null; bytes?: number }>('POST', '/api/http/save', {}, { id }),
   /** Ids of the shells installed on this machine (no `'auto'`). */
   terminalShells: () => request<string[]>('GET', '/api/terminal/shells'),
+  /** Built-in profiles (installed shells, overrides applied), then custom ones, each with `available`. */
+  terminalProfiles: () => request<TerminalProfileInfo[]>('GET', '/api/terminal/profiles'),
   /** Every running terminal session, with its title and bell count. */
   terminalSessions: () => request<SessionInfo[]>('GET', '/api/terminal/sessions'),
   echo: (text: string) => request<{ text: string; length: number; at: string }>('POST', '/api/echo', {}, { text }),
