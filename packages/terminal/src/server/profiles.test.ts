@@ -26,7 +26,7 @@ describe('mergeProfiles', () => {
   test('Windows built-ins get display names', () => {
     const ps = 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe';
     const list = mergeProfiles([], { platform: 'win32', env: { SystemRoot: 'C:\\Windows' }, exists: (p) => p === ps });
-    expect(list).toEqual([{ id: 'powershell', name: 'PowerShell', shell: 'powershell', icon: 'shell-powershell', available: true }]);
+    expect(list).toEqual([{ id: 'powershell', name: 'PowerShell', shell: 'powershell', icon: 'terminal-powershell', available: true }]);
   });
 });
 

@@ -1039,7 +1039,7 @@ function ProfilesField({ value, terminal, onChange }: { value: TerminalProfile[]
           const builtin = isBuiltinId(p.id);
           const open = editing === p.id;
           return (
-            <div key={p.id} className={`profile-row${p.hidden ? ' is-hidden' : ''}`}>
+            <div key={p.id} className={`profile-row${p.hidden ? ' is-hidden' : ''}${open ? ' is-open' : ''}`}>
               <button className="btn btn-sm btn-icon btn-ghost" title={t('settings.terminal.profiles.changeIcon')} aria-label={t('settings.terminal.profiles.changeIcon')} onClick={() => setPicking(p.id)}>
                 <Icon name={iconOf(p)} size={16} />
               </button>

@@ -26,11 +26,11 @@ export const SHELL_NAMES: Record<Exclude<ShellId, 'auto'>, string> = {
 
 /** Default icon names of the built-in profiles. */
 export const SHELL_ICONS: Record<Exclude<ShellId, 'auto'>, string> = {
-  powershell: 'shell-powershell',
-  pwsh: 'shell-powershell',
-  cmd: 'shell-cmd',
-  'git-bash': 'shell-git',
-  wsl: 'shell-linux',
+  powershell: 'terminal-powershell',
+  pwsh: 'terminal-pwsh',
+  cmd: 'terminal-cmd',
+  'git-bash': 'terminal-git-bash',
+  wsl: 'terminal-wsl',
   bash: 'shell-bash',
   zsh: 'shell-zsh',
   fish: 'shell-fish',

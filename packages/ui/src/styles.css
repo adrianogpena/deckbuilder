@@ -1065,6 +1065,7 @@ html[data-status-bar="false"] .status-bar { display: none; }
 .profile-list { display: flex; flex-direction: column; border: 1px solid var(--border-soft); border-radius: var(--radius-lg); }
 .profile-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: var(--space-8); padding: var(--space-6) var(--space-8); }
 .profile-row + .profile-row { border-top: 1px solid var(--border-soft); }
+.profile-row.is-open { background: color-mix(in srgb, var(--bg-sunken) 70%, transparent); }
 .profile-row.is-hidden .profile-name { opacity: .6; }
 .profile-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .profile-shell { white-space: nowrap; }

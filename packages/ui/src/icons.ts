@@ -95,6 +95,18 @@ export const PATHS = {
 
 export type IconName = keyof typeof PATHS;
 
+const terminalIcon = (file: string) => new URL(`./assets/terminal/${file}.png`, import.meta.url).href;
+
+/** Coloured shell logos for terminal profiles (pack `icons-original/terminal/`). Drawn as images by `Icon`, in every icon set, and not offered by `IconPicker`. */
+export const IMAGE_ICONS = {
+  'terminal-powershell': terminalIcon('powershell'),
+  'terminal-pwsh': terminalIcon('pwsh'),
+  'terminal-cmd': terminalIcon('cmd'),
+  'terminal-git-bash': terminalIcon('git-bash'),
+  'terminal-wsl': terminalIcon('wsl'),
+} as const;
+export type ImageIconName = keyof typeof IMAGE_ICONS;
+
 export interface IconSet { id: string; mode: 'stroke' | 'fill'; viewBox: string; paths: Record<IconName, string> }
 
 // A fill set (Material/Atom style, see .claude/skills/frontend-design/references/icons.md
