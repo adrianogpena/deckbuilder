@@ -48,6 +48,8 @@ export interface CodeEditorHandle {
   /** Formats the selection if any, else the whole document, as one undoable change. No-op when nothing changes. */
   format(options: SqlFormatOptions): void;
   focus(): void;
+  /** Selects from..to (or puts the cursor at from), scrolls it to the center and focuses the editor. */
+  reveal(from: number, to?: number): void;
 }
 
 /** Where the main cursor is (1-based) and how much is selected, for a status bar. */
@@ -57,12 +59,14 @@ export interface SelectionInfo {
   /** Characters selected over all selections. */
   selected: number;
   selections: number;
+  /** Offset of the main cursor. */
+  pos: number;
 }
 
 export function selectionInfo(state: EditorState): SelectionInfo {
   const { main, ranges } = state.selection;
   const line = state.doc.lineAt(main.head);
-  return { line: line.number, col: main.head - line.from + 1, selected: ranges.reduce((n, r) => n + r.to - r.from, 0), selections: ranges.length };
+  return { line: line.number, col: main.head - line.from + 1, selected: ranges.reduce((n, r) => n + r.to - r.from, 0), selections: ranges.length, pos: main.head };
 }
 
 /** Marks the transaction that loads an outside `value`, so it doesn't echo back through onChange. */
@@ -115,6 +119,15 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(function
       });
     },
     focus: () => view.current?.focus(),
+    reveal: (from, to) => {
+      const v = view.current;
+      if (!v) return;
+      const len = v.state.doc.length;
+      const a = Math.max(0, Math.min(from, len));
+      const b = to === undefined ? a : Math.max(0, Math.min(to, len));
+      v.dispatch({ selection: { anchor: a, head: b }, effects: EditorView.scrollIntoView(a, { y: 'center' }) });
+      v.focus();
+    },
   }), []);
 
   useEffect(() => {

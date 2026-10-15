@@ -1,5 +1,5 @@
 import { type MouseEvent, useEffect, useRef, useState } from 'react';
-import { CodeEditor, type CodeEditorHandle } from '@deckbuilder/editor';
+import { CodeEditor, type CodeEditorHandle, SqlSteps } from '@deckbuilder/editor';
 import {
   type ApiError,
   Badge,
@@ -40,6 +40,7 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
   const connections = useAsync(() => api.dbConnections(), []);
   const { confirm, element: dialogs } = useDialogs();
   const editor = useRef<CodeEditorHandle>(null);
+  const [cursor, setCursor] = useState(0);
 
   const persist = useDebouncedSave((next: WorkbenchSettings) => onSave({ workbench: next }));
   const latest = useRef(state);
@@ -254,6 +255,9 @@ ${sql}` : sql);
               <button className="btn btn-sm" onClick={disconnect} disabled={!status?.connected || starting}>{t('workbench.tx.disconnect')}</button>
             </>
           )}
+          <button className="btn btn-sm" onClick={() => update((cur) => ({ steps: !cur.steps }))} aria-pressed={!!state.steps} title={t('workbench.steps.title')}>
+            <Icon name="list-flat" /> {t('workbench.steps')}
+          </button>
           <button className="btn btn-sm" onClick={() => update((cur) => ({ history: !cur.history }))} aria-pressed={!!state.history}>
             <Icon name="history" /> {t('workbench.history')}
           </button>
@@ -300,7 +304,7 @@ ${sql}` : sql);
         onResize={(s) => update((cur) => ({ sizes: { ...(cur.sizes ?? sizes), main: [s[0], s[1]] } }))}
       >
         <div key="editor" className="wb-pane">
-          <CodeEditor ref={editor} value={query} lang="sql" sqlDialect="plsql" sqlSchema={sqlSchema} onChange={edit} onRun={runner.run} height="100%" />
+          <CodeEditor ref={editor} value={query} lang="sql" sqlDialect="plsql" sqlSchema={sqlSchema} onChange={edit} onRun={runner.run} onSelection={(s) => setCursor(s.pos)} height="100%" />
         </div>
         <div key="results" className="wb-pane">
           <SqlResults
@@ -312,6 +316,9 @@ ${sql}` : sql);
           />
         </div>
       </SplitView>
+      {state.steps && (
+        <SqlSteps text={query} cursor={cursor} onJump={(from, to) => editor.current?.reveal(from, to)} onClose={() => update(() => ({ steps: false }))} />
+      )}
       {state.history && (
         <HistoryPanel connection={db} refresh={runsDone} connectionName={connectionName} onInsert={insertSql} onOpen={edit} confirm={confirm} />
       )}

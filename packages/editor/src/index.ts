@@ -16,6 +16,18 @@ export * from './markdown';
 export * from './MarkdownEditor';
 export * from './MarkdownView';
 export * from './text-save';
+export * from './SqlSteps';
+export {
+  sqlOutline,
+  type SqlJoin,
+  type SqlJoinType,
+  type SqlOutline,
+  type SqlRead,
+  type SqlSetOp,
+  type SqlStatementKind,
+  type SqlStatementOutline,
+  type SqlStep,
+} from './sql/outline';
 export { splitStatements, statementAt, type Statement } from './sql/statements';
 export * from './theme';
 export * from './editorOptions';

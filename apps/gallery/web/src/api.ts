@@ -199,6 +199,8 @@ export interface WorkbenchSettings {
   maxRows?: number;
   /** The schema sidebar is open. */
   schema?: boolean;
+  /** The SQL steps sidebar is open. */
+  steps?: boolean;
   /** The SQL history sidebar is open. */
   history?: boolean;
   /** Project ids allowed to run SQL from the Explorer. */

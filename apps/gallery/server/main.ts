@@ -93,6 +93,10 @@ export interface WorkbenchSettings {
   maxRows?: number;
   /** The schema sidebar is open. */
   schema?: boolean;
+  /** The SQL history sidebar is open. */
+  history?: boolean;
+  /** The SQL steps sidebar is open. */
+  steps?: boolean;
   /** Project ids allowed to run SQL from the Explorer. */
   explorerProjects?: string[];
   /** Last connection id used per project id. */
@@ -247,6 +251,14 @@ function validWorkbench(raw: unknown): WorkbenchSettings | null {
   if (r.schema !== undefined) {
     if (typeof r.schema !== 'boolean') return null;
     out.schema = r.schema;
+  }
+  if (r.history !== undefined) {
+    if (typeof r.history !== 'boolean') return null;
+    out.history = r.history;
+  }
+  if (r.steps !== undefined) {
+    if (typeof r.steps !== 'boolean') return null;
+    out.steps = r.steps;
   }
   if (r.explorerProjects !== undefined) {
     if (!Array.isArray(r.explorerProjects) || r.explorerProjects.length > 1000 || !r.explorerProjects.every((id) => typeof id === 'string' && /^[\w-]{1,64}$/.test(id))) return null;

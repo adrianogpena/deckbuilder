@@ -1185,3 +1185,31 @@ html[data-status-bar="false"] .status-bar { display: none; }
   content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
   border-right: 1px solid var(--border-soft); border-bottom: 1px solid var(--border-soft);
 }
+
+/* ---- sql steps */
+.sqlsteps { width: 320px; flex-shrink: 0; display: flex; flex-direction: column; gap: var(--space-6); padding: var(--space-8); overflow: hidden; border-left: 1px solid var(--border-soft); min-height: 0; }
+.sqlsteps-head { display: flex; align-items: center; gap: var(--space-8); }
+.sqlsteps-head .spacer { flex: 1; }
+.sqlsteps-counts { font-size: var(--fs-xs); }
+.sqlsteps-filter { width: 100%; }
+.sqlsteps-list { position: relative; flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-8); }
+.sqlsteps-none { font-size: var(--fs-sm); }
+.sqlsteps-group { display: flex; flex-direction: column; gap: var(--space-4); }
+.sqlsteps-group-head { padding: var(--space-2) var(--space-4); border: 0; border-radius: var(--radius-md); background: transparent; color: var(--muted); font: inherit; font-size: var(--fs-xs); font-weight: 600; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.sqlsteps-group-head:hover { background: var(--hover); color: var(--text); }
+.sqlsteps-card { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-6) var(--space-8); border: 1px solid var(--border-soft); border-radius: var(--radius-md); font-size: var(--fs-xs); cursor: pointer; }
+.sqlsteps-card:hover { background: var(--hover); }
+.sqlsteps-card.is-active { border-color: var(--accent); background: var(--hover); }
+.sqlsteps-name { font-size: var(--fs-sm); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sqlsteps-row { display: flex; gap: var(--space-6); align-items: baseline; }
+.sqlsteps-label { flex: none; width: 56px; color: var(--muted); }
+.sqlsteps-value { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
+.sqlsteps-code { max-width: 100%; font-family: var(--font-mono, monospace); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sqlsteps-code.is-cte { color: var(--accent); font-style: italic; }
+.sqlsteps-joins { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; width: 100%; }
+.sqlsteps-join { display: flex; align-items: center; gap: var(--space-4); min-width: 0; }
+.sqlsteps-on { flex: 1; min-width: 0; font-family: var(--font-mono, monospace); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sqlsteps-badges { display: flex; flex-wrap: wrap; gap: var(--space-4); }
+.sqlsteps-feed { padding: 0; border: 0; background: transparent; color: var(--accent); font: inherit; cursor: pointer; }
+.sqlsteps-feed:hover { text-decoration: underline; }
+.sqlsteps-unused { font-size: var(--fs-xs); }
