@@ -53,6 +53,7 @@ export function lineageGraph(statement: SqlStatementOutline): LineageGraph {
     const id = stepId(step);
     if (byId.has(id)) continue;
     const tags: string[] = [];
+    if (step.optional.length) tags.push(`?${step.optional.map((n) => `{${n}}`).join('')}`);
     if (step.reads.some((r) => step.kind === 'cte' && sqlNameKey(r.name) === sqlNameKey(step.name))) tags.push('recursive');
     if (step.distinct) tags.push('distinct');
     if (step.dedupe) tags.push('dedupe');

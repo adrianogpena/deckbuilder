@@ -2,10 +2,11 @@ import { Badge, Icon, PanelNotice, t } from '@deckbuilder/ui';
 import { type KeyboardEvent, type PointerEvent, type ReactNode, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { SqlGraph } from './SqlGraph';
 import { type SqlLintSeverity, type SqlProblem, sqlLint } from './sql/lint';
+import { type SqlParam, sqlParams } from './sql/markers';
 import { type SqlStatementOutline, type SqlStep, sqlOutline } from './sql/outline';
 import { lineOf, lineStarts, SQL_SEVERITIES, sqlProblemMessage, worstSeverity } from './sqlProblems';
 
-export type SqlStepsTab = 'steps' | 'graph' | 'problems';
+export type SqlStepsTab = 'steps' | 'graph' | 'params' | 'problems';
 
 export interface SqlStepsProps {
   text: string;
@@ -19,10 +20,12 @@ export interface SqlStepsProps {
   /** Panel width in px (default 300); the left edge drags it, reporting the new width on release. */
   width?: number;
   onWidth?(width: number): void;
+  /** Fill a bottom panel (no fixed width, no resize edge) instead of a right side panel. */
+  bottom?: boolean;
 }
 
 const MAIN = 'main';
-const TABS: readonly SqlStepsTab[] = ['steps', 'graph', 'problems'];
+const TABS: readonly SqlStepsTab[] = ['steps', 'graph', 'params', 'problems'];
 const DEFAULT_WIDTH = 300;
 const MIN_WIDTH = 260;
 const MAX_SHARE = 0.7;
@@ -108,6 +111,28 @@ function ProblemList({ problems, text, outline, filter, onClearFilter, onJump }:
   );
 }
 
+function ParamList({ params, onJump }: { params: readonly SqlParam[]; onJump(from: number, to?: number): void }) {
+  if (params.length === 0) {
+    return <PanelNotice icon={<Icon name="list-flat" size={20} />} title={t('sqlSteps.params.none')} message={t('sqlSteps.params.noneHint')} />;
+  }
+  return (
+    <div className="sqlsteps-list">
+      {params.map((p) => (
+        <button key={p.n} className="sqlsteps-problem" onClick={() => onJump(p.firstFrom, p.firstFrom + String(p.n).length + 2)} title={t('sqlSteps.params.jump')}>
+          <code className="sqlsteps-param-name">{`{${p.n}}`}</code>
+          <span className="sqlsteps-problem-body">
+            <span className="sqlsteps-problem-msg">{t('sqlSteps.params.uses', { count: p.count })}</span>
+            <span className="muted sqlsteps-problem-where">
+              <span>{t('sqlSteps.params.guarded', { count: p.markers })}</span>
+              <span>{t('sqlSteps.params.unguarded', { count: p.unguarded })}</span>
+            </span>
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function stepLabel(step: SqlStep): string {
   return step.name || t('sqlSteps.main');
 }
@@ -135,11 +160,12 @@ function Items({ items }: { items: string[] }) {
 }
 
 /** Explains a SQL script as its CTE steps: what each reads, joins, filters and feeds. */
-export function SqlSteps({ text, onJump, cursor, onClose, tab: tabProp, onTab, width, onWidth }: SqlStepsProps) {
+export function SqlSteps({ text, onJump, cursor, onClose, tab: tabProp, onTab, width, onWidth, bottom }: SqlStepsProps) {
   const deferred = useDeferredValue(text);
   const outline = useMemo(() => sqlOutline(deferred), [deferred]);
   // Shared by every tab, so a tab switch or cursor move never recomputes them.
   const problems = useMemo(() => sqlLint(deferred, outline), [deferred, outline]);
+  const params = useMemo(() => sqlParams(deferred), [deferred]);
   const worst = useMemo(() => worstSeverity(problems), [problems]);
   const stepProblems = useMemo(() => {
     const map = new Map<string, number>();
@@ -256,8 +282,8 @@ export function SqlSteps({ text, onJump, cursor, onClose, tab: tabProp, onTab, w
     .filter((g) => g.steps.length > 0);
 
   return (
-    <aside className="sqlsteps" aria-label={t('sqlSteps.title')} ref={aside} style={{ width: shownWidth }}>
-      <div
+    <aside className={`sqlsteps${bottom ? ' is-bottom' : ''}`} aria-label={t('sqlSteps.title')} ref={aside} style={bottom ? undefined : { width: shownWidth }}>
+      {!bottom && <div
         className="sqlsteps-resize"
         role="separator"
         aria-orientation="vertical"
@@ -266,12 +292,13 @@ export function SqlSteps({ text, onJump, cursor, onClose, tab: tabProp, onTab, w
         tabIndex={0}
         onPointerDown={startResize}
         onKeyDown={resizeKey}
-      />
+      />}
       <div className="sqlsteps-head">
         <div className="sqlsteps-tabs" role="tablist">
           {TABS.map((id) => (
             <button key={id} role="tab" className="sqlsteps-tab" aria-selected={tab === id} onClick={() => { if (id === 'problems') setProblemFilter(undefined); setTab(id); }}>
               {t(`sqlSteps.tab.${id}`)}
+              {id === 'params' && params.length > 0 && <span className="sqlsteps-count">{params.length}</span>}
               {id === 'problems' && problems.length > 0 && <span className={`sqlsteps-count is-${worst}`}>{problems.length}</span>}
             </button>
           ))}
@@ -285,6 +312,8 @@ export function SqlSteps({ text, onJump, cursor, onClose, tab: tabProp, onTab, w
       </div>
       {tab === 'graph' ? (
         <SqlGraph outline={outline} problems={problems} cursor={cursor} onJump={onJump} />
+      ) : tab === 'params' ? (
+        <ParamList params={params} onJump={onJump} />
       ) : tab === 'problems' ? (
         <ProblemList problems={problems} text={deferred} outline={outline} filter={problemFilter} onClearFilter={() => setProblemFilter(undefined)} onJump={onJump} />
       ) : (
@@ -355,6 +384,11 @@ export function SqlSteps({ text, onJump, cursor, onClose, tab: tabProp, onTab, w
                             </div>
                           ))}
                         </div>
+                      </Row>
+                    )}
+                    {step.optional.length > 0 && (
+                      <Row label={t('sqlSteps.optional')}>
+                        {step.optional.map((n) => <code key={n} className="sqlsteps-code sqlsteps-optional">{`{${n}}`}</code>)}
                       </Row>
                     )}
                     {step.filters.length > 0 && <Row label={t('sqlSteps.filters')}><Items items={step.filters} /></Row>}

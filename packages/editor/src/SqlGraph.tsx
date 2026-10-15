@@ -73,7 +73,7 @@ export function SqlGraph({ outline, problems, cursor, onJump }: SqlGraphProps) {
   const statement = current === undefined ? undefined : outline.statements[current];
 
   const graph = useMemo(() => (statement ? lineageGraph(statement) : { nodes: [], edges: [] }), [statement]);
-  const layout = useMemo(() => layoutGraph(graph, { heightOf: (n) => (n.tags.length > 0 ? 52 : 34) }), [graph]);
+  const layout = useMemo(() => layoutGraph(graph, { heightOf: (n) => (n.tags.length > 0 ? 52 : 34), rankGap: 120, nodeGap: 26 }), [graph]);
   const edgeInfo = useMemo(() => {
     const map = new Map<string, LineageEdge>();
     for (const e of graph.edges) if (!map.has(`${e.from}>${e.to}`)) map.set(`${e.from}>${e.to}`, e);
@@ -180,6 +180,7 @@ export function SqlGraph({ outline, problems, cursor, onJump }: SqlGraphProps) {
     const r = box.current?.getBoundingClientRect();
     if (r) setHover({ node, x: e.clientX - r.left, y: e.clientY - r.top });
   };
+  const lit = focus ?? (hover ? lineageOf(graph, hover.node.id) : undefined);
   const tipStep = hover && statement ? stepOf(statement, hover.node) : undefined;
 
   if (candidates.length === 0 || !statement) {
@@ -232,11 +233,12 @@ export function SqlGraph({ outline, problems, cursor, onJump }: SqlGraphProps) {
           <g transform={`translate(${view.x} ${view.y}) scale(${view.k})`}>
             {layout.edges.map((e, i) => {
               const info = edgeInfo.get(`${e.from}>${e.to}`);
-              const dim = focus && !(focus.has(e.from) && focus.has(e.to));
+              const hot = !!lit && lit.has(e.from) && lit.has(e.to);
+              const dim = !!lit && !hot;
               const end = e.points[e.points.length - 1];
               const join = info?.join && info.join !== 'from' ? info.join : undefined;
               return (
-                <g key={i} className={`sqlgraph-edge${dim ? ' is-dim' : ''}${join && OUTER.has(join) ? ' is-outer' : ''}`}>
+                <g key={i} className={`sqlgraph-edge${dim ? ' is-dim' : ''}${hot ? ' is-hot' : ''}${join && OUTER.has(join) ? ' is-outer' : ''}`}>
                   <path d={edgePath(e.points)} markerEnd={`url(#${markerId})`}>
                     {info?.on && <title>{info.on}</title>}
                   </path>
@@ -247,7 +249,7 @@ export function SqlGraph({ outline, problems, cursor, onJump }: SqlGraphProps) {
             {graph.nodes.map((n) => {
               const b = layout.nodes.get(n.id);
               if (!b) return null;
-              const dim = focus && !focus.has(n.id);
+              const dim = !!lit && !lit.has(n.id);
               const label = nodeLabel(n);
               let tagX = 10;
               return (

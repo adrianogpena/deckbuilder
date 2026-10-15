@@ -32,6 +32,7 @@ export {
 } from './sql/outline';
 export { SQL_LINT_SEVERITY, sqlLint, type SqlLintCode, type SqlLintSeverity, type SqlProblem } from './sql/lint';
 export { splitStatements, statementAt, type Statement } from './sql/statements';
+export { resolveMarkers, sqlMarkers, sqlParams, type SqlParam } from './sql/markers';
 export {
   layoutGraph,
   lineageGraph,

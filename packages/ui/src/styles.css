@@ -1195,6 +1195,9 @@ html[data-status-bar="false"] .status-bar { display: none; }
 .sqlsteps-list { position: relative; flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-8); }
 .sqlsteps-none { font-size: var(--fs-sm); }
 .sqlsteps-group { display: flex; flex-direction: column; gap: var(--space-4); }
+.sqlsteps.is-bottom { flex: 1; width: auto; border-left: 0; }
+.sqlsteps.is-bottom .sqlsteps-group { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); align-items: start; }
+.sqlsteps.is-bottom .sqlsteps-group-head { grid-column: 1 / -1; }
 .sqlsteps-group-head { padding: var(--space-2) var(--space-4); border: 0; border-radius: var(--radius-md); background: transparent; color: var(--muted); font: inherit; font-size: var(--fs-xs); font-weight: 600; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
 .sqlsteps-group-head:hover { background: var(--hover); color: var(--text); }
 .sqlsteps-card { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-6) var(--space-8); border: 1px solid var(--border-soft); border-radius: var(--radius-md); font-size: var(--fs-xs); cursor: pointer; }
@@ -1242,6 +1245,8 @@ html[data-status-bar="false"] .status-bar { display: none; }
 .sqlsteps-problem { display: flex; align-items: flex-start; gap: var(--space-6); padding: var(--space-6) var(--space-8); border: 1px solid var(--border-soft); border-radius: var(--radius-md); background: transparent; color: var(--text); font: inherit; font-size: var(--fs-xs); text-align: left; cursor: pointer; }
 .sqlsteps-problem:hover { background: var(--hover); }
 .sqlsteps-problem-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.sqlsteps-optional { color: var(--accent); }
+.sqlsteps-param-name { flex: none; font-family: var(--font-mono, monospace); color: var(--accent); }
 .sqlsteps-problem-where { display: flex; gap: var(--space-8); }
 .sqlsteps-problem-step { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono, monospace); }
 .sqlgraph { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: var(--space-6); }
@@ -1252,7 +1257,9 @@ html[data-status-bar="false"] .status-bar { display: none; }
 .sqlgraph-canvas:active { cursor: grabbing; }
 .sqlgraph-canvas:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .sqlgraph-svg { display: block; width: 100%; height: 100%; }
-.sqlgraph-edge path { fill: none; stroke: var(--text-3); stroke-width: 1.4; }
+.sqlgraph-edge path { fill: none; stroke: var(--text-3); stroke-width: 1.4; opacity: 0.55; }
+.sqlgraph-edge.is-hot path { stroke: var(--accent); stroke-width: 2.4; opacity: 1; }
+.sqlgraph-edge.is-hot .sqlgraph-join { fill: var(--text); }
 .sqlgraph-edge.is-outer path { stroke-dasharray: 5 4; }
 .sqlgraph-edge.is-dim { opacity: 0.15; }
 .sqlgraph-arrow { fill: var(--text-3); }

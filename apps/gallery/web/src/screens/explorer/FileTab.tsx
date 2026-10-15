@@ -103,7 +103,6 @@ function TextFileTab({ project, projectName, path, focused, preview, markdownMod
   const [selection, setSelection] = useState<SelectionInfo>();
   const [stepsOpen, setStepsOpen] = useState(false);
   const [stepsTab, setStepsTab] = useState<SqlStepsTab>('steps');
-  const [stepsWidth, setStepsWidth] = useState<number>();
   const [image, setImage] = useState<ImageInfo>();
   const generation = useRef(0);
   const dirtyRef = useRef(false);
@@ -329,24 +328,24 @@ function TextFileTab({ project, projectName, path, focused, preview, markdownMod
     if (ok) void save({ overwrite: true });
   };
 
-  const sqlUi = useExplorerSql({ project, name, active, focused, draft, sql, confirm });
+  const sqlUi = useExplorerSql({ project, name, active, focused, draft, sql, confirm, onRunStart: () => setStepsOpen(false) });
   const curlUi = useExplorerCurl({ name, active, draft, sql });
   const chordOf = useChordOf();
-  const withSteps = (node: ReactNode): ReactNode => isSql && stepsOpen ? (
-    <div className="xp-steps-row">
-      <div className="xp-steps-main">{node}</div>
-      <SqlSteps
-        text={draft}
-        cursor={selection?.pos}
-        onJump={(from, to) => sqlUi.editor.current?.reveal(from, to)}
-        onClose={() => setStepsOpen(false)}
-        tab={stepsTab}
-        onTab={setStepsTab}
-        width={stepsWidth}
-        onWidth={setStepsWidth}
-      />
-    </div>
-  ) : node;
+  const stepsPanel = (): ReactNode => isSql && stepsOpen ? (
+    <SqlSteps
+      bottom
+      text={draft}
+      cursor={selection?.pos}
+      onJump={(from, to) => sqlUi.editor.current?.reveal(from, to)}
+      onClose={() => setStepsOpen(false)}
+      tab={stepsTab}
+      onTab={setStepsTab}
+    />
+  ) : undefined;
+  const openSteps = () => {
+    sqlUi.closeResults();
+    setStepsOpen(true);
+  };
   const openInWorkbench = async () => {
     if (!sql) return;
     if (dirty && !(await save())) return;
@@ -356,11 +355,11 @@ function TextFileTab({ project, projectName, path, focused, preview, markdownMod
   const actions: TabAction[] = [...sqlUi.actions, ...curlUi.actions];
   const isSql = langOfFile(name) === 'sql';
   if (isSql && editable) {
-    actions.push({ id: 'sql.steps', group: 'primary', icon: 'list-flat', label: t('explorer.sql.steps'), checked: stepsOpen, run: () => setStepsOpen((open) => !open) });
+    actions.push({ id: 'sql.steps', group: 'primary', icon: 'list-flat', label: t('explorer.sql.steps'), checked: stepsOpen, run: () => (stepsOpen ? setStepsOpen(false) : openSteps()) });
   }
   const showProblems = () => {
     setStepsTab('problems');
-    setStepsOpen(true);
+    openSteps();
   };
   useCommand(commandById('explorer.sql.problems'), showProblems, { enabled: focused && active && isSql && editable });
   if (editable && TOGGLES.has(previewKind(name))) {
@@ -438,7 +437,7 @@ function TextFileTab({ project, projectName, path, focused, preview, markdownMod
           : active
           ? curlUi.enabled
             ? curlUi.layout(<CodeEditor ref={curlUi.editor} value={draft} lang={langOfFile(name)} onChange={setDraft} height="100%" wrap={wrapLines} autoFocus={!preview} onSelection={setSelection} {...curlUi.editorProps} />)
-            : withSteps(sqlUi.layout(<CodeEditor ref={sqlUi.editor} value={draft} lang={langOfFile(name)} onChange={setDraft} height="100%" wrap={wrapLines} autoFocus={!preview} onSelection={setSelection} sqlLint={isSql} {...sqlUi.editorProps} />))
+            : sqlUi.layout(<CodeEditor ref={sqlUi.editor} value={draft} lang={langOfFile(name)} onChange={setDraft} height="100%" wrap={wrapLines} autoFocus={!preview} onSelection={setSelection} sqlLint={isSql} {...sqlUi.editorProps} />, stepsPanel())
           : <FilePreview name={name} content={content} onImageInfo={setImage} toc={files.markdownToc} resolveImage={resolveImage} />)}
       </div>
       {status.length > 0 && <StatusBar items={status} />}

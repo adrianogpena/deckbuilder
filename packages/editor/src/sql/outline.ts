@@ -1,3 +1,4 @@
+import { sqlMarkers } from './markers';
 import { isPlsqlStart, splitStatements } from './statements.ts';
 import { tokenize, type Token } from './tokens.ts';
 
@@ -43,6 +44,8 @@ export interface SqlStep {
   subqueries: number;
   /** Names of later steps ('main' for the main query) that read this CTE. */
   feeds: string[];
+  /** Sorted parameter numbers guarded by `/*%JS=...%*\/` markers inside this step. */
+  optional: number[];
 }
 
 export interface SqlStatementOutline {
@@ -160,7 +163,7 @@ export function parseAlias(ctx: Ctx, k: number, b: number): { alias?: string; ne
 function newStep(name: string, kind: 'cte' | 'main', from: number, to: number): SqlStep {
   return {
     name, kind, from, to, reads: [], joins: [], filters: [], groupBy: [], aggregates: [], distinct: false,
-    windows: [], dedupe: false, setOps: [], orderBy: [], subqueries: 0, feeds: [],
+    windows: [], dedupe: false, setOps: [], orderBy: [], subqueries: 0, feeds: [], optional: [],
   };
 }
 
@@ -596,6 +599,19 @@ export function matchParens(ts: Token[]): Int32Array {
   return match;
 }
 
+function assignOptional(steps: SqlStep[], markers: ReturnType<typeof sqlMarkers>): void {
+  for (const m of markers) {
+    let own: SqlStep | undefined;
+    for (const st of steps) {
+      if (m.from < st.from || m.from >= st.to) continue;
+      if (!own || st.to - st.from < own.to - own.from) own = st;
+    }
+    if (!own) continue;
+    for (const n of m.params) if (!own.optional.includes(n)) own.optional.push(n);
+  }
+  for (const st of steps) st.optional.sort((a, b) => a - b);
+}
+
 /** Explains SQL text as statements made of ordered steps (CTEs, then the main query). Never throws. */
 export function sqlOutline(text: string): SqlOutline {
   const statements: SqlStatementOutline[] = [];
@@ -609,6 +625,7 @@ export function sqlOutline(text: string): SqlOutline {
     return { statements, tables };
   }
   const seen = new Set<string>();
+  const markers = sqlMarkers(text);
   let k = 0;
   for (const s of parts) {
     while (k < all.length && all[k]!.from < s.from) k++;
@@ -626,6 +643,11 @@ export function sqlOutline(text: string): SqlOutline {
       outline = { from: s.from, to: s.to, kind: 'other', steps: [] };
     }
     statements.push(outline);
+    try {
+      assignOptional(outline.steps, markers);
+    } catch {
+      // markers are optional extras
+    }
     for (const step of outline.steps) {
       for (const r of step.reads) {
         if (r.cte) continue;
