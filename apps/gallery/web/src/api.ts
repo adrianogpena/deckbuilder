@@ -201,6 +201,8 @@ export interface WorkbenchSettings {
   schema?: boolean;
   /** The SQL steps sidebar is open. */
   steps?: boolean;
+  /** Width of the SQL steps sidebar in px. */
+  stepsWidth?: number;
   /** The SQL history sidebar is open. */
   history?: boolean;
   /** Project ids allowed to run SQL from the Explorer. */

@@ -1187,7 +1187,7 @@ html[data-status-bar="false"] .status-bar { display: none; }
 }
 
 /* ---- sql steps */
-.sqlsteps { width: 320px; flex-shrink: 0; display: flex; flex-direction: column; gap: var(--space-6); padding: var(--space-8); overflow: hidden; border-left: 1px solid var(--border-soft); min-height: 0; }
+.sqlsteps { position: relative; width: 300px; flex-shrink: 0; display: flex; flex-direction: column; gap: var(--space-6); padding: var(--space-8); overflow: hidden; border-left: 1px solid var(--border-soft); min-height: 0; }
 .sqlsteps-head { display: flex; align-items: center; gap: var(--space-8); }
 .sqlsteps-head .spacer { flex: 1; }
 .sqlsteps-counts { font-size: var(--fs-xs); }
@@ -1213,3 +1213,66 @@ html[data-status-bar="false"] .status-bar { display: none; }
 .sqlsteps-feed { padding: 0; border: 0; background: transparent; color: var(--accent); font: inherit; cursor: pointer; }
 .sqlsteps-feed:hover { text-decoration: underline; }
 .sqlsteps-unused { font-size: var(--fs-xs); }
+.sqlsteps-resize { position: absolute; top: 0; bottom: 0; left: -3px; width: 6px; z-index: 2; cursor: col-resize; }
+.sqlsteps-resize:hover, .sqlsteps-resize:focus-visible { outline: none; background: color-mix(in srgb, var(--accent) 45%, transparent); }
+.sqlsteps-tabs { display: flex; gap: var(--space-2); min-width: 0; }
+.sqlsteps-tab { display: inline-flex; align-items: center; gap: var(--space-4); padding: var(--space-2) var(--space-6); border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); font: inherit; font-size: var(--fs-sm); font-weight: 600; cursor: pointer; }
+.sqlsteps-tab:hover { color: var(--text); }
+.sqlsteps-tab[aria-selected='true'] { color: var(--text); border-bottom-color: var(--accent); }
+.sqlsteps-count { display: inline-flex; align-items: center; justify-content: center; min-width: 16px; height: 16px; padding: 0 var(--space-4); border: 0; border-radius: 8px; background: var(--hover); color: var(--text-2); font: inherit; font-size: 10px; font-weight: 600; line-height: 1; }
+.sqlsteps-count.is-error { background: var(--err-soft); color: var(--err); }
+.sqlsteps-count.is-warning { background: var(--warn-soft); color: var(--warn); }
+.sqlsteps-count.is-info { background: var(--info-soft); color: var(--info); }
+.sqlsteps-count.is-step { flex: none; background: var(--warn-soft); color: var(--warn); cursor: pointer; }
+.sqlsteps-count.is-step:hover { outline: 1px solid var(--warn); }
+.sqlsteps-name { display: flex; align-items: center; gap: var(--space-4); }
+.sqlsteps-name-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sqlsteps-sev { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; }
+.sqlsteps-sev.is-error { color: var(--err); }
+.sqlsteps-sev.is-warning { color: var(--warn); }
+.sqlsteps-sev.is-info { color: var(--info); }
+.sqlsteps-sev-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.sqlsteps-chips { display: flex; flex-wrap: wrap; gap: var(--space-4); }
+.sqlsteps-chip { display: inline-flex; align-items: center; gap: var(--space-4); padding: var(--space-2) var(--space-6); border: 1px solid var(--border-soft); border-radius: 999px; background: transparent; color: var(--text-2); font: inherit; font-size: var(--fs-xs); cursor: pointer; }
+.sqlsteps-chip[aria-pressed='true'] { background: var(--hover); color: var(--text); border-color: var(--border); }
+.sqlsteps-chip[aria-pressed='false'] { opacity: 0.6; }
+.sqlsteps-chip:disabled { cursor: default; opacity: 0.4; }
+.sqlsteps-chip-count { font-weight: 600; }
+.sqlsteps-infilter { display: flex; align-items: center; gap: var(--space-6); font-size: var(--fs-xs); }
+.sqlsteps-problem { display: flex; align-items: flex-start; gap: var(--space-6); padding: var(--space-6) var(--space-8); border: 1px solid var(--border-soft); border-radius: var(--radius-md); background: transparent; color: var(--text); font: inherit; font-size: var(--fs-xs); text-align: left; cursor: pointer; }
+.sqlsteps-problem:hover { background: var(--hover); }
+.sqlsteps-problem-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.sqlsteps-problem-where { display: flex; gap: var(--space-8); }
+.sqlsteps-problem-step { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono, monospace); }
+.sqlgraph { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: var(--space-6); }
+.sqlgraph-bar { display: flex; align-items: center; gap: var(--space-2); }
+.sqlgraph-select { flex: 1; min-width: 0; }
+.sqlgraph-minus { font-size: 16px; line-height: 1; }
+.sqlgraph-canvas { position: relative; flex: 1; min-height: 0; overflow: hidden; border: 1px solid var(--border-soft); border-radius: var(--radius-md); background: var(--bg-sunken); cursor: grab; touch-action: none; user-select: none; }
+.sqlgraph-canvas:active { cursor: grabbing; }
+.sqlgraph-canvas:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.sqlgraph-svg { display: block; width: 100%; height: 100%; }
+.sqlgraph-edge path { fill: none; stroke: var(--text-3); stroke-width: 1.4; }
+.sqlgraph-edge.is-outer path { stroke-dasharray: 5 4; }
+.sqlgraph-edge.is-dim { opacity: 0.15; }
+.sqlgraph-arrow { fill: var(--text-3); }
+.sqlgraph-join { fill: var(--text-2); font-size: 10px; font-family: var(--font-mono, monospace); }
+.sqlgraph-node { cursor: default; }
+.sqlgraph-node.is-link { cursor: pointer; }
+.sqlgraph-node.is-dim { opacity: 0.2; }
+.sqlgraph-base { fill: var(--bg-elev); }
+.sqlgraph-box { stroke-width: 1.2; }
+.sqlgraph-node.is-table .sqlgraph-box { fill: var(--panel-2); stroke: var(--border); }
+.sqlgraph-node.is-cte .sqlgraph-box { fill: var(--accent-soft); stroke: var(--accent); }
+.sqlgraph-node.is-main .sqlgraph-box { fill: var(--info-soft); stroke: var(--info); }
+.sqlgraph-node.is-target .sqlgraph-box { fill: var(--ok-soft); stroke: var(--ok); }
+.sqlgraph-node:hover .sqlgraph-box { stroke-width: 2; }
+.sqlgraph-label { fill: var(--text); font-size: 12px; font-weight: 600; font-family: var(--font-mono, monospace); }
+.sqlgraph-tag { fill: var(--hover); stroke: var(--border-soft); }
+.sqlgraph-tag-text { fill: var(--text-2); font-size: 9.5px; }
+.sqlgraph-dot { fill: var(--warn); stroke: var(--bg-elev); stroke-width: 1.5; }
+.sqlgraph-tip { position: absolute; z-index: 3; max-width: 280px; display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-6) var(--space-8); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--panel-2); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25); font-size: var(--fs-xs); pointer-events: none; }
+.sqlgraph-tip-head { display: flex; align-items: baseline; gap: var(--space-6); }
+.sqlgraph-tip-row { display: flex; flex-direction: column; gap: var(--space-2); }
+.sqlgraph-tip-row code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono, monospace); }
+.wb-steps-badge { margin-left: var(--space-2); }

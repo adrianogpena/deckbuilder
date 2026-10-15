@@ -17,6 +17,8 @@ export * from './MarkdownEditor';
 export * from './MarkdownView';
 export * from './text-save';
 export * from './SqlSteps';
+export * from './SqlGraph';
+export * from './sqlProblems';
 export {
   sqlOutline,
   type SqlJoin,
@@ -28,7 +30,23 @@ export {
   type SqlStatementOutline,
   type SqlStep,
 } from './sql/outline';
+export { SQL_LINT_SEVERITY, sqlLint, type SqlLintCode, type SqlLintSeverity, type SqlProblem } from './sql/lint';
 export { splitStatements, statementAt, type Statement } from './sql/statements';
+export {
+  layoutGraph,
+  lineageGraph,
+  lineageOf,
+  sqlNameKey,
+  type Layout,
+  type LayoutBox,
+  type LayoutOptions,
+  type LayoutPoint,
+  type LineageEdge,
+  type LineageGraph,
+  type LineageJoin,
+  type LineageNode,
+  type LineageNodeKind,
+} from './sql/lineage';
 export * from './theme';
 export * from './editorOptions';
 export * from './VarSuggest';

@@ -45,6 +45,28 @@ export const editorTheme = EditorView.theme({
   '.cm-tooltip-autocomplete > ul > li[aria-selected]': { backgroundColor: 'var(--selected)', color: 'var(--text)' },
   '.cm-completionDetail': { color: 'var(--text-3)' },
   '.cm-completionMatchedText': { color: 'var(--accent)', textDecoration: 'none' },
+  // Lint: theme colours instead of @codemirror/lint's fixed SVG squiggles and icons.
+  '.cm-lintRange': { backgroundImage: 'none', textDecorationLine: 'underline', textDecorationStyle: 'wavy', textDecorationSkipInk: 'none', textUnderlineOffset: '3px' },
+  '.cm-lintRange-error': { textDecorationColor: 'var(--err)' },
+  '.cm-lintRange-warning': { textDecorationColor: 'var(--warn)' },
+  '.cm-lintRange-info, .cm-lintRange-hint': { textDecorationColor: 'var(--info)' },
+  '.cm-lintRange-active': { backgroundColor: 'var(--mark)' },
+  '.cm-lintPoint:after': { borderBottomColor: 'var(--warn)' },
+  '.cm-lintPoint-error:after': { borderBottomColor: 'var(--err)' },
+  '.cm-lintPoint-info:after': { borderBottomColor: 'var(--info)' },
+  '.cm-tooltip-lint': { padding: '0' },
+  '.cm-diagnostic': { padding: '4px 8px', marginLeft: '0', borderLeft: '3px solid var(--border)', color: 'var(--text)', fontFamily: 'var(--font-sans, inherit)', fontSize: '12px' },
+  '.cm-diagnostic-error': { borderLeftColor: 'var(--err)' },
+  '.cm-diagnostic-warning': { borderLeftColor: 'var(--warn)' },
+  '.cm-diagnostic-info, .cm-diagnostic-hint': { borderLeftColor: 'var(--info)' },
+  '.cm-diagnosticSource': { color: 'var(--text-3)', opacity: '1' },
+  '.cm-gutter-lint': { width: '12px' },
+  '.cm-gutter-lint .cm-gutterElement': { padding: '0', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  '.cm-lint-marker': { content: 'normal', width: '7px', height: '7px', borderRadius: '50%', backgroundColor: 'var(--info)' },
+  '.cm-lint-marker-error': { content: 'normal', backgroundColor: 'var(--err)' },
+  '.cm-lint-marker-warning': { content: 'normal', backgroundColor: 'var(--warn)' },
+  '.cm-lint-marker-info': { content: 'normal', backgroundColor: 'var(--info)' },
+  '.cm-panel.cm-panel-lint ul [aria-selected]': { backgroundColor: 'var(--selected)', backgroundImage: 'none' },
 });
 
 export const highlightStyle = HighlightStyle.define([

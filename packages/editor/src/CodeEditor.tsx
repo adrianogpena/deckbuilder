@@ -1,6 +1,7 @@
 import { autocompletion, closeBracketsKeymap, completionKeymap } from '@codemirror/autocomplete';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { indentOnInput } from '@codemirror/language';
+import { type Diagnostic, lintGutter, linter } from '@codemirror/lint';
 import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
 import { Annotation, Compartment, EditorState, type Extension, Prec } from '@codemirror/state';
 import { EditorView, keymap, placeholder as placeholderExt } from '@codemirror/view';
@@ -8,7 +9,9 @@ import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { type EditorOptions, editorOptionsExtension, useEditorOptions } from './editorOptions';
 import { type Lang, languageFor, type SqlDialect, type SqlSchema } from './languages';
 import { formatSql, type SqlFormatOptions } from './sql/format';
+import { type SqlProblem, sqlLint as runSqlLint } from './sql/lint';
 import { statementAt } from './sql/statements';
+import { sqlProblemMessage } from './sqlProblems';
 import { themeExtension } from './theme';
 
 export interface CodeEditorProps {
@@ -35,6 +38,10 @@ export interface CodeEditorProps {
   onSelection?(info: SelectionInfo): void;
   /** Editor preferences; without it the app-wide ones (EditorOptionsContext), else the built-in defaults. */
   options?: EditorOptions;
+  /** Underlines SQL lint problems (see `sqlLint`), with a gutter marker per line. */
+  sqlLint?: boolean;
+  /** The problems of each lint pass while `sqlLint` is on; [] when it turns off. */
+  onSqlProblems?(problems: SqlProblem[]): void;
 }
 
 export type RunMode = 'statement' | 'all';
@@ -74,17 +81,18 @@ const external = Annotation.define<boolean>();
 
 /** A CodeMirror 6 editor; one view for the component's lifetime, options swapped in place. */
 export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(function CodeEditor({
-  value, lang, onChange, onRun, readOnly = false, placeholder, sqlDialect, sqlSchema, height, autoFocus, onScroll, extensions, wrap = false, onSelection, options,
+  value, lang, onChange, onRun, readOnly = false, placeholder, sqlDialect, sqlSchema, height, autoFocus, onScroll, extensions, wrap = false, onSelection, options, sqlLint = false, onSqlProblems,
 }, ref) {
   const contextOptions = useEditorOptions();
   const optionsExt = editorOptionsExtension(options ?? contextOptions);
   const optionsKey = JSON.stringify(options ?? contextOptions ?? null);
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
-  const compartments = useRef({ lang: new Compartment(), readOnly: new Compartment(), placeholder: new Compartment(), extra: new Compartment(), options: new Compartment(), wrap: new Compartment() }).current;
+  const compartments = useRef({ lang: new Compartment(), readOnly: new Compartment(), placeholder: new Compartment(), extra: new Compartment(), options: new Compartment(), wrap: new Compartment(), lint: new Compartment() }).current;
   // The callbacks change every render; the view's extensions read them through this ref.
-  const handlers = useRef({ onChange, onRun, onScroll, onSelection });
-  handlers.current = { onChange, onRun, onScroll, onSelection };
+  const handlers = useRef({ onChange, onRun, onScroll, onSelection, onSqlProblems });
+  handlers.current = { onChange, onRun, onScroll, onSelection, onSqlProblems };
+  const lintExt = (on: boolean): Extension => (on ? sqlLintExtension((p) => handlers.current.onSqlProblems?.(p)) : []);
   const langRef = useRef(lang);
   langRef.current = lang;
 
@@ -162,6 +170,7 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(function
           themeExtension,
           compartments.extra.of(extensions ?? []),
           compartments.wrap.of(wrap ? EditorView.lineWrapping : []),
+          compartments.lint.of(lintExt(sqlLint)),
           EditorView.domEventHandlers({
             scroll: (_e, ed) => {
               const { scrollTop, scrollHeight, clientHeight } = ed.scrollDOM;
@@ -195,6 +204,17 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(function
     view.current?.dispatch({ effects: compartments.wrap.reconfigure(wrap ? EditorView.lineWrapping : []) });
   }, [wrap]);
 
+  const lintReady = useRef(false);
+  useEffect(() => {
+    // The first run is the view's own initial config.
+    if (!lintReady.current) {
+      lintReady.current = true;
+      return;
+    }
+    view.current?.dispatch({ effects: compartments.lint.reconfigure(lintExt(sqlLint)) });
+    if (!sqlLint) handlers.current.onSqlProblems?.([]);
+  }, [sqlLint]);
+
   useEffect(() => {
     view.current?.dispatch({ effects: compartments.options.reconfigure(optionsExt) });
   }, [optionsKey]);
@@ -221,3 +241,19 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(function
 });
 
 const readOnlyExt = (readOnly: boolean) => EditorState.readOnly.of(readOnly);
+
+/** Lint diagnostics from `sqlLint`, messages from the `sqlLint.<code>` labels, plus a gutter. */
+export function sqlLintExtension(onProblems?: (problems: SqlProblem[]) => void): Extension {
+  return [
+    linter((view) => {
+      const problems = runSqlLint(view.state.doc.toString());
+      onProblems?.(problems);
+      const len = view.state.doc.length;
+      return problems.map((p): Diagnostic => {
+        const from = Math.max(0, Math.min(p.from, len));
+        return { from, to: Math.max(from, Math.min(p.to, len)), severity: p.severity, message: sqlProblemMessage(p), source: 'SQL' };
+      });
+    }, { delay: 500 }),
+    lintGutter(),
+  ];
+}

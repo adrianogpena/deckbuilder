@@ -2,7 +2,7 @@ import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import {
   applyEol, CodeEditor, detectEol, type Eol, FilePreview, HEX_LIMIT, type ImageInfo, langLabel, langOfFile, MARKDOWN_LAYOUTS, MARKDOWN_MODES, MarkdownEditor,
   type MarkdownMode, normalizeEol, prepareForSave, previewKind, type PreviewContent, type SelectionInfo, useMarkdownLayout,
-  SqlSteps, useEditorOptions,
+  SqlSteps, type SqlStepsTab, useEditorOptions,
 } from '@deckbuilder/editor';
 import {
   type ApiError, type BreadcrumbEntry, Breadcrumbs, errorOf, ErrorBanner, FILE_DEFAULTS, type FileSettings, formatBytes, Icon, type IconName, PanelBanner, PanelLoading,
@@ -102,6 +102,8 @@ function TextFileTab({ project, projectName, path, focused, preview, markdownMod
   const [disk, setDisk] = useState<{ size?: number; readOnly?: boolean }>({});
   const [selection, setSelection] = useState<SelectionInfo>();
   const [stepsOpen, setStepsOpen] = useState(false);
+  const [stepsTab, setStepsTab] = useState<SqlStepsTab>('steps');
+  const [stepsWidth, setStepsWidth] = useState<number>();
   const [image, setImage] = useState<ImageInfo>();
   const generation = useRef(0);
   const dirtyRef = useRef(false);
@@ -333,7 +335,16 @@ function TextFileTab({ project, projectName, path, focused, preview, markdownMod
   const withSteps = (node: ReactNode): ReactNode => isSql && stepsOpen ? (
     <div className="xp-steps-row">
       <div className="xp-steps-main">{node}</div>
-      <SqlSteps text={draft} cursor={selection?.pos} onJump={(from, to) => sqlUi.editor.current?.reveal(from, to)} onClose={() => setStepsOpen(false)} />
+      <SqlSteps
+        text={draft}
+        cursor={selection?.pos}
+        onJump={(from, to) => sqlUi.editor.current?.reveal(from, to)}
+        onClose={() => setStepsOpen(false)}
+        tab={stepsTab}
+        onTab={setStepsTab}
+        width={stepsWidth}
+        onWidth={setStepsWidth}
+      />
     </div>
   ) : node;
   const openInWorkbench = async () => {
@@ -347,6 +358,11 @@ function TextFileTab({ project, projectName, path, focused, preview, markdownMod
   if (isSql && editable) {
     actions.push({ id: 'sql.steps', group: 'primary', icon: 'list-flat', label: t('explorer.sql.steps'), checked: stepsOpen, run: () => setStepsOpen((open) => !open) });
   }
+  const showProblems = () => {
+    setStepsTab('problems');
+    setStepsOpen(true);
+  };
+  useCommand(commandById('explorer.sql.problems'), showProblems, { enabled: focused && active && isSql && editable });
   if (editable && TOGGLES.has(previewKind(name))) {
     actions.push({ id: 'preview', group: 'primary', icon: 'preview', label: t('explorer.preview'), checked: previewing, run: () => void toggleEdit() });
   }
@@ -422,7 +438,7 @@ function TextFileTab({ project, projectName, path, focused, preview, markdownMod
           : active
           ? curlUi.enabled
             ? curlUi.layout(<CodeEditor ref={curlUi.editor} value={draft} lang={langOfFile(name)} onChange={setDraft} height="100%" wrap={wrapLines} autoFocus={!preview} onSelection={setSelection} {...curlUi.editorProps} />)
-            : withSteps(sqlUi.layout(<CodeEditor ref={sqlUi.editor} value={draft} lang={langOfFile(name)} onChange={setDraft} height="100%" wrap={wrapLines} autoFocus={!preview} onSelection={setSelection} {...sqlUi.editorProps} />))
+            : withSteps(sqlUi.layout(<CodeEditor ref={sqlUi.editor} value={draft} lang={langOfFile(name)} onChange={setDraft} height="100%" wrap={wrapLines} autoFocus={!preview} onSelection={setSelection} sqlLint={isSql} {...sqlUi.editorProps} />))
           : <FilePreview name={name} content={content} onImageInfo={setImage} toc={files.markdownToc} resolveImage={resolveImage} />)}
       </div>
       {status.length > 0 && <StatusBar items={status} />}

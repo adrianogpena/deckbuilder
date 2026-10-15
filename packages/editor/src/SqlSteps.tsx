@@ -1,6 +1,11 @@
 import { Badge, Icon, PanelNotice, t } from '@deckbuilder/ui';
-import { type ReactNode, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { type KeyboardEvent, type PointerEvent, type ReactNode, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { SqlGraph } from './SqlGraph';
+import { type SqlLintSeverity, type SqlProblem, sqlLint } from './sql/lint';
 import { type SqlStatementOutline, type SqlStep, sqlOutline } from './sql/outline';
+import { lineOf, lineStarts, SQL_SEVERITIES, sqlProblemMessage, worstSeverity } from './sqlProblems';
+
+export type SqlStepsTab = 'steps' | 'graph' | 'problems';
 
 export interface SqlStepsProps {
   text: string;
@@ -8,9 +13,100 @@ export interface SqlStepsProps {
   /** Offset of the editor cursor; the card holding it is highlighted. */
   cursor?: number;
   onClose?(): void;
+  /** The open tab; uncontrolled ('steps' first) without it. */
+  tab?: SqlStepsTab;
+  onTab?(tab: SqlStepsTab): void;
+  /** Panel width in px (default 300); the left edge drags it, reporting the new width on release. */
+  width?: number;
+  onWidth?(width: number): void;
 }
 
 const MAIN = 'main';
+const TABS: readonly SqlStepsTab[] = ['steps', 'graph', 'problems'];
+const DEFAULT_WIDTH = 300;
+const MIN_WIDTH = 260;
+const MAX_SHARE = 0.7;
+const RESIZE_STEP = 16;
+
+function SeverityIcon({ severity }: { severity: SqlLintSeverity }) {
+  return (
+    <span className={`sqlsteps-sev is-${severity}`} aria-label={t(`sqlSteps.severity.${severity}`)}>
+      {severity === 'info' ? <span className="sqlsteps-sev-dot" /> : <Icon name="alert" size={13} />}
+    </span>
+  );
+}
+
+function ProblemList({ problems, text, outline, filter, onClearFilter, onJump }: {
+  problems: readonly SqlProblem[];
+  text: string;
+  outline: { statements: SqlStatementOutline[] };
+  filter?: { statement: number; step: string };
+  onClearFilter(): void;
+  onJump(from: number, to?: number): void;
+}) {
+  const [hidden, setHidden] = useState<ReadonlySet<SqlLintSeverity>>(new Set());
+  const starts = useMemo(() => lineStarts(text), [text]);
+  const counts = useMemo(() => {
+    const c: Record<SqlLintSeverity, number> = { error: 0, warning: 0, info: 0 };
+    for (const p of problems) c[p.severity]++;
+    return c;
+  }, [problems]);
+  const shown = useMemo(
+    () => problems
+      .filter((p) => !hidden.has(p.severity) && (!filter || (p.statement === filter.statement && p.step === filter.step)))
+      .sort((a, b) => a.from - b.from || a.to - b.to),
+    [problems, hidden, filter],
+  );
+  const toggle = (s: SqlLintSeverity) => setHidden((cur) => {
+    const next = new Set(cur);
+    if (next.has(s)) next.delete(s);
+    else next.add(s);
+    return next;
+  });
+
+  if (problems.length === 0) {
+    return <PanelNotice icon={<Icon name="check" size={20} />} title={t('sqlSteps.problems.none')} message={t('sqlSteps.problems.noneHint')} />;
+  }
+  return (
+    <>
+      <div className="sqlsteps-chips">
+        {SQL_SEVERITIES.map((s) => (
+          <button key={s} className={`sqlsteps-chip is-${s}`} aria-pressed={!hidden.has(s)} onClick={() => toggle(s)} disabled={counts[s] === 0}>
+            <SeverityIcon severity={s} /> {t(`sqlSteps.severity.${s}`)} <span className="sqlsteps-chip-count">{counts[s]}</span>
+          </button>
+        ))}
+      </div>
+      {filter && (
+        <div className="sqlsteps-infilter">
+          <span className="muted">{t('sqlSteps.problems.inStep', { step: filter.step || t('sqlSteps.main') })}</span>
+          <button className="sqlsteps-feed" onClick={onClearFilter}>{t('sqlSteps.problems.showAll')}</button>
+        </div>
+      )}
+      <div className="sqlsteps-list">
+        {shown.length === 0 ? (
+          <p className="muted sqlsteps-none">{t('sqlSteps.problems.noMatch')}</p>
+        ) : (
+          shown.map((p, i) => {
+            const step = p.step === undefined ? (outline.statements[p.statement] ? t(`sqlSteps.kind.${outline.statements[p.statement]!.kind}`) : '') : p.step || t('sqlSteps.main');
+            const message = sqlProblemMessage(p);
+            return (
+              <button key={i} className="sqlsteps-problem" onClick={() => onJump(p.from, p.to)} title={message}>
+                <SeverityIcon severity={p.severity} />
+                <span className="sqlsteps-problem-body">
+                  <span className="sqlsteps-problem-msg">{message}</span>
+                  <span className="muted sqlsteps-problem-where">
+                    <span className="sqlsteps-problem-step">{step}</span>
+                    <span>{t('sqlSteps.problems.line', { line: lineOf(starts, p.from) })}</span>
+                  </span>
+                </span>
+              </button>
+            );
+          })
+        )}
+      </div>
+    </>
+  );
+}
 
 function stepLabel(step: SqlStep): string {
   return step.name || t('sqlSteps.main');
@@ -39,9 +135,76 @@ function Items({ items }: { items: string[] }) {
 }
 
 /** Explains a SQL script as its CTE steps: what each reads, joins, filters and feeds. */
-export function SqlSteps({ text, onJump, cursor, onClose }: SqlStepsProps) {
+export function SqlSteps({ text, onJump, cursor, onClose, tab: tabProp, onTab, width, onWidth }: SqlStepsProps) {
   const deferred = useDeferredValue(text);
   const outline = useMemo(() => sqlOutline(deferred), [deferred]);
+  // Shared by every tab, so a tab switch or cursor move never recomputes them.
+  const problems = useMemo(() => sqlLint(deferred, outline), [deferred, outline]);
+  const worst = useMemo(() => worstSeverity(problems), [problems]);
+  const stepProblems = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const p of problems) {
+      if (p.step === undefined) continue;
+      const key = `${p.statement}:${p.step}`;
+      map.set(key, (map.get(key) ?? 0) + 1);
+    }
+    return map;
+  }, [problems]);
+  const [ownTab, setOwnTab] = useState<SqlStepsTab>('steps');
+  const tab = tabProp ?? ownTab;
+  const setTab = (next: SqlStepsTab) => {
+    setOwnTab(next);
+    onTab?.(next);
+  };
+  const [problemFilter, setProblemFilter] = useState<{ statement: number; step: string }>();
+  const showStepProblems = (statement: number, step: string) => {
+    setProblemFilter({ statement, step });
+    setTab('problems');
+  };
+
+  const aside = useRef<HTMLElement>(null);
+  const [ownWidth, setOwnWidth] = useState(DEFAULT_WIDTH);
+  const [liveWidth, setLiveWidth] = useState<number>();
+  const shownWidth = liveWidth ?? width ?? ownWidth;
+  const clampWidth = (w: number) => {
+    const parent = aside.current?.parentElement?.clientWidth ?? 0;
+    const max = parent > 0 ? Math.max(MIN_WIDTH, parent * MAX_SHARE) : Infinity;
+    return Math.round(Math.min(max, Math.max(MIN_WIDTH, w)));
+  };
+  const commitWidth = (w: number) => {
+    setOwnWidth(w);
+    setLiveWidth(undefined);
+    onWidth?.(w);
+  };
+  const startResize = (e: PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const handle = e.currentTarget;
+    handle.setPointerCapture(e.pointerId);
+    const startX = e.clientX;
+    const startW = shownWidth;
+    let last = startW;
+    const move = (ev: globalThis.PointerEvent) => {
+      last = clampWidth(startW + startX - ev.clientX);
+      setLiveWidth(last);
+    };
+    const up = () => {
+      handle.removeEventListener('pointermove', move);
+      handle.removeEventListener('pointerup', up);
+      handle.removeEventListener('pointercancel', up);
+      commitWidth(last);
+    };
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', up);
+    handle.addEventListener('pointercancel', up);
+  };
+  const resizeKey = (e: KeyboardEvent) => {
+    const delta = e.key === 'ArrowLeft' ? RESIZE_STEP : e.key === 'ArrowRight' ? -RESIZE_STEP : 0;
+    if (!delta) return;
+    e.preventDefault();
+    commitWidth(clampWidth(shownWidth + delta));
+  };
+
   const [filter, setFilter] = useState('');
   const list = useRef<HTMLDivElement>(null);
   const q = filter.trim().toLowerCase();
@@ -93,10 +256,26 @@ export function SqlSteps({ text, onJump, cursor, onClose }: SqlStepsProps) {
     .filter((g) => g.steps.length > 0);
 
   return (
-    <aside className="sqlsteps" aria-label={t('sqlSteps.title')}>
+    <aside className="sqlsteps" aria-label={t('sqlSteps.title')} ref={aside} style={{ width: shownWidth }}>
+      <div
+        className="sqlsteps-resize"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label={t('sqlSteps.resize')}
+        title={t('sqlSteps.resize')}
+        tabIndex={0}
+        onPointerDown={startResize}
+        onKeyDown={resizeKey}
+      />
       <div className="sqlsteps-head">
-        <strong>{t('sqlSteps.title')}</strong>
-        <span className="muted sqlsteps-counts">{t('sqlSteps.counts', counts)}</span>
+        <div className="sqlsteps-tabs" role="tablist">
+          {TABS.map((id) => (
+            <button key={id} role="tab" className="sqlsteps-tab" aria-selected={tab === id} onClick={() => { if (id === 'problems') setProblemFilter(undefined); setTab(id); }}>
+              {t(`sqlSteps.tab.${id}`)}
+              {id === 'problems' && problems.length > 0 && <span className={`sqlsteps-count is-${worst}`}>{problems.length}</span>}
+            </button>
+          ))}
+        </div>
         <span className="spacer" />
         {onClose && (
           <button className="btn btn-ghost btn-sm btn-icon" onClick={onClose} title={t('sqlSteps.close')} aria-label={t('sqlSteps.close')}>
@@ -104,6 +283,13 @@ export function SqlSteps({ text, onJump, cursor, onClose }: SqlStepsProps) {
           </button>
         )}
       </div>
+      {tab === 'graph' ? (
+        <SqlGraph outline={outline} problems={problems} cursor={cursor} onJump={onJump} />
+      ) : tab === 'problems' ? (
+        <ProblemList problems={problems} text={deferred} outline={outline} filter={problemFilter} onClearFilter={() => setProblemFilter(undefined)} onJump={onJump} />
+      ) : (
+      <>
+      <span className="muted sqlsteps-counts">{t('sqlSteps.counts', counts)}</span>
       {outline.statements.length > 0 && (
         <input className="sqlsteps-filter" type="search" value={filter} onChange={(e) => setFilter(e.target.value)} placeholder={t('sqlSteps.filter')} aria-label={t('sqlSteps.filter')} />
       )}
@@ -136,7 +322,21 @@ export function SqlSteps({ text, onJump, cursor, onClose }: SqlStepsProps) {
                       }
                     }}
                   >
-                    <div className="sqlsteps-name">{stepLabel(step)}</div>
+                    <div className="sqlsteps-name">
+                      <span className="sqlsteps-name-text">{stepLabel(step)}</span>
+                      {(stepProblems.get(`${si}:${step.name}`) ?? 0) > 0 && (
+                        <button
+                          className="sqlsteps-count is-step"
+                          title={t('sqlSteps.stepProblems', { count: stepProblems.get(`${si}:${step.name}`)! })}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            showStepProblems(si, step.name);
+                          }}
+                        >
+                          {stepProblems.get(`${si}:${step.name}`)}
+                        </button>
+                      )}
+                    </div>
                     {step.reads.length > 0 && (
                       <Row label={t('sqlSteps.reads')}>
                         {step.reads.map((r, k) => (
@@ -204,6 +404,8 @@ export function SqlSteps({ text, onJump, cursor, onClose }: SqlStepsProps) {
           ))
         )}
       </div>
+      </>
+      )}
     </aside>
   );
 }

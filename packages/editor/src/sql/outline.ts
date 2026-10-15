@@ -72,7 +72,7 @@ const OTHER_BOUNDARY = new Set([
   'set', 'values', 'returning', 'into', 'for', 'model', 'pivot', 'unpivot', 'insert', 'update', 'delete', 'when',
   'then', 'merge',
 ]);
-const RESERVED = new Set([
+export const RESERVED: ReadonlySet<string> = new Set([
   'select', 'from', 'where', 'group', 'order', 'having', 'union', 'intersect', 'minus', 'except', 'fetch', 'offset',
   'limit', 'connect', 'start', 'join', 'inner', 'left', 'right', 'full', 'cross', 'natural', 'outer', 'apply', 'on',
   'using', 'as', 'with', 'lateral', 'partition', 'pivot', 'unpivot', 'sample', 'model', 'for', 'when', 'then', 'set',
@@ -81,7 +81,7 @@ const RESERVED = new Set([
 ]);
 const QUERY_START = new Set(['select', 'with']);
 
-interface Ctx {
+export interface Ctx {
   ts: Token[];
   match: Int32Array;
   ctes: Set<string>;
@@ -100,15 +100,15 @@ interface Sec {
 }
 
 const isWordTok = (t: Token | undefined): boolean => t !== undefined && (t.kind === 'keyword' || t.kind === 'identifier');
-const word = (ctx: Ctx, i: number): string => {
+export const word = (ctx: Ctx, i: number): string => {
   const t = ctx.ts[i];
   return t !== undefined && isWordTok(t) ? t.text.toLowerCase() : '';
 };
-const isPunct = (ctx: Ctx, i: number, c: string): boolean => {
+export const isPunct = (ctx: Ctx, i: number, c: string): boolean => {
   const t = ctx.ts[i];
   return t !== undefined && t.kind === 'punctuation' && t.text === c;
 };
-const nameKey = (name: string): string => name.replace(/"/g, '').toLowerCase();
+export const nameKey = (name: string): string => name.replace(/"/g, '').toLowerCase();
 const cap = (s: string): string => (s.length > MAX ? s.slice(0, MAX - 1).trimEnd() + '…' : s);
 
 function textOf(ctx: Ctx, a: number, b: number): string {
@@ -127,7 +127,7 @@ function closeOf(ctx: Ctx, i: number, b: number): number {
   return m >= 0 && m < b ? m : b;
 }
 
-function isNameTok(ctx: Ctx, i: number, b: number): boolean {
+export function isNameTok(ctx: Ctx, i: number, b: number): boolean {
   if (i >= b) return false;
   const t = ctx.ts[i]!;
   if (t.kind === 'quotedIdentifier') return true;
@@ -137,7 +137,7 @@ function isNameTok(ctx: Ctx, i: number, b: number): boolean {
 const isPartTok = (ctx: Ctx, i: number, b: number): boolean =>
   i < b && (isWordTok(ctx.ts[i]) || ctx.ts[i]!.kind === 'quotedIdentifier');
 
-function parseName(ctx: Ctx, i: number, b: number): { name: string; from: number; to: number; next: number } | null {
+export function parseName(ctx: Ctx, i: number, b: number): { name: string; from: number; to: number; next: number } | null {
   if (!isNameTok(ctx, i, b)) return null;
   let j = i;
   while (isPunct(ctx, j + 1, '.') && isPartTok(ctx, j + 2, b)) j += 2;
@@ -150,7 +150,7 @@ function parseName(ctx: Ctx, i: number, b: number): { name: string; from: number
   return { name, from: ctx.ts[i]!.from, to: ctx.ts[j]!.to, next: j + 1 };
 }
 
-function parseAlias(ctx: Ctx, k: number, b: number): { alias?: string; next: number } {
+export function parseAlias(ctx: Ctx, k: number, b: number): { alias?: string; next: number } {
   if (word(ctx, k) === 'as') {
     return isNameTok(ctx, k + 1, b) ? { alias: ctx.ts[k + 1]!.text, next: k + 2 } : { next: k + 1 };
   }
@@ -580,7 +580,7 @@ function outlineStatement(ctx: Ctx, from: number, to: number, plsql: boolean): S
   return out;
 }
 
-function matchParens(ts: Token[]): Int32Array {
+export function matchParens(ts: Token[]): Int32Array {
   const match = new Int32Array(ts.length).fill(-1);
   const stack: number[] = [];
   for (let i = 0; i < ts.length; i++) {

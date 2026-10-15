@@ -1,5 +1,5 @@
-import { type MouseEvent, useEffect, useRef, useState } from 'react';
-import { CodeEditor, type CodeEditorHandle, SqlSteps } from '@deckbuilder/editor';
+import { type MouseEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { CodeEditor, type CodeEditorHandle, type SqlProblem, SqlSteps, type SqlStepsTab } from '@deckbuilder/editor';
 import {
   type ApiError,
   Badge,
@@ -142,6 +142,14 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
   useCommand(commandById('workbench.format'), format);
   const explain = () => void runner.explain(editor.current?.getRunText() ?? query);
   useCommand(commandById('workbench.explain'), explain);
+  const [stepsTab, setStepsTab] = useState<SqlStepsTab>('steps');
+  const [lintErrors, setLintErrors] = useState(0);
+  const onSqlProblems = useCallback((problems: SqlProblem[]) => setLintErrors(problems.filter((p) => p.severity === 'error').length), []);
+  const showProblems = () => {
+    setStepsTab('problems');
+    if (!latest.current.steps) update(() => ({ steps: true }));
+  };
+  useCommand(commandById('workbench.problems'), showProblems);
 
   const { cols, tableRows, selection, log, setActionError, shown, status } = runner;
   const exportCols = () => cols.map((c) => ({ label: c.label, value: c.value }));
@@ -257,6 +265,9 @@ ${sql}` : sql);
           )}
           <button className="btn btn-sm" onClick={() => update((cur) => ({ steps: !cur.steps }))} aria-pressed={!!state.steps} title={t('workbench.steps.title')}>
             <Icon name="list-flat" /> {t('workbench.steps')}
+            {!state.steps && lintErrors > 0 && (
+              <span className="sqlsteps-count is-error wb-steps-badge" title={t('workbench.steps.errors', { count: lintErrors })}>{lintErrors}</span>
+            )}
           </button>
           <button className="btn btn-sm" onClick={() => update((cur) => ({ history: !cur.history }))} aria-pressed={!!state.history}>
             <Icon name="history" /> {t('workbench.history')}
@@ -304,7 +315,7 @@ ${sql}` : sql);
         onResize={(s) => update((cur) => ({ sizes: { ...(cur.sizes ?? sizes), main: [s[0], s[1]] } }))}
       >
         <div key="editor" className="wb-pane">
-          <CodeEditor ref={editor} value={query} lang="sql" sqlDialect="plsql" sqlSchema={sqlSchema} onChange={edit} onRun={runner.run} onSelection={(s) => setCursor(s.pos)} height="100%" />
+          <CodeEditor ref={editor} value={query} lang="sql" sqlDialect="plsql" sqlSchema={sqlSchema} onChange={edit} onRun={runner.run} onSelection={(s) => setCursor(s.pos)} height="100%" sqlLint onSqlProblems={onSqlProblems} />
         </div>
         <div key="results" className="wb-pane">
           <SqlResults
@@ -317,7 +328,16 @@ ${sql}` : sql);
         </div>
       </SplitView>
       {state.steps && (
-        <SqlSteps text={query} cursor={cursor} onJump={(from, to) => editor.current?.reveal(from, to)} onClose={() => update(() => ({ steps: false }))} />
+        <SqlSteps
+          text={query}
+          cursor={cursor}
+          onJump={(from, to) => editor.current?.reveal(from, to)}
+          onClose={() => update(() => ({ steps: false }))}
+          tab={stepsTab}
+          onTab={setStepsTab}
+          width={state.stepsWidth}
+          onWidth={(stepsWidth) => update(() => ({ stepsWidth }))}
+        />
       )}
       {state.history && (
         <HistoryPanel connection={db} refresh={runsDone} connectionName={connectionName} onInsert={insertSql} onOpen={edit} confirm={confirm} />

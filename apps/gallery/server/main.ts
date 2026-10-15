@@ -97,6 +97,8 @@ export interface WorkbenchSettings {
   history?: boolean;
   /** The SQL steps sidebar is open. */
   steps?: boolean;
+  /** Width of the SQL steps sidebar in px. */
+  stepsWidth?: number;
   /** Project ids allowed to run SQL from the Explorer. */
   explorerProjects?: string[];
   /** Last connection id used per project id. */
@@ -259,6 +261,10 @@ function validWorkbench(raw: unknown): WorkbenchSettings | null {
   if (r.steps !== undefined) {
     if (typeof r.steps !== 'boolean') return null;
     out.steps = r.steps;
+  }
+  if (r.stepsWidth !== undefined) {
+    if (typeof r.stepsWidth !== 'number' || !Number.isInteger(r.stepsWidth) || r.stepsWidth < 200 || r.stepsWidth > 2000) return null;
+    out.stepsWidth = r.stepsWidth;
   }
   if (r.explorerProjects !== undefined) {
     if (!Array.isArray(r.explorerProjects) || r.explorerProjects.length > 1000 || !r.explorerProjects.every((id) => typeof id === 'string' && /^[\w-]{1,64}$/.test(id))) return null;
