@@ -11,6 +11,8 @@
 @import './layouts/dense.css';
 @import './layouts/calm.css';
 @import './layouts/material.css';
+@import './layouts/blueprint.css';
+@import './layouts/transit.css';
 
 :root,
 :root[data-theme='dark'] {

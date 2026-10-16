@@ -73,6 +73,8 @@ export const LAYOUTS: readonly Layout[] = [
     structure: { ...ORIGINAL_STRUCTURE, sidebarBrand: false, statusBar: false },
   },
   { id: 'material', label: 'Material', icons: 'material', structure: { ...ORIGINAL_STRUCTURE, sidebarMode: 'expanded' } },
+  { id: 'blueprint', label: 'Blueprint', icons: 'original', structure: { ...ORIGINAL_STRUCTURE, sidebarBrand: true } },
+  { id: 'transit', label: 'Transit', icons: 'original', structure: { ...ORIGINAL_STRUCTURE, sidebarMode: 'expanded' } },
 ];
 
 export const ICON_SET_IDS: readonly string[] = ['original', 'material', 'atom'];

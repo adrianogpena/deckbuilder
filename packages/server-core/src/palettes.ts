@@ -202,6 +202,16 @@ const deck = (id: string, label: string, family: string, kind: ThemeKind, roles:
   id, label, family, kind, tokens: fromRoles(kind, roles),
 });
 
+/** Blueprint family: navy drafting sheet (dark) and blue-white paper (light); exact surface, line and ink values. */
+const blueprint = (id: string, label: string, kind: ThemeKind, roles: Roles, exact: Partial<Record<Token, string>>): Palette => ({
+  id, label, family: 'blueprint', kind, tokens: { ...fromRoles(kind, roles), ...exact },
+});
+
+/** Transit family: blue-grey asphalt dark and signage light; exact surface and ink values (accent is the blue line). */
+const transit = (id: string, label: string, kind: ThemeKind, roles: Roles, exact: Partial<Record<Token, string>>): Palette => ({
+  id, label, family: 'transit', kind, tokens: { ...fromRoles(kind, roles), ...exact },
+});
+
 export const PALETTES: readonly Palette[] = [
   { id: DEFAULT_DARK, label: 'DeckBuilder Dark', family: 'deckbuilder', kind: 'dark', tokens: DECKBUILDER_DARK },
   { id: DEFAULT_LIGHT, label: 'DeckBuilder Light', family: 'deckbuilder', kind: 'light', tokens: DECKBUILDER_LIGHT },
@@ -232,6 +242,30 @@ export const PALETTES: readonly Palette[] = [
     0xfdf6e3, 0xeee8d5, 0x93a1a1, 0x586e75, 0x78898b, 0x268bd2, 0x6c71c4, 0x1d8a82, 0x6f8000, 0x9d7500, 0xcb4b16, 0xdc322f]),
   deck('alucard', 'Alucard', 'dracula', 'light', [
     0xfffbeb, 0xece6d0, 0xc8c2a8, 0x1f1f1f, 0x6c664b, 0x644ac9, 0xa3144d, 0x036a96, 0x14710a, 0x846e15, 0xa34d14, 0xcb3a2a]),
+  blueprint('blueprint-dark', 'Blueprint Dark', 'dark', [
+    0x10263f, 0x15304e, 0x2a4c72, 0xe3eef8, 0x6f8ba8, 0x5cc8f0, 0xb39cf5, 0x7fb2ff, 0x5ed6a0, 0xf2c46b, 0xf59e6b, 0xff7a7a], {
+    '--bg-sunken': '#0b1e33', '--bg': '#10263f', '--bg-elev': '#15304e', '--panel': '#15304e', '--panel-2': '#1a3858',
+    '--border': '#2a4c72', '--text': '#e3eef8', '--text-2': '#a7bed6', '--text-3': '#6f8ba8', '--accent': '#5cc8f0',
+    '--ink-on-accent': '#0b1e33', '--shadow': '0 24px 60px rgba(3, 12, 24, 0.6)',
+  }),
+  blueprint('blueprint-light', 'Blueprint Light', 'light', [
+    0xeef3f8, 0xf8fafc, 0xb5c7da, 0x122840, 0x7088a2, 0x0b6fa4, 0x6d4fc2, 0x1d5fd1, 0x0f8a5f, 0xa86a00, 0xb4531b, 0xc9302c], {
+    '--bg-sunken': '#e3ebf3', '--bg': '#eef3f8', '--bg-elev': '#f8fafc', '--panel': '#f8fafc', '--panel-2': '#f2f6fa',
+    '--border': '#b5c7da', '--text': '#122840', '--text-2': '#3e5874', '--text-3': '#7088a2', '--accent': '#0b6fa4',
+    '--ink-on-accent': '#ffffff',
+  }),
+  transit('transit-dark', 'Transit Dark', 'dark', [
+    0x1e232a, 0x252b33, 0x363e49, 0xeceff3, 0x7a8491, 0x4c9bf0, 0xa487f0, 0x3cc3c0, 0x4cc07a, 0xe8b13a, 0xe46bb4, 0xf0605a], {
+    '--bg-sunken': '#181c22', '--bg': '#1e232a', '--bg-elev': '#252b33', '--panel': '#252b33', '--panel-2': '#2a313a',
+    '--border': '#363e49', '--text': '#eceff3', '--text-2': '#aeb6c1', '--text-3': '#7a8491', '--accent': '#4c9bf0',
+    '--ink-on-accent': '#0f1720',
+  }),
+  transit('transit-light', 'Transit Light', 'light', [
+    0xf4f5f7, 0xffffff, 0xcdd3db, 0x1a1f26, 0x808a97, 0x1f62c4, 0x6a48c9, 0x0e8a87, 0x1e8a4b, 0xa87100, 0xb0347e, 0xc8322c], {
+    '--bg-sunken': '#e8ebef', '--bg': '#f4f5f7', '--bg-elev': '#ffffff', '--panel': '#ffffff', '--panel-2': '#f8f9fa',
+    '--border': '#cdd3db', '--text': '#1a1f26', '--text-2': '#4d5663', '--text-3': '#808a97', '--accent': '#1f62c4',
+    '--ink-on-accent': '#ffffff',
+  }),
 ];
 
 export function paletteById(id: string | undefined): Palette | undefined {
