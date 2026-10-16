@@ -34,6 +34,12 @@ add('pem key crt p12 jks', 'key', 'err');
 add('yaml yml toml ini properties conf cfg xml', 'settings-file');
 add('txt', 'file-text');
 
+/** Extensions the active icon set draws with its own file icon (atom); set by LayoutProvider. */
+let variantExts: ReadonlySet<string> = new Set();
+export function setFileIconVariants(keys: Iterable<string> | undefined): void {
+  variantExts = new Set([...(keys ?? [])].map((k) => k.slice(k.indexOf(':') + 1)));
+}
+
 const CONFIG_FILE: FileIcon = { icon: 'settings-file' };
 const LOG_FILE: FileIcon = { icon: 'log-file', tone: 'ok' };
 
@@ -43,7 +49,11 @@ export function fileIconOf(name: string): FileIcon {
   if (LOG_NAME.test(lower)) return LOG_FILE;
   if (lower === '.env' || lower.startsWith('.env.') || lower === 'dockerfile' || lower === '.gitignore') return CONFIG_FILE;
   const dot = lower.lastIndexOf('.');
-  return (dot >= 0 && BY_EXTENSION[lower.slice(dot + 1)]) || { icon: 'file' };
+  const ext = lower.slice(dot + 1);
+  const hit = dot >= 0 ? BY_EXTENSION[ext] : undefined;
+  if (!hit) return { icon: 'file' };
+  // `<icon>:<ext>` is drawn per extension by the active set; Icon falls back to `<icon>` elsewhere.
+  return variantExts.has(ext) ? { ...hit, icon: `${hit.icon}:${ext}` as IconName } : hit;
 }
 
 const FOLDER_NAMES: Record<string, IconName> = {};
@@ -78,7 +88,7 @@ export function folderIconOf(name: string, childFiles?: string[]): IconName {
   const byName = FOLDER_NAMES[name.toLowerCase()];
   if (byName) return byName;
   if (!childFiles || childFiles.length < 2) return 'folder';
-  const kinds = new Set(childFiles.map((f) => fileIconOf(f).icon));
+  const kinds = new Set(childFiles.map((f) => fileIconOf(f).icon.split(':')[0] as IconName));
   if (kinds.size !== 1) return 'folder';
   return BY_CONTENT[[...kinds][0]] ?? 'folder';
 }

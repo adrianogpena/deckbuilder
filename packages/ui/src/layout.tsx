@@ -1,5 +1,7 @@
 import { createContext, useContext, useMemo, type ComponentType, type ReactNode } from 'react';
 import { applyMainMenu, resolveIconSetId, resolveLayout, type Layout, type LayoutStructure, type MainMenu } from '@deckbuilder/server-core/layouts';
+import { setFileIconVariants } from './file-icons';
+import { iconSetById } from './icons';
 import { BaseAppFrame, type AppFrameProps } from './components/AppFrame';
 import { BaseSidebar, type SidebarProps } from './components/Sidebar';
 import { BaseStatusBar, type StatusBarProps } from './components/StatusBar';
@@ -36,6 +38,7 @@ const Ctx = createContext<Base>({ layout: original, iconSet: resolveIconSetId(or
 export function LayoutProvider({ layout, icons, mainMenu = 'labels', children }: { layout?: string; icons?: string; mainMenu?: MainMenu; children: ReactNode }) {
   const resolved = resolveLayout(layout);
   const iconSet = resolveIconSetId(resolved, icons);
+  useMemo(() => setFileIconVariants(Object.keys(iconSetById(iconSet).fileVariants ?? {})), [iconSet]);
   const value = useMemo(() => ({ layout: resolved, iconSet, mainMenu }), [resolved, iconSet, mainMenu]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

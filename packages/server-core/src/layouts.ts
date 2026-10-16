@@ -48,7 +48,7 @@ export const ORIGINAL_STRUCTURE: LayoutStructure = {
 
 export const LAYOUTS: readonly Layout[] = [{ id: 'original', label: 'Original', icons: 'original', structure: ORIGINAL_STRUCTURE }];
 
-export const ICON_SET_IDS: readonly string[] = ['original'];
+export const ICON_SET_IDS: readonly string[] = ['original', 'material', 'atom'];
 
 export function layoutById(id: string): Layout | undefined {
   return LAYOUTS.find((l) => l.id === id);

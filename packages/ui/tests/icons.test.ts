@@ -12,6 +12,13 @@ describe('icon sets', () => {
     for (const d of Object.values(set.paths)) expect(d.length).toBeGreaterThan(0);
   });
 
+  test('atom draws markup with per-extension file variants', () => {
+    const set = iconSetById('atom');
+    expect(set.markup).toBe(true);
+    expect(Object.keys(set.fileVariants ?? {}).length).toBeGreaterThan(0);
+    for (const k of Object.keys(set.fileVariants ?? {})) expect(k.split(':')[0]! in PATHS).toBe(true);
+  });
+
   test('every layout names a registered set', () => {
     for (const l of LAYOUTS) expect(ICON_SETS[l.icons]).toBeDefined();
   });
