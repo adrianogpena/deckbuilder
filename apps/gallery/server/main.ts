@@ -25,7 +25,8 @@ import { type FileSettings, validFileSettings } from '@deckbuilder/ui/file-setti
 import { type LogSettings, validLogSettings } from '@deckbuilder/ui/log';
 import { APP } from '../app.ts';
 import pkg from '../package.json';
-import { dbConnections, environments, openRoutes, projects, requests, restHistoryStore, routes, sqlHistoryStore } from './routes.ts';
+import { dbConnections, environments, openRoutes, requests, restHistoryStore, routes, sqlHistoryStore } from './routes.ts';
+import { projectRoots, projects } from './stores.ts';
 import { serverViews } from './views.ts';
 
 export interface Settings extends BaseSettings, TerminalServerSettings {
@@ -466,7 +467,7 @@ const { closeToTray } = await settings.load();
 sqlHistoryStore.setMax(historySizeOf(await settings.load()));
 restHistoryStore.setMax(restHistorySizeOf(await settings.load()));
 
-const mounted = mountViews(serverViews, { dataDir, settings, stores: { projects, dbConnections, requests, environments } });
+const mounted = mountViews(serverViews, { dataDir, settings, stores: { projects, projectRoots, dbConnections, requests, environments } });
 
 await runApp({
   app: APP,

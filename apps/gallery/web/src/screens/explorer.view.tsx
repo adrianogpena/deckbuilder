@@ -27,7 +27,7 @@ function explorerViewCommands(): CommandDef[] {
 export const explorerView = defineView<'explorer', Settings>({
   id: 'explorer',
   nav: { group: 'nav.section.main', icon: 'folder', label: 'nav.explorer', order: 40 },
-  render: ({ settings, onSave, go }) => <ExplorerScreen settings={settings} onSave={onSave} go={go} />,
+  render: ({ settings, onSave }) => <ExplorerScreen settings={settings} onSave={onSave} />,
   commands: explorerViewCommands,
   messages: { en: {}, 'pt-BR': {} },
 });

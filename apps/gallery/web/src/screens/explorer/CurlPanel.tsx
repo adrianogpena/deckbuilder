@@ -1,11 +1,9 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { type CodeEditorHandle, type CodeEditorProps, curlAt, draftToSpec, type HttpHeaderDraft, type ImportedRequest, parseCurl, ResponseView } from '@deckbuilder/editor';
+import { type CodeEditorHandle, type CodeEditorProps, curlAt, draftToSpec, type HttpHeaderDraft, type ImportedRequest, parseCurl, ResponseView, warningText } from '@deckbuilder/editor';
 import type { HttpResponseInfo } from '@deckbuilder/server-core/protocol';
-import { type ApiError, errorOf, Icon, PanelBanner, SplitView, type TabAction } from '@deckbuilder/ui';
+import { type ApiError, errorOf, Icon, PanelBanner, SplitView, type TabAction, useViewLink } from '@deckbuilder/ui';
 import { api } from '../../api';
 import { t } from '../../i18n';
-import { warningText } from '../rest/ImportDialog';
-import { openRestTab } from '../rest/tabs-store';
 import type { ExplorerSqlProps } from './SqlPanel';
 
 const DEFAULT_SPLIT: [number, number] = [0.6, 0.4];
@@ -32,6 +30,7 @@ const withAuth = (request: ImportedRequest): ImportedRequest['draft'] => {
  */
 export function useExplorerCurl({ name, active, draft, sql }: Options) {
   const enabled = !!sql && active && /\.curl$/i.test(name);
+  const toRest = useViewLink<ImportedRequest>('rest');
   const editor = useRef<CodeEditorHandle>(null);
   const abort = useRef<AbortController>();
   const [open, setOpen] = useState(false);
@@ -96,20 +95,14 @@ export function useExplorerCurl({ name, active, draft, sql }: Options) {
   };
 
   const openInRest = () => {
-    if (!sql) return;
+    if (!sql || !toRest) return;
     const request = resolve();
-    if (!request) return;
-    if (openRestTab(request.draft, request.auth, request.name) === null) {
-      setNotice({ tone: 'err', text: t('rest.tab.full') });
-      setOpen(true);
-      return;
-    }
-    sql.go('rest');
+    if (request) toRest(request);
   };
 
   const actions: TabAction[] = enabled ? [
     { id: 'curl.run', group: 'primary', icon: 'play', label: t('workbench.run'), hint: 'Ctrl+Enter', disabled: sending, run: () => void run() },
-    { id: 'curl.openRest', group: 'primary', icon: 'send', label: t('explorer.curl.openRest'), run: openInRest },
+    ...(toRest ? [{ id: 'curl.openRest', group: 'primary' as const, icon: 'send' as const, label: t('explorer.curl.openRest'), run: openInRest }] : []),
   ] : [];
 
   const editorProps: Pick<CodeEditorProps, 'onRun'> = enabled ? { onRun: () => void run() } : {};

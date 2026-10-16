@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { draftToSpec, hasAuthHeader, type HttpRequestDraft, type ImportedRequest, RequestEditor, ResponseView, toCurl } from '@deckbuilder/editor';
 import type { HttpResponseInfo, RestEnvVar } from '@deckbuilder/server-core/protocol';
-import { type ApiError, ErrorBanner, errorOf, Icon, PageHead, SplitView, useAsync, useCommand, useDebouncedSave, useDialogs } from '@deckbuilder/ui';
+import { type ApiError, ErrorBanner, errorOf, Icon, PageHead, SplitView, useAsync, useCommand, useDebouncedSave, useDialogs, useViewRequest } from '@deckbuilder/ui';
 import { commandById } from '../commands';
 import { api, type RestSettings, type SavedRequest, type Settings } from '../api';
 import { t } from '../i18n';
@@ -10,7 +10,7 @@ import { CurlDialog } from './rest/CurlDialog';
 import { HistoryPanel } from './rest/HistoryPanel';
 import { EnvironmentsDialog } from './rest/EnvironmentsDialog';
 import { RestTabBar } from './rest/RestTabBar';
-import { restTabs, runtimeOf, useRestTabs } from './rest/tabs-store';
+import { openRestTab, restTabs, runtimeOf, useRestTabs } from './rest/tabs-store';
 
 const NO_VARS: RestEnvVar[] = [];
 const MAX_NAME = 80;
@@ -41,6 +41,12 @@ export function RestScreen({ settings, onSave }: { settings: Settings; onSave: (
   const [importing, setImporting] = useState(false);
   const [curl, setCurl] = useState<string>();
   const [actionError, setActionError] = useState<ApiError>();
+  const { request: incoming, take: takeIncoming } = useViewRequest<ImportedRequest>('rest');
+  useEffect(() => {
+    if (!incoming) return;
+    const request = takeIncoming();
+    if (request && openRestTab(request.draft, request.auth, request.name) === null) setActionError({ message: t('rest.tab.full') } as ApiError);
+  }, [incoming]);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
 

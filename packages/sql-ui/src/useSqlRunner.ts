@@ -1,11 +1,10 @@
 import { createElement, useEffect, useMemo, useRef, useState } from 'react';
 import { type RunMode, splitStatements } from '@deckbuilder/editor';
-import { type ApiError, type DataTableColumn, type OutputLine, copyText, errorMessage, errorOf, formatCell, useStream } from '@deckbuilder/ui';
-import { api, type DbColumn, type DbPlanRow, type DbStatus, type DemoRow, type ResultFormat, type WorkbenchSettings } from '../../api';
-import { t } from '../../i18n';
-import { settingDefault } from '../../settings';
-import { type CopyColumn, formatCopy } from './copy-format';
+import { type ApiError, type DataTableColumn, type OutputLine, type ResultFormat, copyText, errorMessage, errorOf, formatCell, useStream } from '@deckbuilder/ui';
+import { type CopyColumn, type CopyFormat, formatCopy } from './copy-format';
 import { isDestructive } from './destructive';
+import { t } from './i18n';
+import type { DbColumn, DbPlanRow, DbStatus, DemoRow, SqlClient } from './types';
 
 const ROW_COUNT = 50_000;
 const MAX_STREAM_ITEMS = 100_001;
@@ -59,12 +58,21 @@ function withTimeout<T>(promise: Promise<T>, seconds: number): Promise<T> {
   return Promise.race([promise, limit]).finally(() => clearTimeout(timer));
 }
 
+/** What the runner reads from the app's settings; the app resolves the defaults. */
+export interface SqlRunnerSettings {
+  /** Most rows a database query returns. */
+  maxRows: number;
+  results: ResultFormat;
+  /** Format of `copy`; TSV when omitted. */
+  copyFormat?: CopyFormat;
+  /** Ask `confirm` before a destructive statement; needs `confirm`. */
+  confirmDestructive?: boolean;
+  /** Seconds to wait for a database statement; 0 or omitted means no limit. */
+  queryTimeout?: number;
+}
+
 /** Runs SQL on connection `db` (the demo rows when undefined) and holds the result table, the log and the transaction state. */
-export function useSqlRunner(
-  db: string | undefined,
-  settings: Pick<WorkbenchSettings, 'maxRows' | 'results'> & Partial<Pick<WorkbenchSettings, 'copyFormat' | 'confirmDestructive' | 'queryTimeout'>>,
-  confirm?: Confirm,
-) {
+export function useSqlRunner(client: SqlClient, db: string | undefined, settings: SqlRunnerSettings, confirm?: Confirm) {
   const [lines, setLines] = useState<OutputLine[]>([]);
   const [actionError, setActionError] = useState<ApiError>();
   const [selection, setSelection] = useState<string[]>([]);
@@ -79,7 +87,7 @@ export function useSqlRunner(
   const wasRunning = useRef(false);
   const lastSql = useRef<string>();
 
-  const maxRows = settings.maxRows ?? settingDefault<number>('workbench.maxRows');
+  const maxRows = settings.maxRows;
 
   const log = (text: string, tone?: OutputLine['tone']) => setLines((l) => [...l, { text, tone, at: Date.now() }]);
 
@@ -93,7 +101,7 @@ export function useSqlRunner(
   const cols = useMemo(() => (shown.kind === 'db' ? dbTableColumns(shown.columns, settings.results) : demoColumns()), [shown, settings.results]);
 
   const refreshStatus = () => {
-    if (db) api.dbStatus(db).then(setStatus, () => {});
+    if (db) client.dbStatus(db).then(setStatus, () => {});
   };
 
   useEffect(() => {
@@ -134,7 +142,7 @@ export function useSqlRunner(
         log(t('workbench.log.start', { query: sql.trim() }));
         lastSql.current = sql;
         const last = i === statements.length - 1;
-        const result = await withTimeout(api.dbRun(id, sql, maxRows), settings.queryTimeout ?? 0);
+        const result = await withTimeout(client.dbRun(id, sql, maxRows), settings.queryTimeout ?? 0);
         if (result.kind === 'rows' && last) {
           setShown({ kind: 'db', run: result.run, columns: result.columns });
           rows.start('/api/db/rows', { run: result.run });
@@ -163,7 +171,7 @@ export function useSqlRunner(
     const statements = mode === 'all' ? splitStatements(text).map((s) => s.text) : [text];
     if (statements.length === 0 || statements.every((s) => !s.trim())) return;
     const risky = statements.filter(isDestructive);
-    if (risky.length > 0 && confirm && (settings.confirmDestructive ?? settingDefault<boolean>('workbench.confirmDestructive'))) {
+    if (risky.length > 0 && confirm && settings.confirmDestructive) {
       const ok = await confirm({
         title: t('workbench.destructive.title'),
         body: `${t('workbench.destructive.body')}\n${risky.map((s) => s.trim()).join('\n')}`.slice(0, 600),
@@ -186,7 +194,7 @@ export function useSqlRunner(
     setExplaining(true);
     log(t('workbench.log.explain', { query: text.trim() }));
     try {
-      const steps = await withTimeout(api.dbExplain(db, text), settings.queryTimeout ?? 0);
+      const steps = await withTimeout(client.dbExplain(db, text), settings.queryTimeout ?? 0);
       setPlan(steps);
       log(t('workbench.log.explained', { count: steps.length }), 'ok');
     } catch (err) {
@@ -233,7 +241,7 @@ export function useSqlRunner(
     if (!db) return;
     setActionError(undefined);
     try {
-      setStatus(await (op === 'commit' ? api.dbCommit(db) : api.dbRollback(db)));
+      setStatus(await (op === 'commit' ? client.dbCommit(db) : client.dbRollback(db)));
       log(t(op === 'commit' ? 'workbench.log.committed' : 'workbench.log.rolledBack'), 'ok');
     } catch (err) {
       fail(err);
@@ -259,7 +267,7 @@ export function useSqlRunner(
     if (!db) return;
     cancel();
     try {
-      setStatus(await api.dbDisconnect(db));
+      setStatus(await client.dbDisconnect(db));
       log(t('workbench.log.disconnected'), 'ok');
     } catch (err) {
       fail(err);

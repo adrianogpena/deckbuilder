@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'bun:test';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { createSettingsRegistry, groupField, str } from '../src/settings-schema';
-import { createViews, defineView, settingDefaultsOf } from '../src/views';
+import { createViews, defineView, settingDefaultsOf, useViewLink, useViewRequest } from '../src/views';
 
 type S = { demo?: { name?: string } };
 
@@ -49,5 +51,48 @@ describe('createViews', () => {
     v.registerSettings(registry);
     expect(registry.setting('demo.name')?.default).toBe('x');
     expect(settingDefaultsOf(defs, 'demo')).toEqual({ name: 'x' });
+  });
+});
+
+describe('view links', () => {
+  const probe = (id: string, taken?: unknown[]) => () => {
+    const { request, take } = useViewRequest<{ n: number }>(id);
+    if (request && taken) taken.push(take());
+    return createElement('i', null, request ? `got${request.n}` : 'none');
+  };
+
+  test('link stores the payload, navigates and is taken once', () => {
+    const v = createViews([view('a', 'g', 1), view('b', 'g', 2)]);
+    const went: string[] = [];
+    const taken: unknown[] = [];
+    const Probe = probe('b', taken);
+    const render = () => renderToStaticMarkup(createElement(v.Providers, { settings: {}, go: (id) => went.push(id), children: createElement(Probe) }));
+    expect(render()).toBe('<i>none</i>');
+    v.link('b', { n: 1 });
+    expect(went).toEqual(['b']);
+    expect(render()).toBe('<i>got1</i>');
+    expect(taken).toEqual([{ n: 1 }]);
+    expect(render()).toBe('<i>none</i>');
+  });
+
+  test('link to an unknown view does nothing', () => {
+    const v = createViews([view('a', 'g', 1)]);
+    const went: string[] = [];
+    renderToStaticMarkup(createElement(v.Providers, { settings: {}, go: (id) => went.push(id), children: null }));
+    v.link('zzz', { n: 1 });
+    expect(went).toEqual([]);
+  });
+
+  test('useViewLink is null for an absent view, a function for a present one', () => {
+    const v = createViews([view('a', 'g', 1)]);
+    const seen: Array<boolean> = [];
+    const Probe = () => {
+      seen.push(useViewLink('a') !== null, useViewLink('zzz') !== null);
+      return null;
+    };
+    renderToStaticMarkup(createElement(v.Providers, { settings: {}, children: createElement(Probe) }));
+    expect(seen).toEqual([true, false]);
+    renderToStaticMarkup(createElement(Probe));
+    expect(seen.slice(2)).toEqual([false, false]);
   });
 });

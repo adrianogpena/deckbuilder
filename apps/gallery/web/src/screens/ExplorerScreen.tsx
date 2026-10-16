@@ -33,6 +33,7 @@ import {
   useCommand,
   useDebouncedSave,
   useKeybindings,
+  useViewRequest,
   type Layout,
   type QuickOpenFile,
   useProvideQuickOpen,
@@ -43,7 +44,6 @@ import {
 } from '@deckbuilder/ui';
 import { closeSession } from '@deckbuilder/terminal/session';
 import { api, type ExplorerSettings, type LogSettings, type Project, type Settings } from '../api';
-import { takeExplorerRequest } from '../explorer-request';
 import { terminalAppKeys } from '@deckbuilder/view-terminal/web';
 import { commandById } from '../commands';
 import { fullPath, nodeId } from '../explorer-paths';
@@ -190,7 +190,14 @@ function closeTabsWhere(layout: Layout<Route>, matches: (route: Route) => boolea
 /** Ids of `project` under `path`, the folder itself included. */
 const idsUnder = (project: string, path: string) => (id: string) => id.startsWith(`${project}:`) && relPath.isUnder(id.slice(project.length + 1), path);
 
-export function ExplorerScreen({ settings, onSave, go }: { settings: Settings; onSave: (patch: Partial<Settings>) => void; go: (screen: string) => void }) {
+/** A file another view wants the Explorer to show: revealed in the tree, and opened when `open` (sent with `useViewLink('explorer')`). */
+export interface ExplorerRequest {
+  project: string;
+  path: string;
+  open: boolean;
+}
+
+export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSave: (patch: Partial<Settings>) => void }) {
   const projects = useAsync(() => api.projects(), []);
   const keys = useKeybindings();
   const list = projects.data ?? [];
@@ -240,7 +247,6 @@ export function ExplorerScreen({ settings, onSave, go }: { settings: Settings; o
     onWorkbenchChange: (workbench) => onSave({ workbench }),
     sizes: state.sqlSizes,
     onSizesChange: (sqlSizes) => update((s) => ({ ...s, sqlSizes })),
-    go,
     restEnvironment: settings.rest?.environment ?? '',
   };
   const [logs, setLogs] = useState<LogSettings | undefined>(settings.logs);
@@ -496,12 +502,14 @@ export function ExplorerScreen({ settings, onSave, go }: { settings: Settings; o
     setRevealTick((n) => n + 1);
   };
   // A file sent by another screen (Git): reveal it, and open it when asked.
+  const { request: pendingRequest, take: takeRequest } = useViewRequest<ExplorerRequest>('explorer');
   useEffect(() => {
-    const request = projects.data && takeExplorerRequest();
+    if (!projects.data || !pendingRequest) return;
+    const request = takeRequest();
     if (!request) return;
     if (request.open) openFile(request.project, request.path);
     revealFile(request.project, request.path);
-  }, [projects.data]);
+  }, [projects.data, pendingRequest]);
   useCommand(commandById('explorer.revealInTree'), () => activeFile && revealFile(activeFile.project, activeFile.path), { enabled: !!activeFile });
 
   useEffect(() => {

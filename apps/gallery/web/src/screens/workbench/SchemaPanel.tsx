@@ -2,7 +2,7 @@ import { type MouseEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { type ApiError, ContextMenu, ErrorBanner, Icon, Spinner, useToast } from '@deckbuilder/ui';
 import type { DbSchema, DbSchemaTable, DbTableConstraint } from '../../api';
 import { t } from '../../i18n';
-import type { TableDetailsEntry } from './useSqlSchema';
+import type { TableDetailsEntry } from '@deckbuilder/sql-ui';
 
 const MAX_SHOWN = 300;
 const HIT_MS = 1500;

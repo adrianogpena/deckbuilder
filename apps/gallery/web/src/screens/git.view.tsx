@@ -16,7 +16,7 @@ const gitCommands = (): CommandDef[] => [
 export const gitView = defineView<'git', Settings>({
   id: 'git',
   nav: { group: 'nav.section.main', icon: 'git-branch', label: 'nav.git', order: 80 },
-  render: ({ settings, onSave, go }) => <GitScreen settings={settings} onSave={onSave} go={go} initialDiffMode={gitSettingsOf(settings).diffMode} />,
+  render: ({ settings, onSave }) => <GitScreen settings={settings} onSave={onSave} initialDiffMode={gitSettingsOf(settings).diffMode} />,
   commands: gitCommands,
   messages: { en: {}, 'pt-BR': {} },
 });

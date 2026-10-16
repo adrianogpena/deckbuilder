@@ -16,16 +16,14 @@ import {
   useDialogs,
   useToast,
 } from '@deckbuilder/ui';
+import { EXPORT_ROWS, type ExportFormat, exportResults, DEFAULT_RESULTS, SqlResults, useSqlRunner, useSqlSchema, useTableDetails } from '@deckbuilder/sql-ui';
 import { api, withWorkbenchDefaults, type DbSchemaTable, type Settings, type WorkbenchSettings } from '../api';
 import { commandById } from '../commands';
 import { t } from '../i18n';
+import { sqlClient, sqlRunnerSettings } from '../sql-client';
 import { Connections } from './workbench/Connections';
-import { EXPORT_ROWS, type ExportFormat, exportResults } from './workbench/export-results';
 import { HistoryPanel } from './workbench/HistoryPanel';
 import { SchemaPanel } from './workbench/SchemaPanel';
-import { DEFAULT_RESULTS, SqlResults } from './workbench/SqlResults';
-import { useSqlRunner } from './workbench/useSqlRunner';
-import { useSqlSchema, useTableDetails } from './workbench/useSqlSchema';
 
 const SAVE_DELAY = 500;
 const DEMO_SOURCE = 'demo';
@@ -54,7 +52,7 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
   const connection = state.source && state.source !== DEMO_SOURCE ? connections.data?.find((c) => c.id === state.source) : undefined;
   const db = connection?.id;
   const doc = state.doc ?? { kind: 'default' as const };
-  const runner = useSqlRunner(db, state, confirm);
+  const runner = useSqlRunner(sqlClient, db, sqlRunnerSettings(state), confirm);
   const docKey = doc.kind === 'file' ? `file:${doc.project}:${doc.path}` : db ? `db:${db}` : '';
   const docName = doc.kind === 'file' ? (doc.path.split(/[\\/]/).pop() ?? doc.path) : '';
 
@@ -127,7 +125,7 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
 
   const schemaOpen = !!db && !!state.schema;
   // Loaded (which connects) as soon as a database is chosen, panel open or not: the editor completes from it.
-  const { schema, loading: schemaLoading, error: schemaError, setOwner, reload: reloadSchema, sqlSchema } = useSqlSchema(db);
+  const { schema, loading: schemaLoading, error: schemaError, setOwner, reload: reloadSchema, sqlSchema } = useSqlSchema(sqlClient, db);
 
   // The panel shows its own state; closed, the log tells why completions are missing.
   useEffect(() => {
@@ -159,7 +157,7 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
   const exportAs = async (format: ExportFormat) => {
     setActionError(undefined);
     try {
-      const message = await exportResults(format, exportCols(), tableRows, runner.truncated);
+      const message = await exportResults(sqlClient, format, exportCols(), tableRows, runner.truncated);
       if (!message) return;
       log(message, 'ok');
       toast({ message });
@@ -182,7 +180,7 @@ export function WorkbenchScreen({ settings, onSave }: { settings: Settings; onSa
     edit(`select * from ${quote(tableOwner)}.${quote(table.name)}`);
   };
 
-  const tableDetails = useTableDetails(db);
+  const tableDetails = useTableDetails(sqlClient, db);
   // The Workbench has one editor: the DDL replaces its text, after a confirm when it holds a query.
   const showDdl = async (table: DbSchemaTable, tableOwner: string) => {
     const data = await tableDetails.load(tableOwner, table.name);

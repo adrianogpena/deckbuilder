@@ -1,7 +1,6 @@
-import { statSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
-import { basename, isAbsolute, join } from 'node:path';
-import { appHome, createToaster, openWithDefault, pickFile, revealInFolder, saveFileAs, secretStore, writeFileAtomic } from '@deckbuilder/platform';
+import { basename, join } from 'node:path';
+import { createToaster, openWithDefault, pickFile, revealInFolder, saveFileAs, secretStore, writeFileAtomic } from '@deckbuilder/platform';
 import type { HttpRequestDraft } from '@deckbuilder/editor/http';
 import { dbRoutes, dbSessions, parseOracleUrl, sqlHistory, validConnection, type DbConnectionFields } from '@deckbuilder/db';
 import { AppError, forbidden, invalid, isRecord, ndjson, notFound, type Routes } from '@deckbuilder/server-core';
@@ -9,39 +8,11 @@ import { REST_ENV_MAX_VARS, REST_ENV_NAME_CHARS, REST_VAR_NAME, type RestEnvVar 
 import { dialogRoutes, editorRoutes, fromPlatform, httpExecutor, gitRoutes, httpRoutes, pickedPaths, recordRoutes, recordStore, restHistory, restTabsRoutes, rootedFs, validateDraft } from '@deckbuilder/server-mods';
 import type { StartContext } from '@deckbuilder/shell';
 import { APP, MULTI_DELETE_ENABLED } from '../app.ts';
+import { home, isDirectory, pickedFolders, projectRoots, projects } from './stores.ts';
 
 const toaster = createToaster();
-const home = appHome(APP.id);
 const osSecrets = secretStore(APP.id);
 
-const isDirectory = (path: string) => {
-  try {
-    return statSync(path).isDirectory();
-  } catch {
-    return false;
-  }
-};
-
-/** Folders the folder dialog returned; a project path must be one of them (taken once). */
-const pickedFolders = pickedPaths();
-
-/** The folders the Explorer screen shows; each is a root of the rooted file system. */
-export const projects = recordStore<{ name: string; path: string }>({
-  dir: home,
-  name: 'projects',
-  validate(input, prev, ctx) {
-    const { name, path } = (input ?? {}) as { name?: unknown; path?: unknown };
-    const trimmed = typeof name === 'string' ? name.trim() : '';
-    if (trimmed.length < 1 || trimmed.length > 80) throw invalid('badProjectName', 'The name must have 1 to 80 characters.');
-    // An unchanged path skips the stat: it would block the server while a share is offline.
-    if (typeof path === 'string' && path === prev?.path) return { name: trimmed, path };
-    // A backup's path was not picked here, but the user picked the backup file in a dialog.
-    if (typeof path !== 'string' || !(ctx?.imported || pickedFolders.take(path))) throw invalid('pickFolderFirst', 'Choose the folder with Browse.');
-    if (!isAbsolute(path) || !isDirectory(path)) throw invalid('badProjectPath', 'The path must be an existing folder.');
-    return { name: trimmed, path };
-  },
-});
-const projectRoots = async () => (await projects.list()).map((p) => ({ id: p.id, path: p.path }));
 const fs = rootedFs({ multiDelete: MULTI_DELETE_ENABLED, roots: projectRoots });
 
 /** The file download behind dragging a file out of the tree; its link carries a one-time ticket, not the session token. */

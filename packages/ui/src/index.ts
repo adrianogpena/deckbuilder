@@ -33,6 +33,7 @@ export * from './file-associations';
 export * from './file-nesting';
 export * from './file-settings';
 export * from './file-icons';
+export * from './git-status';
 export * from './log';
 export * from './log-tail';
 export * from './fuzzy';

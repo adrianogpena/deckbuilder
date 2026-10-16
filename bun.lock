@@ -19,6 +19,7 @@
         "@deckbuilder/server-core": "workspace:*",
         "@deckbuilder/server-mods": "workspace:*",
         "@deckbuilder/shell": "workspace:*",
+        "@deckbuilder/sql-ui": "workspace:*",
         "@deckbuilder/terminal": "workspace:*",
         "@deckbuilder/ui": "workspace:*",
         "@deckbuilder/view-terminal": "workspace:*",
@@ -113,6 +114,24 @@
         "@deckbuilder/platform": "workspace:*",
         "@deckbuilder/server-core": "workspace:*",
         "webview-bun": "^2.4.0",
+      },
+    },
+    "packages/sql-ui": {
+      "name": "@deckbuilder/sql-ui",
+      "version": "0.0.0",
+      "dependencies": {
+        "@deckbuilder/editor": "workspace:*",
+        "@deckbuilder/ui": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/react": "^18.3.12",
+        "@types/react-dom": "^18.3.1",
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
+      },
+      "peerDependencies": {
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
       },
     },
     "packages/terminal": {
@@ -271,6 +290,8 @@
     "@deckbuilder/server-mods": ["@deckbuilder/server-mods@workspace:packages/server-mods"],
 
     "@deckbuilder/shell": ["@deckbuilder/shell@workspace:packages/shell"],
+
+    "@deckbuilder/sql-ui": ["@deckbuilder/sql-ui@workspace:packages/sql-ui"],
 
     "@deckbuilder/terminal": ["@deckbuilder/terminal@workspace:packages/terminal"],
 

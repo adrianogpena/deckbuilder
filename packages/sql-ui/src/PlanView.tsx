@@ -1,6 +1,6 @@
 import { copyText, Icon, useToast } from '@deckbuilder/ui';
-import { type DbPlanRow } from '../../api';
-import { t } from '../../i18n';
+import { t } from './i18n';
+import type { DbPlanRow } from './types';
 
 const operationOf = (r: DbPlanRow) => (r.options ? `${r.operation} ${r.options}` : r.operation);
 const objectOf = (r: DbPlanRow) => (r.objectName ? (r.objectOwner ? `${r.objectOwner}.${r.objectName}` : r.objectName) : '');

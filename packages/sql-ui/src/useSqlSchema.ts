@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { type ApiError, errorOf } from '@deckbuilder/ui';
-import { api, type DbSchema, type DbTableDetails } from '../../api';
+import type { DbSchema, DbTableDetails, SqlClient } from './types';
 
 interface Entry {
   data?: DbSchema;
@@ -28,12 +28,12 @@ const store = (key: string, entry: Entry) => {
 };
 
 /** Fetches the schema into the cache; a newer request for the same key wins. The old data stays until the new one arrives. */
-const fetchSchema = (db: string, owner: string | undefined) => {
+const fetchSchema = (client: SqlClient, db: string, owner: string | undefined) => {
   const key = keyOf(db, owner);
   const request = (requests.get(key) ?? 0) + 1;
   requests.set(key, request);
   store(key, { data: entries.get(key)?.data, loading: true });
-  api.dbSchema(db, owner).then(
+  client.dbSchema(db, owner).then(
     (data) => {
       if (requests.get(key) === request) store(key, { data, loading: false });
     },
@@ -43,19 +43,19 @@ const fetchSchema = (db: string, owner: string | undefined) => {
   );
 };
 
-const ensure = (db: string, owner: string | undefined) => {
+const ensure = (client: SqlClient, db: string, owner: string | undefined) => {
   const entry = entries.get(keyOf(db, owner));
-  if (!entry || (!entry.data && !entry.loading)) fetchSchema(db, owner);
+  if (!entry || (!entry.data && !entry.loading)) fetchSchema(client, db, owner);
 };
 
 /** Schema of connection `db` (which connects), cached per connection and owner, shared by every consumer. */
-export function useSqlSchema(db: string | undefined) {
+export function useSqlSchema(client: SqlClient, db: string | undefined) {
   const [owner, setOwner] = useState<string>();
   const key = db ? keyOf(db, owner) : undefined;
   const entry = useSyncExternalStore(subscribe, () => (key ? (entries.get(key) ?? IDLE) : IDLE));
 
   useEffect(() => {
-    if (db) ensure(db, owner);
+    if (db) ensure(client, db, owner);
   }, [db, owner]);
 
   const sqlSchema = useMemo(() => {
@@ -73,7 +73,7 @@ export function useSqlSchema(db: string | undefined) {
     reload: () => {
       if (!db) return;
       dropDetails(db);
-      fetchSchema(db, owner);
+      fetchSchema(client, db, owner);
     },
     sqlSchema,
   };
@@ -103,7 +103,7 @@ const dropDetails = (db: string) => {
 };
 
 /** Indexes, constraints and DDL per table of connection `db`, fetched once on `load` and cached until the schema reloads. */
-export function useTableDetails(db: string | undefined) {
+export function useTableDetails(client: SqlClient, db: string | undefined) {
   useSyncExternalStore(subscribe, () => detailsVersion);
   return {
     get: (owner: string, name: string) => (db ? details.get(detailsKey(db, owner, name)) : undefined),
@@ -116,7 +116,7 @@ export function useTableDetails(db: string | undefined) {
       const pending = inflight.get(key);
       if (pending) return pending;
       storeDetails(key, { loading: true });
-      const request = api.dbTable(db, owner, name).then(
+      const request = client.dbTable(db, owner, name).then(
         (data) => {
           storeDetails(key, { data, loading: false });
           return data;

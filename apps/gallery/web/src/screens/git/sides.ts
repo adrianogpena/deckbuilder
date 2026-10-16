@@ -1,4 +1,5 @@
 import type { GitCommitFile, GitFile, GitFileContent } from '@deckbuilder/server-core/protocol';
+import { type GitStatusTone, gitToneOf } from '@deckbuilder/ui';
 import { api } from '../../api';
 
 const EMPTY: GitFileContent = { text: '' };
@@ -47,15 +48,5 @@ export async function commitSidesOf(root: string, commit: string, file: GitCommi
   return { original, modified };
 }
 
-const toneOf = (letter: string) => (letter === 'A' ? 'ok' : letter === 'D' ? 'err' : 'warn');
-
 /** The letter and colour class of a file changed by a commit. */
-export const commitStatusOf = (file: GitCommitFile): { letter: string; tone: 'ok' | 'warn' | 'err' } => ({ letter: file.status, tone: toneOf(file.status) });
-
-/** The letter shown next to a file and its colour class. */
-export function statusOf(file: GitFile): { letter: string; tone: 'ok' | 'warn' | 'err' } {
-  if (file.group === 'conflict') return { letter: '!', tone: 'err' };
-  if (file.group === 'untracked') return { letter: 'U', tone: 'ok' };
-  const letter = file.group === 'staged' ? file.index : file.worktree;
-  return { letter, tone: toneOf(letter) };
-}
+export const commitStatusOf = (file: GitCommitFile): { letter: string; tone: GitStatusTone } => ({ letter: file.status, tone: gitToneOf(file.status) });

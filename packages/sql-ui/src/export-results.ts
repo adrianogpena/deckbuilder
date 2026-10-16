@@ -1,6 +1,6 @@
 import { type ExportColumn, toCsv } from '@deckbuilder/ui';
-import { api } from '../../api';
-import { t } from '../../i18n';
+import { t } from './i18n';
+import type { SqlClient } from './types';
 
 export type ExportFormat = 'csv' | 'json';
 
@@ -15,11 +15,11 @@ export function toJson<T>(columns: ExportColumn<T>[], rows: T[]): string {
  * Asks where to save, then writes the first `EXPORT_ROWS` rows as CSV or JSON.
  * Returns the toast message, or undefined when the dialog was cancelled.
  */
-export async function exportResults<T>(format: ExportFormat, columns: ExportColumn<T>[], rows: T[], truncated: boolean): Promise<string | undefined> {
-  const { path } = await api.saveTarget(format);
+export async function exportResults<T>(client: SqlClient, format: ExportFormat, columns: ExportColumn<T>[], rows: T[], truncated: boolean): Promise<string | undefined> {
+  const { path } = await client.saveTarget(format);
   if (!path) return undefined;
   const slice = rows.slice(0, EXPORT_ROWS);
-  await api.saveDemo(path, format === 'json' ? toJson(columns, slice) : toCsv(columns, slice));
+  await client.saveDemo(path, format === 'json' ? toJson(columns, slice) : toCsv(columns, slice));
   const partial = truncated || rows.length > EXPORT_ROWS;
   return t(partial ? 'workbench.exported.partial' : 'workbench.exported', { count: slice.length, path });
 }

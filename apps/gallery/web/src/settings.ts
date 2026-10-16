@@ -21,7 +21,7 @@ import {
   settingsFromOptionMeta,
 } from '@deckbuilder/ui';
 import type { AppearanceSettings, EditorSettings, GeneralSettings, GitSettings, KeyboardSettings, Settings, WindowSettings } from './api';
-import { COPY_FORMATS, type CopyFormat } from './screens/workbench/copy-format';
+import { COPY_FORMATS, type CopyFormat } from '@deckbuilder/sql-ui';
 
 export const settingsRegistry = createSettingsRegistry<Settings>();
 registerDefaultSections(settingsRegistry);

@@ -19,6 +19,7 @@
     "@deckbuilder/server-core": "workspace:*",
     "@deckbuilder/server-mods": "workspace:*",
     "@deckbuilder/shell": "workspace:*",
+    "@deckbuilder/sql-ui": "workspace:*",
     "@deckbuilder/terminal": "workspace:*",
     "@deckbuilder/ui": "workspace:*",
     "@deckbuilder/view-terminal": "workspace:*",

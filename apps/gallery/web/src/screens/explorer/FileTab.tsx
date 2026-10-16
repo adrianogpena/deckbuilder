@@ -6,7 +6,7 @@ import {
 } from '@deckbuilder/editor';
 import {
   type ApiError, type BreadcrumbEntry, Breadcrumbs, errorOf, ErrorBanner, FILE_DEFAULTS, type FileSettings, formatBytes, Icon, type IconName, PanelBanner, PanelLoading,
-  relPath, requestBlob, StatusBar, type StatusItem, type TabAction, useCommand, useDialogs,
+  relPath, requestBlob, StatusBar, type StatusItem, type TabAction, useCommand, useDialogs, useViewLink,
 } from '@deckbuilder/ui';
 import { api, type LogSettings, type TextEncoding } from '../../api';
 import { commandById } from '../../commands';
@@ -359,11 +359,12 @@ function TextFileTab({ project, projectName, path, focused, preview, markdownMod
     sqlUi.closeResults();
     setStepsOpen(true);
   };
+  const toWorkbench = useViewLink('workbench');
   const openInWorkbench = async () => {
-    if (!sql) return;
+    if (!sql || !toWorkbench) return;
     if (dirty && !(await save())) return;
     sql.onWorkbenchChange({ ...sql.workbench, doc: { kind: 'file', project, path } });
-    sql.go('workbench');
+    toWorkbench();
   };
   const actions: TabAction[] = [...sqlUi.actions, ...curlUi.actions];
   const isSql = langOfFile(name) === 'sql' || !!xmlStmts;
@@ -401,7 +402,7 @@ function TextFileTab({ project, projectName, path, focused, preview, markdownMod
     actions.push({ id: 'save', group: 'menu', section: 'file', label: t('explorer.save'), hint: chordOf('explorer.file.save'), disabled: !dirty || saving, run: () => void save() });
   }
   actions.push({ id: 'reload', group: 'menu', section: 'file', icon: 'refresh', label: t('explorer.reload'), run: () => void reload() });
-  if (sql && sqlUi.enabled) {
+  if (sql && sqlUi.enabled && toWorkbench) {
     actions.push({ id: 'sql.openWorkbench', group: 'menu', section: 'file', label: t('explorer.sql.openWorkbench'), run: () => void openInWorkbench() });
   }
   useTabActions(actions, onActions);

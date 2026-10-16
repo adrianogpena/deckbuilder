@@ -1,12 +1,11 @@
 import { type ReactNode, useMemo, useRef, useState } from 'react';
 import { type CodeEditorHandle, type CodeEditorProps, langOfFile, resolveMarkers, type RunMode, sqlMarkers, sqlParams, type SqlParam } from '@deckbuilder/editor';
-import { Badge, ErrorBanner, Icon, Modal, SplitView, type TabAction, useAsync, useCommand } from '@deckbuilder/ui';
+import { Badge, ErrorBanner, Icon, Modal, SplitView, type TabAction, useAsync, useCommand, useViewLink } from '@deckbuilder/ui';
+import { DEFAULT_RESULTS, SqlResults, useSqlRunner, useSqlSchema } from '@deckbuilder/sql-ui';
 import { api, type DbConnection, withWorkbenchDefaults, type WorkbenchSettings } from '../../api';
 import { commandById } from '../../commands';
 import { t } from '../../i18n';
-import { DEFAULT_RESULTS, SqlResults } from '../workbench/SqlResults';
-import { useSqlRunner } from '../workbench/useSqlRunner';
-import { useSqlSchema } from '../workbench/useSqlSchema';
+import { sqlClient, sqlRunnerSettings } from '../../sql-client';
 import { useChordOf } from './tab-actions';
 
 const DEFAULT_SPLIT: [number, number] = [0.6, 0.4];
@@ -20,7 +19,6 @@ export interface ExplorerSqlProps {
   /** Fractions of the editor and the results panel. */
   sizes?: [number, number];
   onSizesChange(sizes: [number, number]): void;
-  go(screen: string): void;
   /** Active REST environment id ('' = none); `.curl` runs substitute its variables. */
   restEnvironment?: string;
 }
@@ -79,8 +77,8 @@ export function useExplorerSql({ project, name, asSql, active, focused, draft, s
   const connections = useAsync(() => (enabled ? api.dbConnections() : Promise.resolve<DbConnection[]>([])), [enabled]);
   const connection = connections.data?.find((c) => c.id === settings.explorerConnections[project]);
   const db = enabled ? connection?.id : undefined;
-  const runner = useSqlRunner(db, settings, confirm);
-  const { sqlSchema } = useSqlSchema(db);
+  const runner = useSqlRunner(sqlClient, db, sqlRunnerSettings(settings), confirm);
+  const { sqlSchema } = useSqlSchema(sqlClient, db);
   const editor = useRef<CodeEditorHandle>(null);
   const [open, setOpen] = useState(false);
   const [resultSizes, setResultSizes] = useState<[number, number]>(DEFAULT_RESULTS);
@@ -126,10 +124,11 @@ export function useExplorerSql({ project, name, asSql, active, focused, draft, s
   const format = () => editor.current?.format(settings.format);
   useCommand(commandById('explorer.sql.format'), format, { enabled: focused && enabled && !asSql });
 
+  const toWorkbench = useViewLink('workbench');
   const changeConnection = (value: string) => {
     if (!sql) return;
     if (value === MANAGE) {
-      sql.go('workbench');
+      toWorkbench?.();
       return;
     }
     runner.reset();
@@ -143,7 +142,7 @@ export function useExplorerSql({ project, name, asSql, active, focused, draft, s
   const connectionOptions = [
     { value: '', label: t('explorer.sql.pickConnection') },
     ...(connections.data ?? []).map((c) => ({ value: c.id, label: c.name })),
-    { value: MANAGE, label: t('workbench.source.manage') },
+    ...(toWorkbench ? [{ value: MANAGE, label: t('workbench.source.manage') }] : []),
   ];
   const actions: TabAction[] = enabled ? [
     { id: 'sql.connection', group: 'primary', label: t('workbench.source'), options: connectionOptions, value: connection?.id ?? '', run: (value) => changeConnection(value ?? '') },

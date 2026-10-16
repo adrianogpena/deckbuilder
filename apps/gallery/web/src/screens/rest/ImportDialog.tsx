@@ -1,17 +1,10 @@
 import { useState } from 'react';
-import { type ImportedRequest, parseImport } from '@deckbuilder/editor';
-import { type ApiError, ErrorBanner, errorOf, Modal, tryT } from '@deckbuilder/ui';
+import { type ImportedRequest, parseImport, warningText } from '@deckbuilder/editor';
+import { type ApiError, ErrorBanner, errorOf, Modal } from '@deckbuilder/ui';
 import { api } from '../../api';
 import { t } from '../../i18n';
 
 export const requestLabel = (r: ImportedRequest) => r.name ?? `${r.draft.method} ${r.draft.url}`;
-
-/** `<code>:<argument>` from the parser → translated text; unknown codes show as they are. */
-export const warningText =(warning: string) => {
-  const colon = warning.indexOf(':');
-  const code = colon < 0 ? warning : warning.slice(0, colon);
-  return tryT(`rest.import.warn.${code}`, { arg: colon < 0 ? '' : warning.slice(colon + 1) }) ?? warning;
-};
 
 interface Props {
   /** One parsed request goes into the editor. */

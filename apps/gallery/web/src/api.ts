@@ -6,7 +6,7 @@ import type { BackupInspect, EditorInfo, FsArchiveFormat, FsCompressRequest, FsC
 export type { EditorInfo, FsDuProgress, FsHash, FsInfo, ImportResult, TailChunk };
 import type { SessionInfo, TerminalProfileInfo } from '@deckbuilder/terminal';
 import type { TerminalSettings, TerminalViewSettings } from '@deckbuilder/view-terminal/web';
-import type { CopyFormat } from './screens/workbench/copy-format';
+import type { CopyFormat, DbColumn, DbPlanRow, DbRunResult, DbSchema, DbSchemaTable, DbStatus, DbTableConstraint, DbTableDetails, DbTableIndex, DemoRow } from '@deckbuilder/sql-ui';
 import { settingDefault, settingDefaults } from './settings';
 import { type FileAssociation, type FileSettings, type Keymap, type Language, type LogSettings, type ResultFormat, request, requestUpload, stream } from '@deckbuilder/ui';
 
@@ -182,13 +182,6 @@ export const withWorkbenchDefaults = (raw?: Partial<WorkbenchSettings>): Workben
   format: { ...settingDefaults<SqlFormatOptions>('workbench.format'), ...raw?.format },
 });
 
-export interface DemoRow {
-  id: number;
-  name: string;
-  amount: number;
-  date: string;
-}
-
 export interface DbConnection {
   id: string;
   name: string;
@@ -197,74 +190,8 @@ export interface DbConnection {
   password?: { hasSecret: true };
 }
 
-export interface DbStatus {
-  connected: boolean;
-  /** Uncommitted changes may exist. */
-  pending: boolean;
-  busy: boolean;
-}
-
-export interface DbColumn {
-  name: string;
-  type: 'number' | 'text' | 'date' | 'binary';
-  /** A TIMESTAMP column (also reported as type `date`). */
-  timestamp?: boolean;
-}
-
-export interface DbSchemaTable {
-  name: string;
-  kind: 'table' | 'view';
-  columns: Array<{ name: string; type: string; nullable: boolean }>;
-}
-
-export interface DbSchema {
-  owner: string;
-  owners: string[];
-  tables: DbSchemaTable[];
-  truncated: boolean;
-}
-
-export interface DbTableIndex {
-  name: string;
-  unique: boolean;
-  columns: string[];
-}
-
-export interface DbTableConstraint {
-  name: string;
-  /** Primary key, unique, foreign key (references), check. */
-  type: 'P' | 'U' | 'R' | 'C';
-  columns: string[];
-  condition?: string;
-  references?: { owner: string; table: string; constraint: string; columns: string[] };
-}
-
-export interface DbTableDetails {
-  owner: string;
-  name: string;
-  indexes: DbTableIndex[];
-  constraints: DbTableConstraint[];
-  ddl: string | null;
-}
-
-/** One step of an EXPLAIN PLAN, as PLAN_TABLE holds it. */
-export interface DbPlanRow {
-  id: number;
-  parentId: number | null;
-  depth: number;
-  operation: string;
-  options: string | null;
-  objectOwner: string | null;
-  objectName: string | null;
-  cost: number | null;
-  cardinality: number | null;
-  bytes: number | null;
-  accessPredicates: string | null;
-  filterPredicates: string | null;
-}
-
+export type { DbColumn, DbPlanRow, DbRunResult, DbSchema, DbSchemaTable, DbStatus, DbTableConstraint, DbTableDetails, DbTableIndex, DemoRow };
 export type { SqlHistoryEntry };
-export type DbRunResult = { kind: 'rows'; run: string; columns: DbColumn[] } | { kind: 'done'; rowsAffected?: number };
 
 export interface ExplorerSettings {
   /** Fractions of the sidebar and the workspace. */

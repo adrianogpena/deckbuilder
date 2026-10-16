@@ -1,4 +1,4 @@
-import { type ComponentType, createElement, type ReactNode, Suspense } from 'react';
+import { type ComponentType, createContext, createElement, type ReactNode, Suspense, useContext, useMemo, useSyncExternalStore } from 'react';
 import { tryT } from './i18n';
 import type { IconName } from './icons';
 import type { CommandDef } from './keybindings';
@@ -33,6 +33,41 @@ export interface ViewDef<Id extends string, S, K extends string = string> {
 /** Identity; keeps the literal `Id` of the view. */
 export function defineView<const Id extends string, S, K extends string = string>(def: ViewDef<Id, S, K>): ViewDef<Id, S, K> {
   return def;
+}
+
+/** The link intents of one `createViews`: a pending payload per view, taken once by the receiving view. */
+export interface ViewLinks {
+  has(id: string): boolean;
+  /** Stores `payload` for view `id` and navigates there; nothing for an unknown view. */
+  link(id: string, payload?: unknown): void;
+  peek(id: string): unknown;
+  /** Removes and returns the pending payload of `id`. */
+  take(id: string): unknown;
+  subscribe(listener: () => void): () => void;
+}
+
+const noLinks: ViewLinks = { has: () => false, link() {}, peek: () => undefined, take: () => undefined, subscribe: () => () => {} };
+const ViewLinksContext = createContext<ViewLinks>(noLinks);
+
+/**
+ * A function that sends `payload` to view `id` and shows it, or `null` when the app has no such view
+ * (hide the action then). The view reads it with `useViewRequest`.
+ */
+export function useViewLink<T = void>(id: string): ((payload: T) => void) | null {
+  const links = useContext(ViewLinksContext);
+  const present = links.has(id);
+  return useMemo(() => (present ? (payload: T) => links.link(id, payload) : null), [links, id, present]);
+}
+
+/**
+ * The payload another view sent to `id` with `useViewLink`, until `take()` removes it (call it once handled).
+ * Re-renders when a new one arrives; a payload sent before the view mounted is still there.
+ */
+export function useViewRequest<T>(id: string): { request: T | undefined; take(): T | undefined } {
+  const links = useContext(ViewLinksContext);
+  const peek = () => links.peek(id);
+  const request = useSyncExternalStore(links.subscribe, peek, peek) as T | undefined;
+  return { request, take: () => links.take(id) as T | undefined };
 }
 
 type AnyView = ViewDef<string, any, string>;
@@ -76,14 +111,47 @@ export function createViews<const Defs extends readonly AnyView[]>(defs: Defs, o
     g.items.push({ id: d.id as Id, label: d.nav.label, icon: d.nav.icon });
   }
 
+  const pending = new Map<string, unknown>();
+  const listeners = new Set<() => void>();
+  const emit = () => listeners.forEach((l) => l());
+  let navigate: ((id: string) => void) | undefined;
+  const links: ViewLinks = {
+    has: (id) => byId.has(id),
+    link(id, payload) {
+      if (!byId.has(id)) return;
+      pending.set(id, payload);
+      emit();
+      navigate?.(id);
+    },
+    peek: (id) => pending.get(id),
+    take(id) {
+      const payload = pending.get(id);
+      if (pending.delete(id)) emit();
+      return payload;
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => void listeners.delete(listener);
+    },
+  };
+
   const providers = defs.filter((d) => d.provider);
-  const Providers: ComponentType<{ settings: S; children: ReactNode }> = ({ settings, children }) =>
-    providers.reduceRight<ReactNode>((inner, d) => createElement(d.provider!, { settings, children: inner }), children);
+  /** `go` is how a view link navigates (`views.link`, `useViewLink`). */
+  const Providers: ComponentType<{ settings: S; go?: (id: string) => void; children: ReactNode }> = ({ settings, go, children }) => {
+    if (go) navigate = go;
+    return createElement(
+      ViewLinksContext.Provider,
+      { value: links },
+      providers.reduceRight<ReactNode>((inner, d) => createElement(d.provider!, { settings, children: inner }), children),
+    );
+  };
 
   return {
     ids: defs.map((d) => d.id) as readonly Id[],
     nav: groups,
     has: (id: string): id is Id => byId.has(id),
+    /** Sends `payload` to view `id` (read there with `useViewRequest`) and navigates to it. */
+    link: links.link,
     /** Translated nav label; the id itself for an unknown view. */
     label(id: string): string {
       const d = byId.get(id);

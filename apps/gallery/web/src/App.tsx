@@ -170,7 +170,7 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
     <LayoutProvider layout={settings.layout} icons={settings.icons} mainMenu={settings.mainMenu} dock={settings.dock} layoutIcon={settings.layoutIcon}>
     <ToastProvider defaultTimeout={general.toastDuration}>
       <EditorOptionsContext.Provider value={editorOptions}>
-      <views.Providers settings={settings}>
+      <views.Providers settings={settings} go={go as (id: string) => void}>
       <AppFrame
         zen={zen}
         tools={footer}

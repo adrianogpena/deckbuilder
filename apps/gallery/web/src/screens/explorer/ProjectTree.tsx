@@ -10,6 +10,7 @@ import {
   folderIconOf,
   type NestingPatterns,
   relPath,
+  statusOf,
   TreeView,
   type TreeViewHandle,
   useAsync,
@@ -24,7 +25,6 @@ import { useCopyPath } from './copy-path';
 import { PropertiesDialog } from './PropertiesDialog';
 import type { FileUndo, UndoOp } from './file-undo';
 import type { FsArchiveFormat, GitFile } from '@deckbuilder/server-core/protocol';
-import { statusOf } from '../git/sides';
 import { entriesOf, freeName, walkEntry } from './os-drop';
 import { archiveStem, commonParent, compressPaths, takenIn as takenInDir } from './fs-actions';
 import type { FindResult } from './tree-find';
