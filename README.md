@@ -32,7 +32,7 @@ It starts with Home and Settings; `--views` adds view packages (only `terminal` 
 bun add @deckbuilderkit/ui @deckbuilderkit/server-core @deckbuilderkit/view-terminal
 ```
 
-They ship TypeScript source, so they need Bun. Views are published as `@deckbuilderkit/view-*` (explorer, git, rest, terminal, workbench).
+npm, pnpm or yarn can install them too (`npm install @deckbuilderkit/ui`), but they ship TypeScript source and use Bun APIs, so the app runs on Bun, not Node. Views are published as `@deckbuilderkit/view-*` (explorer, git, rest, terminal, workbench).
 
 **From source**, to run the gallery or work on the packages:
 
