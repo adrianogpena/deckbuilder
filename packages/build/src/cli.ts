@@ -4,7 +4,8 @@ import { parseArgs } from 'node:util';
 import type { VersionBump } from '@deckbuilder/server-core';
 import { buildExe, buildWeb, parseTargets } from './build.ts';
 import { dev } from './dev.ts';
-import { loadApp } from './app.ts';
+import { addView } from './add-view.ts';
+import { loadApp, workspaceRoot } from './app.ts';
 import { keygen } from './keys.ts';
 import { createApp } from './new.ts';
 import { BUMPS, release, writeManifest } from './release.ts';
@@ -27,6 +28,20 @@ Next:
   bun install
   cd apps/${dir}
   bun run dev`);
+    return;
+  }
+
+  if (command === 'add') {
+    const [what, id] = args;
+    if (what !== 'view' || !id) {
+      console.error('Usage: deckbuilder add view <id>');
+      process.exit(1);
+    }
+    const target = addView({ id, root: await workspaceRoot(process.cwd()) });
+    console.log(`Created ${target} and registered it in apps/gallery
+
+Next:
+  bun install`);
     return;
   }
 
@@ -90,6 +105,8 @@ wrote ${publicKey} (public: commit it; the exe embeds it)`);
   new <dir> [--name <Name>] [--id <id>]
                               create apps/<dir> from the template (run from the repo root:
                               bun run new <dir>); id = URL scheme, data folder ~/.<id>
+  add view <id>               scaffold packages/view-<id> from the view template and register it
+                              in the gallery (run from the repo root)
   dev [server flags]          server (--dev, watch mode) + Vite dev server; e.g. dev --window, dev --app
   build:web                   bundle web/ into dist/web
   build [--target <list>]     build:web, then one exe per target into release/

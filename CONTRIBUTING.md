@@ -386,6 +386,14 @@ scheme for deep links (default: the folder without dashes). Then:
    `packages/ui/src/components/ui.tsx` if the brand should change for every app.
 2. Add the app's endpoints in `server/routes.ts` and its screens under `web/src/screens/`.
 
+## Adding a view
+
+1. Scaffold: `bun packages/build/src/cli.ts add view <id>`. It creates `packages/view-<id>` from `packages/build/view-template` and registers it in `apps/gallery/web/src/views.ts`, `apps/gallery/server/views.ts` and `apps/gallery/package.json`. Then run `bun install`.
+2. Boundaries: a view must not import another `view-*` package, and no package imports from `apps/*`. `scripts/check-boundaries.ts` enforces this; it runs in `bun run typecheck` and in CI. Exceptions go in its `ALLOWED` set.
+3. View links: a view registers a link with `views.link`. Another view calls `useViewLink(id)`, which returns null when the target view is absent, or `useViewRequest(id)` to receive requests. Both live in `packages/ui/src/views.ts`.
+4. Capabilities: when two views need the same code (SQL/db, HTTP, git), put it in a shared non-view package and depend on that, not on the other view.
+5. Settings cards: set `ViewDef.settingsCards`; write the cards in `src/settings/cards.tsx` and wire them in `view.tsx`.
+
 ## Releases
 
 The version comes from the app's `package.json`. Executables are named
