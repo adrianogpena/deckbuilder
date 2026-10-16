@@ -79,7 +79,10 @@ jobs:
         # Trusted publishing needs npm 11.5.1+; the runner's npm is older.
         run: |
           sudo npm install -g npm@11
+          echo "node $(node -v), npm $(npm -v)"
           bun scripts/publish.ts
+        env:
+          NPM_CONFIG_LOGLEVEL: verbose # logs the OIDC token exchange
       - name: Create a release with the changelog
         run: |
           bun -e "
