@@ -13,37 +13,70 @@ Base for local-first desktop apps. A Bun workspace of shared packages plus thin 
 
 Requirements: [Bun](https://bun.sh) 1.3 or newer (not needed for the gallery executable). Window mode needs the OS web view: WebView2 on Windows 10/11, WebKitGTK 6.0 on Linux (`sudo apt install libwebkitgtk-6.0-4` on Debian/Ubuntu).
 
-**Try the gallery**: download the executable for your system from the [gallery releases](https://github.com/adrianogpena/deckbuilder/releases?q=gallery-v) (Windows, Linux and macOS, x64 and arm64) and run it.
+There are five ways to install or run it:
 
-**Create an app** on the published packages:
+| Way | Needs Bun | For |
+| --- | --- | --- |
+| [1. Gallery executable](#1-gallery-executable) | No | Trying the example app |
+| [2. Create an app](#2-create-an-app) | Yes | Starting a new app on the published packages |
+| [3. Add packages to an existing app](#3-add-packages-to-an-existing-app) | Yes | Using parts of DeckBuilder in your app |
+| [4. npm, pnpm or yarn](#4-npm-pnpm-or-yarn) | Yes, to run | Installing with another package manager |
+| [5. From source](#5-from-source) | Yes | Running the gallery, building executables, working on the packages |
+
+### 1. Gallery executable
+
+Download the file for your system from the [gallery releases](https://github.com/adrianogpena/deckbuilder/releases?q=gallery-v) and run it:
+
+| System | File |
+| --- | --- |
+| Windows x64 | `DeckBuilder-<ver>-win-x64.exe` |
+| Linux x64, arm64 | `DeckBuilder-<ver>-linux-x64`, `DeckBuilder-<ver>-linux-arm64` |
+| macOS Intel, Apple silicon | `DeckBuilder-<ver>-mac-x64`, `DeckBuilder-<ver>-mac-arm64` |
+
+On Linux and macOS, make it executable first (`chmod +x DeckBuilder-*`). The executable opens a native window; `--app` opens an Edge/Chrome app window instead, `--browser` a browser tab, and `--port <n>` sets the port.
+
+### 2. Create an app
 
 ```
-bunx --package @deckbuilderkit/build deckbuilder new my-app --views terminal --git
+bunx --package @deckbuilderkit/build deckbuilder new my-app --views explorer,git,rest,terminal,workbench --git
 cd my-app
 bun install
 bun run dev
 ```
 
-It starts with Home and Settings; `--views` adds view packages (only `terminal` for now), `--name` sets the display name and `--id` the data folder `~/.<id>`.
+The app starts with Home and Settings. `--views` adds view packages (any of `explorer`, `git`, `rest`, `terminal`, `workbench`), `--name` sets the display name, `--id` the data folder `~/.<id>`, and `--git` runs `git init`. Inside the app, `bun run build` builds its executable and `bunx deckbuilder upgrade` moves every `@deckbuilderkit/*` dependency to the latest version. More in [Using deckbuilder in a new app](CONTRIBUTING.md#using-deckbuilder-in-a-new-app).
 
-**Add packages** to an existing Bun app:
+### 3. Add packages to an existing app
 
 ```
 bun add @deckbuilderkit/ui @deckbuilderkit/server-core @deckbuilderkit/view-terminal
 ```
 
-To scaffold a whole app from chosen views, see [Using deckbuilder in a new app](CONTRIBUTING.md#using-deckbuilder-in-a-new-app).
+Packages: `ui`, `server-core`, `server-mods`, `shell`, `platform`, `build`, and the views `view-explorer`, `view-git`, `view-rest`, `view-terminal`, `view-workbench`, all under `@deckbuilderkit/`.
 
-npm, pnpm or yarn can install them too (`npm install @deckbuilderkit/ui`), but they ship TypeScript source and use Bun APIs, so the app runs on Bun, not Node. Views are published as `@deckbuilderkit/view-*` (explorer, git, rest, terminal, workbench).
-
-**From source**, to run the gallery or work on the packages:
+### 4. npm, pnpm or yarn
 
 ```
+npm install @deckbuilderkit/ui
+```
+
+They install the packages, but the packages ship TypeScript source and use Bun APIs, so the app runs on Bun, not Node.
+
+### 5. From source
+
+```
+git clone https://github.com/adrianogpena/deckbuilder.git
+cd deckbuilder
 bun install
 bun run dev
 ```
 
-Open the URL the server prints. To build the executable or create an app linked to the checkout (`new --local`), see [CONTRIBUTING.md](CONTRIBUTING.md).
+Open the URL the server prints. From there:
+
+- `bun run build` builds the gallery executable for this machine into `apps/gallery/release/`; `bun run build --target all` builds it for every system.
+- `bun packages/build/src/cli.ts new <dir> --local` creates an app linked to the checkout, to try unpublished changes.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the other scripts.
 
 ## Views
 
