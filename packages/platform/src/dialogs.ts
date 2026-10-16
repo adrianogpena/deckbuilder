@@ -21,6 +21,8 @@ export interface SaveDialogOptions {
   title?: string;
   suggestedName?: string;
   filters?: DialogFilter[];
+  /** Folder the dialog starts in. */
+  start?: string;
 }
 
 export type DialogKind = 'folder' | 'file' | 'save';

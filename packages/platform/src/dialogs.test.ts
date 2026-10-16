@@ -34,6 +34,12 @@ test('options go in on stdin only, never in the script', async () => {
   expect(JSON.parse(calls[0]!.stdin)).toEqual({ title, start: '', name: 'n.md', filters: [{ name: 'Markdown', patterns: ['*.md'] }] });
 });
 
+test('the save dialog takes a start folder', async () => {
+  const { calls, deps } = fakeSpawn('{"path":null}');
+  expect(await saveFileAs({ suggestedName: 'untitled.sql', start: 'C:\\work\\proj' }, deps)).toBeNull();
+  expect(JSON.parse(calls[0]!.stdin)).toMatchObject({ start: 'C:\\work\\proj', name: 'untitled.sql' });
+});
+
 test('cancel gives null, a failing host gives dialogFailed', async () => {
   expect(await pickFolder({}, fakeSpawn('{"path":null}').deps)).toBeNull();
   expect(await pickFile({}, fakeSpawn('', 1).deps).catch((e) => e)).toMatchObject({ code: 'dialogFailed', detail: 'boom' });

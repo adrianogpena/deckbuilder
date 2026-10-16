@@ -1,5 +1,5 @@
 import type { ArchiveContent, HttpClient, SqliteContent } from '@deckbuilderkit/editor';
-import type { EditorInfo, FsArchiveFormat, FsCompressResult, FsDuProgress, FsExtractResult, FsHash, FsInfo, GitStatus, TailChunk } from '@deckbuilderkit/server-core/protocol';
+import type { EditorInfo, FsArchiveFormat, FsCompressResult, FsDuProgress, FsExtractResult, FsHash, FsInfo, FsSaveNewRequest, GitStatus, TailChunk } from '@deckbuilderkit/server-core/protocol';
 import type { SqlClient } from '@deckbuilderkit/sql-ui';
 
 export type { LogSettings } from '@deckbuilderkit/ui';
@@ -61,6 +61,8 @@ export interface ExplorerClient {
   fsCreate: (root: string, path: string, kind: 'file' | 'dir') => Promise<FsEntry>;
   fsTail: (root: string, path: string, from?: number, max?: number) => Promise<TailChunk>;
   fsSaveRange: (root: string, path: string, from: number) => Promise<{ path: string | null; bytes?: number }>;
+  /** Saves an untitled tab: the save dialog without `path`, else straight to `path` (see `FsSaveNewRequest`). */
+  fsSaveNew: (body: FsSaveNewRequest) => Promise<{ path: string | null }>;
   fsWrite: (root: string, path: string, text: string, expectedMtime: number | undefined, encoding?: TextEncoding, unlock?: boolean) => Promise<FsEntry>;
   fsRename: (root: string, path: string, name: string) => Promise<FsEntry>;
   fsMove: (root: string, from: string, to: string, onExisting?: Existing) => Promise<FsEntry>;

@@ -269,6 +269,17 @@ export interface FsHash {
 }
 
 /** `POST /api/fs/extract`: unpacks the archive `path` into the new folder `to` (must not exist). */
+/**
+ * `POST /api/fs/save-new` body (an untitled tab): without `path` the server opens the save dialog in
+ * `start` (absolute) with `suggestedName`; with `path` (absolute) it writes there. Reply `{ path }`, null on cancel.
+ */
+export interface FsSaveNewRequest {
+  text: string;
+  suggestedName?: string;
+  start?: string;
+  path?: string;
+}
+
 export interface FsExtractRequest {
   root: string;
   path: string;

@@ -46,7 +46,7 @@ async function setup(opts: { maxReadBytes?: number } = {}) {
     return fs.routes[key]!(ctx);
   };
   const fail = (key: string, input: string | Record<string, unknown>) => call(key, input).catch((e) => e);
-  return { root, realRoot: await realpath(root), fs, call, fail, trashed };
+  return { root, outside, realRoot: await realpath(root), fs, call, fail, trashed };
 }
 
 const lines = async (res: unknown) => (await (res as Response).text()).trim().split('\n').map((l) => JSON.parse(l));
@@ -377,6 +377,33 @@ test('save-range writes nothing when cancelled and refuses stale or bad offsets'
   expect(await t.call('POST /api/fs/save-range', { root: 'r', path: 'x.log', from: 0 })).toEqual({ path: null });
   expect(await t.fail('POST /api/fs/save-range', { root: 'r', path: 'x.log', from: 99 })).toMatchObject({ code: 'rangeStale' });
   expect(await t.fail('POST /api/fs/save-range', { root: 'r', path: 'x.log', from: -1 })).toMatchObject({ code: 'badRequest' });
+});
+
+test('save-new writes nothing when the dialog is cancelled', async () => {
+  const seen: unknown[] = [];
+  const t = await tailSetup('', async (o) => {
+    seen.push(o);
+    return null;
+  });
+  expect(await t.call('POST /api/fs/save-new', { text: 'note', suggestedName: 'untitled.sql', start: t.root })).toEqual({ path: null });
+  expect(seen[0]).toEqual({ suggestedName: 'untitled.sql', start: t.root, filters: [{ name: 'SQL', patterns: ['*.sql'] }, { name: 'All files', patterns: ['*.*'] }] });
+});
+
+test('save-new writes the text to the dialog target', async () => {
+  const t = await tailSetup('', async () => join(t.outside, 'note.md'));
+  expect(await t.call('POST /api/fs/save-new', { text: '# hi\n', suggestedName: 'untitled.md' })).toEqual({ path: join(t.outside, 'note.md') });
+  expect(await readFile(join(t.outside, 'note.md'), 'utf8')).toBe('# hi\n');
+});
+
+test('save-new with a path writes there without the dialog and refuses relative paths', async () => {
+  const t = await tailSetup('', async () => {
+    throw new Error('no dialog');
+  });
+  const target = join(t.outside, 'kept.txt');
+  expect(await t.call('POST /api/fs/save-new', { text: 'v2', path: target })).toEqual({ path: target });
+  expect(await readFile(target, 'utf8')).toBe('v2');
+  expect(await t.fail('POST /api/fs/save-new', { text: 'x', path: 'rel.txt' })).toMatchObject({ code: 'badRequest' });
+  expect(await t.fail('POST /api/fs/save-new', { text: 'x', path: t.outside })).toMatchObject({ code: 'notAFile' });
 });
 
 const uploader = (t: Awaited<ReturnType<typeof setup>>) => (query: string, body = 'x', headers: Record<string, string> = {}) =>

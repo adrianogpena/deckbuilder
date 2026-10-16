@@ -55,7 +55,7 @@ export interface FileTabProps {
 const MODE_ICONS: Record<MarkdownMode, IconName> = { live: 'wysiwyg', edit: 'code', split: 'split', preview: 'preview' };
 
 /** Line breaks of new files and of files without any: the OS's, like VS Code's `files.eol: auto`. */
-const OS_EOL: Eol = typeof navigator !== 'undefined' && /^Win/.test(navigator.platform) ? '\r\n' : '\n';
+export const OS_EOL: Eol = typeof navigator !== 'undefined' && /^Win/.test(navigator.platform) ? '\r\n' : '\n';
 const AUTO_SAVE_DELAY = 1000;
 
 /** Text kinds whose tab opens in the preview (the toggle switches to the editor). */
@@ -69,7 +69,7 @@ const ENCODING_LABELS: Record<TextEncoding, string> = {
 const eolLabel = (eol: Eol) => (eol === '\n' ? 'LF' : 'CRLF');
 
 /** VS Code's selection item: `Ln 12, Col 4 (3 selected)`, or the count of several selections. */
-function positionText(s: SelectionInfo): string {
+export function positionText(s: SelectionInfo): string {
   if (s.selections > 1) {
     return s.selected
       ? t('explorer.status.selectionsChars', { count: s.selections, chars: s.selected })

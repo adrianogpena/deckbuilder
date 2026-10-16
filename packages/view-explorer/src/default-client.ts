@@ -1,5 +1,5 @@
 import { type ArchiveContent, httpClient, type SqliteContent } from '@deckbuilderkit/editor';
-import type { FsCompressRequest, FsCompressResult, FsExtractRequest, FsExtractResult, GitStatus } from '@deckbuilderkit/server-core/protocol';
+import type { FsCompressRequest, FsCompressResult, FsExtractRequest, FsExtractResult, FsSaveNewRequest, GitStatus } from '@deckbuilderkit/server-core/protocol';
 import { sqlClient } from '@deckbuilderkit/sql-ui';
 import { request, requestUpload, stream } from '@deckbuilderkit/ui';
 import type { EditorInfo, ExplorerClient, ExplorerClients, FsDuProgress, FsEntry, FsHash, FsInfo, FsRead, Project, TailChunk } from './client';
@@ -35,6 +35,7 @@ export const explorerClient: ExplorerClient = {
   fsCreate: (root, path, kind) => request<FsEntry>('POST', '/api/fs/create', {}, { root, path, kind }),
   fsTail: (root, path, from, max) => request<TailChunk>('GET', '/api/fs/tail', { root, path, from, max }),
   fsSaveRange: (root, path, from) => request<{ path: string | null; bytes?: number }>('POST', '/api/fs/save-range', {}, { root, path, from }),
+  fsSaveNew: (body) => request<{ path: string | null }>('POST', '/api/fs/save-new', {}, body satisfies FsSaveNewRequest),
   fsWrite: (root, path, text, expectedMtime, encoding, unlock) =>
     request<FsEntry>('POST', '/api/fs/write', {}, { root, path, text, expectedMtime, encoding, unlock }),
   fsRename: (root, path, name) => request<FsEntry>('POST', '/api/fs/rename', {}, { root, path, name }),

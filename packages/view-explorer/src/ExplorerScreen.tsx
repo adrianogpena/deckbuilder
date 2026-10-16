@@ -58,16 +58,20 @@ import type { ProjectTreeApi } from './explorer/ProjectTree';
 import type { ExplorerSqlProps } from './explorer/SqlPanel';
 import { useChordOf } from './explorer/tab-actions';
 import { TreePane } from './explorer/TreePane';
+import { relativeInside, untitledName } from './explorer/untitled';
 
 // The editor and viewers are large; they load when the first file opens.
 const FileTab = lazy(() => import('./explorer/FileTab').then((m) => ({ default: m.FileTab })));
 const TerminalPane = lazy(() => import('@deckbuilderkit/terminal').then((m) => ({ default: m.TerminalPane })));
 const CompareTab = lazy(() => import('./explorer/CompareTab').then((m) => ({ default: m.CompareTab })));
+const UntitledTab = lazy(() => import('./explorer/UntitledTab').then((m) => ({ default: m.UntitledTab })));
 const DetailsTab = lazy(() => import('./explorer/DetailsTab').then((m) => ({ default: m.DetailsTab })));
 
 type FileRef = { project: string; path: string };
 type Route =
   | { kind: 'welcome' }
+  /** A new tab's editor; `target` is the absolute file a save outside every project wrote, `saved` that the text matches it. */
+  | { kind: 'untitled'; lang: string; text: string; target?: string; saved?: boolean }
   | { kind: 'file'; project: string; path: string }
   | { kind: 'terminal'; project: string; path: string; session?: string }
   | { kind: 'diff'; left: FileRef; right: FileRef }
@@ -82,7 +86,9 @@ const movedRef = (ref: FileRef, project: string, from: string, to: string): File
   ref.project === project && relPath.isUnder(ref.path, from) ? { ...ref, path: relPath.moved(ref.path, from, to) } : ref;
 const refUnder = (ref: FileRef, project: string, path: string) => ref.project === project && relPath.isUnder(ref.path, path);
 
-const WELCOME: Route = { kind: 'welcome' };
+const UNTITLED: Route = { kind: 'untitled', lang: 'text', text: '' };
+/** A tab a newly opened file, terminal or view takes over: the welcome page or an untouched untitled tab. */
+const isBlank = (r: Route) => r.kind === 'welcome' || (r.kind === 'untitled' && !r.text && !r.target);
 const MAX_EXPANDED = 2000;
 const MAX_RECENT = 50;
 const RECENT_KEY = 'deckbuilder.recentFiles';
@@ -106,6 +112,10 @@ const isRoute = (x: unknown): x is Route => {
   const r = x as { kind?: unknown; project?: unknown; path?: unknown; session?: unknown } | null;
   if (!r || typeof r !== 'object') return false;
   if (r.kind === 'welcome') return true;
+  if (r.kind === 'untitled') {
+    const u = x as { lang?: unknown; text?: unknown; target?: unknown; saved?: unknown };
+    return typeof u.lang === 'string' && typeof u.text === 'string' && (u.target === undefined || typeof u.target === 'string') && (u.saved === undefined || typeof u.saved === 'boolean');
+  }
   if (r.kind === 'diff') return isFileRef((x as { left?: unknown }).left) && isFileRef((x as { right?: unknown }).right);
   if (typeof r.project !== 'string' || typeof r.path !== 'string') return false;
   if (r.kind === 'details') {
@@ -148,7 +158,7 @@ function initialState(saved: ExplorerSettings | undefined, defaultWrap: boolean,
     wrapLines: saved?.wrapLines ?? defaultWrap,
     sqlSizes: saved?.sqlSizes,
     connections: saved?.connections,
-    layout: (restoreTabs ? restore(saved?.tabs, isRoute) : undefined) ?? singlePane(newTab<Route>(WELCOME)),
+    layout: (restoreTabs ? restore(saved?.tabs, isRoute) : undefined) ?? singlePane(newTab<Route>(UNTITLED)),
   };
 }
 
@@ -169,7 +179,10 @@ function shownIds(state: State, list: Project[]): string[] {
 const sessionIds = (layout: Layout<Route>) =>
   new Set(layout.panes.flatMap((p) => p.tabs.flatMap((tab) => (tab.route.kind === 'terminal' && tab.route.session ? [tab.route.session] : []))));
 
-const fresh = () => newTab<Route>(WELCOME);
+const fresh = () => newTab<Route>(UNTITLED);
+
+/** The route tab `tabId` shows now, if it is still open. */
+const activeRoute = (layout: Layout<Route>, tabId: string) => layout.panes.flatMap((p) => p.tabs).find((x) => x.id === tabId)?.route;
 
 /** `fn` applied to the route of every tab and to its history. */
 function mapRoutes(layout: Layout<Route>, fn: (route: Route) => Route): Layout<Route> {
@@ -312,7 +325,7 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
       const slot = preview ? pane.tabs.find((x) => x.preview) : undefined;
       if (slot) return { ...s, layout: activate(navigate(s.layout, slot.id, target, { replace: true }), pane.id, slot.id) };
       const current = activeTab(s.layout);
-      if (current.route.kind === 'welcome') {
+      if (isBlank(current.route)) {
         const layout = navigate(s.layout, current.id, target, { replace: true });
         return { ...s, layout: preview ? setPreview(layout, current.id, true) : layout };
       }
@@ -327,7 +340,7 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
     update((s) => {
       const target: Route = { kind: 'terminal', project, path };
       const current = activeTab(s.layout);
-      const layout = current.route.kind === 'welcome' ? navigate(s.layout, current.id, target, { replace: true }) : addTab(s.layout, newTab(target));
+      const layout = isBlank(current.route) ? navigate(s.layout, current.id, target, { replace: true }) : addTab(s.layout, newTab(target));
       return { ...s, layout };
     });
 
@@ -336,7 +349,7 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
     update((s) => {
       const target: Route = { kind: 'diff', left, right };
       const current = activeTab(s.layout);
-      const layout = current.route.kind === 'welcome' ? navigate(s.layout, current.id, target, { replace: true }) : addTab(s.layout, newTab(target));
+      const layout = isBlank(current.route) ? navigate(s.layout, current.id, target, { replace: true }) : addTab(s.layout, newTab(target));
       return { ...s, layout };
     });
 
@@ -344,7 +357,7 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
     update((s) => {
       const target: Route = { kind: 'details', project, path };
       const current = activeTab(s.layout);
-      const layout = current.route.kind === 'welcome' ? navigate(s.layout, current.id, target, { replace: true }) : addTab(s.layout, newTab(target));
+      const layout = isBlank(current.route) ? navigate(s.layout, current.id, target, { replace: true }) : addTab(s.layout, newTab(target));
       return { ...s, layout };
     });
 
@@ -432,9 +445,26 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
   ];
 
   const nameOf = (id: string) => list.find((p) => p.id === id)?.name ?? id;
+  /** An untitled tab saved to `path`: inside a project it becomes that file's tab, elsewhere it keeps writing to `path`. */
+  const savedUntitled = (tabId: string, path: string, text: string) =>
+    update((s) => {
+      const now = activeRoute(s.layout, tabId);
+      if (now?.kind !== 'untitled') return s;
+      for (const p of list) {
+        const rel = relativeInside(p.path, path);
+        if (rel) return { ...s, layout: navigate(s.layout, tabId, { kind: 'file', project: p.id, path: rel }, { replace: true }) };
+      }
+      return { ...s, layout: navigate(s.layout, tabId, { ...now, text, target: path, saved: true }, { replace: true }) };
+    });
   const titleOf = (route: Route) =>
     route.kind === 'welcome'
       ? { title: t('explorer.welcome') }
+      : route.kind === 'untitled'
+        ? {
+          title: route.target ? relPath.basename(route.target.replace(/\\/g, '/')) : t('explorer.untitled'),
+          ...(route.target && { tooltip: route.target }),
+          ...fileIconOf(untitledName(route.lang)),
+        }
       : route.kind === 'terminal'
         ? { title: `${t('explorer.shared.terminalTab')} · ${relPath.basename(route.path) || nameOf(route.project)}`, icon: 'terminal' as const }
         : route.kind === 'diff'
@@ -632,13 +662,43 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
           onChange={(layout) => update((s) => ({ ...s, layout }))}
           titleOf={titleOf}
           menuOf={menuOf}
-          newRoute={() => WELCOME}
+          newRoute={() => UNTITLED}
           scope="explorer"
           onMaximizedChange={setMaximized}
           renderTab={(tab, ctx) =>
             tab.route.kind === 'file' ? (
               <Suspense fallback={<PanelLoading />}>
                 <FileTab project={tab.route.project} projectName={nameOf(tab.route.project)} path={tab.route.path} focused={ctx.focused} preview={tab.preview} logs={logs} onLogsChange={changeLogs} onDirty={ctx.setDirty} onSaver={ctx.setSaver} onActions={ctx.setActions} sql={sql} markdownMode={state.markdownMode} onMarkdownModeChange={(markdownMode) => update((s) => ({ ...s, markdownMode }))} wrapLines={state.wrapLines} onWrapLinesChange={(wrapLines) => update((s) => ({ ...s, wrapLines }))} files={files} onOpenPath={(p) => tab.route.kind === 'file' && openFile(tab.route.project, p, files.previewTabs)} />
+              </Suspense>
+            ) : tab.route.kind === 'untitled' ? (
+              <Suspense fallback={<PanelLoading />}>
+                {(() => {
+                  const route = tab.route;
+                  const home = shown[focus] ?? list[0];
+                  return (
+                    <UntitledTab
+                      lang={route.lang}
+                      text={route.text}
+                      target={route.target}
+                      saved={route.saved}
+                      project={home?.id}
+                      start={home?.path}
+                      focused={ctx.focused}
+                      wrapLines={state.wrapLines}
+                      onWrapLinesChange={(wrapLines) => update((s) => ({ ...s, wrapLines }))}
+                      files={files}
+                      sql={sql}
+                      onChange={(patch) => update((s) => {
+                        const now = activeRoute(s.layout, tab.id);
+                        return now?.kind === 'untitled' ? { ...s, layout: navigate(s.layout, tab.id, { ...now, ...patch }, { replace: true }) } : s;
+                      })}
+                      onSaved={(path, text) => savedUntitled(tab.id, path, text)}
+                      onDirty={ctx.setDirty}
+                      onSaver={ctx.setSaver}
+                      onActions={ctx.setActions}
+                    />
+                  );
+                })()}
               </Suspense>
             ) : tab.route.kind === 'terminal' ? (
               <Suspense fallback={<PanelLoading />}>

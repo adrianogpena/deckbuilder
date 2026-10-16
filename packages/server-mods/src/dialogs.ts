@@ -62,7 +62,7 @@ export function dialogRoutes(opts: { picked?: PickedPaths } = {}): Routes {
     },
     'POST /api/dialog/save': async ({ json }) => {
       const b = await body(json);
-      return result(saveFileAs({ title: str(b.title), suggestedName: str(b.suggestedName), filters: filters(b.filters) }), false);
+      return result(saveFileAs({ title: str(b.title), suggestedName: str(b.suggestedName), filters: filters(b.filters), start: str(b.start) }), false);
     },
   };
 }

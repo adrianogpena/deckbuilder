@@ -616,6 +616,32 @@ export function rootedFs(opts: RootedFsOptions): RootedFs {
       return { path: target, bytes: size - from };
     },
 
+    // An untitled tab: without `path` asks where with the save dialog (any folder), else writes to
+    // `path`, the absolute target an earlier save of the same tab returned.
+    'POST /api/fs/save-new': async ({ json }) => {
+      const b = await body(json);
+      if (typeof b.text !== 'string') throw badRequest();
+      const text = b.text;
+      let target: string | null;
+      if (b.path !== undefined) {
+        if (typeof b.path !== 'string' || !isAbsolute(b.path)) throw badRequest();
+        target = resolve(b.path);
+        const st = await stat(target).catch(() => null);
+        if (st?.isDirectory()) throw notAFile();
+      } else {
+        const suggestedName = typeof b.suggestedName === 'string' ? basename(b.suggestedName) : 'untitled.txt';
+        const ext = extname(suggestedName).slice(1);
+        target = await saveAs({
+          suggestedName,
+          ...(typeof b.start === 'string' && isAbsolute(b.start) && { start: b.start }),
+          filters: [...(ext ? [{ name: ext.toUpperCase(), patterns: [`*.${ext}`] }] : []), { name: 'All files', patterns: ['*.*'] }],
+        }).catch(fromPlatform);
+        if (target === null) return { path: null };
+      }
+      await writeFileAtomic(target, text);
+      return { path: target };
+    },
+
     'GET /api/fs/archive': async ({ query }) => {
       const { root, path } = fromQuery(query);
       const loc = await locate(root, path, true);
