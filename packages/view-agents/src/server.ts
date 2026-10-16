@@ -3,7 +3,11 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { defineServerView, socketTickets, type SocketData, type SocketRoutes } from '@deckbuilderkit/server-core';
 import type { ServerWebSocket } from 'bun';
+import { CHAT_SOCKET_PATH, type ChatClientFrame, type ChatServerFrame } from './chat-protocol.ts';
 import { type AgentAccount, detectAccounts } from './server/accounts.ts';
+import { type ChatManager, type ChatSession, type ChatSubscriber, createChatManager } from './server/chat/manager.ts';
+import { CHAT_MCP_PATH } from './server/chat/permission-mcp.ts';
+import type { SpawnFn } from './server/chat/process.ts';
 import { type AgentSession, createSessionScanner, matchProject, type ProjectRef } from './server/discovery.ts';
 import { type AgentStatus, createStatusTracker, readPidFiles } from './server/status.ts';
 
@@ -22,6 +26,8 @@ export interface AgentsServerViewOptions {
   /** Home holding the `.claude*` account dirs; defaults to the user's home. */
   home?: string;
   rescanMs?: number;
+  /** Chat engine overrides (tests): how the `claude` process is spawned, its command and base environment. */
+  chat?: { spawn?: SpawnFn; claudeCmd?: string; env?: Record<string, string | undefined>; idleMs?: number };
 }
 
 /** Socket text frames: the full session list when it changes, else only the status map (session id -> status). */
@@ -35,6 +41,10 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
   const scanner = createSessionScanner();
   const tracker = createStatusTracker();
   const tickets = socketTickets<true>();
+  const chatTickets = socketTickets<true>();
+  const chatBindings = new WeakMap<ServerWebSocket<SocketData>, { session?: ChatSession; sub: ChatSubscriber }>();
+  let chat: ChatManager | undefined;
+  let baseUrl = 'http://127.0.0.1';
   const clients = new Set<ServerWebSocket<SocketData>>();
   let watchers: FSWatcher[] = [];
   let timer: ReturnType<typeof setInterval> | undefined;
@@ -128,6 +138,7 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
     id: 'agents',
     routes: (ctx) => {
       seenFile = join(ctx.dataDir, 'agents', 'seen.json');
+      chat = createChatManager({ ...opts.chat, dir: join(ctx.dataDir, 'agents', 'chat'), accounts, baseUrl: () => baseUrl });
       const store = ctx.stores.projects as { list(): Promise<ProjectRef[]> } | undefined;
       projects = async () => (store ? await store.list() : []);
       return {
@@ -143,8 +154,20 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
           return { ok: true };
         },
         'POST /api/agents/socket-ticket': () => ({ ticket: tickets.issue(true) }),
+        'POST /api/agents/chat/socket-ticket': ({ url }) => {
+          if (url) baseUrl = url.origin;
+          return { ticket: chatTickets.issue(true) };
+        },
       };
     },
+    // The CLI's permission prompt tool calls back here; the per-chat token in the path is its credential.
+    unauthenticated: () => ({
+      [`POST ${CHAT_MCP_PATH}*`]: async ({ url, json }) => {
+        const res = await chat?.mcp(url.pathname.slice(CHAT_MCP_PATH.length), await json());
+        return res ?? new Response('Not ready', { status: 503 });
+      },
+      [`GET ${CHAT_MCP_PATH}*`]: () => new Response(null, { status: 405 }),
+    }),
     sockets: (): SocketRoutes => ({
       [AGENTS_SOCKET_PATH]: {
         tickets,
@@ -159,7 +182,44 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
           if (clients.size === 0) stop();
         },
       },
+      [CHAT_SOCKET_PATH]: {
+        tickets: chatTickets,
+        open(ws) {
+          const sub: ChatSubscriber = { send: (f: ChatServerFrame) => ws.send(JSON.stringify(f)) };
+          chatBindings.set(ws, { sub });
+        },
+        message(ws, msg) {
+          const bound = chatBindings.get(ws);
+          const sendError = (code: string, message: string) => bound?.sub.send({ type: 'error', code, message });
+          if (!bound || !chat || typeof msg !== 'string') return void sendError('badFrame', 'Expected a JSON text frame.');
+          let frame: ChatClientFrame;
+          try {
+            frame = JSON.parse(msg) as ChatClientFrame;
+          } catch {
+            return void sendError('badFrame', 'Invalid JSON.');
+          }
+          if (frame?.type === 'open') {
+            if (bound.session) return void sendError('alreadyOpen', 'This socket already has a chat.');
+            const r = chat.open(frame);
+            if ('error' in r) return void sendError(r.error.code, r.error.message);
+            bound.session = r.session;
+            r.session.subscribe(bound.sub);
+          } else if (!bound.session) sendError('notOpen', 'Send an open frame first.');
+          else {
+            const bad = chat.handle(bound.session, frame);
+            if (bad) sendError(bad, 'Unknown frame.');
+          }
+        },
+        close(ws) {
+          const bound = chatBindings.get(ws);
+          chatBindings.delete(ws);
+          bound?.session?.unsubscribe(bound.sub);
+        },
+      },
     }),
-    onQuit: stop,
+    onQuit() {
+      stop();
+      chat?.closeAll();
+    },
   });
 }
