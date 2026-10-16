@@ -3,3 +3,11 @@ dist/
 release/
 .build/
 *.log
+.env
+.env.*
+*.pem
+*.key
+.deckbuilder/
+.deckbuilder-keys/
+CLAUDE.local.md
+.claude/

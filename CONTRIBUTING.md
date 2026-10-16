@@ -469,6 +469,16 @@ push and pull request.
 - **macOS**: the output is a plain executable, not an `.app` bundle, and it is unsigned:
   `xattr -d com.apple.quarantine <file>` after downloading. Not tested on a Mac yet.
 
+## Releasing packages
+
+Every `packages/*` is published to npm as `@deckbuilder/<name>` (TypeScript source; Bun resolves the `.ts` exports). `apps/*` are not published. All packages share the root `package.json` `version` and are bumped together.
+
+1. Bump `version` in the root `package.json` and in every `packages/*/package.json` (`scripts/publish.ts` refuses a mismatch).
+2. Check locally: `bun scripts/publish.ts --dry-run` prints the publish order and version and packs each package without publishing.
+3. Tag and push: `git tag v0.2.0 && git push origin v0.2.0`. The `publish` job in `.github/workflows/release.yml` checks the tag against the root version, type-checks, runs `bun scripts/publish.ts` with the `NPM_TOKEN` repository secret (an npm automation token for the `@deckbuilder` scope) and creates a GitHub release with the commits since the previous `v*` tag (`releaseNotes` in `packages/build/src/release.ts`).
+
+`publish.ts` replaces `workspace:*` with the version only in the packed manifests; the repo's `package.json` files are restored. Tags `v*` publish packages; tags `<app>-v*` release an app.
+
 ## Security model
 
 The server binds to `127.0.0.1` only. Every `/api` call needs the random token generated at

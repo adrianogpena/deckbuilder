@@ -11,7 +11,13 @@ Base for local-first desktop apps. A Bun workspace of shared packages plus thin 
 
 ## Install
 
-DeckBuilder runs from source. Releases are not public.
+Use the packages in your own app:
+
+```
+bun add @deckbuilder/ui @deckbuilder/server-core
+```
+
+They ship TypeScript source, so they need Bun. To run the gallery example from source:
 
 - [Bun](https://bun.sh) 1.3 or newer.
 - Window mode needs the OS web view: WebView2 on Windows 10/11, WebKitGTK 6.0 on Linux (`sudo apt install libwebkitgtk-6.0-4` on Debian/Ubuntu).
