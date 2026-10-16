@@ -12,6 +12,15 @@ export interface AppFrameProps {
 
 export function BaseAppFrame({ zen, sidebar, children }: AppFrameProps) {
   const { structure } = useLayout();
+  if (structure.navPlacement === 'header') {
+    // No sidebar column: `sidebar` renders the header nav (see `Sidebar`), stacked above the content.
+    return (
+      <div className={`app nav-header${zen ? ' zen' : ''}`}>
+        {sidebar}
+        {children}
+      </div>
+    );
+  }
   const collapsed = structure.sidebarMode === 'collapsed';
   const right = structure.sidebarSide === 'right';
   return (

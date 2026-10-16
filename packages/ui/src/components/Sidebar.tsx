@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from 'react';
 import { useLayout } from '../layout';
+import { HeaderNav } from './HeaderNav';
 import { BrandMark, Icon, type IconName } from './ui';
 
 export interface NavItem<Id extends string = string> {
@@ -33,7 +34,9 @@ export interface SidebarProps<Id extends string> {
 }
 
 export function Sidebar<Id extends string>(props: SidebarProps<Id>) {
-  const { Sidebar: Shell } = useLayout().shell;
+  const { structure, shell } = useLayout();
+  if (structure.navPlacement === 'header') return <HeaderNav {...props} />;
+  const Shell = shell.Sidebar;
   return <Shell {...props} />;
 }
 

@@ -222,6 +222,11 @@ const modeline = (id: string, label: string, kind: ThemeKind, roles: Roles, exac
   id, label, family: 'modeline', kind, tokens: { ...fromRoles(kind, roles), ...exact },
 });
 
+/** Ledger family: cool white paper and ink-navy dark; exact surface and ink values (accent is ink blue). */
+const ledger = (id: string, label: string, kind: ThemeKind, roles: Roles, exact: Partial<Record<Token, string>>): Palette => ({
+  id, label, family: 'ledger', kind, tokens: { ...fromRoles(kind, roles), ...exact },
+});
+
 export const PALETTES: readonly Palette[] = [
   { id: DEFAULT_DARK, label: 'DeckBuilder Dark', family: 'deckbuilder', kind: 'dark', tokens: DECKBUILDER_DARK },
   { id: DEFAULT_LIGHT, label: 'DeckBuilder Light', family: 'deckbuilder', kind: 'light', tokens: DECKBUILDER_LIGHT },
@@ -298,6 +303,18 @@ export const PALETTES: readonly Palette[] = [
     0xedf1f0, 0xf7f9f8, 0xb9c6c3, 0x123236, 0x748a8c, 0x9a6b00, 0x7b4a9a, 0x16777a, 0x2f7a3a, 0x9a6b00, 0xa84d14, 0xb8322c], {
     '--bg-sunken': '#e2e8e6', '--bg': '#edf1f0', '--bg-elev': '#f7f9f8', '--panel': '#f7f9f8', '--panel-2': '#f1f5f4',
     '--border': '#b9c6c3', '--text': '#123236', '--text-2': '#40595c', '--text-3': '#748a8c', '--accent': '#9a6b00',
+    '--ink-on-accent': '#ffffff',
+  }),
+  ledger('ledger-dark', 'Ledger Dark', 'dark', [
+    0x1c2230, 0x222a3a, 0x33405a, 0xe6eaf2, 0x76819a, 0x7fa6ff, 0xb49cff, 0x5fc4d8, 0x5cc98a, 0xe2b54a, 0xf08a4b, 0xf06868], {
+    '--bg-sunken': '#151b27', '--bg': '#1c2230', '--bg-elev': '#222a3a', '--panel': '#222a3a', '--panel-2': '#27304a',
+    '--border': '#33405a', '--text': '#e6eaf2', '--text-2': '#a6b0c3', '--text-3': '#76819a', '--accent': '#7fa6ff',
+    '--ink-on-accent': '#0e1424',
+  }),
+  ledger('ledger-light', 'Ledger Light', 'light', [
+    0xf7f8fa, 0xffffff, 0xd5d9e0, 0x141a24, 0x8790a0, 0x1f4fbf, 0x6a3fc0, 0x0f7f95, 0x1d7f45, 0x9a6a00, 0xb4501a, 0xc0322c], {
+    '--bg-sunken': '#eceef1', '--bg': '#f7f8fa', '--bg-elev': '#ffffff', '--panel': '#ffffff', '--panel-2': '#f9fafb',
+    '--border': '#d5d9e0', '--text': '#141a24', '--text-2': '#4a5363', '--text-3': '#8790a0', '--accent': '#1f4fbf',
     '--ink-on-accent': '#ffffff',
   }),
 ];

@@ -13,13 +13,15 @@ export interface LayoutStructure {
   statusBar: boolean;
   /** 'none': the Sidebar drops its footer; a swapped Frame can show the tools elsewhere. */
   navFooter: 'sidebar' | 'none';
+  /** 'header': no sidebar column; the main menu is a strip of screen tabs across the top. */
+  navPlacement: 'sidebar' | 'header';
 }
 
 export type MainMenu = 'labels' | 'icons';
 
-/** True when the structure shows a labelled main menu (an expanded sidebar). */
+/** True when the structure shows a labelled main menu (an expanded sidebar or a header nav). */
 export function hasLabelledMenu(s: LayoutStructure): boolean {
-  return s.sidebarMode === 'expanded';
+  return s.navPlacement === 'header' || s.sidebarMode === 'expanded';
 }
 
 /** The structure with the main menu style applied: 'icons' collapses an expanded sidebar. */
@@ -61,6 +63,7 @@ export const ORIGINAL_STRUCTURE: LayoutStructure = {
   tabBarPosition: 'top',
   statusBar: true,
   navFooter: 'sidebar',
+  navPlacement: 'sidebar',
 };
 
 export const LAYOUTS: readonly Layout[] = [
@@ -77,6 +80,11 @@ export const LAYOUTS: readonly Layout[] = [
   { id: 'transit', label: 'Transit', icons: 'original', structure: { ...ORIGINAL_STRUCTURE, sidebarMode: 'expanded' } },
   { id: 'islands', label: 'Islands', icons: 'original', structure: { ...ORIGINAL_STRUCTURE, sidebarMode: 'collapsed', sidebarBrand: false, statusBar: true } },
   { id: 'modeline', label: 'Modeline', icons: 'original', structure: { ...ORIGINAL_STRUCTURE, sidebarBrand: false, tabBarPosition: 'bottom' } },
+  { id: 'ribbon', label: 'Ribbon', icons: 'original', structure: { ...ORIGINAL_STRUCTURE, navPlacement: 'header', navFooter: 'none' } },
+  {
+    id: 'ledger', label: 'Ledger', icons: 'original',
+    structure: { ...ORIGINAL_STRUCTURE, navFooter: 'none', navPlacement: 'header', tabBarPosition: 'top' },
+  },
 ];
 
 export const ICON_SET_IDS: readonly string[] = ['original', 'material', 'atom'];

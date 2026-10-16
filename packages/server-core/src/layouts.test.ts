@@ -13,9 +13,10 @@ test('resolveLayout falls back to the default', () => {
   expect(resolveLayout('original').id).toBe('original');
 });
 
-test('hasLabelledMenu is true only for an expanded sidebar', () => {
+test('hasLabelledMenu is true only for an expanded sidebar or a header nav', () => {
   expect(hasLabelledMenu(ORIGINAL_STRUCTURE)).toBe(false);
   expect(hasLabelledMenu({ ...ORIGINAL_STRUCTURE, sidebarMode: 'expanded' })).toBe(true);
+  expect(hasLabelledMenu({ ...ORIGINAL_STRUCTURE, navPlacement: 'header' })).toBe(true);
 });
 
 test('applyMainMenu collapses an expanded sidebar for icons only', () => {
