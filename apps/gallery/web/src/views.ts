@@ -1,20 +1,22 @@
 import { createElement } from 'react';
 import { addMessages, createViews, groupField, oneOf, PanelLoading, type ViewIds } from '@deckbuilder/ui';
+import { gitView } from '@deckbuilder/view-git/web';
+import { restView } from '@deckbuilder/view-rest/web';
 import { terminalView } from '@deckbuilder/view-terminal/web';
+import { workbenchView } from '@deckbuilder/view-workbench/web';
 import type { Settings } from './api';
 import { bindViews } from './commands';
 import { explorerView } from './screens/explorer.view';
-import { gitView } from './screens/git.view';
 import { gridView } from './screens/grid.view';
 import { homeView } from './screens/home.view';
-import { restView } from './screens/rest.view';
 import { tabsView } from './screens/tabs.view';
-import { workbenchView } from './screens/workbench.view';
 import { settingsRegistry } from './settings';
+import { gitClient, restClient } from './http-client';
+import { workbenchClient } from './sql-client';
 
 /** The one list the nav, routes, screens, commands, settings and messages of the gallery come from. */
 export const views = createViews(
-  [homeView, tabsView, gridView, explorerView, workbenchView, restView, terminalView({ group: 'nav.section.main', order: 70 }), gitView],
+  [homeView, tabsView, gridView, explorerView, workbenchView({ group: 'nav.section.main', order: 50, client: workbenchClient }), restView({ group: 'nav.section.main', order: 60, client: restClient }), terminalView({ group: 'nav.section.main', order: 70 }), gitView({ group: 'nav.section.main', order: 80, client: gitClient })],
   { fallback: createElement(PanelLoading) },
 );
 

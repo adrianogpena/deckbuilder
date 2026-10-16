@@ -530,6 +530,13 @@ const baseEn = {
   'error.uploadTooLarge': 'The file is too large to add (200 MB at most).',
   'error.accessDenied': 'Access denied, or the file is in use.',
   'error.fileReadOnly': 'The file is read-only.',
+  'picker.removeProjectTitle': 'Remove {name}?',
+  'picker.deleteProjectBody': '{name} is only removed from this list. The files stay where they are.',
+  'picker.delete': 'Delete',
+  'picker.addAProject': 'Add a project',
+  'picker.addProjectItem': 'Add project…',
+  'picker.editProjectItem': 'Edit {name}…',
+  'picker.removeProjectItem': 'Remove {name}…',
 };
 
 export type BaseKey = keyof typeof baseEn;
@@ -1065,6 +1072,13 @@ const basePtBR: Messages<typeof baseEn> = {
   'error.uploadTooLarge': 'O arquivo é grande demais para adicionar (no máximo 200 MB).',
   'error.accessDenied': 'Acesso negado, ou o arquivo está em uso.',
   'error.fileReadOnly': 'O arquivo é somente leitura.',
+  'picker.removeProjectTitle': 'Remover {name}?',
+  'picker.deleteProjectBody': '{name} é removido apenas desta lista. Os arquivos continuam onde estão.',
+  'picker.delete': 'Excluir',
+  'picker.addAProject': 'Adicionar um projeto',
+  'picker.addProjectItem': 'Adicionar projeto…',
+  'picker.editProjectItem': 'Editar {name}…',
+  'picker.removeProjectItem': 'Remover {name}…',
 };
 
 export const LANGUAGES = [

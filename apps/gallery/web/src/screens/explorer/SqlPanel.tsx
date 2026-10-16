@@ -2,7 +2,7 @@ import { type ReactNode, useMemo, useRef, useState } from 'react';
 import { type CodeEditorHandle, type CodeEditorProps, langOfFile, resolveMarkers, type RunMode, sqlMarkers, sqlParams, type SqlParam } from '@deckbuilder/editor';
 import { Badge, ErrorBanner, Icon, Modal, SplitView, type TabAction, useAsync, useCommand, useViewLink } from '@deckbuilder/ui';
 import { DEFAULT_RESULTS, SqlResults, useSqlRunner, useSqlSchema } from '@deckbuilder/sql-ui';
-import { api, type DbConnection, withWorkbenchDefaults, type WorkbenchSettings } from '../../api';
+import { withWorkbenchDefaults, type WorkbenchSettings } from '../../api';
 import { commandById } from '../../commands';
 import { t } from '../../i18n';
 import { sqlClient, sqlRunnerSettings } from '../../sql-client';
@@ -74,7 +74,7 @@ function ParamsDialog({ params, initial, onSubmit, onClose }: { params: SqlParam
 export function useExplorerSql({ project, name, asSql, active, focused, draft, sql, confirm, onRunStart }: Options) {
   const settings = useMemo(() => withWorkbenchDefaults(sql?.workbench), [sql?.workbench]);
   const enabled = !!sql && active && (asSql || langOfFile(name) === 'sql') && settings.explorerProjects.includes(project);
-  const connections = useAsync(() => (enabled ? api.dbConnections() : Promise.resolve<DbConnection[]>([])), [enabled]);
+  const connections = useAsync(() => (enabled ? sqlClient.connections() : Promise.resolve([])), [enabled]);
   const connection = connections.data?.find((c) => c.id === settings.explorerConnections[project]);
   const db = enabled ? connection?.id : undefined;
   const runner = useSqlRunner(sqlClient, db, sqlRunnerSettings(settings), confirm);

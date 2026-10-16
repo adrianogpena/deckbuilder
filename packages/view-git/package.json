@@ -1,0 +1,27 @@
+{
+  "name": "@deckbuilder/view-git",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./web": "./src/web.ts",
+    "./server": "./src/server.ts",
+    "./styles.css": "./src/git.css"
+  },
+  "dependencies": {
+    "@deckbuilder/editor": "workspace:*",
+    "@deckbuilder/server-core": "workspace:*",
+    "@deckbuilder/server-mods": "workspace:*",
+    "@deckbuilder/ui": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "@types/react-dom": "^18.3.1"
+  }
+}

@@ -1,11 +1,11 @@
 import { readFile } from 'node:fs/promises';
-import { basename, join } from 'node:path';
-import { createToaster, openWithDefault, pickFile, revealInFolder, saveFileAs, secretStore, writeFileAtomic } from '@deckbuilder/platform';
+import { join } from 'node:path';
+import { createToaster, openWithDefault, revealInFolder, saveFileAs, secretStore, writeFileAtomic } from '@deckbuilder/platform';
 import type { HttpRequestDraft } from '@deckbuilder/editor/http';
-import { dbRoutes, dbSessions, parseOracleUrl, sqlHistory, validConnection, type DbConnectionFields } from '@deckbuilder/db';
+import { connectionRoutes as dbConnectionRoutes, dbRoutes, dbSessions, parseOracleUrl, sqlHistory, validConnection, type DbConnectionFields } from '@deckbuilder/db';
 import { AppError, forbidden, invalid, isRecord, ndjson, notFound, type Routes } from '@deckbuilder/server-core';
 import { REST_ENV_MAX_VARS, REST_ENV_NAME_CHARS, REST_VAR_NAME, type RestEnvVar } from '@deckbuilder/server-core/protocol';
-import { dialogRoutes, editorRoutes, fromPlatform, httpExecutor, gitRoutes, httpRoutes, pickedPaths, recordRoutes, recordStore, restHistory, restTabsRoutes, rootedFs, validateDraft } from '@deckbuilder/server-mods';
+import { dialogRoutes, editorRoutes, fromPlatform, httpExecutor, httpRoutes, pickedPaths, recordRoutes, recordStore, restHistory, rootedFs, validateDraft } from '@deckbuilder/server-mods';
 import type { StartContext } from '@deckbuilder/shell';
 import { APP, MULTI_DELETE_ENABLED } from '../app.ts';
 import { home, isDirectory, pickedFolders, projectRoots, projects } from './stores.ts';
@@ -57,7 +57,7 @@ const dbApi = dbRoutes({
     };
   },
 });
-const connectionRoutes = recordRoutes(dbConnections, '/api/db/connections');
+const connectionRoutes = dbConnectionRoutes(dbConnections, sessions);
 
 export interface SavedRequest {
   name: string;
@@ -187,12 +187,6 @@ const environmentVars = async (id: string): Promise<Record<string, string>> => {
   return vars;
 };
 
-const MAX_IMPORT_BYTES = 1_000_000;
-const HTTP_FILE_FILTERS = [
-  { name: 'HTTP', patterns: ['*.http', '*.rest'] },
-  { name: 'All files', patterns: ['*.*'] },
-];
-
 const MAX_DEMO_ROWS = 100_000;
 const DEMO_BATCH = 500;
 const DEMO_PAUSE_MS = 20;
@@ -245,47 +239,8 @@ export const routes = (ctx: StartContext): Routes => ({
     return { ok: true };
   },
   ...connectionRoutes,
-  // A deleted record's open session is rolled back and closed.
-  'DELETE /api/db/connections': async (rc) => {
-    const id = rc.query.get('id');
-    const result = await connectionRoutes['DELETE /api/db/connections']!(rc);
-    if (id) await sessions.close(id);
-    return result;
-  },
   ...dbApi,
-  ...recordRoutes(requests, '/api/requests'),
-  // The saved Authorization value, only for Copy as curl.
-  'GET /api/requests/auth': async ({ query }) => {
-    const id = query.get('id');
-    if (!id) throw invalid('badRequest', 'Invalid request.');
-    await requests.get(id);
-    return { value: (await requests.secret(id, 'auth')) ?? null };
-  },
-  ...restTabsRoutes({ dir: home }),
-  ...gitRoutes({ roots: projectRoots }),
-  // The target comes from the save dialog on this side; the client never names a path.
-  'POST /api/requests/save-curl': async ({ json }) => {
-    const { text } = await json<{ text?: unknown }>();
-    if (typeof text !== 'string' || text.length > MAX_IMPORT_BYTES) throw invalid('badRequest', 'Invalid request.');
-    const path = await saveFileAs({ suggestedName: 'request.curl', filters: [{ name: 'cURL', patterns: ['*.curl', '*.sh'] }, { name: 'All files', patterns: ['*.*'] }] }).catch(fromPlatform);
-    if (!path) return { path: null };
-    await writeFileAtomic(path, `${text}\n`).catch(fromPlatform);
-    return { path };
-  },
-  // The file's text goes to the client for parsing; its path never does.
-  'POST /api/requests/import-file': async () => {
-    const path = await pickFile({ filters: HTTP_FILE_FILTERS }).catch(fromPlatform);
-    if (!path) return { text: null };
-    const file = Bun.file(path);
-    if (file.size > MAX_IMPORT_BYTES) throw invalid('importTooLarge', 'The file is too large to import.');
-    return { name: basename(path), text: await file.text() };
-  },
   ...httpRoutes(httpExecutor(), { secretHeaders, environmentVars, onSend: (entry) => restHistoryStore.append(entry) }),
-  'GET /api/rest/history': async ({ query }) => restHistoryStore.list({ q: query.get('q') ?? undefined }),
-  'DELETE /api/rest/history': async () => {
-    await restHistoryStore.clear();
-    return {};
-  },
   ...recordRoutes(environments, '/api/rest/environments'),
   'POST /api/rest/environments': async ({ json }) => environments.create(await environmentInput(await json())),
   'PUT /api/rest/environments': async ({ query, json }) => {

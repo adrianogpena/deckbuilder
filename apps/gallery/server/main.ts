@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { appHome, createAutostart, pickFolder } from '@deckbuilder/platform';
-import { applyViewSettings, type FieldSpec, isRecord, mountViews, updatePublicKey, validGroup } from '@deckbuilder/server-core';
+import { applyViewSettings, type FieldSpec, mountViews, updatePublicKey, validGroup } from '@deckbuilder/server-core';
 import {
   backupRoutes,
   createUpdater,
@@ -16,9 +16,11 @@ import {
   type BaseSettings,
 } from '@deckbuilder/server-mods';
 import { runApp } from '@deckbuilder/shell';
+import type { GitServerSettings } from '@deckbuilder/view-git/server';
+import { restHistorySizeOf, type RestServerSettings } from '@deckbuilder/view-rest/server';
 import type { TerminalServerSettings } from '@deckbuilder/view-terminal/server';
+import { historySizeOf, type WorkbenchServerSettings } from '@deckbuilder/view-workbench/server';
 import { type GridItem, validGridItems } from '@deckbuilder/ui/grid';
-import type { ResultFormat } from '@deckbuilder/ui/table';
 import { validKeymap, type Keymap } from '@deckbuilder/ui/keybindings';
 import { type FileAssociation, validFileAssociations } from '@deckbuilder/ui/file-associations';
 import { type FileSettings, validFileSettings } from '@deckbuilder/ui/file-settings';
@@ -29,7 +31,7 @@ import { dbConnections, environments, openRoutes, requests, restHistoryStore, ro
 import { projectRoots, projects } from './stores.ts';
 import { serverViews } from './views.ts';
 
-export interface Settings extends BaseSettings, TerminalServerSettings {
+export interface Settings extends BaseSettings, TerminalServerSettings, WorkbenchServerSettings, RestServerSettings, GitServerSettings {
   /** Start at Windows login (exe only). */
   autostart: boolean;
   /** Tray icon, so closing the window keeps the app running; read at startup. */
@@ -49,18 +51,12 @@ export interface Settings extends BaseSettings, TerminalServerSettings {
   gridLayout?: GridItem[];
   /** Explorer screen: sidebar fractions, collapsed state, expanded tree ids per project and the tab layout. */
   explorer?: ExplorerSettings;
-  /** Git screen: focused project, sidebar fractions and collapsed state, list or tree, closed sections, History panel; checked by `validGitView`. */
-  gitView?: GitViewSettings;
   /** Log viewer: highlight words (global) and bookmarks per `<projectId>:<path>`. */
   logs?: LogSettings;
   /** Files opened as another type: a name glob and the extension to treat them as. */
   fileAssociations?: FileAssociation[];
   /** How text files are saved and how the Explorer shows files, checked by `validFileSettings`. */
   files?: FileSettings;
-  /** Workbench screen: split fractions and column widths. */
-  workbench?: WorkbenchSettings;
-  /** REST screen: split fractions of the editor and the response. */
-  rest?: RestSettings;
   /** Fonts, editor font metrics and motion, checked by `validGroup`. */
   appearance?: Record<string, string | number | boolean>;
   /** How text editors behave, checked by `validGroup`. */
@@ -72,48 +68,6 @@ export interface Settings extends BaseSettings, TerminalServerSettings {
   /** Shortcut behavior, checked by `validGroup`. */
   keyboard?: Record<string, string | number | boolean>;
   git?: Record<string, string | number | boolean>;
-}
-
-export interface RestSettings {
-  sizes?: { main: [number, number] };
-  /** Id of the active REST environment; '' or absent = none. */
-  environment?: string;
-  /** Entries kept in the REST request history; 0 turns history off. */
-  historySize?: number;
-}
-
-export interface WorkbenchSettings {
-  sizes?: { main: [number, number]; results: [number, number] };
-  widths?: Record<string, number>;
-  /** `'demo'` or the id of a database connection record. */
-  source?: string;
-  /** Most rows a database query returns, 1 to 100 000. */
-  maxRows?: number;
-  /** The schema sidebar is open. */
-  schema?: boolean;
-  /** The SQL history sidebar is open. */
-  history?: boolean;
-  /** The SQL steps sidebar is open. */
-  steps?: boolean;
-  /** Width of the SQL steps sidebar in px. */
-  stepsWidth?: number;
-  /** Project ids allowed to run SQL from the Explorer. */
-  explorerProjects?: string[];
-  /** Last connection id used per project id. */
-  explorerConnections?: Record<string, string>;
-  /** How result cells are shown and copied. */
-  results?: ResultFormat;
-  /** Format of "Copy results": tsv, csv, markdown, json or insert. */
-  copyFormat?: 'tsv' | 'csv' | 'markdown' | 'json' | 'insert';
-  /** Ask before DROP, TRUNCATE, or a DELETE or UPDATE without WHERE. */
-  confirmDestructive?: boolean;
-  /** Seconds to wait for a database statement, 0 to 3600; 0 means no limit. */
-  queryTimeout?: number;
-  historySize?: number;
-  /** SQL formatter options; the editor package owns their meaning. */
-  format?: Record<string, string | number | boolean>;
-  /** The document the Workbench edits; the default script of the connection when omitted. */
-  doc?: { kind: 'default' } | { kind: 'file'; project: string; path: string };
 }
 
 export interface ExplorerSettings {
@@ -177,174 +131,10 @@ function validExplorer(raw: unknown): ExplorerSettings | null {
   };
 }
 
-export interface GitViewSettings {
-  project?: string;
-  sizes?: [number, number];
-  collapsed?: boolean;
-  view?: 'list' | 'tree';
-  closedSections?: ('merge' | 'staged' | 'changes')[];
-  historyOpen?: boolean;
-  historySize?: number;
-}
-
-const GIT_SECTIONS: unknown[] = ['merge', 'staged', 'changes'];
-
-/** A copy of `raw` when it is a well-formed Git screen state, else null. */
-export function validGitView(raw: unknown): GitViewSettings | null {
-  const r = raw as Partial<GitViewSettings> | null;
-  if (typeof r !== 'object' || r === null || Array.isArray(r)) return null;
-  const { project, sizes, collapsed, view, closedSections, historyOpen, historySize } = r;
-  if (project !== undefined && (typeof project !== 'string' || project.length > MAX_ID_LENGTH)) return null;
-  const pair = sizes === undefined ? undefined : validPair(sizes);
-  if (sizes !== undefined && !pair) return null;
-  if (collapsed !== undefined && typeof collapsed !== 'boolean') return null;
-  if (view !== undefined && view !== 'list' && view !== 'tree') return null;
-  if (closedSections !== undefined && (!Array.isArray(closedSections) || closedSections.length > GIT_SECTIONS.length || !closedSections.every((s) => GIT_SECTIONS.includes(s)))) return null;
-  if (historyOpen !== undefined && typeof historyOpen !== 'boolean') return null;
-  if (historySize !== undefined && (typeof historySize !== 'number' || !(historySize >= 0.1 && historySize <= 0.9))) return null;
-  return {
-    ...(project !== undefined && { project }),
-    ...(pair && { sizes: pair }),
-    ...(collapsed !== undefined && { collapsed }),
-    ...(view !== undefined && { view }),
-    ...(closedSections !== undefined && { closedSections: [...new Set(closedSections)] }),
-    ...(historyOpen !== undefined && { historyOpen }),
-    ...(historySize !== undefined && { historySize }),
-  };
-}
-
-const WORKBENCH_COLUMNS = ['id', 'name', 'amount', 'date'];
-
 const validPair = (v: unknown): [number, number] | null =>
   Array.isArray(v) && v.length === 2 && v.every((n) => typeof n === 'number' && n >= 0 && n <= 1) && Math.abs(v[0] + v[1] - 1) <= 0.01
     ? [v[0], v[1]]
     : null;
-
-/** A copy of `raw` when it is a well-formed workbench state, else null. */
-function validWorkbench(raw: unknown): WorkbenchSettings | null {
-  const r = raw as Partial<WorkbenchSettings> | null;
-  if (typeof r !== 'object' || r === null) return null;
-  const out: WorkbenchSettings = {};
-  if (r.sizes !== undefined) {
-    const main = validPair(r.sizes?.main);
-    const results = validPair(r.sizes?.results);
-    if (!main || !results) return null;
-    out.sizes = { main, results };
-  }
-  if (r.widths !== undefined) {
-    if (typeof r.widths !== 'object' || r.widths === null || Array.isArray(r.widths)) return null;
-    const widths: Record<string, number> = {};
-    for (const [id, w] of Object.entries(r.widths)) {
-      if (!WORKBENCH_COLUMNS.includes(id) || !Number.isInteger(w) || w < 40 || w > 2000) return null;
-      widths[id] = w;
-    }
-    out.widths = widths;
-  }
-  if (r.source !== undefined) {
-    if (typeof r.source !== 'string' || !/^[\w-]{1,64}$/.test(r.source)) return null;
-    out.source = r.source;
-  }
-  if (r.maxRows !== undefined) {
-    if (!Number.isInteger(r.maxRows) || r.maxRows < 1 || r.maxRows > 100_000) return null;
-    out.maxRows = r.maxRows;
-  }
-  if (r.schema !== undefined) {
-    if (typeof r.schema !== 'boolean') return null;
-    out.schema = r.schema;
-  }
-  if (r.history !== undefined) {
-    if (typeof r.history !== 'boolean') return null;
-    out.history = r.history;
-  }
-  if (r.steps !== undefined) {
-    if (typeof r.steps !== 'boolean') return null;
-    out.steps = r.steps;
-  }
-  if (r.stepsWidth !== undefined) {
-    if (typeof r.stepsWidth !== 'number' || !Number.isInteger(r.stepsWidth) || r.stepsWidth < 200 || r.stepsWidth > 2000) return null;
-    out.stepsWidth = r.stepsWidth;
-  }
-  if (r.explorerProjects !== undefined) {
-    if (!Array.isArray(r.explorerProjects) || r.explorerProjects.length > 1000 || !r.explorerProjects.every((id) => typeof id === 'string' && /^[\w-]{1,64}$/.test(id))) return null;
-    out.explorerProjects = [...r.explorerProjects];
-  }
-  if (r.explorerConnections !== undefined) {
-    if (!isRecord(r.explorerConnections)) return null;
-    const byProject: Record<string, string> = {};
-    for (const [project, id] of Object.entries(r.explorerConnections)) {
-      if (!/^[\w-]{1,64}$/.test(project) || typeof id !== 'string' || !/^[\w-]{1,64}$/.test(id)) return null;
-      byProject[project] = id;
-    }
-    out.explorerConnections = byProject;
-  }
-  if (r.results !== undefined) {
-    const x = r.results as Partial<ResultFormat> | null;
-    if (!isRecord(x)) return null;
-    const { nullText, dateFormat, hideMidnight, timestampFormat, thousandsSeparator } = x;
-    if (typeof nullText !== 'string' || nullText.length > 64) return null;
-    if (typeof dateFormat !== 'string' || dateFormat.length > 64) return null;
-    if (typeof timestampFormat !== 'string' || timestampFormat.length > 64) return null;
-    if (typeof hideMidnight !== 'boolean' || typeof thousandsSeparator !== 'boolean') return null;
-    out.results = { nullText, dateFormat, hideMidnight, timestampFormat, thousandsSeparator };
-  }
-  if (r.copyFormat !== undefined) {
-    if (typeof r.copyFormat !== 'string' || !['tsv', 'csv', 'markdown', 'json', 'insert'].includes(r.copyFormat)) return null;
-    out.copyFormat = r.copyFormat;
-  }
-  if (r.confirmDestructive !== undefined) {
-    if (typeof r.confirmDestructive !== 'boolean') return null;
-    out.confirmDestructive = r.confirmDestructive;
-  }
-  if (r.queryTimeout !== undefined) {
-    if (typeof r.queryTimeout !== 'number' || !Number.isFinite(r.queryTimeout) || r.queryTimeout < 0 || r.queryTimeout > 3600) return null;
-    out.queryTimeout = r.queryTimeout;
-  }
-  if (r.historySize !== undefined) {
-    if (!Number.isInteger(r.historySize) || (r.historySize as number) < 0 || (r.historySize as number) > 10_000) return null;
-    out.historySize = r.historySize;
-  }
-  if (r.format !== undefined) {
-    if (!isRecord(r.format)) return null;
-    const format: Record<string, string | number | boolean> = {};
-    for (const [key, v] of Object.entries(r.format)) {
-      if (!/^\w{1,40}$/.test(key) || (typeof v !== 'string' && typeof v !== 'boolean' && !(typeof v === 'number' && Number.isFinite(v)))) return null;
-      format[key] = v;
-    }
-    out.format = format;
-  }
-  if (r.doc !== undefined) {
-    const d = r.doc as unknown;
-    if (!isRecord(d)) return null;
-    if (d.kind === 'default') out.doc = { kind: 'default' };
-    else if (d.kind === 'file') {
-      if (typeof d.project !== 'string' || !/^[\w-]{1,64}$/.test(d.project)) return null;
-      if (typeof d.path !== 'string' || d.path.length < 1 || d.path.length > 4096) return null;
-      out.doc = { kind: 'file', project: d.project, path: d.path };
-    } else return null;
-  }
-  return out;
-}
-
-/** A copy of `raw` when it is a well-formed REST screen state, else null. */
-function validRest(raw: unknown): RestSettings | null {
-  if (!isRecord(raw)) return null;
-  const out: RestSettings = {};
-  if (raw.sizes !== undefined) {
-    if (!isRecord(raw.sizes)) return null;
-    const main = validPair(raw.sizes.main);
-    if (!main) return null;
-    out.sizes = { main };
-  }
-  if (raw.environment !== undefined) {
-    if (typeof raw.environment !== 'string' || (raw.environment !== '' && !/^[\w-]{1,64}$/.test(raw.environment))) return null;
-    out.environment = raw.environment;
-  }
-  if (raw.historySize !== undefined) {
-    if (!Number.isInteger(raw.historySize) || (raw.historySize as number) < 0 || (raw.historySize as number) > 5000) return null;
-    out.historySize = raw.historySize as number;
-  }
-  return out;
-}
 
 const APPEARANCE_SPEC: Record<string, FieldSpec> = {
   uiFontFamily: 'string',
@@ -387,17 +177,6 @@ const GIT_SPEC: Record<string, FieldSpec> = {
 };
 const dataDir = appHome(APP.id);
 const autostart = createAutostart({ name: APP.name });
-/** `workbench.historySize` (default 500; 0 = no SQL history). */
-const historySizeOf = (s: Settings) => {
-  const n = s.workbench?.historySize;
-  return typeof n === 'number' && Number.isInteger(n) && n >= 0 ? n : 500;
-};
-/** `rest.historySize` (default 100; 0 = no REST history). */
-const restHistorySizeOf = (s: Settings) => {
-  const n = s.rest?.historySize;
-  return typeof n === 'number' && Number.isInteger(n) && n >= 0 ? n : 100;
-};
-
 /** The folder the update-folder dialog returned; `apply` takes it once. */
 const pickedUpdateFolder = pickedPaths({ max: 1 });
 const settings = settingsStore<Settings>({
@@ -418,18 +197,12 @@ const settings = settingsStore<Settings>({
     if (gridLayout) next.gridLayout = gridLayout;
     const explorer = validExplorer(patch.explorer);
     if (explorer) next.explorer = explorer;
-    const gitView = validGitView(patch.gitView);
-    if (gitView) next.gitView = gitView;
     const logs = validLogSettings(patch.logs);
     if (logs) next.logs = logs;
     const fileAssociations = validFileAssociations(patch.fileAssociations);
     if (fileAssociations) next.fileAssociations = fileAssociations;
     const files = validFileSettings(patch.files);
     if (files) next.files = files;
-    const workbench = validWorkbench(patch.workbench);
-    if (workbench) next.workbench = workbench;
-    const rest = validRest(patch.rest);
-    if (rest) next.rest = rest;
     const appearance = validGroup(patch.appearance, APPEARANCE_SPEC);
     if (appearance) next.appearance = appearance;
     const editor = validGroup(patch.editor, EDITOR_SPEC);
@@ -467,7 +240,7 @@ const { closeToTray } = await settings.load();
 sqlHistoryStore.setMax(historySizeOf(await settings.load()));
 restHistoryStore.setMax(restHistorySizeOf(await settings.load()));
 
-const mounted = mountViews(serverViews, { dataDir, settings, stores: { projects, projectRoots, dbConnections, requests, environments } });
+const mounted = mountViews(serverViews, { dataDir, settings, stores: { projects, projectRoots, dbConnections, requests, environments, restHistory: restHistoryStore } });
 
 await runApp({
   app: APP,

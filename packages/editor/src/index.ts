@@ -10,6 +10,7 @@ export * from './http-import';
 export * from './curl-file';
 export * from './import-warning';
 export * from './RequestEditor';
+export * from './http-client';
 export * from './ResponseView';
 export * from './languages';
 export { DEFAULT_FORMAT_OPTIONS, FORMAT_OPTION_META, formatSql, type FormatOptionMeta, type SqlFormatOptions } from './sql/format';

@@ -1,0 +1,50 @@
+.wb-pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; height: 100%; overflow: hidden; }
+.wb-test { margin-top: var(--space-10); align-items: center; }
+.wb-test-btn { margin-right: auto; }
+.wb-body { display: flex; flex: 1; min-height: 0; }
+.wb-body > :not(aside) { flex: 1; min-width: 0; }
+.wb-schema { width: 260px; flex-shrink: 0; display: flex; flex-direction: column; gap: var(--space-6); padding: var(--space-8); overflow: hidden; border-right: 1px solid var(--border-soft); }
+.wb-schema-head { display: flex; align-items: center; gap: var(--space-8); }
+.wb-schema-head .mono-label { flex: 1; }
+.wb-schema-list, .wb-schema-cols { list-style: none; margin: 0; padding: 0; }
+.wb-schema-list { flex: 1; min-height: 0; overflow-y: auto; }
+.wb-schema-table { display: flex; align-items: center; gap: var(--space-6); width: 100%; padding: 3px var(--space-4); border: 0; border-radius: var(--radius-md); background: transparent; color: var(--text); text-align: left; cursor: pointer; }
+.wb-schema-table:hover { background: var(--hover); }
+.wb-schema-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sm); }
+.wb-schema-cols { padding: var(--space-2) 0 var(--space-4) 30px; }
+.wb-schema-cols li { display: flex; gap: var(--space-8); font-size: var(--fs-xs); line-height: 1.6; }
+.wb-schema-more { font-size: var(--fs-xs); }
+.wb-schema-hit { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+.wb-schema-details { display: flex; flex-direction: column; align-items: flex-start; }
+.wb-schema-details > .wb-schema-cols { align-self: stretch; }
+.wb-schema-section { padding: var(--space-4) 0 0 30px; font-size: var(--fs-3xs); }
+.wb-schema-kind { flex: none; min-width: 20px; color: var(--text-2); font-family: var(--mono, monospace); }
+.wb-schema-detail { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wb-schema-fk { display: flex; align-items: center; gap: var(--space-8); width: 100%; padding: 0; border: 0; background: transparent; color: var(--accent); font: inherit; text-align: left; cursor: pointer; }
+.wb-schema-fk:hover .wb-schema-name { text-decoration: underline; }
+.wb-schema-fk svg { width: 12px; height: 12px; flex: none; }
+.wb-schema-ddl { margin: var(--space-2) 0 var(--space-4) 26px; }
+.wb-history { width: 280px; flex-shrink: 0; display: flex; flex-direction: column; gap: var(--space-6); padding: var(--space-8); overflow: hidden; border-left: 1px solid var(--border-soft); }
+.wb-history-list { list-style: none; margin: 0; padding: 0; flex: 1; min-height: 0; overflow-y: auto; }
+.wb-history-entry { display: flex; align-items: flex-start; gap: var(--space-2); border-bottom: 1px solid var(--border-soft); }
+.wb-history-pick { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-4); border: 0; border-radius: var(--radius-md); background: transparent; color: var(--text); text-align: left; cursor: pointer; font-size: var(--fs-xs); }
+.wb-history-pick:hover { background: var(--hover); }
+.wb-history-meta { display: flex; gap: var(--space-8); }
+.wb-history-sql, .wb-history-error { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wb-history-sql { font-size: var(--fs-sm); }
+.wb-history-error { color: var(--err); }
+.wb-plan { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.wb-plan-bar { align-items: center; gap: var(--space-8); padding: var(--space-4) var(--space-8); border-bottom: 1px solid var(--border-soft); }
+.wb-plan-bar .mono-label { flex: 1; }
+.wb-plan-empty { padding: var(--space-8); }
+.wb-plan-scroll { flex: 1; min-height: 0; overflow: auto; }
+.wb-plan-table { border-collapse: collapse; width: 100%; font-family: var(--mono, monospace); font-size: var(--fs-sm); }
+.wb-plan-table th, .wb-plan-table td { padding: var(--space-2) var(--space-6); text-align: left; white-space: nowrap; border-bottom: 1px solid var(--border-soft); }
+.wb-plan-table th { position: sticky; top: 0; background: var(--bg); color: var(--text-2); font-weight: 500; }
+.wb-plan-table .num { text-align: right; }
+.wb-plan-hot td { background: color-mix(in srgb, var(--warn) 18%, transparent); }
+.wb-plan-hot td:first-child { box-shadow: inset 3px 0 var(--warn); }
+.wb-plan-pred { color: var(--text-2); }
+.wb-bar { flex-wrap: wrap; align-items: center; min-width: 0; }
+.wb-maxrows { display: flex; align-items: center; gap: var(--space-6); font-size: var(--fs-sm); }
+.wb-max { width: 96px; flex: none; }

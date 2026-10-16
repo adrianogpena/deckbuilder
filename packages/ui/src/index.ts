@@ -17,6 +17,7 @@ export * from './components/IconPicker';
 export * from './components/Resource';
 export * from './components/AppFrame';
 export * from './components/Sidebar';
+export * from './components/ProjectPicker';
 export * from './components/SplitView';
 export * from './components/StatusBar';
 export * from './components/TabWorkspace';

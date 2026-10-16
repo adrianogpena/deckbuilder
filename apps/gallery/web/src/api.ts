@@ -6,13 +6,15 @@ import type { BackupInspect, EditorInfo, FsArchiveFormat, FsCompressRequest, FsC
 export type { EditorInfo, FsDuProgress, FsHash, FsInfo, ImportResult, TailChunk };
 import type { SessionInfo, TerminalProfileInfo } from '@deckbuilder/terminal';
 import type { TerminalSettings, TerminalViewSettings } from '@deckbuilder/view-terminal/web';
+import type { GitViewSettings } from '@deckbuilder/view-git/web';
+import type { RestTabsFile, RestViewSettings, SavedRequest } from '@deckbuilder/view-rest/web';
+import type { WorkbenchViewSettings } from '@deckbuilder/view-workbench/web';
 import type { CopyFormat, DbColumn, DbPlanRow, DbRunResult, DbSchema, DbSchemaTable, DbStatus, DbTableConstraint, DbTableDetails, DbTableIndex, DemoRow } from '@deckbuilder/sql-ui';
-import { settingDefault, settingDefaults } from './settings';
 import { type FileAssociation, type FileSettings, type Keymap, type Language, type LogSettings, type ResultFormat, request, requestUpload, stream } from '@deckbuilder/ui';
 
 export type { TerminalSettings };
 
-export interface Settings extends ThemeSettings, TerminalViewSettings {
+export interface Settings extends ThemeSettings, TerminalViewSettings, WorkbenchViewSettings, RestViewSettings, GitViewSettings {
   language?: Language;
   /** The main menu shows only its icons. */
   /** Keybinding overrides by command id; the server validates it. */
@@ -29,18 +31,12 @@ export interface Settings extends ThemeSettings, TerminalViewSettings {
   gridLayout?: unknown;
   /** State of the Explorer screen; the server validates it. */
   explorer?: ExplorerSettings;
-  /** State of the Git screen; the server validates it. */
-  gitView?: GitViewSettings;
   /** Log viewer: highlight words and bookmarks (keyed `<projectId>:<path>`); the server validates it. */
   logs?: LogSettings;
   /** Files opened as another type; the server validates it. */
   fileAssociations?: FileAssociation[];
   /** How text files are saved and how the Explorer shows files; the server validates it. */
   files?: FileSettings;
-  /** State of the Workbench screen; the server validates it. */
-  workbench?: Partial<WorkbenchSettings>;
-  /** State of the REST screen; the server validates it. */
-  rest?: RestSettings;
   /** Fonts, editor font metrics and motion; the server validates it. */
   appearance?: AppearanceSettings;
   /** How text editors behave; the server validates it. */
@@ -107,88 +103,14 @@ export interface GitSettings {
   explorerDecorations?: boolean;
 }
 
-export interface RestSettings {
-  sizes?: { main: [number, number] };
-  /** Id of the active REST environment; '' or absent = none. */
-  environment?: string;
-  /** Entries kept in the REST request history; 0 turns history off. */
-  historySize?: number;
-}
-
-export interface SavedRequest {
-  id: string;
-  name: string;
-  request: HttpRequestDraft;
-  auth?: { hasSecret: true };
-}
-
-export interface RestTabsFile {
-  version: 1;
-  tabs: Array<{ id: string; draft: HttpRequestDraft; savedId?: string; title?: string }>;
-  active?: string;
-}
-
 export type { CopyFormat };
 export type { LogSettings, ResultFormat, SqlFormatOptions };
 
 
-export interface WorkbenchSettings {
-  sizes?: { main: [number, number]; results: [number, number] };
-  widths?: Record<string, number>;
-  /** `'demo'` or a database connection id. */
-  source?: string;
-  /** Most rows a database query returns. */
-  maxRows?: number;
-  /** The schema sidebar is open. */
-  schema?: boolean;
-  /** The SQL steps sidebar is open. */
-  steps?: boolean;
-  /** Width of the SQL steps sidebar in px. */
-  stepsWidth?: number;
-  /** The SQL history sidebar is open. */
-  history?: boolean;
-  /** Project ids allowed to run SQL from the Explorer. */
-  explorerProjects: string[];
-  /** Last connection id used per project id. */
-  explorerConnections: Record<string, string>;
-  /** How result cells are shown and copied; exports stay raw. */
-  results: ResultFormat;
-  /** Format of "Copy results". */
-  copyFormat: CopyFormat;
-  /** Ask before DROP, TRUNCATE, or a DELETE or UPDATE without WHERE. */
-  confirmDestructive?: boolean;
-  /** Seconds to wait for a database statement; 0 means no limit. */
-  queryTimeout?: number;
-  /** Statements kept in the SQL history; 0 turns history off. */
-  historySize?: number;
-  /** SQL formatter options. */
-  format: SqlFormatOptions;
-  /** The document the editor edits: the connection's default script (also when omitted) or a project file. */
-  doc?: WorkbenchDoc;
-}
+export { withWorkbenchDefaults, type WorkbenchDoc, type WorkbenchSettings } from '@deckbuilder/view-workbench/web';
 
-export type WorkbenchDoc = { kind: 'default' } | { kind: 'file'; project: string; path: string };
-
-/** The stored workbench state with every missing field filled from the settings schema. */
-export const withWorkbenchDefaults = (raw?: Partial<WorkbenchSettings>): WorkbenchSettings => ({
-  ...raw,
-  explorerProjects: raw?.explorerProjects ?? settingDefault<string[]>('workbench.explorerProjects'),
-  explorerConnections: raw?.explorerConnections ?? {},
-  results: { ...settingDefaults<ResultFormat>('workbench.results'), ...raw?.results },
-  copyFormat: raw?.copyFormat ?? settingDefault<CopyFormat>('workbench.copyFormat'),
-  confirmDestructive: raw?.confirmDestructive ?? settingDefault<boolean>('workbench.confirmDestructive'),
-  queryTimeout: raw?.queryTimeout ?? settingDefault<number>('workbench.queryTimeout'),
-  historySize: raw?.historySize ?? settingDefault<number>('workbench.historySize'),
-  format: { ...settingDefaults<SqlFormatOptions>('workbench.format'), ...raw?.format },
-});
-
-export interface DbConnection {
-  id: string;
-  name: string;
-  url: string;
-  user: string;
-  password?: { hasSecret: true };
-}
+import type { DbConnection } from '@deckbuilder/sql-ui';
+export type { DbConnection };
 
 export type { DbColumn, DbPlanRow, DbRunResult, DbSchema, DbSchemaTable, DbStatus, DbTableConstraint, DbTableDetails, DbTableIndex, DemoRow };
 export type { SqlHistoryEntry };
@@ -212,24 +134,6 @@ export interface ExplorerSettings {
   tabs?: unknown;
 }
 
-/** Change groups of the Git screen, VS Code's Source Control sections. */
-export type GitSection = 'merge' | 'staged' | 'changes';
-
-export interface GitViewSettings {
-  /** Id of the focused project. */
-  project?: string;
-  /** Fractions of the sidebar and the diff. */
-  sizes?: [number, number];
-  collapsed?: boolean;
-  /** Changes as a flat list or nested under folders; list when omitted. */
-  view?: 'list' | 'tree';
-  /** Sections shown collapsed. */
-  closedSections?: GitSection[];
-  /** Whether the History panel under the changes is open; closed when omitted. */
-  historyOpen?: boolean;
-  /** Fraction of the sidebar height the open History panel takes. */
-  historySize?: number;
-}
 
 export type BackupInfo = BackupInspect;
 

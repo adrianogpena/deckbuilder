@@ -3,6 +3,7 @@ import { type CodeEditorHandle, type CodeEditorProps, curlAt, draftToSpec, type 
 import type { HttpResponseInfo } from '@deckbuilder/server-core/protocol';
 import { type ApiError, errorOf, Icon, PanelBanner, SplitView, type TabAction, useViewLink } from '@deckbuilder/ui';
 import { api } from '../../api';
+import { httpClient } from '../../http-client';
 import { t } from '../../i18n';
 import type { ExplorerSqlProps } from './SqlPanel';
 
@@ -68,7 +69,7 @@ export function useExplorerCurl({ name, active, draft, sql }: Options) {
     setError(undefined);
     setResponse(undefined);
     try {
-      const result = await api.httpSend(draftToSpec(withAuth(request)), undefined, controller.signal, { environment: sql?.restEnvironment || undefined });
+      const result = await httpClient.send(draftToSpec(withAuth(request)), undefined, controller.signal, { environment: sql?.restEnvironment || undefined });
       if (!controller.signal.aborted) setResponse(result);
     } catch (err) {
       if (!controller.signal.aborted) setError(errorOf(err));

@@ -41,6 +41,7 @@ import {
   fileSettingsOf,
   relPath,
   type SortState,
+  ProjectPicker,
 } from '@deckbuilder/ui';
 import { closeSession } from '@deckbuilder/terminal/session';
 import { api, type ExplorerSettings, type LogSettings, type Project, type Settings } from '../api';
@@ -49,7 +50,6 @@ import { commandById } from '../commands';
 import { fullPath, nodeId } from '../explorer-paths';
 import { t } from '../i18n';
 import { setZen, useZen } from '../zen';
-import { ProjectPicker } from './explorer/ProjectPicker';
 import { useCopyPath } from './explorer/copy-path';
 import { useFileUndo } from './explorer/file-undo';
 import { useNameIndex } from './explorer/name-index';

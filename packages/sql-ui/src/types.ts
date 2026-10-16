@@ -73,8 +73,18 @@ export interface DbPlanRow {
 
 export type DbRunResult = { kind: 'rows'; run: string; columns: DbColumn[] } | { kind: 'done'; rowsAffected?: number };
 
+/** A saved database connection; the password is never returned, only whether one is stored. */
+export interface DbConnection {
+  id: string;
+  name: string;
+  url: string;
+  user: string;
+  password?: { hasSecret: true };
+}
+
 /** The server calls the SQL hooks make; the app builds it from its api and passes it to each hook. */
 export interface SqlClient {
+  connections: () => Promise<DbConnection[]>;
   saveTarget: (format: 'csv' | 'json') => Promise<{ path: string | null }>;
   saveDemo: (path: string, text: string) => Promise<unknown>;
   dbRun: (id: string, sql: string, maxRows?: number) => Promise<DbRunResult>;

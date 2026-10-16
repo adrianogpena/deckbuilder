@@ -1325,3 +1325,17 @@ html[data-status-bar="false"] .status-bar { display: none; }
 .sqlgraph-tip-row { display: flex; flex-direction: column; gap: var(--space-2); }
 .sqlgraph-tip-row code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono, monospace); }
 .wb-steps-badge { margin-left: var(--space-2); }
+.xp-picker { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-6) var(--space-8) var(--space-2); }
+.xp-picker-wrap { flex: 1; min-width: 0; }
+.xp-picker-button {
+  display: flex; align-items: center; gap: var(--space-6); width: 100%; padding: var(--space-4) var(--space-6); border: 0; border-radius: var(--radius-md);
+  background: transparent; color: var(--text); cursor: pointer; text-align: left;
+}
+.xp-picker-button:hover, .xp-picker-button[aria-expanded='true'] { background: var(--hover); }
+.xp-picker-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.xp-picker-menu { max-width: calc(100vw - 16px); }
+.xp-picker-item { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.xp-picker-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-xs); }
+.xp-picker-actions { display: flex; gap: var(--space-2); }
+.xp-pane:not(:hover):not(:focus-within) .xp-picker-actions { opacity: 0; }
+.xp-picker-actions { transition: opacity .12s; }

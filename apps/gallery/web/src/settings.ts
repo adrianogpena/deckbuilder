@@ -1,15 +1,11 @@
-import { DEFAULT_FORMAT_OPTIONS, FORMAT_OPTION_META, type SqlFormatOptions } from '@deckbuilder/editor/options';
 import {
   AUTO_SAVE,
-  DEFAULT_RESULT_FORMAT,
   FILE_DEFAULTS,
   SORT_ORDERS,
   type BooleanSetting,
   type EnumSetting,
   type FileSettings,
-  type ResultFormat,
   type SectionPath,
-  type SettingDef,
   bool,
   createSettingsRegistry,
   groupField as uiGroupField,
@@ -18,10 +14,8 @@ import {
   str,
   fileSettingsOf,
   registerDefaultSections,
-  settingsFromOptionMeta,
 } from '@deckbuilder/ui';
 import type { AppearanceSettings, EditorSettings, GeneralSettings, GitSettings, KeyboardSettings, Settings, WindowSettings } from './api';
-import { COPY_FORMATS, type CopyFormat } from '@deckbuilder/sql-ui';
 
 export const settingsRegistry = createSettingsRegistry<Settings>();
 registerDefaultSections(settingsRegistry);
@@ -38,15 +32,9 @@ export const settingDefaults = <O>(prefix: string): O =>
       .map((s) => [s.id.slice(prefix.length + 1), s.default]),
   ) as O;
 
-const MAX_ROWS_LIMIT = 100_000;
-
 const general: SectionPath = ['general'];
 const editor: SectionPath = ['editor'];
 const explorer: SectionPath = ['explorer'];
-const workbench: SectionPath = ['workbench'];
-const rest: SectionPath = ['rest'];
-const results: SectionPath = ['workbench', 'results'];
-const sqlFormatter: SectionPath = ['workbench', 'sqlFormatter'];
 
 const fileGet = <K extends keyof FileSettings>(k: K) => (s: Settings) => fileSettingsOf(s.files)[k] as Required<FileSettings>[K];
 const fileSet = (k: keyof FileSettings) => (s: Settings, v: unknown): Partial<Settings> => ({ files: { ...fileSettingsOf(s.files), [k]: v } });
@@ -76,33 +64,6 @@ const fileEnum = <K extends 'autoSave' | 'sortOrder'>(key: K, section: SectionPa
   values,
   get: fileGet(key),
   set: fileSet(key),
-});
-
-const withWorkbench = (s: Settings, patch: Record<string, unknown>): Partial<Settings> => ({ workbench: { ...s.workbench, ...patch } });
-
-type ResultText = 'nullText' | 'dateFormat' | 'timestampFormat';
-
-const resultText = (key: ResultText, order: number): SettingDef<Settings> => ({
-  id: `workbench.results.${key}`,
-  kind: 'string',
-  section: results,
-  order,
-  label: `settings.workbench.results.${key}`,
-  default: DEFAULT_RESULT_FORMAT[key],
-  get: (s) => s.workbench?.results?.[key] ?? DEFAULT_RESULT_FORMAT[key],
-  set: (s, v) => withWorkbench(s, { results: { ...DEFAULT_RESULT_FORMAT, ...s.workbench?.results, [key]: v } satisfies ResultFormat }),
-});
-
-const resultBool = (key: 'hideMidnight' | 'thousandsSeparator', order: number, label: string, description: string): SettingDef<Settings> => ({
-  id: `workbench.results.${key}`,
-  kind: 'boolean',
-  section: results,
-  order,
-  label,
-  description,
-  default: DEFAULT_RESULT_FORMAT[key],
-  get: (s) => s.workbench?.results?.[key] ?? DEFAULT_RESULT_FORMAT[key],
-  set: (s, v) => withWorkbench(s, { results: { ...DEFAULT_RESULT_FORMAT, ...s.workbench?.results, [key]: v } satisfies ResultFormat }),
 });
 
 type Group = 'appearance' | 'editor' | 'window' | 'general' | 'keyboard' | 'git';
@@ -198,97 +159,6 @@ settingsRegistry.registerSettings([
   fileBool('restoreTabs', explorer, 120, 'settings.explorer.restoreTabs'),
   fileBool('markdownToc', explorer, 130, 'settings.explorer.markdownToc'),
 
-  { id: 'workbench.explorerProjects', kind: 'custom', section: workbench, order: 10, label: 'settings.workbench.projects', description: 'settings.workbench.projects.hint', default: [] as string[] },
-  {
-    id: 'workbench.maxRows',
-    kind: 'number',
-    section: workbench,
-    order: 20,
-    label: 'settings.workbench.maxRows',
-    default: 1000,
-    min: 1,
-    max: MAX_ROWS_LIMIT,
-    get: (s) => s.workbench?.maxRows ?? 1000,
-    set: (s, maxRows) => withWorkbench(s, { maxRows }),
-  },
-  {
-    id: 'workbench.copyFormat',
-    kind: 'enum',
-    section: workbench,
-    order: 30,
-    label: 'settings.workbench.copyFormat',
-    default: 'tsv' satisfies CopyFormat as string,
-    values: COPY_FORMATS as readonly string[],
-    get: (s) => s.workbench?.copyFormat ?? 'tsv',
-    set: (s, copyFormat) => withWorkbench(s, { copyFormat }),
-  },
-  {
-    id: 'workbench.confirmDestructive',
-    kind: 'boolean',
-    section: workbench,
-    order: 22,
-    label: 'settings.workbench.confirmDestructive',
-    description: 'settings.workbench.confirmDestructive.hint',
-    default: true,
-    get: (s) => s.workbench?.confirmDestructive ?? true,
-    set: (s, confirmDestructive) => withWorkbench(s, { confirmDestructive }),
-  },
-  {
-    id: 'workbench.queryTimeout',
-    kind: 'number',
-    section: workbench,
-    order: 24,
-    label: 'settings.workbench.queryTimeout',
-    description: 'settings.workbench.queryTimeout.hint',
-    default: 0,
-    min: 0,
-    max: 3600,
-    get: (s) => s.workbench?.queryTimeout ?? 0,
-    set: (s, queryTimeout) => withWorkbench(s, { queryTimeout }),
-  },
-  {
-    id: 'workbench.historySize',
-    kind: 'number',
-    section: workbench,
-    order: 26,
-    label: 'settings.workbench.historySize',
-    description: 'settings.workbench.historySize.hint',
-    default: 500,
-    min: 0,
-    max: 10000,
-    get: (s) => s.workbench?.historySize ?? 500,
-    set: (s, historySize) => withWorkbench(s, { historySize }),
-  },
-
-  {
-    id: 'rest.historySize',
-    kind: 'number',
-    section: rest,
-    order: 10,
-    label: 'settings.rest.historySize',
-    description: 'settings.rest.historySize.hint',
-    default: 100,
-    min: 0,
-    max: 5000,
-    get: (s) => s.rest?.historySize ?? 100,
-    set: (s, historySize) => ({ rest: { ...s.rest, historySize } }),
-  },
-
-  resultText('nullText', 10),
-  resultText('dateFormat', 20),
-  resultBool('hideMidnight', 30, 'settings.workbench.results.hideMidnight', 'settings.workbench.results.hideMidnight.hint'),
-  resultText('timestampFormat', 40),
-  resultBool('thousandsSeparator', 50, 'settings.workbench.results.thousands', 'settings.workbench.results.hint'),
-
-  ...settingsFromOptionMeta<Settings, { [K in keyof SqlFormatOptions]: SqlFormatOptions[K] }>({
-    meta: FORMAT_OPTION_META,
-    defaults: DEFAULT_FORMAT_OPTIONS,
-    idPrefix: 'workbench.format',
-    section: sqlFormatter,
-    labelPrefix: 'settings.workbench.format.',
-    get: (s) => ({ ...DEFAULT_FORMAT_OPTIONS, ...s.workbench?.format }),
-    set: (s, format) => withWorkbench(s, { format }),
-  }),
 ]);
 
 /** The appearance settings with their defaults filled in. */

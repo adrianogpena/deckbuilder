@@ -22,7 +22,10 @@
     "@deckbuilder/sql-ui": "workspace:*",
     "@deckbuilder/terminal": "workspace:*",
     "@deckbuilder/ui": "workspace:*",
+    "@deckbuilder/view-git": "workspace:*",
+    "@deckbuilder/view-rest": "workspace:*",
     "@deckbuilder/view-terminal": "workspace:*",
+    "@deckbuilder/view-workbench": "workspace:*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

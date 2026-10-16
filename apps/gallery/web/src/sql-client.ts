@@ -1,9 +1,12 @@
-import type { SqlClient, SqlRunnerSettings } from '@deckbuilder/sql-ui';
-import { api, type WorkbenchSettings } from './api';
-import { settingDefault } from './settings';
+import { sqlRunnerSettings, type WorkbenchClient } from '@deckbuilder/view-workbench/web';
+import type { SqlClient } from '@deckbuilder/sql-ui';
+import { api, type TextEncoding } from './api';
+
+export { sqlRunnerSettings };
 
 /** The calls the SQL hooks of `@deckbuilder/sql-ui` make, served by the app's api. */
 export const sqlClient: SqlClient = {
+  connections: () => api.dbConnections(),
   saveTarget: (format) => api.saveTarget(format),
   saveDemo: (path, text) => api.saveDemo(path, text),
   dbRun: (id, sql, maxRows) => api.dbRun(id, sql, maxRows),
@@ -16,11 +19,18 @@ export const sqlClient: SqlClient = {
   dbStatus: (id) => api.dbStatus(id),
 };
 
-/** The runner's options from the stored workbench settings, missing ones taken from the settings schema. */
-export const sqlRunnerSettings = (s: Pick<WorkbenchSettings, 'results'> & Partial<Pick<WorkbenchSettings, 'maxRows' | 'copyFormat' | 'confirmDestructive' | 'queryTimeout'>>): SqlRunnerSettings => ({
-  maxRows: s.maxRows ?? settingDefault<number>('workbench.maxRows'),
-  results: s.results,
-  copyFormat: s.copyFormat,
-  confirmDestructive: s.confirmDestructive ?? settingDefault<boolean>('workbench.confirmDestructive'),
-  queryTimeout: s.queryTimeout,
-});
+/** What the Workbench view calls: the SQL client plus connections, scripts, history and project files. */
+export const workbenchClient: WorkbenchClient = {
+  ...sqlClient,
+  createConnection: (input) => api.createDbConnection(input),
+  updateConnection: (id, input) => api.updateDbConnection(id, input),
+  deleteConnection: (id) => api.deleteDbConnection(id),
+  testConnection: (input) => api.dbTest(input),
+  script: (id) => api.dbScript(id),
+  saveScript: (id, text) => api.dbScriptSave(id, text),
+  listHistory: (filter) => api.listHistory(filter),
+  deleteHistory: (ids) => api.deleteHistory(ids),
+  clearHistory: () => api.clearHistory(),
+  readFile: (root, path) => api.fsRead(root, path),
+  writeFile: (root, path, text, mtime, encoding) => api.fsWrite(root, path, text, mtime, encoding as TextEncoding),
+};

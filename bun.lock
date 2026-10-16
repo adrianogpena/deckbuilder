@@ -22,7 +22,10 @@
         "@deckbuilder/sql-ui": "workspace:*",
         "@deckbuilder/terminal": "workspace:*",
         "@deckbuilder/ui": "workspace:*",
+        "@deckbuilder/view-git": "workspace:*",
+        "@deckbuilder/view-rest": "workspace:*",
         "@deckbuilder/view-terminal": "workspace:*",
+        "@deckbuilder/view-workbench": "workspace:*",
         "react": "^18.3.1",
         "react-dom": "^18.3.1",
       },
@@ -51,6 +54,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@deckbuilder/server-core": "workspace:*",
+        "@deckbuilder/server-mods": "workspace:*",
         "oracledb": "6.10.0",
       },
     },
@@ -182,12 +186,73 @@
         "react-dom": "^18.3.1",
       },
     },
+    "packages/view-git": {
+      "name": "@deckbuilder/view-git",
+      "version": "0.0.0",
+      "dependencies": {
+        "@deckbuilder/editor": "workspace:*",
+        "@deckbuilder/server-core": "workspace:*",
+        "@deckbuilder/server-mods": "workspace:*",
+        "@deckbuilder/ui": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/react": "^18.3.12",
+        "@types/react-dom": "^18.3.1",
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
+      },
+      "peerDependencies": {
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
+      },
+    },
+    "packages/view-rest": {
+      "name": "@deckbuilder/view-rest",
+      "version": "0.0.0",
+      "dependencies": {
+        "@deckbuilder/editor": "workspace:*",
+        "@deckbuilder/platform": "workspace:*",
+        "@deckbuilder/server-core": "workspace:*",
+        "@deckbuilder/server-mods": "workspace:*",
+        "@deckbuilder/ui": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/react": "^18.3.12",
+        "@types/react-dom": "^18.3.1",
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
+      },
+      "peerDependencies": {
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
+      },
+    },
     "packages/view-terminal": {
       "name": "@deckbuilder/view-terminal",
       "version": "0.0.0",
       "dependencies": {
         "@deckbuilder/server-core": "workspace:*",
         "@deckbuilder/terminal": "workspace:*",
+        "@deckbuilder/ui": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/react": "^18.3.12",
+        "@types/react-dom": "^18.3.1",
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
+      },
+      "peerDependencies": {
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
+      },
+    },
+    "packages/view-workbench": {
+      "name": "@deckbuilder/view-workbench",
+      "version": "0.0.0",
+      "dependencies": {
+        "@deckbuilder/editor": "workspace:*",
+        "@deckbuilder/server-core": "workspace:*",
+        "@deckbuilder/sql-ui": "workspace:*",
         "@deckbuilder/ui": "workspace:*",
       },
       "devDependencies": {
@@ -297,7 +362,13 @@
 
     "@deckbuilder/ui": ["@deckbuilder/ui@workspace:packages/ui"],
 
+    "@deckbuilder/view-git": ["@deckbuilder/view-git@workspace:packages/view-git"],
+
+    "@deckbuilder/view-rest": ["@deckbuilder/view-rest@workspace:packages/view-rest"],
+
     "@deckbuilder/view-terminal": ["@deckbuilder/view-terminal@workspace:packages/view-terminal"],
+
+    "@deckbuilder/view-workbench": ["@deckbuilder/view-workbench@workspace:packages/view-workbench"],
 
     "@emnapi/runtime": ["@emnapi/runtime@1.11.3", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-Xz4Tpyki7XyrpbUK1jR1AhdAdaXyhhY4lZ3neLodmhpuWfy2PAQN5B46sAiU4liOXGLkHypn/qU+jvfWSCYYLA=="],
 
