@@ -47,6 +47,7 @@
   "database": "storage.svg",
   "braces": "data_object.svg",
   "markdown": "text_snippet.svg",
+  "wysiwyg": "wysiwyg.svg",
   "log": "receipt_long.svg",
   "image": "image.svg",
   "table": "table_chart.svg",

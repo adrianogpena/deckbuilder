@@ -52,7 +52,7 @@ export interface FileTabProps {
   sql?: ExplorerSqlProps;
 }
 
-const MODE_ICONS: Record<MarkdownMode, IconName> = { live: 'edit', edit: 'code', split: 'split', preview: 'preview' };
+const MODE_ICONS: Record<MarkdownMode, IconName> = { live: 'wysiwyg', edit: 'code', split: 'split', preview: 'preview' };
 
 /** Line breaks of new files and of files without any: the OS's, like VS Code's `files.eol: auto`. */
 const OS_EOL: Eol = typeof navigator !== 'undefined' && /^Win/.test(navigator.platform) ? '\r\n' : '\n';
