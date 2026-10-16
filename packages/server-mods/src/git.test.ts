@@ -22,7 +22,7 @@ test('parsePorcelainV2 splits staged and unstaged entries of one file', () => {
   ]);
 });
 
-test('parsePorcelainV2 reads renames, conflicts, untracked and skips ignored', () => {
+test('parsePorcelainV2 reads renames, conflicts, untracked and ignored', () => {
   const out = parsePorcelainV2(
     ['2 R. N... 100644 100644 100644 h1 h2 R100 új.ts', 'old.ts', 'u UU N... 1 2 3 4 h1 h2 h3 c.ts', '? ñ/new file.txt', '! ignored.log', ''].join('\0'),
   );
@@ -31,6 +31,7 @@ test('parsePorcelainV2 reads renames, conflicts, untracked and skips ignored', (
     { path: 'c.ts', index: 'U', worktree: 'U', group: 'conflict' },
     { path: 'ñ/new file.txt', index: '?', worktree: '?', group: 'untracked' },
   ]);
+  expect(out.ignored).toEqual(['ignored.log']);
 });
 
 test('routes refuse an unknown root and a bad path', async () => {
@@ -63,6 +64,18 @@ test('status strips the repo prefix and scopes every call', async () => {
   expect(out).toMatchObject({ branch: 'main', files: [{ path: 'a.txt', group: 'untracked' }] });
   expect(calls[0]!.slice(0, 9)).toEqual(['git', '--no-optional-locks', '-c', 'core.quotepath=off', '-c', 'core.fsmonitor=false', '-C', 'C:/proj', 'status']);
   expect(calls[0]!.slice(-2)).toEqual(['--', '.']);
+});
+
+test('status lists ignored paths on request, without the repo prefix', async () => {
+  const calls: string[][] = [];
+  const run = async (cmd: string[]) => {
+    calls.push(cmd);
+    if (cmd.includes('rev-parse')) return done('C:/repo\nsub/\n');
+    return done('# branch.head main\0! sub/node_modules/\0! sub/a.log\0');
+  };
+  const out = await gitRoutes({ roots, run })['GET /api/git/status']!(q({ root: 'r1', ignored: '1' }));
+  expect(out).toMatchObject({ ignored: ['node_modules/', 'a.log'] });
+  expect(calls[0]).toContain('--ignored=matching');
 });
 
 test('repos reports a folder outside a repo', async () => {

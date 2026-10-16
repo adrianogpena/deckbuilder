@@ -49,7 +49,7 @@ export const explorerClient: ExplorerClient = {
   fsOpen: (root, path) => request<{ ok: true }>('POST', '/api/fs/open', {}, { root, path }),
   editors: () => request<EditorInfo[]>('GET', '/api/editors'),
   openInEditor: (editor, root, path) => request<{ ok: true }>('POST', '/api/editors/open', {}, { editor, root, path: path || undefined }),
-  gitStatus: (root) => request<GitStatus>('GET', '/api/git/status', { root }),
+  gitStatus: (root, ignored) => request<GitStatus>('GET', '/api/git/status', { root, ignored: ignored ? '1' : undefined }),
   httpSave: (id) => request<{ path: string | null; bytes?: number }>('POST', '/api/http/save', {}, { id }),
 };
 

@@ -48,6 +48,7 @@ export interface PorcelainStatus {
   ahead: number;
   behind: number;
   files: GitFile[];
+  ignored?: string[];
 }
 
 /** Parses `git status --porcelain=v2 -z --branch` output; paths stay as git prints them (repo-relative). */
@@ -82,6 +83,8 @@ export function parsePorcelainV2(text: string): PorcelainStatus {
       out.files.push({ path, index: 'U', worktree: 'U', group: 'conflict' });
     } else if (t[0] === '?') {
       out.files.push({ path: t.slice(2), index: '?', worktree: '?', group: 'untracked' });
+    } else if (t[0] === '!') {
+      (out.ignored ??= []).push(t.slice(2));
     }
   }
   return out;
@@ -190,14 +193,14 @@ export function gitRoutes(opts: GitRoutesOptions): Routes {
     return segments.join('/');
   }
 
-  async function status(root: FsRoot, untracked: boolean): Promise<GitStatus> {
-    const args = ['status', '--porcelain=v2', '-z', '--branch', untracked ? '--untracked-files=all' : '--untracked-files=no', '--', '.'];
+  async function status(root: FsRoot, untracked: boolean, ignored = false): Promise<GitStatus> {
+    const args = ['status', '--porcelain=v2', '-z', '--branch', untracked ? '--untracked-files=all' : '--untracked-files=no', ...(ignored ? ['--ignored=matching'] : []), '--', '.'];
     const parsed = parsePorcelainV2(await gitOut(root, args, STATUS_TIMEOUT_MS));
     if (!untracked) return { ...parsed, files: [] };
     const prefix = await prefixOf(root);
     const strip = (p: string) => (prefix && p.startsWith(prefix) ? p.slice(prefix.length) : p);
     const files = parsed.files.map((f) => ({ ...f, path: strip(f.path), ...(f.origPath !== undefined && { origPath: strip(f.origPath) }) }));
-    return { ...parsed, files };
+    return { ...parsed, files, ...(ignored && { ignored: (parsed.ignored ?? []).map(strip) }) };
   }
 
   return {
@@ -216,7 +219,7 @@ export function gitRoutes(opts: GitRoutesOptions): Routes {
       );
     },
 
-    'GET /api/git/status': async ({ query }) => status(await findRoot(query.get('root')), true),
+    'GET /api/git/status': async ({ query }) => status(await findRoot(query.get('root')), true, query.get('ignored') === '1'),
 
     'GET /api/git/file': async ({ query }) => {
       const root = await findRoot(query.get('root'));

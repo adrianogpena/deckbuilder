@@ -75,7 +75,8 @@ export interface ExplorerClient {
   fsOpen: (root: string, path: string) => Done;
   editors: () => Promise<EditorInfo[]>;
   openInEditor: (editor: EditorInfo['id'], root: string, path?: string) => Done;
-  gitStatus: (root: string) => Promise<GitStatus>;
+  /** `ignored`: also list the ignored files and folders. */
+  gitStatus: (root: string, ignored?: boolean) => Promise<GitStatus>;
   httpSave: (id: string) => Promise<{ path: string | null; bytes?: number }>;
 }
 

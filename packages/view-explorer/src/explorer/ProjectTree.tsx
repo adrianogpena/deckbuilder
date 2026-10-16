@@ -90,10 +90,12 @@ const RANK: Record<Tone, number> = { ok: 0, warn: 1, err: 2 };
 interface GitMarks {
   files: Map<string, { letter: string; tone: Tone }>;
   dirs: Map<string, Tone>;
+  /** Ignored paths; a folder's contents are ignored with it. */
+  ignored: Set<string>;
 }
 
 /** Badge per changed file (a conflict wins over its other entries) and the strongest tone per folder above one. */
-function gitMarksOf(list: GitFile[]): GitMarks {
+function gitMarksOf(list: GitFile[], ignored: string[] = []): GitMarks {
   const files = new Map<string, { letter: string; tone: Tone }>();
   const dirs = new Map<string, Tone>();
   for (const file of list) {
@@ -106,7 +108,12 @@ function gitMarksOf(list: GitFile[]): GitMarks {
       if (!tone || RANK[mark.tone] > RANK[tone]) dirs.set(dir, mark.tone);
     }
   }
-  return { files, dirs };
+  return { files, dirs, ignored: new Set(ignored.map((p) => p.replace(/\/$/, ''))) };
+}
+
+function isIgnored(marks: GitMarks, path: string): boolean {
+  for (let p = path; p !== '' && p !== '.'; p = relPath.dirname(p)) if (marks.ignored.has(p)) return true;
+  return false;
 }
 
 export interface TreeViewOptions {
@@ -252,16 +259,16 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
   const gitKey = useRef('');
   const refreshGit = () => {
     const seq = ++gitSeq.current;
-    const done = (files?: GitFile[]) => {
+    const done = (files?: GitFile[], ignored?: string[]) => {
       if (seq !== gitSeq.current) return;
-      const key = files ? JSON.stringify(files) : '';
+      const key = files ? JSON.stringify([files, ignored]) : '';
       if (key === gitKey.current) return;
       gitKey.current = key;
-      setGit(files && gitMarksOf(files));
+      setGit(files && gitMarksOf(files, ignored));
     };
     if (!gitOn.current) return done();
-    api.gitStatus(project.id).then(
-      (status) => done(status.files),
+    api.gitStatus(project.id, true).then(
+      (status) => done(status.files, status.ignored),
       () => done(),
     );
   };
@@ -271,6 +278,7 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
     if (!git || n.outside || isRoot(n)) return undefined;
     const file = git.files.get(n.path);
     if (file) return { className: `git-${file.tone}`, badge: file.letter };
+    if (isIgnored(git, n.path)) return { className: 'git-ignored' };
     const tone = isDir(n) ? git.dirs.get(n.path) : undefined;
     return tone && { className: `git-${tone} git-dir`, badge: '•' };
   };
@@ -789,7 +797,7 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
         idOf={(n) => nodeId(n.project, n.path)}
         labelOf={(n) => (n.outside ? `${n.name} (${t('explorer.outside')})` : n.name)}
         iconOf={iconOf}
-        dimmedOf={(n) => !!n.excluded}
+        dimmedOf={(n) => !!n.excluded || (!!git && isDir(n) && !n.outside && !isRoot(n) && isIgnored(git, n.path))}
         iconToneOf={(n) => (isDir(n) ? undefined : fileIconOf(n.name).tone)}
         hasChildren={(n) => isDir(n) || !!n.nested?.length}
         isFolder={isDir}

@@ -350,6 +350,8 @@ export interface GitStatus {
   ahead: number;
   behind: number;
   files: GitFile[];
+  /** With `ignored=1`: the ignored files and folders (a folder ends in `/` and its contents are not listed). */
+  ignored?: string[];
 }
 
 /** One entry of `GET /api/git/repos`. */
