@@ -22,6 +22,7 @@
     "@deckbuilderkit/sql-ui": "workspace:*",
     "@deckbuilderkit/terminal": "workspace:*",
     "@deckbuilderkit/ui": "workspace:*",
+    "@deckbuilderkit/view-agents": "workspace:*",
     "@deckbuilderkit/view-explorer": "workspace:*",
     "@deckbuilderkit/view-git": "workspace:*",
     "@deckbuilderkit/view-rest": "workspace:*",

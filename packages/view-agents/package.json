@@ -1,0 +1,25 @@
+{
+  "name": "@deckbuilderkit/view-agents",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./web": "./src/web.ts",
+    "./server": "./src/server.ts",
+    "./styles.css": "./src/styles.css"
+  },
+  "dependencies": {
+    "@deckbuilderkit/server-core": "workspace:*",
+    "@deckbuilderkit/ui": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "@types/react-dom": "^18.3.1"
+  }
+}

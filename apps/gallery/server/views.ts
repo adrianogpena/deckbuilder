@@ -6,6 +6,7 @@ import { gitServerView } from '@deckbuilderkit/view-git/server';
 import { restServerView } from '@deckbuilderkit/view-rest/server';
 import { terminalServerView } from '@deckbuilderkit/view-terminal/server';
 import { workbenchServerView } from '@deckbuilderkit/view-workbench/server';
+import { agentsServerView } from '@deckbuilderkit/view-agents/server';
 import { APP } from '../app.ts';
 import { MULTI_DELETE_ENABLED } from '../app.ts';
 
@@ -18,4 +19,5 @@ export const serverViews: ServerViewDef[] = [
   workbenchServerView(),
   restServerView(),
   gitServerView(),
+  agentsServerView(),
 ];
