@@ -537,6 +537,12 @@ const baseEn = {
   'picker.addProjectItem': 'Add project…',
   'picker.editProjectItem': 'Edit {name}…',
   'picker.removeProjectItem': 'Remove {name}…',
+  'settings.git.diffMode': 'Diff layout',
+  'settings.git.explorerDecorations': 'Git decorations',
+  'settings.git.explorerDecorations.hint': 'Colour changed files in the Explorer tree and mark them with their git status letter; folders with changes get a dot.',
+  'settings.git.diffMode.hint': 'How the Git screen shows changes: side by side or inline.',
+  'git.split': 'Side by side',
+  'git.inline': 'Inline',
 };
 
 export type BaseKey = keyof typeof baseEn;
@@ -1079,6 +1085,12 @@ const basePtBR: Messages<typeof baseEn> = {
   'picker.addProjectItem': 'Adicionar projeto…',
   'picker.editProjectItem': 'Editar {name}…',
   'picker.removeProjectItem': 'Remover {name}…',
+  'settings.git.diffMode': 'Layout do diff',
+  'settings.git.explorerDecorations': 'Decorações do Git',
+  'settings.git.explorerDecorations.hint': 'Colore arquivos alterados na árvore do Explorer e marca-os com a letra do status do git; pastas com alterações recebem um ponto.',
+  'settings.git.diffMode.hint': 'Como a tela Git mostra as alterações: lado a lado ou em linha.',
+  'git.split': 'Lado a lado',
+  'git.inline': 'Em linha',
 };
 
 export const LANGUAGES = [

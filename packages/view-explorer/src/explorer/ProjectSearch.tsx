@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ErrorBanner, fileIconOf, Icon, Spinner, useStream } from '@deckbuilder/ui';
-import type { Project, SearchHit } from '../../api';
-import { t } from '../../i18n';
+import type { Project, SearchHit } from '../client';
+import { t } from '../i18n';
 
 const MAX_HITS = 500;
 

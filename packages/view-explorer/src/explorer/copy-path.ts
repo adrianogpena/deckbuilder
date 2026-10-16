@@ -1,5 +1,5 @@
 import { copyText, useToast } from '@deckbuilder/ui';
-import { t } from '../../i18n';
+import { t } from '../i18n';
 
 /** Copies a path to the clipboard and says so in a toast. */
 export function useCopyPath(): (path: string) => void {

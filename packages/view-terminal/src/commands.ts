@@ -47,16 +47,3 @@ export function terminalCommandById(id: string): CommandDef {
   if (!def) throw new Error(`Unknown command ${id}`);
   return def;
 }
-
-/**
- * Of `all` (every command of the app), those whose keys reach the app while a terminal in view `scope`
- * has focus; the rest goes to the shell.
- */
-export function terminalAppKeys(scope: string, all: readonly CommandDef[]): CommandDef[] {
-  const ids = new Set([
-    'palette.toggle', 'app.keybindings', `${scope}.tab.saveAll`, `${scope}.pane.maximize`,
-    ...(scope === 'explorer' ? ['explorer.zen'] : []),
-    ...(scope === 'terminal' ? TERMINAL_SCREEN_COMMANDS : []),
-  ]);
-  return all.filter((d) => ids.has(d.id));
-}

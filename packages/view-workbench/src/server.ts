@@ -23,8 +23,6 @@ export interface WorkbenchState {
   stepsWidth?: number;
   /** Project ids allowed to run SQL from the Explorer. */
   explorerProjects?: string[];
-  /** Last connection id used per project id. */
-  explorerConnections?: Record<string, string>;
   /** How result cells are shown and copied. */
   results?: {
     nullText: string;
@@ -100,15 +98,6 @@ export function validWorkbench(raw: unknown): WorkbenchState | null {
   if (r.explorerProjects !== undefined) {
     if (!Array.isArray(r.explorerProjects) || r.explorerProjects.length > 1000 || !r.explorerProjects.every((id) => typeof id === 'string' && /^[\w-]{1,64}$/.test(id))) return null;
     out.explorerProjects = [...r.explorerProjects];
-  }
-  if (r.explorerConnections !== undefined) {
-    if (!isRecord(r.explorerConnections)) return null;
-    const byProject: Record<string, string> = {};
-    for (const [project, id] of Object.entries(r.explorerConnections)) {
-      if (!/^[\w-]{1,64}$/.test(project) || typeof id !== 'string' || !/^[\w-]{1,64}$/.test(id)) return null;
-      byProject[project] = id;
-    }
-    out.explorerConnections = byProject;
   }
   if (r.results !== undefined) {
     const x = r.results as Partial<NonNullable<WorkbenchState['results']>> | null;

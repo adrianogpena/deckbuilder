@@ -1,4 +1,5 @@
 import type { HttpClient } from '@deckbuilder/editor';
+import type { ExplorerClient } from '@deckbuilder/view-explorer/web';
 import type { GitClient } from '@deckbuilder/view-git/web';
 import type { RestClient } from '@deckbuilder/view-rest/web';
 import { api } from './api';
@@ -29,6 +30,9 @@ export const restClient: RestClient = {
   restHistory: (q) => api.restHistory(q),
   clearRestHistory: () => api.clearRestHistory(),
 };
+
+/** What the Explorer calls: its own routes (the SQL and HTTP clients are passed next to it). */
+export const explorerClient: ExplorerClient = api;
 
 /** What the Git view calls. */
 export const gitClient: GitClient = {

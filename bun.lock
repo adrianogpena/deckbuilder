@@ -22,6 +22,7 @@
         "@deckbuilder/sql-ui": "workspace:*",
         "@deckbuilder/terminal": "workspace:*",
         "@deckbuilder/ui": "workspace:*",
+        "@deckbuilder/view-explorer": "workspace:*",
         "@deckbuilder/view-git": "workspace:*",
         "@deckbuilder/view-rest": "workspace:*",
         "@deckbuilder/view-terminal": "workspace:*",
@@ -174,6 +175,29 @@
         "@fontsource/geist": "^5.1.0",
         "@fontsource/geist-mono": "^5.1.0",
         "react-grid-layout": "^2.3.0",
+      },
+      "devDependencies": {
+        "@types/react": "^18.3.12",
+        "@types/react-dom": "^18.3.1",
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
+      },
+      "peerDependencies": {
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
+      },
+    },
+    "packages/view-explorer": {
+      "name": "@deckbuilder/view-explorer",
+      "version": "0.0.0",
+      "dependencies": {
+        "@deckbuilder/editor": "workspace:*",
+        "@deckbuilder/platform": "workspace:*",
+        "@deckbuilder/server-core": "workspace:*",
+        "@deckbuilder/server-mods": "workspace:*",
+        "@deckbuilder/sql-ui": "workspace:*",
+        "@deckbuilder/terminal": "workspace:*",
+        "@deckbuilder/ui": "workspace:*",
       },
       "devDependencies": {
         "@types/react": "^18.3.12",
@@ -361,6 +385,8 @@
     "@deckbuilder/terminal": ["@deckbuilder/terminal@workspace:packages/terminal"],
 
     "@deckbuilder/ui": ["@deckbuilder/ui@workspace:packages/ui"],
+
+    "@deckbuilder/view-explorer": ["@deckbuilder/view-explorer@workspace:packages/view-explorer"],
 
     "@deckbuilder/view-git": ["@deckbuilder/view-git@workspace:packages/view-git"],
 

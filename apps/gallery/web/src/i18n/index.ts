@@ -1,5 +1,6 @@
 import { sqlEn, sqlPtBR } from '@deckbuilder/sql-ui';
 import { addMessages, createT } from '@deckbuilder/ui';
+import type { ExplorerMessageKey } from '@deckbuilder/view-explorer/web';
 import type { GitMessageKey } from '@deckbuilder/view-git/web';
 import type { RestMessageKey } from '@deckbuilder/view-rest/web';
 import type { TerminalMessageKey } from '@deckbuilder/view-terminal/web';
@@ -11,5 +12,5 @@ import { ptBR } from './pt-BR';
 addMessages({ en, 'pt-BR': ptBR });
 addMessages({ en: sqlEn, 'pt-BR': sqlPtBR });
 
-export type MessageKey = keyof typeof en | TerminalMessageKey | WorkbenchMessageKey | RestMessageKey | GitMessageKey;
+export type MessageKey = keyof typeof en | TerminalMessageKey | WorkbenchMessageKey | RestMessageKey | GitMessageKey | ExplorerMessageKey;
 export const t = createT<MessageKey>();

@@ -35,8 +35,6 @@ export const en = {
   'keys.git.refresh': 'Refresh Git status',
   'keys.git.nextChange': 'Next change',
   'keys.git.prevChange': 'Previous change',
-  'git.split': 'Side by side',
-  'git.inline': 'Inline',
 };
 
 export const ptBR: Messages<typeof en> = {
@@ -74,8 +72,6 @@ export const ptBR: Messages<typeof en> = {
   'keys.git.refresh': 'Atualizar status do Git',
   'keys.git.nextChange': 'Próxima alteração',
   'keys.git.prevChange': 'Alteração anterior',
-  'git.split': 'Lado a lado',
-  'git.inline': 'Em linha',
 };
 
 export type GitMessageKey = keyof typeof en;

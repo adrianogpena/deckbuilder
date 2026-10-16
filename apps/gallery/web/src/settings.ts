@@ -8,6 +8,7 @@ import {
   type SectionPath,
   bool,
   createSettingsRegistry,
+  gitSettingDefs,
   groupField as uiGroupField,
   num,
   oneOf,
@@ -15,7 +16,7 @@ import {
   fileSettingsOf,
   registerDefaultSections,
 } from '@deckbuilder/ui';
-import type { AppearanceSettings, EditorSettings, GeneralSettings, GitSettings, KeyboardSettings, Settings, WindowSettings } from './api';
+import type { AppearanceSettings, EditorSettings, GeneralSettings, KeyboardSettings, Settings, WindowSettings } from './api';
 
 export const settingsRegistry = createSettingsRegistry<Settings>();
 registerDefaultSections(settingsRegistry);
@@ -66,7 +67,7 @@ const fileEnum = <K extends 'autoSave' | 'sortOrder'>(key: K, section: SectionPa
   set: fileSet(key),
 });
 
-type Group = 'appearance' | 'editor' | 'window' | 'general' | 'keyboard' | 'git';
+type Group = 'appearance' | 'editor' | 'window' | 'general' | 'keyboard';
 
 const groupField = (group: Group, key: string, order: number, def: Parameters<typeof uiGroupField>[3], section?: SectionPath) => uiGroupField<Settings, Group>(group, key, order, def, section);
 
@@ -103,8 +104,7 @@ settingsRegistry.registerSettings([
 
   groupField('keyboard', 'chordTimeout', 100, num(1500, 500, 10_000)),
 
-  groupField('git', 'diffMode', 100, oneOf('split', ['split', 'inline'])),
-  groupField('git', 'explorerDecorations', 110, bool(true), explorer),
+  ...gitSettingDefs,
 
 
   {
@@ -172,9 +172,6 @@ export const windowSettingsOf = (s: Settings): Required<WindowSettings> => ({ ..
 
 /** The keyboard settings with their defaults filled in. */
 export const keyboardSettingsOf = (s: Settings): Required<KeyboardSettings> => ({ ...settingDefaults<Required<KeyboardSettings>>('keyboard'), ...s.keyboard });
-
-/** The git settings with their defaults filled in. */
-export const gitSettingsOf = (s: Settings): Required<GitSettings> => ({ ...settingDefaults<Required<GitSettings>>('git'), ...s.git });
 
 /** The settings stored in `general` (autostart and the other top-level ones are not) with their defaults filled in. */
 export const generalSettingsOf = (s: Settings): Required<GeneralSettings> => ({

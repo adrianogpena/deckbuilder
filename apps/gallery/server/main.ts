@@ -16,6 +16,7 @@ import {
   type BaseSettings,
 } from '@deckbuilder/server-mods';
 import { runApp } from '@deckbuilder/shell';
+import type { ExplorerServerSettings } from '@deckbuilder/view-explorer/server';
 import type { GitServerSettings } from '@deckbuilder/view-git/server';
 import { restHistorySizeOf, type RestServerSettings } from '@deckbuilder/view-rest/server';
 import type { TerminalServerSettings } from '@deckbuilder/view-terminal/server';
@@ -27,11 +28,11 @@ import { type FileSettings, validFileSettings } from '@deckbuilder/ui/file-setti
 import { type LogSettings, validLogSettings } from '@deckbuilder/ui/log';
 import { APP } from '../app.ts';
 import pkg from '../package.json';
-import { dbConnections, environments, openRoutes, requests, restHistoryStore, routes, sqlHistoryStore } from './routes.ts';
-import { projectRoots, projects } from './stores.ts';
+import { dbConnections, environments, requests, restHistoryStore, routes, sqlHistoryStore } from './routes.ts';
+import { pickedFolders, projectRoots, projects } from './stores.ts';
 import { serverViews } from './views.ts';
 
-export interface Settings extends BaseSettings, TerminalServerSettings, WorkbenchServerSettings, RestServerSettings, GitServerSettings {
+export interface Settings extends BaseSettings, TerminalServerSettings, WorkbenchServerSettings, RestServerSettings, GitServerSettings, ExplorerServerSettings {
   /** Start at Windows login (exe only). */
   autostart: boolean;
   /** Tray icon, so closing the window keeps the app running; read at startup. */
@@ -49,8 +50,6 @@ export interface Settings extends BaseSettings, TerminalServerSettings, Workbenc
   tabsLayout?: unknown;
   /** Layout of the Grid screen, checked by `validGridItems`. */
   gridLayout?: GridItem[];
-  /** Explorer screen: sidebar fractions, collapsed state, expanded tree ids per project and the tab layout. */
-  explorer?: ExplorerSettings;
   /** Log viewer: highlight words (global) and bookmarks per `<projectId>:<path>`. */
   logs?: LogSettings;
   /** Files opened as another type: a name glob and the extension to treat them as. */
@@ -70,72 +69,9 @@ export interface Settings extends BaseSettings, TerminalServerSettings, Workbenc
   git?: Record<string, string | number | boolean>;
 }
 
-export interface ExplorerSettings {
-  sizes: [number, number];
-  collapsed: boolean;
-  expanded: Record<string, string[]>;
-  /** Project ids shown in the sidebar, 1 or 2. */
-  trees?: string[];
-  /** Fractions of the two trees when `trees` has 2. */
-  treeSizes?: [number, number];
-  /** Edit / split / preview of markdown files; live when omitted. */
-  markdownMode?: 'live' | 'edit' | 'split' | 'preview';
-  /** Wrap long lines in the file editors; on when omitted. */
-  wrapLines?: boolean;
-  /** Fractions of the SQL editor and its results panel. */
-  sqlSizes?: [number, number];
-  tabs?: unknown;
-}
-
-const MARKDOWN_MODES: unknown[] = ['live', 'edit', 'split', 'preview'];
-
 const GRID_PANELS = ['clock', 'info', 'update', 'list'];
 
 const MAX_TABS_LAYOUT_BYTES = 64 * 1024;
-const MAX_EXPANDED_IDS = 2000;
-const MAX_ID_LENGTH = 64;
-
-const isStringArray = (v: unknown): v is string[] => Array.isArray(v) && v.every((x) => typeof x === 'string');
-
-/** A copy of `raw` when it is a well-formed explorer state within the size limits, else null. */
-function validExplorer(raw: unknown): ExplorerSettings | null {
-  const r = raw as Partial<ExplorerSettings> | null;
-  if (typeof r !== 'object' || r === null) return null;
-  const { sizes, collapsed, expanded, tabs, trees, treeSizes, markdownMode, wrapLines, sqlSizes } = r;
-  if (!Array.isArray(sizes) || sizes.length !== 2 || !sizes.every((n) => typeof n === 'number' && n >= 0 && n <= 1)) return null;
-  if (Math.abs(sizes[0] + sizes[1] - 1) > 0.01) return null;
-  if (typeof collapsed !== 'boolean' || typeof expanded !== 'object' || expanded === null || Array.isArray(expanded)) return null;
-  const out: Record<string, string[]> = {};
-  for (const [project, ids] of Object.entries(expanded)) {
-    if (project.length > MAX_ID_LENGTH || !isStringArray(ids) || ids.length > MAX_EXPANDED_IDS) return null;
-    out[project] = ids;
-  }
-  if (tabs !== undefined && (typeof tabs !== 'object' || tabs === null || JSON.stringify(tabs).length >= MAX_TABS_LAYOUT_BYTES)) return null;
-  if (trees !== undefined && (!isStringArray(trees) || trees.length < 1 || trees.length > 2 || trees.some((id) => id.length > MAX_ID_LENGTH))) return null;
-  const pair = treeSizes === undefined ? undefined : validPair(treeSizes);
-  if (treeSizes !== undefined && !pair) return null;
-  if (markdownMode !== undefined && !MARKDOWN_MODES.includes(markdownMode)) return null;
-  if (wrapLines !== undefined && typeof wrapLines !== 'boolean') return null;
-  const sqlPair = sqlSizes === undefined ? undefined : validPair(sqlSizes);
-  if (sqlSizes !== undefined && !sqlPair) return null;
-  return {
-    sizes: [sizes[0], sizes[1]],
-    collapsed,
-    expanded: out,
-    ...(trees !== undefined && { trees }),
-    ...(pair && { treeSizes: pair }),
-    ...(markdownMode !== undefined && { markdownMode }),
-    ...(wrapLines !== undefined && { wrapLines }),
-    ...(sqlPair && { sqlSizes: sqlPair }),
-    ...(tabs !== undefined && { tabs }),
-  };
-}
-
-const validPair = (v: unknown): [number, number] | null =>
-  Array.isArray(v) && v.length === 2 && v.every((n) => typeof n === 'number' && n >= 0 && n <= 1) && Math.abs(v[0] + v[1] - 1) <= 0.01
-    ? [v[0], v[1]]
-    : null;
-
 const APPEARANCE_SPEC: Record<string, FieldSpec> = {
   uiFontFamily: 'string',
   editorFontFamily: 'string',
@@ -171,10 +107,6 @@ const GENERAL_SPEC: Record<string, FieldSpec> = {
 const KEYBOARD_SPEC: Record<string, FieldSpec> = {
   chordTimeout: [500, 10_000],
 };
-const GIT_SPEC: Record<string, FieldSpec> = {
-  diffMode: ['split', 'inline'],
-  explorerDecorations: 'boolean',
-};
 const dataDir = appHome(APP.id);
 const autostart = createAutostart({ name: APP.name });
 /** The folder the update-folder dialog returned; `apply` takes it once. */
@@ -195,8 +127,6 @@ const settings = settingsStore<Settings>({
     }
     const gridLayout = validGridItems(patch.gridLayout, GRID_PANELS);
     if (gridLayout) next.gridLayout = gridLayout;
-    const explorer = validExplorer(patch.explorer);
-    if (explorer) next.explorer = explorer;
     const logs = validLogSettings(patch.logs);
     if (logs) next.logs = logs;
     const fileAssociations = validFileAssociations(patch.fileAssociations);
@@ -213,8 +143,6 @@ const settings = settingsStore<Settings>({
     if (general) next.general = general;
     const keyboard = validGroup(patch.keyboard, KEYBOARD_SPEC);
     if (keyboard) next.keyboard = keyboard;
-    const git = validGroup(patch.git, GIT_SPEC);
-    if (git) next.git = git;
     const keybindings = validKeymap(patch.keybindings);
     if (keybindings) next.keybindings = keybindings;
     applyViewSettings(serverViews, patch, next as unknown as Record<string, unknown>);
@@ -240,7 +168,7 @@ const { closeToTray } = await settings.load();
 sqlHistoryStore.setMax(historySizeOf(await settings.load()));
 restHistoryStore.setMax(restHistorySizeOf(await settings.load()));
 
-const mounted = mountViews(serverViews, { dataDir, settings, stores: { projects, projectRoots, dbConnections, requests, environments, restHistory: restHistoryStore } });
+const mounted = mountViews(serverViews, { dataDir, settings, stores: { projects, projectRoots, pickedFolders, dbConnections, requests, environments, restHistory: restHistoryStore } });
 
 await runApp({
   app: APP,
@@ -261,7 +189,7 @@ await runApp({
     ...mounted.routes,
   }),
   sockets: mounted.sockets,
-  unauthenticated: openRoutes,
+  unauthenticated: mounted.unauthenticated,
   onQuit: () => mounted.onQuit(),
   webDir: join(import.meta.dir, '../dist/web'),
   transformIndex: themeHead(settings),

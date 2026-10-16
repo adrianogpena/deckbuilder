@@ -1,29 +1,17 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { createToaster, openWithDefault, revealInFolder, saveFileAs, secretStore, writeFileAtomic } from '@deckbuilder/platform';
+import { createToaster, saveFileAs, secretStore, writeFileAtomic } from '@deckbuilder/platform';
 import type { HttpRequestDraft } from '@deckbuilder/editor/http';
 import { connectionRoutes as dbConnectionRoutes, dbRoutes, dbSessions, parseOracleUrl, sqlHistory, validConnection, type DbConnectionFields } from '@deckbuilder/db';
 import { AppError, forbidden, invalid, isRecord, ndjson, notFound, type Routes } from '@deckbuilder/server-core';
 import { REST_ENV_MAX_VARS, REST_ENV_NAME_CHARS, REST_VAR_NAME, type RestEnvVar } from '@deckbuilder/server-core/protocol';
-import { dialogRoutes, editorRoutes, fromPlatform, httpExecutor, httpRoutes, pickedPaths, recordRoutes, recordStore, restHistory, rootedFs, validateDraft } from '@deckbuilder/server-mods';
+import { fromPlatform, httpExecutor, httpRoutes, pickedPaths, recordRoutes, recordStore, restHistory, validateDraft } from '@deckbuilder/server-mods';
 import type { StartContext } from '@deckbuilder/shell';
-import { APP, MULTI_DELETE_ENABLED } from '../app.ts';
-import { home, isDirectory, pickedFolders, projectRoots, projects } from './stores.ts';
+import { APP } from '../app.ts';
+import { home } from './stores.ts';
 
 const toaster = createToaster();
 const osSecrets = secretStore(APP.id);
-
-const fs = rootedFs({ multiDelete: MULTI_DELETE_ENABLED, roots: projectRoots });
-
-/** The file download behind dragging a file out of the tree; its link carries a one-time ticket, not the session token. */
-export const openRoutes = fs.openRoutes;
-
-/** A project folder as a terminal's working directory: `path` inside project `root`, a directory. */
-export async function resolveCwd(root: string, path: string): Promise<string> {
-  const { real } = await fs.resolve(root, path, { mustExist: true });
-  if (!isDirectory(real)) throw invalid('notADirectory', 'The path is not a folder.');
-  return real;
-}
 
 /** Oracle connections of the Workbench; the password is a secret field, never returned by a route. */
 export const dbConnections = recordStore<DbConnectionFields & { password?: unknown }>({
@@ -193,28 +181,11 @@ const DEMO_PAUSE_MS = 20;
 /** Paths the save dialog returned and `/api/demo/save` may still write once. */
 const saveTargets = pickedPaths();
 
-const target = async (json: <T>() => Promise<T>) => {
-  const { root, path } = await json<{ root?: unknown; path?: unknown }>();
-  return (await fs.resolve(String(root), typeof path === 'string' ? path : '', { mustExist: true })).real;
-};
-
 /**
  * This app's own endpoints. Keys are "METHOD /path"; handlers return a JSON-serializable value
  * or throw an AppError (`invalid`, `notFound`) that the UI shows translated as `error.<code>`.
  */
 export const routes = (ctx: StartContext): Routes => ({
-  ...recordRoutes(projects, '/api/projects'),
-  ...fs.routes,
-  ...dialogRoutes({ picked: pickedFolders }),
-  ...editorRoutes({ dir: home, fs }),
-  'POST /api/fs/reveal': async ({ json }) => {
-    await revealInFolder(await target(json)).catch(fromPlatform);
-    return { ok: true };
-  },
-  'POST /api/fs/open': async ({ json }) => {
-    await openWithDefault(await target(json)).catch(fromPlatform);
-    return { ok: true };
-  },
   'GET /api/demo/rows': ({ req, query }) => {
     const asked = Number(query.get('count') ?? 50_000);
     const count = Number.isInteger(asked) ? Math.min(Math.max(asked, 1), MAX_DEMO_ROWS) : 50_000;

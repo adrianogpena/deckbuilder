@@ -1,9 +1,9 @@
 import { useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Icon, ProjectPicker, type ProjectPickerProps, useCommand } from '@deckbuilder/ui';
-import type { Project, SearchHit } from '../../api';
-import { commandById } from '../../commands';
-import { nodeId } from '../../explorer-paths';
-import { t } from '../../i18n';
+import type { Project, SearchHit } from '../client';
+import { explorerCommandById as commandById } from '../commands';
+import { nodeId } from '../explorer-paths';
+import { t } from '../i18n';
 import { ProjectSearch } from './ProjectSearch';
 import { ProjectTree, type ProjectTreeApi, type ProjectTreeProps } from './ProjectTree';
 import { findInTree } from './tree-find';

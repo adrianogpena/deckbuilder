@@ -20,10 +20,10 @@ import {
   type ApiError,
 } from '@deckbuilder/ui';
 import type { FsArchiveFormat } from '@deckbuilder/server-core/protocol';
-import { MULTI_DELETE_ENABLED } from '../../../../app';
-import { api, type FsEntry, type Project } from '../../api';
-import { fullPath } from '../../explorer-paths';
-import { t } from '../../i18n';
+import { multiDeleteEnabled } from '../options';
+import { explorerApi as api, type FsEntry, type Project } from '../client';
+import { fullPath } from '../explorer-paths';
+import { t } from '../i18n';
 import { useCopyPath } from './copy-path';
 import { commonParent, compressPaths } from './fs-actions';
 
@@ -157,7 +157,7 @@ export function DetailsTab({ project, path, exclude, showHidden = false, sort, o
   const remove = (targets: Row[]) =>
     run(async () => {
       if (!targets.length) return;
-      if (targets.length > 1 && !MULTI_DELETE_ENABLED) {
+      if (targets.length > 1 && !multiDeleteEnabled()) {
         toast({ message: t('explorer.deleteOne') });
         return;
       }
@@ -207,9 +207,9 @@ export function DetailsTab({ project, path, exclude, showHidden = false, sort, o
         id: 'delete',
         label: t('explorer.delete'),
         icon: 'trash',
-        hint: picked.length > 1 && !MULTI_DELETE_ENABLED ? t('explorer.deleteOne') : 'Del',
+        hint: picked.length > 1 && !multiDeleteEnabled() ? t('explorer.deleteOne') : 'Del',
         danger: true,
-        disabled: actionable.length !== picked.length || (picked.length > 1 && !MULTI_DELETE_ENABLED),
+        disabled: actionable.length !== picked.length || (picked.length > 1 && !multiDeleteEnabled()),
         run: () => void remove(picked),
       },
       'sep',

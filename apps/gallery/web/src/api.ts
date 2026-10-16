@@ -6,11 +6,12 @@ import type { BackupInspect, EditorInfo, FsArchiveFormat, FsCompressRequest, FsC
 export type { EditorInfo, FsDuProgress, FsHash, FsInfo, ImportResult, TailChunk };
 import type { SessionInfo, TerminalProfileInfo } from '@deckbuilder/terminal';
 import type { TerminalSettings, TerminalViewSettings } from '@deckbuilder/view-terminal/web';
+import type { ExplorerSettings, FsEntry, FsRead, Project, SearchHit, TextEncoding } from '@deckbuilder/view-explorer/web';
 import type { GitViewSettings } from '@deckbuilder/view-git/web';
 import type { RestTabsFile, RestViewSettings, SavedRequest } from '@deckbuilder/view-rest/web';
 import type { WorkbenchViewSettings } from '@deckbuilder/view-workbench/web';
 import type { CopyFormat, DbColumn, DbPlanRow, DbRunResult, DbSchema, DbSchemaTable, DbStatus, DbTableConstraint, DbTableDetails, DbTableIndex, DemoRow } from '@deckbuilder/sql-ui';
-import { type FileAssociation, type FileSettings, type Keymap, type Language, type LogSettings, type ResultFormat, request, requestUpload, stream } from '@deckbuilder/ui';
+import { type FileAssociation, type GitSettings, type FileSettings, type Keymap, type Language, type LogSettings, type ResultFormat, request, requestUpload, stream } from '@deckbuilder/ui';
 
 export type { TerminalSettings };
 
@@ -96,12 +97,6 @@ export interface KeyboardSettings {
   chordTimeout?: number;
 }
 
-export interface GitSettings {
-  /** How the Git screen lays out a diff. */
-  diffMode?: 'split' | 'inline';
-  /** Whether the Explorer tree colours changed files and marks them with their git status. */
-  explorerDecorations?: boolean;
-}
 
 export type { CopyFormat };
 export type { LogSettings, ResultFormat, SqlFormatOptions };
@@ -115,60 +110,11 @@ export type { DbConnection };
 export type { DbColumn, DbPlanRow, DbRunResult, DbSchema, DbSchemaTable, DbStatus, DbTableConstraint, DbTableDetails, DbTableIndex, DemoRow };
 export type { SqlHistoryEntry };
 
-export interface ExplorerSettings {
-  /** Fractions of the sidebar and the workspace. */
-  sizes: [number, number];
-  collapsed: boolean;
-  /** Expanded tree node ids per project id. */
-  expanded: Record<string, string[]>;
-  /** Project ids shown in the sidebar, 1 or 2. */
-  trees?: string[];
-  /** Fractions of the two trees when `trees` has 2. */
-  treeSizes?: [number, number];
-  /** Edit / split / preview of markdown files; live when omitted. */
-  markdownMode?: 'live' | 'edit' | 'split' | 'preview';
-  /** Wrap long lines in the file editors; on when omitted. */
-  wrapLines?: boolean;
-  /** Fractions of the SQL editor and its results panel. */
-  sqlSizes?: [number, number];
-  tabs?: unknown;
-}
+export type { ExplorerSettings, FsEntry, FsRead, Project, SearchHit, TextEncoding };
 
 
 export type BackupInfo = BackupInspect;
 
-export interface Project {
-  id: string;
-  name: string;
-  path: string;
-}
-
-export interface FsEntry {
-  name: string;
-  kind: 'file' | 'dir' | 'link';
-  size: number;
-  mtime: number;
-  /** A link that leads out of the project folder. */
-  outside?: true;
-  /** What a link inside the project points to. */
-  target?: 'file' | 'dir';
-  /** Matches an exclude glob; only listed when the tree shows excluded entries. */
-  excluded?: true;
-}
-
-/** The text encodings the server reads and writes (`TextEncodingId` of server-mods). */
-export type TextEncoding = 'utf8' | 'utf8bom' | 'utf16le' | 'utf16be' | 'windows1252';
-
-export type FsRead =
-  | { text: string; encoding: TextEncoding; size: number; mtime: number; truncated: boolean; readOnly?: true }
-  | { binary: true; size: number; mtime: number };
-
-export interface SearchHit {
-  path: string;
-  kind: 'file' | 'dir';
-  line?: number;
-  text?: string;
-}
 
 /** GET /api/info (infoRoutes in @deckbuilder/server-mods). */
 export interface Info {

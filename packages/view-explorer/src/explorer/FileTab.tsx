@@ -8,9 +8,9 @@ import {
   type ApiError, type BreadcrumbEntry, Breadcrumbs, errorOf, ErrorBanner, FILE_DEFAULTS, type FileSettings, formatBytes, Icon, type IconName, PanelBanner, PanelLoading,
   relPath, requestBlob, StatusBar, type StatusItem, type TabAction, useCommand, useDialogs, useViewLink,
 } from '@deckbuilder/ui';
-import { api, type LogSettings, type TextEncoding } from '../../api';
-import { commandById } from '../../commands';
-import { t } from '../../i18n';
+import { explorerApi as api, type LogSettings, type TextEncoding } from '../client';
+import { explorerCommandById as commandById } from '../commands';
+import { t } from '../i18n';
 import { LogTab } from './LogTab';
 import { useExplorerCurl } from './CurlPanel';
 import { type ExplorerSqlProps, useExplorerSql } from './SqlPanel';

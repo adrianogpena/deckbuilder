@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PALETTES } from '@deckbuilder/server-core/palettes';
-import { CommandPalette, detectLanguage, effectiveKeys, ErrorBanner, AppFrame, Icon, isDesktop, KeybindingProvider, LayoutProvider, type PaletteItem, setFileAssociations, setLanguage, Sidebar, Spinner, ToastProvider, useAsync, useCommand, useCommandPalette, useHashRoute, useHeartbeat, useKeybindings, useTheme, useZoom } from '@deckbuilder/ui';
+import { CommandPalette, detectLanguage, effectiveKeys, ErrorBanner, AppFrame, Icon, isDesktop, KeybindingProvider, LayoutProvider, type PaletteItem, setFileAssociations, setLanguage, Sidebar, Spinner, ToastProvider, useAsync, useCommand, useCommandPalette, useHashRoute, useHeartbeat, useKeybindings, useTheme, useZen, useZoom } from '@deckbuilder/ui';
 import { EditorOptionsContext } from '@deckbuilder/editor/options';
 import { APP } from '../../app';
 import { api, type Settings } from './api';
 import { commandById, commands, KEYS_COMMAND, navCommandId, SETTINGS_COMMAND } from './commands';
 import { type MessageKey, t } from './i18n';
 import { appearanceSettingsOf, editorSettingsOf, generalSettingsOf, keyboardSettingsOf, windowSettingsOf } from './settings';
-import { useZen } from './zen';
 import { SettingsModal } from './screens/SettingsModal';
 import { views, type ScreenId } from './views';
 

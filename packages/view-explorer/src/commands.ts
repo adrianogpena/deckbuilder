@@ -1,9 +1,7 @@
-import { type CommandDef, defineView, explorerCommands, tabCommands } from '@deckbuilder/ui';
-import type { Settings } from '../api';
-import { t } from '../i18n';
-import { ExplorerScreen } from './ExplorerScreen';
+import { type CommandDef, explorerCommands, tabCommands } from '@deckbuilder/ui';
+import { t } from './i18n';
 
-function explorerViewCommands(): CommandDef[] {
+export function explorerViewCommands(): CommandDef[] {
   return [
     ...tabCommands('explorer'),
     ...explorerCommands('explorer'),
@@ -24,10 +22,8 @@ function explorerViewCommands(): CommandDef[] {
   ];
 }
 
-export const explorerView = defineView<'explorer', Settings>({
-  id: 'explorer',
-  nav: { group: 'nav.section.main', icon: 'folder', label: 'nav.explorer', order: 40 },
-  render: ({ settings, onSave }) => <ExplorerScreen settings={settings} onSave={onSave} />,
-  commands: explorerViewCommands,
-  messages: { en: {}, 'pt-BR': {} },
-});
+export function explorerCommandById(id: string): CommandDef {
+  const def = explorerViewCommands().find((d) => d.id === id);
+  if (!def) throw new Error(`Unknown command ${id}`);
+  return def;
+}

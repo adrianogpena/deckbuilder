@@ -14,8 +14,8 @@ import {
   useLogTail,
   validLogSettings,
 } from '@deckbuilder/ui';
-import { api, type LogSettings } from '../../api';
-import { t } from '../../i18n';
+import { explorerApi as api, type LogSettings } from '../client';
+import { t } from '../i18n';
 import { useTabActions } from './tab-actions';
 
 const COPY_CHUNK_BYTES = 20_000_000;

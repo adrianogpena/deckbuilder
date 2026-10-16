@@ -1,0 +1,61 @@
+.xp-loading { display: flex; justify-content: center; padding: var(--space-12); }
+.xp-pane { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.xp-find { display: flex; align-items: center; gap: var(--space-6); padding: var(--space-4) var(--space-8); }
+.xp-find input { flex: 1; min-width: 0; }
+.xp-find-count { font-size: var(--fs-xs-plus); white-space: nowrap; }
+.xp-pane-body { flex: 1; min-height: 0; overflow: auto; }
+.xp-project { display: flex; flex-direction: column; border-top: 1px solid var(--border-soft); }
+/* The tree fills the pane, so a file dropped below the last row still lands in the project. */
+.xp-tree-wrap:not([hidden]) { display: flex; flex-direction: column; min-height: 100%; }
+.xp-project { flex: 1; }
+.xp-project > .tree { flex: 1; }
+.xp-head { display: flex; align-items: center; gap: var(--space-6); padding: var(--space-8) var(--space-8) var(--space-4); }
+.xp-search { flex: 1; min-width: 0; }
+.xp-search input { width: 100%; }
+.xp-results { display: flex; flex-direction: column; padding: var(--space-4); }
+.xp-status { display: flex; align-items: center; gap: var(--space-6); padding: var(--space-4) var(--space-8); font-size: var(--fs-sm); }
+.xp-hit {
+  display: flex; align-items: flex-start; gap: var(--space-8); padding: 5px var(--space-8); border: 0; border-radius: var(--radius-md);
+  background: transparent; color: var(--text-2); text-align: left; cursor: pointer;
+}
+.xp-hit:hover:not(:disabled) { background: var(--hover); color: var(--text); }
+.xp-hit:disabled { cursor: default; opacity: .6; }
+.xp-hit-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.xp-hit-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-md); }
+.xp-hit-line { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-xs); color: var(--text-3); }
+
+/* The file view fills its pane edge to edge, like VS Code: breadcrumbs, banners, content, status bar. */
+.xp-file { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.xp-bar { display: flex; align-items: center; gap: var(--space-8); min-height: var(--control-h-xs); padding: 0 var(--space-8); font-size: var(--fs-sm); }
+.xp-body { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.xp-body > .code-editor { height: 100%; }
+.xp-body .code-editor, .xp-body .code-view, .xp-body .code-view-plain { border: 0; border-radius: 0; }
+.xp-file > .panel-banner { border-radius: 0; }
+.xp-sql-editor { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+
+.xp-watermark { display: grid; gap: var(--space-8); margin: 28px auto 0; width: max-content; max-width: 100%; color: var(--text-2); font-size: var(--fs-md); }
+.xp-watermark > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-24); align-items: center; }
+.xp-watermark dt { text-align: right; }
+.xp-watermark dd { margin: 0; }
+
+.xp-details { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.xp-details-body { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.xp-details-body > .dtable { flex: 1; min-height: 0; }
+.xp-details-name { display: inline-flex; align-items: center; gap: var(--space-6); min-width: 0; }
+.xp-details-name.dim { opacity: 0.55; }
+.xp-details-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.ex-pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; height: 100%; overflow: hidden; }
+/* The plan table of the SQL results (@deckbuilder/sql-ui classes), scoped to the Explorer panels. */
+.ex-pane .wb-plan { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.ex-pane .wb-plan-bar { align-items: center; gap: var(--space-8); padding: var(--space-4) var(--space-8); border-bottom: 1px solid var(--border-soft); }
+.ex-pane .wb-plan-bar .mono-label { flex: 1; }
+.ex-pane .wb-plan-empty { padding: var(--space-8); }
+.ex-pane .wb-plan-scroll { flex: 1; min-height: 0; overflow: auto; }
+.ex-pane .wb-plan-table { border-collapse: collapse; width: 100%; font-family: var(--mono, monospace); font-size: var(--fs-sm); }
+.ex-pane .wb-plan-table th, .ex-pane .wb-plan-table td { padding: var(--space-2) var(--space-6); text-align: left; white-space: nowrap; border-bottom: 1px solid var(--border-soft); }
+.ex-pane .wb-plan-table th { position: sticky; top: 0; background: var(--bg); color: var(--text-2); font-weight: 500; }
+.ex-pane .wb-plan-table .num { text-align: right; }
+.ex-pane .wb-plan-hot td { background: color-mix(in srgb, var(--warn) 18%, transparent); }
+.ex-pane .wb-plan-hot td:first-child { box-shadow: inset 3px 0 var(--warn); }
+.ex-pane .wb-plan-pred { color: var(--text-2); }

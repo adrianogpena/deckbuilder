@@ -17,10 +17,10 @@ import {
   useDialogs,
   useToast,
 } from '@deckbuilder/ui';
-import { MULTI_DELETE_ENABLED } from '../../../../app';
-import { api, type FsEntry, type Project } from '../../api';
-import { fullPath, nodeId } from '../../explorer-paths';
-import { t } from '../../i18n';
+import { multiDeleteEnabled } from '../options';
+import { explorerApi as api, type FsEntry, type Project } from '../client';
+import { fullPath, nodeId } from '../explorer-paths';
+import { t } from '../i18n';
 import { useCopyPath } from './copy-path';
 import { PropertiesDialog } from './PropertiesDialog';
 import type { FileUndo, UndoOp } from './file-undo';
@@ -381,7 +381,7 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
     run(async () => {
       const targets = actionable(nodes);
       if (!targets.length) return;
-      if (targets.length > 1 && !MULTI_DELETE_ENABLED) {
+      if (targets.length > 1 && !multiDeleteEnabled()) {
         toast({ message: t('explorer.deleteOne') });
         return;
       }
@@ -723,9 +723,9 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
         ...compressItems(selection),
         item('delete', t('explorer.delete'), () => void remove(selection), {
           icon: 'trash',
-          hint: MULTI_DELETE_ENABLED ? 'Del' : t('explorer.deleteOne'),
+          hint: multiDeleteEnabled() ? 'Del' : t('explorer.deleteOne'),
           danger: true,
-          disabled: disabled || !MULTI_DELETE_ENABLED,
+          disabled: disabled || !multiDeleteEnabled(),
         }),
       ];
     }

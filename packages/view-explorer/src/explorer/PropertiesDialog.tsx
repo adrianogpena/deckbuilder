@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { copyText, errorMessage, errorOf, formatBytes, Modal, useToast } from '@deckbuilder/ui';
-import { api, type FsDuProgress, type FsInfo } from '../../api';
-import { t } from '../../i18n';
+import { explorerApi as api, type FsDuProgress, type FsInfo } from '../client';
+import { t } from '../i18n';
 
 const GRID = { display: 'grid', gridTemplateColumns: 'max-content 1fr', gap: '6px 16px', alignItems: 'center', margin: 0 } as const;
 const WRAP = { overflowWrap: 'anywhere', margin: 0 } as const;

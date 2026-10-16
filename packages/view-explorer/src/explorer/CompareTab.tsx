@@ -1,8 +1,8 @@
 import { lazy, Suspense, useState } from 'react';
 import { type DiffMode, langOfFile } from '@deckbuilder/editor';
 import { ErrorBanner, PanelBanner, PanelLoading, PanelNotice, relPath, useAsync } from '@deckbuilder/ui';
-import { api } from '../../api';
-import { t } from '../../i18n';
+import { explorerApi as api } from '../client';
+import { t } from '../i18n';
 
 const DiffView = lazy(() => import('@deckbuilder/editor').then((m) => ({ default: m.DiffView })));
 

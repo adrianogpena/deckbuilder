@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { stream } from '@deckbuilder/ui';
-import type { Project, SearchHit } from '../../api';
+import type { Project, SearchHit } from '../client';
 
 export interface NameIndex {
   /** Every file and folder path of each project, as `/api/fs/names` lists them. */

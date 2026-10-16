@@ -1,0 +1,30 @@
+{
+  "name": "@deckbuilder/view-explorer",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./web": "./src/web.ts",
+    "./server": "./src/server.ts",
+    "./styles.css": "./src/explorer.css"
+  },
+  "dependencies": {
+    "@deckbuilder/editor": "workspace:*",
+    "@deckbuilder/platform": "workspace:*",
+    "@deckbuilder/server-core": "workspace:*",
+    "@deckbuilder/server-mods": "workspace:*",
+    "@deckbuilder/sql-ui": "workspace:*",
+    "@deckbuilder/terminal": "workspace:*",
+    "@deckbuilder/ui": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "@types/react-dom": "^18.3.1"
+  }
+}

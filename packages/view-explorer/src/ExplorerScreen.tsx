@@ -1,5 +1,7 @@
+import './explorer.css';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { editorSettingsOf, generalSettingsOf, gitSettingsOf, windowSettingsOf } from '../settings';
+import { editorSettingsOf, type ExplorerSettings, type ExplorerViewSettings as Settings, generalSettingsOf, windowSettingsOf } from './settings';
+import { gitSettingsOf, setZen, useZen } from '@deckbuilder/ui';
 import {
   activate,
   activeTab,
@@ -44,12 +46,11 @@ import {
   ProjectPicker,
 } from '@deckbuilder/ui';
 import { closeSession } from '@deckbuilder/terminal/session';
-import { api, type ExplorerSettings, type LogSettings, type Project, type Settings } from '../api';
-import { terminalAppKeys } from '@deckbuilder/view-terminal/web';
-import { commandById } from '../commands';
-import { fullPath, nodeId } from '../explorer-paths';
-import { t } from '../i18n';
-import { setZen, useZen } from '../zen';
+import { explorerApi as api, type LogSettings, type Project } from './client';
+import { terminalAppKeys } from '@deckbuilder/terminal';
+import { explorerCommandById as commandById } from './commands';
+import { fullPath, nodeId } from './explorer-paths';
+import { t } from './i18n';
 import { useCopyPath } from './explorer/copy-path';
 import { useFileUndo } from './explorer/file-undo';
 import { useNameIndex } from './explorer/name-index';
@@ -127,6 +128,7 @@ interface State {
   markdownMode: MarkdownMode;
   wrapLines: boolean;
   sqlSizes?: [number, number];
+  connections?: Record<string, string>;
   layout: Layout<Route>;
 }
 
@@ -145,6 +147,7 @@ function initialState(saved: ExplorerSettings | undefined, defaultWrap: boolean,
     markdownMode: MARKDOWN_MODES.includes(saved?.markdownMode as MarkdownMode) ? saved!.markdownMode! : 'live',
     wrapLines: saved?.wrapLines ?? defaultWrap,
     sqlSizes: saved?.sqlSizes,
+    connections: saved?.connections,
     layout: (restoreTabs ? restore(saved?.tabs, isRoute) : undefined) ?? singlePane(newTab<Route>(WELCOME)),
   };
 }
@@ -237,6 +240,7 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
         markdownMode: s.markdownMode,
         wrapLines: s.wrapLines,
         ...(s.sqlSizes && { sqlSizes: s.sqlSizes }),
+        ...(s.connections && { connections: s.connections }),
         tabs: serialize(s.layout),
       },
     }),
@@ -245,6 +249,8 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
   const sql: ExplorerSqlProps = {
     workbench: settings.workbench,
     onWorkbenchChange: (workbench) => onSave({ workbench }),
+    connections: state.connections,
+    onConnectionsChange: (connections) => update((s) => ({ ...s, connections })),
     sizes: state.sqlSizes,
     onSizesChange: (sqlSizes) => update((s) => ({ ...s, sqlSizes })),
     restEnvironment: settings.rest?.environment ?? '',
@@ -430,7 +436,7 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
     route.kind === 'welcome'
       ? { title: t('explorer.welcome') }
       : route.kind === 'terminal'
-        ? { title: `${t('terminalScreen.tab')} · ${relPath.basename(route.path) || nameOf(route.project)}`, icon: 'terminal' as const }
+        ? { title: `${t('explorer.shared.terminalTab')} · ${relPath.basename(route.path) || nameOf(route.project)}`, icon: 'terminal' as const }
         : route.kind === 'diff'
           ? {
             title: `${relPath.basename(route.left.path)} ↔ ${relPath.basename(route.right.path)}`,
@@ -640,7 +646,7 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
                   session={tab.route.session}
                   cwd={{ root: tab.route.project, path: tab.route.path }}
                   onSession={(id) => onSession(tab.id, id)}
-                  appKeys={terminalAppKeys('explorer', keys?.defs ?? [])}
+                  appKeys={terminalAppKeys('explorer', keys?.defs ?? [], ['explorer.zen'])}
                 />
               </Suspense>
             ) : tab.route.kind === 'details' ? (

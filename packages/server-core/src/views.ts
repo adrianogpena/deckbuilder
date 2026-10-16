@@ -22,9 +22,15 @@ export function validGroup(raw: unknown, spec: Record<string, FieldSpec>): Recor
   return out;
 }
 
+/** The shared `git` settings group (Git view and Explorer decorations). */
+export const GIT_SPEC: Record<string, FieldSpec> = {
+  diffMode: ['split', 'inline'],
+  explorerDecorations: 'boolean',
+};
+
 export interface ServerViewContext<S> {
   dataDir: string;
-  settings: { load(): Promise<S> };
+  settings: { load(): Promise<S>; save?(patch: Record<string, unknown>): Promise<unknown> };
   stores: Record<string, unknown>;
   options?: unknown;
 }
@@ -33,6 +39,8 @@ export interface ServerViewDef<S = any> {
   id: string;
   routes(ctx: ServerViewContext<S>): Routes;
   sockets?(ctx: ServerViewContext<S>): SocketRoutes;
+  /** Routes outside the session token check (see `ServerOptions.unauthenticated`); each handler checks its own credentials. */
+  unauthenticated?(ctx: ServerViewContext<S>): Routes;
   onQuit?(): void | Promise<void>;
   settings?: {
     /** Group key -> validator returning the clean value, or null when invalid. */
@@ -62,16 +70,21 @@ export function applyViewSettings(defs: readonly ServerViewDef[], patch: Record<
 export function mountViews<S>(
   defs: readonly ServerViewDef<S>[],
   ctx: ServerViewContext<S>,
-): { routes: Routes; sockets: SocketRoutes; onQuit(): Promise<void> } {
+): { routes: Routes; sockets: SocketRoutes; unauthenticated: Routes; onQuit(): Promise<void> } {
   const ids = new Set<string>();
   const routes: Routes = {};
   const sockets: SocketRoutes = {};
+  const unauthenticated: Routes = {};
   for (const d of defs) {
     if (ids.has(d.id)) throw new Error(`View already registered: ${d.id}`);
     ids.add(d.id);
     for (const [key, h] of Object.entries(d.routes(ctx))) {
       if (Object.hasOwn(routes, key)) throw new Error(`Duplicate route: ${key} (view ${d.id})`);
       routes[key] = h;
+    }
+    for (const [key, h] of Object.entries(d.unauthenticated?.(ctx) ?? {})) {
+      if (Object.hasOwn(unauthenticated, key)) throw new Error(`Duplicate unauthenticated route: ${key} (view ${d.id})`);
+      unauthenticated[key] = h;
     }
     for (const [path, s] of Object.entries(d.sockets?.(ctx) ?? {})) {
       if (Object.hasOwn(sockets, path)) throw new Error(`Duplicate socket: ${path} (view ${d.id})`);
@@ -81,6 +94,7 @@ export function mountViews<S>(
   return {
     routes,
     sockets,
+    unauthenticated,
     async onQuit() {
       for (const d of defs) await d.onQuit?.();
     },

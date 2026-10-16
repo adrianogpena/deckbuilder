@@ -2,10 +2,10 @@ import { type ReactNode, useMemo, useRef, useState } from 'react';
 import { type CodeEditorHandle, type CodeEditorProps, langOfFile, resolveMarkers, type RunMode, sqlMarkers, sqlParams, type SqlParam } from '@deckbuilder/editor';
 import { Badge, ErrorBanner, Icon, Modal, SplitView, type TabAction, useAsync, useCommand, useViewLink } from '@deckbuilder/ui';
 import { DEFAULT_RESULTS, SqlResults, useSqlRunner, useSqlSchema } from '@deckbuilder/sql-ui';
-import { withWorkbenchDefaults, type WorkbenchSettings } from '../../api';
-import { commandById } from '../../commands';
-import { t } from '../../i18n';
-import { sqlClient, sqlRunnerSettings } from '../../sql-client';
+import { type ExplorerWorkbench, sqlRunnerSettings, withWorkbenchDefaults } from '../settings';
+import { explorerCommandById as commandById } from '../commands';
+import { t } from '../i18n';
+import { sqlClient } from '../client';
 import { useChordOf } from './tab-actions';
 
 const DEFAULT_SPLIT: [number, number] = [0.6, 0.4];
@@ -14,8 +14,11 @@ const MANAGE = '::manage';
 /** What the Explorer passes a file tab so `.sql` files of allowed projects can run SQL. */
 export interface ExplorerSqlProps {
   /** The stored workbench settings: allowed projects, last connection per project, result format. */
-  workbench?: Partial<WorkbenchSettings>;
-  onWorkbenchChange(workbench: Partial<WorkbenchSettings>): void;
+  workbench?: Partial<ExplorerWorkbench>;
+  onWorkbenchChange(workbench: Partial<ExplorerWorkbench>): void;
+  /** Last connection id per project id. */
+  connections?: Record<string, string>;
+  onConnectionsChange(connections: Record<string, string>): void;
   /** Fractions of the editor and the results panel. */
   sizes?: [number, number];
   onSizesChange(sizes: [number, number]): void;
@@ -47,7 +50,7 @@ function ParamsDialog({ params, initial, onSubmit, onClose }: { params: SqlParam
       onClose={onClose}
       footer={(
         <>
-          <button className="btn" onClick={onClose}>{t('workbench.cancel')}</button>
+          <button className="btn" onClick={onClose}>{t('explorer.shared.cancel')}</button>
           <button className="btn btn-primary" onClick={submit}>{t('explorer.sql.paramsRun')}</button>
         </>
       )}
@@ -75,7 +78,7 @@ export function useExplorerSql({ project, name, asSql, active, focused, draft, s
   const settings = useMemo(() => withWorkbenchDefaults(sql?.workbench), [sql?.workbench]);
   const enabled = !!sql && active && (asSql || langOfFile(name) === 'sql') && settings.explorerProjects.includes(project);
   const connections = useAsync(() => (enabled ? sqlClient.connections() : Promise.resolve([])), [enabled]);
-  const connection = connections.data?.find((c) => c.id === settings.explorerConnections[project]);
+  const connection = connections.data?.find((c) => c.id === sql?.connections?.[project]);
   const db = enabled ? connection?.id : undefined;
   const runner = useSqlRunner(sqlClient, db, sqlRunnerSettings(settings), confirm);
   const { sqlSchema } = useSqlSchema(sqlClient, db);
@@ -132,24 +135,24 @@ export function useExplorerSql({ project, name, asSql, active, focused, draft, s
       return;
     }
     runner.reset();
-    const byProject = { ...settings.explorerConnections };
+    const byProject = { ...sql.connections };
     if (value) byProject[project] = value;
     else delete byProject[project];
-    sql.onWorkbenchChange({ ...sql.workbench, explorerConnections: byProject });
+    sql.onConnectionsChange(byProject);
   };
 
   const noConnection = db ? undefined : t('explorer.sql.noConnection');
   const connectionOptions = [
     { value: '', label: t('explorer.sql.pickConnection') },
     ...(connections.data ?? []).map((c) => ({ value: c.id, label: c.name })),
-    ...(toWorkbench ? [{ value: MANAGE, label: t('workbench.source.manage') }] : []),
+    ...(toWorkbench ? [{ value: MANAGE, label: t('explorer.shared.sourceManage') }] : []),
   ];
   const actions: TabAction[] = enabled ? [
-    { id: 'sql.connection', group: 'primary', label: t('workbench.source'), options: connectionOptions, value: connection?.id ?? '', run: (value) => changeConnection(value ?? '') },
-    { id: 'sql.run', group: 'primary', icon: 'play', label: t('workbench.run'), hint: noConnection ?? 'Ctrl+Enter', disabled: !db || runner.busy, run: () => run(editor.current?.getRunText() ?? draft, 'statement') },
-    { id: 'sql.runAll', group: 'primary', icon: 'forward', label: t('workbench.runAll'), hint: noConnection ?? 'Ctrl+Shift+Enter', disabled: !db || runner.busy, run: () => run(draft, 'all') },
+    { id: 'sql.connection', group: 'primary', label: t('explorer.shared.source'), options: connectionOptions, value: connection?.id ?? '', run: (value) => changeConnection(value ?? '') },
+    { id: 'sql.run', group: 'primary', icon: 'play', label: t('explorer.shared.run'), hint: noConnection ?? 'Ctrl+Enter', disabled: !db || runner.busy, run: () => run(editor.current?.getRunText() ?? draft, 'statement') },
+    { id: 'sql.runAll', group: 'primary', icon: 'forward', label: t('explorer.shared.runAll'), hint: noConnection ?? 'Ctrl+Shift+Enter', disabled: !db || runner.busy, run: () => run(draft, 'all') },
     ...(sqlParams(draft).length > 0 ? [{ id: 'sql.params', group: 'primary' as const, icon: 'code' as const, label: t('explorer.sql.params'), run: editParams }] : []),
-    ...(asSql ? [] : [{ id: 'sql.format', group: 'primary' as const, icon: 'braces' as const, label: t('workbench.format'), hint: chordOf('explorer.sql.format'), run: format }]),
+    ...(asSql ? [] : [{ id: 'sql.format', group: 'primary' as const, icon: 'braces' as const, label: t('explorer.shared.format'), hint: chordOf('explorer.sql.format'), run: format }]),
   ] : [];
 
   const editorProps: Pick<CodeEditorProps, 'onRun' | 'sqlDialect' | 'sqlSchema'> = enabled ? { onRun: run, sqlDialect: 'plsql', sqlSchema } : {};
@@ -181,21 +184,21 @@ export function useExplorerSql({ project, name, asSql, active, focused, draft, s
         defaultSizes={bottom ? DEFAULT_SPLIT : undefined}
         onResize={(s) => s.length === 2 && sql?.onSizesChange([s[0], s[1]])}
       >
-        <div key="editor" className="wb-pane">
+        <div key="editor" className="ex-pane">
           <div className="xp-sql-editor">{editorNode}</div>
         </div>
-        {steps && <div key="steps" className="wb-pane">{steps}</div>}
+        {steps && <div key="steps" className="ex-pane">{steps}</div>}
         {showResults && (
-          <div key="results" className="wb-pane">
+          <div key="results" className="ex-pane">
             <div className="xp-bar">
               <Icon name="database" size={12} />
               <span>{connection?.name}</span>
-              {status?.pending && <Badge tone="warn">{t('workbench.tx.pending')}</Badge>}
+              {status?.pending && <Badge tone="warn">{t('explorer.shared.txPending')}</Badge>}
               <span className="spacer" />
-              {runner.running && <button className="btn btn-sm" onClick={runner.cancel}>{t('workbench.cancel')}</button>}
-              <button className="btn btn-sm" onClick={runner.copy} disabled={runner.tableRows.length === 0}>{t(runner.selection.length > 0 ? 'workbench.copySelected' : 'workbench.copy')}</button>
-              <button className="btn btn-sm" onClick={runner.commit} disabled={!status?.connected || starting}>{t('workbench.tx.commit')}</button>
-              <button className="btn btn-sm" onClick={runner.rollback} disabled={!status?.connected || starting}>{t('workbench.tx.rollback')}</button>
+              {runner.running && <button className="btn btn-sm" onClick={runner.cancel}>{t('explorer.shared.cancel')}</button>}
+              <button className="btn btn-sm" onClick={runner.copy} disabled={runner.tableRows.length === 0}>{t(runner.selection.length > 0 ? 'explorer.shared.copySelected' : 'explorer.shared.copy')}</button>
+              <button className="btn btn-sm" onClick={runner.commit} disabled={!status?.connected || starting}>{t('explorer.shared.txCommit')}</button>
+              <button className="btn btn-sm" onClick={runner.rollback} disabled={!status?.connected || starting}>{t('explorer.shared.txRollback')}</button>
               <button className="btn btn-ghost btn-sm btn-icon" onClick={() => setOpen(false)} title={t('explorer.sql.close')} aria-label={t('explorer.sql.close')}>
                 <Icon name="close" />
               </button>

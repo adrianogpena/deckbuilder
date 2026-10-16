@@ -8,6 +8,7 @@ import {
   type TerminalPaneHandle,
   type TerminalProfileInfo,
   TerminalPane,
+  terminalAppKeys,
 } from '@deckbuilder/terminal';
 import { SHELL_ICONS, SHELL_NAMES } from '@deckbuilder/terminal/protocol';
 import {
@@ -37,7 +38,7 @@ import {
   useDialogs,
   useKeybindings,
 } from '@deckbuilder/ui';
-import { TERMINAL_SCREEN_COMMANDS, terminalAppKeys, terminalCommandById } from './commands';
+import { TERMINAL_SCREEN_COMMANDS, terminalCommandById } from './commands';
 import { t } from './i18n';
 import { type TerminalViewSettings as Settings, terminalSettingsOf } from './settings';
 import './terminal-screen.css';
@@ -358,7 +359,7 @@ export function TerminalScreen({ settings, onSave }: { settings: Settings; onSav
               dir={tab.route.dir}
               restartOnExit={term.onExit === 'restart'}
               onSession={(id) => onSession(tab.id, id)}
-              appKeys={terminalAppKeys('terminal', keys?.defs ?? [])}
+              appKeys={terminalAppKeys('terminal', keys?.defs ?? [], TERMINAL_SCREEN_COMMANDS)}
               onTitle={(title) => {
                 const session = sessionOf(tab.id);
                 if (session) setTitles((m) => ({ ...m, [session]: title }));

@@ -22,8 +22,6 @@ export interface WorkbenchSettings {
   history?: boolean;
   /** Project ids allowed to run SQL from the Explorer. */
   explorerProjects: string[];
-  /** Last connection id used per project id. */
-  explorerConnections: Record<string, string>;
   /** How result cells are shown and copied; exports stay raw. */
   results: ResultFormat;
   /** Format of "Copy results". */
@@ -161,7 +159,6 @@ export const workbenchSettingDefs: SettingDef<WorkbenchViewSettings>[] = [
 export const withWorkbenchDefaults = (raw?: Partial<WorkbenchSettings>): WorkbenchSettings => ({
   ...raw,
   explorerProjects: raw?.explorerProjects ?? [],
-  explorerConnections: raw?.explorerConnections ?? {},
   results: { ...DEFAULT_RESULT_FORMAT, ...raw?.results },
   copyFormat: raw?.copyFormat ?? 'tsv',
   confirmDestructive: raw?.confirmDestructive ?? true,

@@ -1,5 +1,5 @@
 import { relPath } from '@deckbuilder/ui/rel-path';
-import type { SearchHit } from '../../api';
+import type { SearchHit } from '../client';
 
 export interface FindResult {
   /** Matched entries by path: indices into the entry's name to highlight. */

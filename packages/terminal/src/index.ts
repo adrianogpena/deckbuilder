@@ -10,3 +10,4 @@ export { continuationOf, pasteNeedsWarning, pasteSummary, sanitizePaste, trimCop
 export { formatTabTitle, parseOsc133, parseOsc7, type PromptMark, type TitleVars } from './shell-integration.ts';
 export type { TerminalView } from './view.ts';
 export { createXtermView, type TerminalFontWeight, type TerminalOptions, type XtermView, type XtermViewOptions } from './xterm-view.ts';
+export { terminalAppKeys } from './app-keys';

@@ -36,3 +36,12 @@ test('mountViews merges routes and throws on duplicates', async () => {
   expect(() => mountViews([a, c], ctx)).toThrow('Duplicate route');
   expect(() => mountViews([a, a], ctx)).toThrow('already registered');
 });
+
+test('mountViews merges unauthenticated routes and throws on duplicates', () => {
+  const a = defineServerView({ id: 'a', routes: () => ({}), unauthenticated: () => ({ 'GET /open/*': () => 1 }) });
+  const b = defineServerView({ id: 'b', routes: () => ({}), unauthenticated: () => ({ 'GET /other': () => 2 }) });
+  const c = defineServerView({ id: 'c', routes: () => ({}) });
+  expect(Object.keys(mountViews([a, b, c], ctx).unauthenticated)).toEqual(['GET /open/*', 'GET /other']);
+  const d = defineServerView({ id: 'd', routes: () => ({}), unauthenticated: () => ({ 'GET /other': () => 3 }) });
+  expect(() => mountViews([b, d], ctx)).toThrow('Duplicate unauthenticated route');
+});

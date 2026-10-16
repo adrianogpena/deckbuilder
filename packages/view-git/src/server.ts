@@ -1,4 +1,4 @@
-import { defineServerView, isRecord } from '@deckbuilder/server-core';
+import { defineServerView, GIT_SPEC, isRecord, validGroup } from '@deckbuilder/server-core';
 import { gitRoutes } from '@deckbuilder/server-mods';
 import type { GitSection, GitViewState } from './settings';
 
@@ -44,5 +44,5 @@ export const gitServerView = () =>
   defineServerView<GitServerSettings>({
     id: 'git',
     routes: (ctx) => gitRoutes({ roots: ctx.stores.projectRoots as Parameters<typeof gitRoutes>[0]['roots'] }),
-    settings: { validate: { gitView: validGitView } },
+    settings: { validate: { gitView: validGitView, git: (raw) => validGroup(raw, GIT_SPEC) } },
   });

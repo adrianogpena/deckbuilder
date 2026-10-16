@@ -2,9 +2,9 @@ import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { type CodeEditorHandle, type CodeEditorProps, curlAt, draftToSpec, type HttpHeaderDraft, type ImportedRequest, parseCurl, ResponseView, warningText } from '@deckbuilder/editor';
 import type { HttpResponseInfo } from '@deckbuilder/server-core/protocol';
 import { type ApiError, errorOf, Icon, PanelBanner, SplitView, type TabAction, useViewLink } from '@deckbuilder/ui';
-import { api } from '../../api';
-import { httpClient } from '../../http-client';
-import { t } from '../../i18n';
+import { explorerApi as api } from '../client';
+import { httpClient } from '../client';
+import { t } from '../i18n';
 import type { ExplorerSqlProps } from './SqlPanel';
 
 const DEFAULT_SPLIT: [number, number] = [0.6, 0.4];
@@ -102,7 +102,7 @@ export function useExplorerCurl({ name, active, draft, sql }: Options) {
   };
 
   const actions: TabAction[] = enabled ? [
-    { id: 'curl.run', group: 'primary', icon: 'play', label: t('workbench.run'), hint: 'Ctrl+Enter', disabled: sending, run: () => void run() },
+    { id: 'curl.run', group: 'primary', icon: 'play', label: t('explorer.shared.run'), hint: 'Ctrl+Enter', disabled: sending, run: () => void run() },
     ...(toRest ? [{ id: 'curl.openRest', group: 'primary' as const, icon: 'send' as const, label: t('explorer.curl.openRest'), run: openInRest }] : []),
   ] : [];
 
@@ -119,15 +119,15 @@ export function useExplorerCurl({ name, active, draft, sql }: Options) {
         defaultSizes={open ? DEFAULT_SPLIT : undefined}
         onResize={(s) => s.length === 2 && sql.onSizesChange([s[0], s[1]])}
       >
-        <div key="editor" className="wb-pane">
+        <div key="editor" className="ex-pane">
           <div className="xp-sql-editor">{editorNode}</div>
         </div>
         {open && (
-          <div key="response" className="wb-pane">
+          <div key="response" className="ex-pane">
             <div className="xp-bar">
               <Icon name="send" size={12} />
               <span className="spacer" />
-              {sending && <button className="btn btn-sm" onClick={cancel}>{t('workbench.cancel')}</button>}
+              {sending && <button className="btn btn-sm" onClick={cancel}>{t('explorer.shared.cancel')}</button>}
               <button className="btn btn-ghost btn-sm btn-icon" onClick={() => setOpen(false)} title={t('explorer.curl.close')} aria-label={t('explorer.curl.close')}>
                 <Icon name="close" />
               </button>
