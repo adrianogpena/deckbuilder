@@ -1,6 +1,6 @@
-import { DEFAULT_FORMAT_OPTIONS, FORMAT_OPTION_META, type SqlFormatOptions } from '@deckbuilder/editor/options';
-import { COPY_FORMATS, type CopyFormat, type SqlRunnerSettings } from '@deckbuilder/sql-ui';
-import { DEFAULT_RESULT_FORMAT, type ResultFormat, type SectionPath, type SettingDef, settingsFromOptionMeta } from '@deckbuilder/ui';
+import { DEFAULT_FORMAT_OPTIONS, FORMAT_OPTION_META, type SqlFormatOptions } from '@deckbuilderkit/editor/options';
+import { COPY_FORMATS, type CopyFormat, type SqlRunnerSettings } from '@deckbuilderkit/sql-ui';
+import { DEFAULT_RESULT_FORMAT, type ResultFormat, type SectionPath, type SettingDef, settingsFromOptionMeta } from '@deckbuilderkit/ui';
 
 export type WorkbenchDoc = { kind: 'default' } | { kind: 'file'; project: string; path: string };
 

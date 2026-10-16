@@ -1,5 +1,5 @@
-import type { GitCommitFile, GitFile, GitFileContent } from '@deckbuilder/server-core/protocol';
-import { type GitStatusTone, gitToneOf } from '@deckbuilder/ui';
+import type { GitCommitFile, GitFile, GitFileContent } from '@deckbuilderkit/server-core/protocol';
+import { type GitStatusTone, gitToneOf } from '@deckbuilderkit/ui';
 import { gitApi as api } from '../client';
 
 const EMPTY: GitFileContent = { text: '' };

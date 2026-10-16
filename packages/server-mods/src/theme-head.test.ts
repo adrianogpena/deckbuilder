@@ -2,7 +2,7 @@ import { afterEach, expect, test } from 'bun:test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { paletteById } from '@deckbuilder/server-core/palettes';
+import { paletteById } from '@deckbuilderkit/server-core/palettes';
 import { type BaseSettings, settingsStore } from './settings.ts';
 import { themeHead, themeHtml } from './theme-head.ts';
 

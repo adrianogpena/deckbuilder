@@ -1,10 +1,10 @@
-import type { HttpClient } from '@deckbuilder/editor';
-import type { ExplorerClient } from '@deckbuilder/view-explorer/web';
-import type { GitClient } from '@deckbuilder/view-git/web';
-import type { RestClient } from '@deckbuilder/view-rest/web';
+import type { HttpClient } from '@deckbuilderkit/editor';
+import type { ExplorerClient } from '@deckbuilderkit/view-explorer/web';
+import type { GitClient } from '@deckbuilderkit/view-git/web';
+import type { RestClient } from '@deckbuilderkit/view-rest/web';
 import { api } from './api';
 
-/** The calls the REST views of `@deckbuilder/editor` make, served by the app's api. */
+/** The calls the REST views of `@deckbuilderkit/editor` make, served by the app's api. */
 export const httpClient: HttpClient = {
   send: (request, secretRef, signal, env) => api.httpSend(request, secretRef, signal, env),
   environments: () => api.restEnvironments(),

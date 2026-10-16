@@ -1,5 +1,5 @@
 import { type CSSProperties, type ReactNode, useMemo, useRef, useState } from 'react';
-import { AppearanceFields, DockField, IconsField, LayoutIconField, LayoutField, MainMenuField, ZoomField, type ApiError, detectLanguage, ErrorBanner, errorMessage, errorOf, GLOBAL, isDesktop, KeybindingsEditor, LANGUAGES, isModified, resetPatch, Modal, parseSettingsQuery, settingDescriptionText, toggleModifiedFilter, SettingLinksProvider, type SettingLinks, SettingRow, Spinner, useRevealSetting, useRovingList, SETTING_ROW_CONTROLS, useAsync, useKeybindings, type Language, type SettingDef, type SettingsSectionNode, sectionKey } from '@deckbuilder/ui';
+import { AppearanceFields, DockField, IconsField, LayoutIconField, LayoutField, MainMenuField, ZoomField, type ApiError, detectLanguage, ErrorBanner, errorMessage, errorOf, GLOBAL, isDesktop, KeybindingsEditor, LANGUAGES, isModified, resetPatch, Modal, parseSettingsQuery, settingDescriptionText, toggleModifiedFilter, SettingLinksProvider, type SettingLinks, SettingRow, Spinner, useRevealSetting, useRovingList, SETTING_ROW_CONTROLS, useAsync, useKeybindings, type Language, type SettingDef, type SettingsSectionNode, sectionKey } from '@deckbuilderkit/ui';
 import { APP } from '../../../app';
 import { api, type Settings } from '../api';
 import { type MessageKey, t } from '../i18n';

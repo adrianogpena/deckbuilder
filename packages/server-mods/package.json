@@ -1,5 +1,5 @@
 {
-  "name": "@deckbuilder/server-mods",
+  "name": "@deckbuilderkit/server-mods",
   "version": "0.1.0",
   "license": "MIT",
   "repository": {
@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "7z-wasm": "^1.2.0",
-    "@deckbuilder/platform": "workspace:*",
-    "@deckbuilder/server-core": "workspace:*"
+    "@deckbuilderkit/platform": "workspace:*",
+    "@deckbuilderkit/server-core": "workspace:*"
   }
 }

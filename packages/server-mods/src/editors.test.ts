@@ -2,8 +2,8 @@ import { afterEach, expect, test } from 'bun:test';
 import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { EditorId, findEditor, openInEditor, pickFile } from '@deckbuilder/platform';
-import type { RouteContext } from '@deckbuilder/server-core';
+import type { EditorId, findEditor, openInEditor, pickFile } from '@deckbuilderkit/platform';
+import type { RouteContext } from '@deckbuilderkit/server-core';
 import { editorRoutes } from './editors.ts';
 import { rootedFs } from './rooted-fs.ts';
 

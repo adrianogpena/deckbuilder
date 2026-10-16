@@ -1,11 +1,11 @@
 import { forwardRef, lazy, Suspense } from 'react';
-import { CodeView, type DiffMode, type DiffViewHandle, langOfFile } from '@deckbuilder/editor';
-import type { GitCommitFile, GitFile, GitFileContent } from '@deckbuilder/server-core/protocol';
-import { ErrorBanner, PanelBanner, PanelLoading, PanelNotice, useAsync } from '@deckbuilder/ui';
+import { CodeView, type DiffMode, type DiffViewHandle, langOfFile } from '@deckbuilderkit/editor';
+import type { GitCommitFile, GitFile, GitFileContent } from '@deckbuilderkit/server-core/protocol';
+import { ErrorBanner, PanelBanner, PanelLoading, PanelNotice, useAsync } from '@deckbuilderkit/ui';
 import { t } from '../i18n';
 import { commitSidesOf, sidesOf } from './sides';
 
-const DiffView = lazy(() => import('@deckbuilder/editor').then((m) => ({ default: m.DiffView })));
+const DiffView = lazy(() => import('@deckbuilderkit/editor').then((m) => ({ default: m.DiffView })));
 
 const problemOf = (side?: GitFileContent) =>
   side?.binary ? t('git.binary') : side?.tooLarge ? t('git.tooLarge') : side?.missing ? t('git.missing') : undefined;

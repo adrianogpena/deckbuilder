@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-import { defineView } from '@deckbuilder/ui';
+import { defineView } from '@deckbuilderkit/ui';
 import { bindGitClient, type GitClient } from './client';
 import { gitCommands } from './commands';
 import { en, ptBR } from './i18n';

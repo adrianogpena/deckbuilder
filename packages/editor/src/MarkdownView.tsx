@@ -1,4 +1,4 @@
-import { copyText, t } from '@deckbuilder/ui';
+import { copyText, t } from '@deckbuilderkit/ui';
 import { classHighlighter, highlightTree } from '@lezer/highlight';
 import { type MouseEvent, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { langOfFile, type Parser, parserOf } from './languages';

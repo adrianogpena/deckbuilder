@@ -3,8 +3,8 @@ import { symlinkSync } from 'node:fs';
 import { chmod, mkdir, mkdtemp, readFile, realpath, rm, stat, utimes, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { PlatformError } from '@deckbuilder/platform';
-import type { RouteContext } from '@deckbuilder/server-core';
+import { PlatformError } from '@deckbuilderkit/platform';
+import type { RouteContext } from '@deckbuilderkit/server-core';
 import { type FsEntry, parseExclude, rootedFs, searchTree, sortEntries } from './rooted-fs.ts';
 
 const dirs: string[] = [];

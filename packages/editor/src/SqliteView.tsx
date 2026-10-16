@@ -1,4 +1,4 @@
-import { ErrorBanner, errorOf, Icon, type ApiError, PanelLoading, t } from '@deckbuilder/ui';
+import { ErrorBanner, errorOf, Icon, type ApiError, PanelLoading, t } from '@deckbuilderkit/ui';
 import { useState } from 'react';
 import { DataGrid } from './TableView';
 

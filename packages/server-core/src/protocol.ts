@@ -35,7 +35,7 @@ export interface AppIdentity {
   repo?: string;
 }
 
-/** GET /api/update: what the updater (updateRoutes in @deckbuilder/server-mods) knows. */
+/** GET /api/update: what the updater (updateRoutes in @deckbuilderkit/server-mods) knows. */
 export interface UpdateState {
   /** `offline`: the release folder couldn't be read (off VPN, share down); the last good data is kept. */
   status: 'not-configured' | 'ok' | 'offline' | 'error';

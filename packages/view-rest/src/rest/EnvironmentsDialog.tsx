@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import type { RestEnvironment, RestEnvVarInput } from '@deckbuilder/server-core/protocol';
-import { type ApiError, ErrorBanner, errorOf, Icon, Modal, useDialogs, useToast } from '@deckbuilder/ui';
+import type { RestEnvironment, RestEnvVarInput } from '@deckbuilderkit/server-core/protocol';
+import { type ApiError, ErrorBanner, errorOf, Icon, Modal, useDialogs, useToast } from '@deckbuilderkit/ui';
 import { restApi as api } from '../client';
 import { t } from '../i18n';
 

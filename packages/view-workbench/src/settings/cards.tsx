@@ -1,11 +1,11 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
-import type { SqlFormatOptions } from '@deckbuilder/editor/options';
-import { type ApiError, deepEqual, ErrorBanner, SettingItem, type SettingsCardProps, type SettingsFieldProps, Spinner, useAsync } from '@deckbuilder/ui';
+import type { SqlFormatOptions } from '@deckbuilderkit/editor/options';
+import { type ApiError, deepEqual, ErrorBanner, SettingItem, type SettingsCardProps, type SettingsFieldProps, Spinner, useAsync } from '@deckbuilderkit/ui';
 import type { WorkbenchClient, WorkbenchProject } from '../client';
 import { t, type WorkbenchMessageKey } from '../i18n';
 import { type WorkbenchViewSettings, withWorkbenchDefaults } from '../settings';
 
-const CodeView = lazy(() => import('@deckbuilder/editor').then((m) => ({ default: m.CodeView })));
+const CodeView = lazy(() => import('@deckbuilderkit/editor').then((m) => ({ default: m.CodeView })));
 
 type Settings = WorkbenchViewSettings;
 
@@ -128,7 +128,7 @@ export function FormatterCard({ settings, row }: SettingsCardProps<Settings>) {
   const [preview, setPreview] = useState(FORMAT_SAMPLE);
   useEffect(() => {
     let live = true;
-    import('@deckbuilder/editor').then(({ formatSql }) => {
+    import('@deckbuilderkit/editor').then(({ formatSql }) => {
       let text = FORMAT_SAMPLE;
       try {
         text = formatSql(FORMAT_SAMPLE, wb.format);

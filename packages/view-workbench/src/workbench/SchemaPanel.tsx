@@ -1,6 +1,6 @@
 import { type MouseEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { type ApiError, ContextMenu, ErrorBanner, Icon, Spinner, useToast } from '@deckbuilder/ui';
-import type { DbSchema, DbSchemaTable, DbTableConstraint, TableDetailsEntry } from '@deckbuilder/sql-ui';
+import { type ApiError, ContextMenu, ErrorBanner, Icon, Spinner, useToast } from '@deckbuilderkit/ui';
+import type { DbSchema, DbSchemaTable, DbTableConstraint, TableDetailsEntry } from '@deckbuilderkit/sql-ui';
 import { t } from '../i18n';
 
 const MAX_SHOWN = 300;

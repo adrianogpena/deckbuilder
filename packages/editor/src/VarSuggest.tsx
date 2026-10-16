@@ -1,4 +1,4 @@
-import type { RestEnvVar } from '@deckbuilder/server-core/protocol';
+import type { RestEnvVar } from '@deckbuilderkit/server-core/protocol';
 import { type InputHTMLAttributes, type KeyboardEvent, type ReactNode, type RefObject, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { filterVariableOptions, insertVariable, type VariableOption, variableOptions, variableQueryAt } from './variables';
 

@@ -1,5 +1,5 @@
-import type { Routes } from '@deckbuilder/server-core';
-import type { StartContext } from '@deckbuilder/shell';
+import type { Routes } from '@deckbuilderkit/server-core';
+import type { StartContext } from '@deckbuilderkit/shell';
 
 /**
  * This app's own endpoints. Keys are "METHOD /path"; handlers return a JSON-serializable value

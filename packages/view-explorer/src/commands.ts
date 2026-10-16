@@ -1,4 +1,4 @@
-import { type CommandDef, explorerCommands, tabCommands } from '@deckbuilder/ui';
+import { type CommandDef, explorerCommands, tabCommands } from '@deckbuilderkit/ui';
 import { t } from './i18n';
 
 export function explorerViewCommands(): CommandDef[] {

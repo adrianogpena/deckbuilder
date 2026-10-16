@@ -1,4 +1,4 @@
-import { HTTP_METHODS, type HttpFormField, type HttpMethod, type HttpRequestDraft } from '@deckbuilder/server-core/protocol';
+import { HTTP_METHODS, type HttpFormField, type HttpMethod, type HttpRequestDraft } from '@deckbuilderkit/server-core/protocol';
 import { emptyDraft, parseAuthValue, timeoutFromSeconds } from './http';
 
 /**

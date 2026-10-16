@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { ErrorBanner, fileIconOf, Icon, Spinner, useStream } from '@deckbuilder/ui';
+import { ErrorBanner, fileIconOf, Icon, Spinner, useStream } from '@deckbuilderkit/ui';
 import type { Project, SearchHit } from '../client';
 import { t } from '../i18n';
 

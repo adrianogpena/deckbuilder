@@ -13,7 +13,7 @@ import {
   type TabAction,
   useLogTail,
   validLogSettings,
-} from '@deckbuilder/ui';
+} from '@deckbuilderkit/ui';
 import { explorerApi as api, type LogSettings } from '../client';
 import { t } from '../i18n';
 import { useTabActions } from './tab-actions';

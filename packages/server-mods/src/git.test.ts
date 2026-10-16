@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { RunResult } from '@deckbuilder/platform';
+import type { RunResult } from '@deckbuilderkit/platform';
 import { gitRoutes, parseLog, parseNameStatus, parsePorcelainV2 } from './git.ts';
 
 const done = (stdout: string, code = 0, stderr = ''): RunResult => ({ kind: 'done', code, stdout, stderr });

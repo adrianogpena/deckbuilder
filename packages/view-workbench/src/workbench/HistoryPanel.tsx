@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { errorMessage, errorOf, Icon, Spinner, useToast } from '@deckbuilder/ui';
-import type { SqlHistoryEntry } from '@deckbuilder/server-core/protocol';
+import { errorMessage, errorOf, Icon, Spinner, useToast } from '@deckbuilderkit/ui';
+import type { SqlHistoryEntry } from '@deckbuilderkit/server-core/protocol';
 import type { WorkbenchClient } from '../client';
 import { t } from '../i18n';
 

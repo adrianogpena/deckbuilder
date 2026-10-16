@@ -1,7 +1,7 @@
 import { statSync } from 'node:fs';
-import { openWithDefault, revealInFolder } from '@deckbuilder/platform';
-import { defineServerView, invalid, isRecord, type ServerViewDef } from '@deckbuilder/server-core';
-import { dialogRoutes, editorRoutes, fromPlatform, pickedPaths, recordRoutes, rootedFs, type RootedFs } from '@deckbuilder/server-mods';
+import { openWithDefault, revealInFolder } from '@deckbuilderkit/platform';
+import { defineServerView, invalid, isRecord, type ServerViewDef } from '@deckbuilderkit/server-core';
+import { dialogRoutes, editorRoutes, fromPlatform, pickedPaths, recordRoutes, rootedFs, type RootedFs } from '@deckbuilderkit/server-mods';
 import type { ExplorerSettings } from './explorer-state';
 
 /** The part of the server settings the Explorer view owns; the app's `Settings` extends it. */

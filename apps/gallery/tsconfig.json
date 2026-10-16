@@ -1,6 +1,6 @@
 {
   "extends": "../../tsconfig.base.json",
-  // DOM: @deckbuilder/terminal/server's xterm typings reference lib "dom"; the iterable parts keep Bun's streams and Headers iterable.
+  // DOM: @deckbuilderkit/terminal/server's xterm typings reference lib "dom"; the iterable parts keep Bun's streams and Headers iterable.
   "compilerOptions": { "lib": ["ESNext", "DOM", "DOM.Iterable", "DOM.AsyncIterable"], "types": ["bun"] },
   "include": ["app.ts", "server", "vite.config.ts"]
 }

@@ -1,5 +1,5 @@
-import type { HttpResponseInfo } from '@deckbuilder/server-core/protocol';
-import { type ApiError, Badge, CopyButton, ErrorBanner, formatBytes, Icon, JsonTree, PanelBanner, PanelNotice, Spinner, t } from '@deckbuilder/ui';
+import type { HttpResponseInfo } from '@deckbuilderkit/server-core/protocol';
+import { type ApiError, Badge, CopyButton, ErrorBanner, formatBytes, Icon, JsonTree, PanelBanner, PanelNotice, Spinner, t } from '@deckbuilderkit/ui';
 import { useMemo, useState } from 'react';
 import { CodeView } from './CodeView';
 import { bodyView, formatMs, statusTone } from './http';

@@ -1,10 +1,10 @@
-import { sqlRunnerSettings, type WorkbenchClient } from '@deckbuilder/view-workbench/web';
-import type { SqlClient } from '@deckbuilder/sql-ui';
+import { sqlRunnerSettings, type WorkbenchClient } from '@deckbuilderkit/view-workbench/web';
+import type { SqlClient } from '@deckbuilderkit/sql-ui';
 import { api, type TextEncoding } from './api';
 
 export { sqlRunnerSettings };
 
-/** The calls the SQL hooks of `@deckbuilder/sql-ui` make, served by the app's api. */
+/** The calls the SQL hooks of `@deckbuilderkit/sql-ui` make, served by the app's api. */
 export const sqlClient: SqlClient = {
   connections: () => api.dbConnections(),
   saveTarget: (format) => api.saveTarget(format),

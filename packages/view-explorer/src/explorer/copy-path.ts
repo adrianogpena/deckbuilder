@@ -1,4 +1,4 @@
-import { copyText, useToast } from '@deckbuilder/ui';
+import { copyText, useToast } from '@deckbuilderkit/ui';
 import { t } from '../i18n';
 
 /** Copies a path to the clipboard and says so in a toast. */

@@ -1,4 +1,4 @@
-import { fileIconOf, formatBytes, Icon, PanelBanner, t } from '@deckbuilder/ui';
+import { fileIconOf, formatBytes, Icon, PanelBanner, t } from '@deckbuilderkit/ui';
 import { useMemo, useState } from 'react';
 
 /** What `/api/fs/archive` returns. */

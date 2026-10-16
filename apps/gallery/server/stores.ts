@@ -1,8 +1,8 @@
 import { statSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
-import { appHome } from '@deckbuilder/platform';
-import { invalid } from '@deckbuilder/server-core';
-import { pickedPaths, recordStore } from '@deckbuilder/server-mods';
+import { appHome } from '@deckbuilderkit/platform';
+import { invalid } from '@deckbuilderkit/server-core';
+import { pickedPaths, recordStore } from '@deckbuilderkit/server-mods';
 import { APP } from '../app.ts';
 
 /** The app data folder; the stores shared by several views live here, owned by no view's routes. */

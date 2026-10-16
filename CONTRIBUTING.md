@@ -87,31 +87,31 @@ source directly; there is no package build step.
 
 - **An endpoint**: add `'GET /api/thing': ({ query, json }) => ...` to `server/routes.ts`, then a
   method in `api` in `web/src/api.ts`. Throw `invalid(...)`/`notFound(...)` from
-  `@deckbuilder/server-core` for errors the UI should show; add `error.<code>` to the app's i18n
+  `@deckbuilderkit/server-core` for errors the UI should show; add `error.<code>` to the app's i18n
   files to translate them.
 - **A screen**: add its id to `SCREENS` and an entry to `NAV` and `renderScreen` in
   `web/src/App.tsx`, a file in `web/src/screens/`, and its labels to `web/src/i18n/en.ts` and
   `pt-BR.ts` (TypeScript fails until both have every key).
 - **A setting**: extend `Settings` in `server/main.ts` and `web/src/api.ts`, give it a default,
   and validate it in the `apply` option of `settingsStore`; react to changes in `onChange`.
-- **Themes**: `useTheme(settings)` (from `@deckbuilder/ui`) applies the palette of `ThemeSettings`
-  (`theme`, `paletteDark`, `paletteLight`; palettes in `@deckbuilder/server-core/palettes`) to `<html>`.
+- **Themes**: `useTheme(settings)` (from `@deckbuilderkit/ui`) applies the palette of `ThemeSettings`
+  (`theme`, `paletteDark`, `paletteLight`; palettes in `@deckbuilderkit/server-core/palettes`) to `<html>`.
   Make the app `Settings` extend `ThemeSettings` and render `<AppearanceFields value onChange />` in
   its settings. Style with the `var(--…)` tokens only. Pass
-  `transformIndex: themeHead(settings)` (from `@deckbuilder/server-mods`) to `runApp`, so
+  `transformIndex: themeHead(settings)` (from `@deckbuilderkit/server-mods`) to `runApp`, so
   `index.html` already carries the saved palette and the first paint has its colours.
-- **Keyboard shortcuts**: `useCommand(def, run, { enabled? })` (from `@deckbuilder/ui`) runs `run`
+- **Keyboard shortcuts**: `useCommand(def, run, { enabled? })` (from `@deckbuilderkit/ui`) runs `run`
   on one of a `CommandDef`'s chords (`{ id, scope, label, keys, inInput?, inModal?, desktopOnly? }`;
   `scope` is `GLOBAL` or a screen id). Wrap the app in `<KeybindingProvider defs keymap scope>` to
   dispatch them from one listener: the current screen's (`scope`) commands win over global ones and
   a `Keymap` (`{ [id]: chords }`, `[]` unbinds) overrides the defaults; without a provider each
   command listens on its default keys. The pure model (`chordOf`, `normalizeChord`, `resolve`,
   `conflictsOf`, `validKeymap` for server-side settings validation) is in
-  `@deckbuilder/ui/keybindings`. Package commands come from `paletteCommand()`,
+  `@deckbuilderkit/ui/keybindings`. Package commands come from `paletteCommand()`,
   `tabCommands(scope)` and `explorerCommands(scope)`; list them in `defs`. Keys a focused widget
   handles itself (editor, tree and table navigation, dialogs) aren't commands.
 - **Keybindings editor**: `<KeybindingsEditor defs keymap onChange scopeLabel />` (from
-  `@deckbuilder/ui`) lists every command with its keys and edits them: change, add (up to 4) or
+  `@deckbuilderkit/ui`) lists every command with its keys and edits them: change, add (up to 4) or
   remove a chord, reset one or all, filter, and "Find by shortcut" (press a chord to see what uses
   it). It refuses a chord another command uses in the same scope or in `global`. Feed it
   `useKeybindings()`'s `defs` and the settings' `keymap`, and save `onChange`'s result as
@@ -124,18 +124,18 @@ source directly; there is no package build step.
   bold label, description, then the control; a boolean is one checkbox labelled by its description;
   the search shows a result count and per-section counts. See `SettingsModal.tsx`.
 - **File icons**: `fileIconOf(name)` → `{ icon, tone? }` and `folderIconOf(name, childFiles?)` (from
-  `@deckbuilder/ui`) pick a built-in icon by extension or folder name (an unnamed folder of two or
+  `@deckbuilderkit/ui`) pick a built-in icon by extension or folder name (an unnamed folder of two or
   more files of one kind gets that kind's icon). `TreeView` takes `iconOf` and `iconToneOf`;
   `TabTitle` takes `icon` and `tone`. See the gallery's `ProjectTree.tsx`.
 - **Icon-only main menu**: `<Sidebar collapsed>` shows only the icons (items keep their label and
   `hint` as tooltip); the app adds `nav-collapsed` to the `.app` element (narrow first column).
   See the gallery's `App.tsx`.
 - **Command palette**: `useCommandPalette()` (Ctrl+Shift+P, F1) gives `{ open, setOpen }`; render
-  `<CommandPalette items onClose />` (both from `@deckbuilder/ui`) with `PaletteItem`s
+  `<CommandPalette items onClose />` (both from `@deckbuilderkit/ui`) with `PaletteItem`s
   `{ id, group, label, hint?, keywords?, run }`. `keywords[0]` doubles as a prefix that narrows
   to its group (`theme nord`). The gallery's `App.tsx` lists screens, themes and Quit.
 - **Tab workspace**: `<TabWorkspace layout onChange renderTab titleOf newRoute scope />` (from
-  `@deckbuilder/ui`) shows tabs in up to 4 panes: open, close (also middle-click), reorder,
+  `@deckbuilderkit/ui`) shows tabs in up to 4 panes: open, close (also middle-click), reorder,
   drag between panes, Back/Forward per tab (shown once a tab has history). Each tab bar has a
   Split button (Alt+click splits down; both also in its "…" menu with Close pane;
   `splitPane(layout, tabId, 'right' | 'down')`), so panes nest (a pane beside a column of two)
@@ -150,13 +150,13 @@ source directly; there is no package build step.
   `tabCommands(scope)`, `scope` being the screen id. Persist with
   `serialize(layout)` and read back with `restore(raw, isRoute)`; the gallery's Tabs screen keeps
   it in the `tabsLayout` setting.
-- **Panel grid**: `<PanelGrid items defs render onChange />` (from `@deckbuilder/ui`) shows draggable,
+- **Panel grid**: `<PanelGrid items defs render onChange />` (from `@deckbuilderkit/ui`) shows draggable,
   resizable panels in a 12-column grid (6 and 1 column on narrower windows). `defs` are `PanelDef`s
   `{ id, title, icon, defaultSize, minW, minH }`, `items` the `GridItem`s `{ id, x, y, w, h, collapsed? }`;
   `render(id)` returns a panel's content, the grid adds the frame (drag by the header, collapse,
   remove). Only the full-width layout is editable and reported through `onChange`; keep it in a
   setting through `useDebouncedSave`, validated on the server with `validGridItems(raw, ids)` from
-  `@deckbuilder/ui/grid` (no React; the gallery's `gridLayout`), and bring a removed panel back
+  `@deckbuilderkit/ui/grid` (no React; the gallery's `gridLayout`), and bring a removed panel back
   with `addItem(items, def)`. Inside a panel, `PanelLoading`, `PanelNotice` and `PanelBanner`
   show loading, empty/error and offline states. `PanelFrame` also works on its own (its `menu`
   prop adds a "…" button with `ContextMenuItem`s). Panels resize from both bottom corners. Each
@@ -191,9 +191,9 @@ source directly; there is no package build step.
   tree and the other panes (they stay mounted; `TabWorkspace`'s `onMaximizedChange`, `Explorer`'s
   `hidden`). **Zen mode**: Ctrl+K Z (`explorer.zen`) also hides the nav and the status bars; Esc
   twice leaves. An empty tab lists the main shortcuts from the keymap.
-- **A terminal**: add `@deckbuilder/terminal` (and `"lib": ["ESNext", "DOM", "DOM.Iterable", "DOM.AsyncIterable"]`
+- **A terminal**: add `@deckbuilderkit/terminal` (and `"lib": ["ESNext", "DOM", "DOM.Iterable", "DOM.AsyncIterable"]`
   in the app's tsconfig). Server: spread `terminalRoutes({ sessions, shell, resolveCwd, launchers })`
-  (from `@deckbuilder/terminal/server`, `sessions = terminalSessions()`) into `routes`, and pass
+  (from `@deckbuilderkit/terminal/server`, `sessions = terminalSessions()`) into `routes`, and pass
   `sockets` and `onQuit: sessions.closeAll` to `runApp`; keep the shell in a setting
   (`terminal.shell`, checked with `isShellId`). Client: `<TerminalPane session cwd onSession />` in a
   tab, saving the id from `onSession` in the tab's route. Sessions survive socket drops and
@@ -204,7 +204,7 @@ source directly; there is no package build step.
   and only `appKeys` commands (the palette by default) pass through, by the first step of their chords (a gallery terminal passes Ctrl+K on to the app, not to the shell). A real PTY on every platform
   through `Bun.spawn({ terminal })` (ConPTY on Windows). The gallery's Terminal screen and the
   Explorer's "Open terminal here" use it.
-- **Dialogs**: `useDialogs()` (from `@deckbuilder/ui`) gives `confirm` and `prompt` modals.
+- **Dialogs**: `useDialogs()` (from `@deckbuilderkit/ui`) gives `confirm` and `prompt` modals.
   Native pickers: `dialogRoutes()` on the server and the `dialogs` client in the UI (`pickFolder`,
   `pickFile`, `saveFileAs`). A route that takes back a path the client got from a dialog must
   check it with `pickedPaths().take` (pass the set to `dialogRoutes({ picked })`), so a client
@@ -214,8 +214,8 @@ source directly; there is no package build step.
   build exports. `groupOf(row)` keeps rows of a lower group first whatever the sort (folders before
   files; `sortRows(rows, value, dir, group?)` does the same) and `onKeyDown` handles keys on the
   table; the Explorer's details view uses both.
-- **Editor and viewers**: add `@deckbuilder/editor` to the app. `CodeEditor` (Ctrl+Enter runs
-  `onRun`), `CodeView`, `MarkdownView`, `JsonTree` (from `@deckbuilder/ui`) and `FilePreview`
+- **Editor and viewers**: add `@deckbuilderkit/editor` to the app. `CodeEditor` (Ctrl+Enter runs
+  `onRun`), `CodeView`, `MarkdownView`, `JsonTree` (from `@deckbuilderkit/ui`) and `FilePreview`
   (picks a viewer by file name: markdown, JSON tree, log, highlighted code, CSV/TSV table,
   Jupyter notebook, HAR, `.env`, image, SVG, audio/video, PDF, archive, SQLite, font, else hex
   for binaries; PDF, SVG and font viewers load lazily). The gallery's `FileTab.tsx` shows how
@@ -227,10 +227,10 @@ source directly; there is no package build step.
   renders a deferred copy of the text, so typing stays smooth; `wrap` (default on) wraps long lines,
   like `CodeEditor`'s `wrap` (default off). Keep the mode in a setting. It brings the CodeMirror language parsers (~700 kB): load the
   screen with `React.lazy` and set `chunkSizeWarningLimit: 900` in `vite.config.ts`, as the gallery does.
-- **File associations**: `setFileAssociations(list)` (from `@deckbuilder/ui`) makes files whose
+- **File associations**: `setFileAssociations(list)` (from `@deckbuilderkit/ui`) makes files whose
   name matches a glob (`*`, `?`, case-insensitive) open and get icons as another extension, e.g.
   `{ pattern: '*.out', as: 'log' }`; `effectiveName(name)` applies it. Keep the list in a setting
-  validated with `validFileAssociations` (`@deckbuilder/ui/file-associations`). The gallery's
+  validated with `validFileAssociations` (`@deckbuilderkit/ui/file-associations`). The gallery's
   Settings have a File types section.
 - **Streaming**: `ndjson(req, async (emit, signal) => ...)` in a route streams items without
   buffering; `useStream().start(path, params)` reads them into state (`cancel()` aborts) and
@@ -241,17 +241,17 @@ source directly; there is no package build step.
   moves those fields into the secret store; the UI only sees `{ hasSecret: true }` and server code reads the
   value with `store.secret(id, 'token')`.
 - **REST client**: `httpExecutor()` and `httpRoutes(executor, { secretHeaders })` (from
-  `@deckbuilder/server-mods`) serve `POST /api/http/send` and `/api/http/save`; the UI is
-  `RequestEditor` and `ResponseView` from `@deckbuilder/editor` (pure helpers in
-  `@deckbuilder/editor/http`). `secretHeaders(ref, url)` returns headers to add from a stored
+  `@deckbuilderkit/server-mods`) serve `POST /api/http/send` and `/api/http/save`; the UI is
+  `RequestEditor` and `ResponseView` from `@deckbuilderkit/editor` (pure helpers in
+  `@deckbuilderkit/editor/http`). `secretHeaders(ref, url)` returns headers to add from a stored
   secret (the gallery sends a saved Authorization only to the origin it was saved with).
   `validateDraft(raw)` checks a saved `HttpRequestDraft` (call it in the store's `validate`); the
   limits it shares with the send route and the editor are the `HTTP_*` constants in
-  `@deckbuilder/server-core/protocol`. Limits: 10 MB response body, 60 s default timeout,
+  `@deckbuilderkit/server-core/protocol`. Limits: 10 MB response body, 60 s default timeout,
   http/https URLs only. See the REST screen.
   Import: `parseCurl(text)` (browser "Copy as cURL", bash and cmd forms) and `parseHttpFile(text)`
   (VS Code REST Client / IntelliJ `.http`: `###`, `@var`/`{{var}}`, `# @name`) from
-  `@deckbuilder/editor` return `ImportedRequest`s: `{ name?, draft, auth?, warnings }`, with the
+  `@deckbuilderkit/editor` return `ImportedRequest`s: `{ name?, draft, auth?, warnings }`, with the
   Authorization value taken out of the headers into `auth` (the secret field) and `warnings` as
   `<code>:<argument>` strings to translate; `parseImport(text)` picks cURL or `.http`. A file
   import is a route that shows `pickFile` on the server and returns only `{ name, text }`, never
@@ -267,23 +267,23 @@ source directly; there is no package build step.
   path; deletes go to the recycle bin and a root can be `readOnly`. A link is never followed out
   of its root, but a path swapped between the check and the use (TOCTOU) is not guarded against.
   Archives: `POST /api/fs/extract {root,path,to}` and `POST /api/fs/compress {root,paths,name,format}`
-  (`FsExtractRequest`, `FsCompressRequest` in `@deckbuilder/server-core/protocol`) run 7z-wasm in
+  (`FsExtractRequest`, `FsCompressRequest` in `@deckbuilderkit/server-core/protocol`) run 7z-wasm in
   `archive-worker.ts`, which `packages/build/src/build.ts` ships as an extra entrypoint of the exe.
   Properties: `GET /api/fs/info|du|hash` (the gallery's Properties dialog).
-- **Git (read-only)**: `gitRoutes(opts)` (from `@deckbuilder/server-mods`, `git.ts`) serves
+- **Git (read-only)**: `gitRoutes(opts)` (from `@deckbuilderkit/server-mods`, `git.ts`) serves
   `GET /api/git/repos|status|file|diff`; the types (`GitStatus` and others) are in
-  `@deckbuilder/server-core/protocol`. The gallery uses it for Explorer git badges (setting
+  `@deckbuilderkit/server-core/protocol`. The gallery uses it for Explorer git badges (setting
   `git.explorerDecorations`: coloured files, status letters, a dot on folders with changes) and
   Compare files. `<DiffView original modified lang mode onModeChange modeLabels ref />` (from
-  `@deckbuilder/editor`) shows a split or inline diff; `ref` has `next()` / `prev()` (F7 / Shift+F7).
-- **Secrets**: `secretStore(appId)` (from `@deckbuilder/platform`) encrypts values with the Windows
+  `@deckbuilderkit/editor`) shows a split or inline diff; `ref` has `next()` / `prev()` (F7 / Shift+F7).
+- **Secrets**: `secretStore(appId)` (from `@deckbuilderkit/platform`) encrypts values with the Windows
   user's DPAPI key; pass it as `secrets` to a `recordStore`. Routes must return `hasSecret`, never the value.
   Tested on Windows only.
-- **Opening files**: `revealInFolder` and `openWithDefault` (from `@deckbuilder/platform`); the
+- **Opening files**: `revealInFolder` and `openWithDefault` (from `@deckbuilderkit/platform`); the
   latter opens only documents, images and media (`isOpenable`), never programs or scripts.
 - **Startup work** (timers, update checks): put it in `runApp`'s `onStart`, which a launch that
   hands off to a running instance never reaches.
-- **Notifications** (Windows): `createToaster()` from `@deckbuilder/platform`, then
+- **Notifications** (Windows): `createToaster()` from `@deckbuilderkit/platform`, then
   `toaster.show({ title, body, launch })`; a click opens `launch`. Use `ctx.link(path)` (the
   context `onStart` and `routes(ctx)` get) as `launch`, so the click opens the app on `#<path>`. Test with
   `bun packages/platform/src/win/toast.ts --selftest`.
@@ -299,7 +299,7 @@ source directly; there is no package build step.
   other labels and more entries between those two (ids must not start with `__`). The gallery
   reads it from a setting at startup, so a change takes effect after a restart. Test with
   `bun packages/platform/src/win/tray.ts --selftest`.
-- **Log viewer**: `<LogView lines highlights onHighlightsChange ... />` (from `@deckbuilder/ui`)
+- **Log viewer**: `<LogView lines highlights onHighlightsChange ... />` (from `@deckbuilderkit/ui`)
   shows log lines with level colours and counts, search (case, whole word, regex), find-this-word
   on double-click and highlight chips; with `follow`/`bookmarks` props it also follows the end and
   keeps bookmarks. `useLogTail(fetchChunk, { key })` polls `GET /api/fs/tail` (from
@@ -307,10 +307,10 @@ source directly; there is no package build step.
   to a file picked in the save dialog. A bookmark is a byte offset, so it goes stale when the file
   is rotated or cleared (shown as stale; copy and save answer `rangeStale`) and does not follow a
   rename. The gallery's `LogTab` (Explorer, `.log` files) persists highlights and bookmarks in
-  the `logs` setting, capped and validated by `validLogSettings` (`@deckbuilder/ui/log`, with `LogSettings` and the
+  the `logs` setting, capped and validated by `validLogSettings` (`@deckbuilderkit/ui/log`, with `LogSettings` and the
   `MAX_*` limits): it drops invalid entries instead of rejecting the whole value, so a client that
   passes its state through it holds what the server saves.
-- **Open in editor**: `editorRoutes({ dir, fs })` (from `@deckbuilder/server-mods`, with a `rootedFs`)
+- **Open in editor**: `editorRoutes({ dir, fs })` (from `@deckbuilderkit/server-mods`, with a `rootedFs`)
   serves `/api/editors` (list, pick, override, open) for VS Code and IntelliJ IDEA. `findEditor`
   (platform) detects the real `.exe` (`code.cmd` on PATH leads to `Code.exe`; IntelliJ comes from the
   Toolbox script or the install folders); `openInEditor` opens the project folder, plus a file and
@@ -318,7 +318,7 @@ source directly; there is no package build step.
   server-side file dialog (saved in `editors.json`). `.cmd` scripts are refused because they would
   go through `cmd.exe`, which interprets `&`, `%` and `^` in a project path. The gallery adds the
   entries to the Explorer's context menu and an External editors section to Settings.
-- **Backup**: `backupRoutes({ app, settings, stores, excludeSettings })` (from `@deckbuilder/server-mods`)
+- **Backup**: `backupRoutes({ app, settings, stores, excludeSettings })` (from `@deckbuilderkit/server-mods`)
   serves `/api/backup/*`: export writes the settings and the chosen record stores to a file picked
   in the save dialog; inspect reads a file picked in the open dialog (other app ids and malformed
   files are refused) and keeps it under a one-shot token for 10 minutes; import applies the chosen
@@ -329,7 +329,7 @@ source directly; there is no package build step.
   Secret fields are never exported and imports never change them: the user enters them again.
   Leave machine-specific settings out with `excludeSettings` (the gallery excludes `autostart`
   and `updateFolder`). The gallery's Settings have a Backup section.
-- **Oracle database**: `@deckbuilder/db` (opt-in; add `"@deckbuilder/db": "workspace:*"` to the
+- **Oracle database**: `@deckbuilderkit/db` (opt-in; add `"@deckbuilderkit/db": "workspace:*"` to the
   app, since it bundles the `oracledb` driver in thin mode: pure JS, no Instant Client). The app
   keeps the connections in a `recordStore` with `validate: validConnection` and
   `secretFields: ['password']`, and wires `dbRoutes({ sessions: dbSessions(), credentials })`,
@@ -364,7 +364,7 @@ source directly; there is no package build step.
   bar shows an "Uncommitted changes" badge with Commit, Rollback and Disconnect; a "Max rows" field (default 1000, kept in the settings) limits each query, and
   the Schema button opens a sidebar with the tables and columns whose names also feed completion.
   SQL history: `dbRoutes({ ..., history: sqlHistory({ dir, max }) })` (`sqlHistory` from
-  `@deckbuilder/db`, `history.ts`) records every run and serves `GET /api/db/history` and
+  `@deckbuilderkit/db`, `history.ts`) records every run and serves `GET /api/db/history` and
   `POST /api/db/history/delete|clear`; the Workbench shows it in `workbench/HistoryPanel.tsx`.
   `POST /api/db/explain {id, sql}` returns the plan rows (not recorded in the history) and
   `GET /api/db/table` the details of a table, with its DDL.
@@ -446,7 +446,7 @@ files and publish it.
 
 **GitHub releases as update source**: set `repo: 'owner/name'` in the app's `app.ts`
 (`AppIdentity.repo`) and build the app's server with `githubSource({ repo, tagPrefix })` from
-`@deckbuilder/server-mods` (the gallery does this when no update folder is set). The updater
+`@deckbuilderkit/server-mods` (the gallery does this when no update folder is set). The updater
 takes the newest published release whose tag starts with `<app folder>-v`, reads its
 `latest.json` and `latest.json.sig` assets and downloads the exe asset; `token` gives access to a private repo.
 `deckbuilder manifest` (in the app folder, after `build`) writes `release/latest.json` and its
@@ -471,11 +471,11 @@ push and pull request.
 
 ## Releasing packages
 
-Every `packages/*` is published to npm as `@deckbuilder/<name>` (TypeScript source; Bun resolves the `.ts` exports). `apps/*` are not published. All packages share the root `package.json` `version` and are bumped together.
+Every `packages/*` is published to npm as `@deckbuilderkit/<name>` (TypeScript source; Bun resolves the `.ts` exports). `apps/*` are not published. All packages share the root `package.json` `version` and are bumped together.
 
 1. Bump `version` in the root `package.json` and in every `packages/*/package.json` (`scripts/publish.ts` refuses a mismatch).
 2. Check locally: `bun scripts/publish.ts --dry-run` prints the publish order and version and packs each package without publishing.
-3. Tag and push: `git tag v0.2.0 && git push origin v0.2.0`. The `publish` job in `.github/workflows/release.yml` checks the tag against the root version, type-checks, runs `bun scripts/publish.ts` with the `NPM_TOKEN` repository secret (an npm automation token for the `@deckbuilder` scope) and creates a GitHub release with the commits since the previous `v*` tag (`releaseNotes` in `packages/build/src/release.ts`).
+3. Tag and push: `git tag v0.2.0 && git push origin v0.2.0`. The `publish` job in `.github/workflows/release.yml` checks the tag against the root version, type-checks, runs `bun scripts/publish.ts` with the `NPM_TOKEN` repository secret (an npm automation token for the `@deckbuilderkit` scope) and creates a GitHub release with the commits since the previous `v*` tag (`releaseNotes` in `packages/build/src/release.ts`).
 
 `publish.ts` replaces `workspace:*` with the version only in the packed manifests; the repo's `package.json` files are restored. Tags `v*` publish packages; tags `<app>-v*` release an app.
 

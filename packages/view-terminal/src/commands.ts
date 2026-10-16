@@ -1,4 +1,4 @@
-import { type CommandDef, tabCommands } from '@deckbuilder/ui';
+import { type CommandDef, tabCommands } from '@deckbuilderkit/ui';
 import { t, type TerminalMessageKey } from './i18n';
 
 const PANE_DIRS = ['Left', 'Right', 'Up', 'Down'] as const;

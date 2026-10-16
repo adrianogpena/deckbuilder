@@ -1,4 +1,4 @@
-import { invalid } from '@deckbuilder/server-core';
+import { invalid } from '@deckbuilderkit/server-core';
 
 /** The text encodings the file routes read and write; a file keeps its own on save. */
 export type TextEncodingId = 'utf8' | 'utf8bom' | 'utf16le' | 'utf16be' | 'windows1252';

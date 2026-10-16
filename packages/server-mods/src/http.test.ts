@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, expect, test } from 'bun:test';
-import type { saveFileAs } from '@deckbuilder/platform';
-import type { AppError, RouteContext } from '@deckbuilder/server-core';
+import type { saveFileAs } from '@deckbuilderkit/platform';
+import type { AppError, RouteContext } from '@deckbuilderkit/server-core';
 import { httpExecutor, httpRoutes, suggestedName, validateDraft, validateRequest } from './http.ts';
 
 let server: ReturnType<typeof Bun.serve>;

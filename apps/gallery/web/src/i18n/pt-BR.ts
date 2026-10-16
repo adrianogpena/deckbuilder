@@ -1,4 +1,4 @@
-import type { Messages } from '@deckbuilder/ui';
+import type { Messages } from '@deckbuilderkit/ui';
 import type { en } from './en';
 
 export const ptBR: Messages<typeof en> = {

@@ -1,4 +1,4 @@
-import { runWithTimeout, type Runner } from '@deckbuilder/platform';
+import { runWithTimeout, type Runner } from '@deckbuilderkit/platform';
 import {
   AppError,
   invalid,
@@ -12,7 +12,7 @@ import {
   type GitRepoInfo,
   type GitStatus,
   type Routes,
-} from '@deckbuilder/server-core';
+} from '@deckbuilderkit/server-core';
 import { isBinary } from './bytes.ts';
 import { badPath, segmentsOf, type FsRoot } from './rooted-fs.ts';
 

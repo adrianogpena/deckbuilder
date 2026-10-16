@@ -1,7 +1,7 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { type CodeEditorHandle, type CodeEditorProps, curlAt, draftToSpec, type HttpHeaderDraft, type ImportedRequest, parseCurl, ResponseView, warningText } from '@deckbuilder/editor';
-import type { HttpResponseInfo } from '@deckbuilder/server-core/protocol';
-import { type ApiError, errorOf, Icon, PanelBanner, SplitView, type TabAction, useViewLink } from '@deckbuilder/ui';
+import { type CodeEditorHandle, type CodeEditorProps, curlAt, draftToSpec, type HttpHeaderDraft, type ImportedRequest, parseCurl, ResponseView, warningText } from '@deckbuilderkit/editor';
+import type { HttpResponseInfo } from '@deckbuilderkit/server-core/protocol';
+import { type ApiError, errorOf, Icon, PanelBanner, SplitView, type TabAction, useViewLink } from '@deckbuilderkit/ui';
 import { explorerApi as api } from '../client';
 import { httpClient } from '../client';
 import { t } from '../i18n';

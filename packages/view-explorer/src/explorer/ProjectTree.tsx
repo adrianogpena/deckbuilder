@@ -1,5 +1,5 @@
 import { useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from 'react';
-import { previewKind } from '@deckbuilder/editor/options';
+import { previewKind } from '@deckbuilderkit/editor/options';
 import {
   ContextMenu,
   type ContextMenuItem,
@@ -16,7 +16,7 @@ import {
   useAsync,
   useDialogs,
   useToast,
-} from '@deckbuilder/ui';
+} from '@deckbuilderkit/ui';
 import { multiDeleteEnabled } from '../options';
 import { explorerApi as api, type FsEntry, type Project } from '../client';
 import { fullPath, nodeId } from '../explorer-paths';
@@ -24,7 +24,7 @@ import { t } from '../i18n';
 import { useCopyPath } from './copy-path';
 import { PropertiesDialog } from './PropertiesDialog';
 import type { FileUndo, UndoOp } from './file-undo';
-import type { FsArchiveFormat, GitFile } from '@deckbuilder/server-core/protocol';
+import type { FsArchiveFormat, GitFile } from '@deckbuilderkit/server-core/protocol';
 import { entriesOf, freeName, walkEntry } from './os-drop';
 import { archiveStem, commonParent, compressPaths, takenIn as takenInDir } from './fs-actions';
 import type { FindResult } from './tree-find';

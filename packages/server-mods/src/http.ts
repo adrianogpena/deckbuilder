@@ -1,6 +1,6 @@
 import { extname } from 'node:path';
-import { saveFileAs, writeFileAtomic } from '@deckbuilder/platform';
-import { AppError, invalid, isRecord, type Routes } from '@deckbuilder/server-core';
+import { saveFileAs, writeFileAtomic } from '@deckbuilderkit/platform';
+import { AppError, invalid, isRecord, type Routes } from '@deckbuilderkit/server-core';
 import {
   HTTP_MAX_BODY_BYTES,
   HTTP_MAX_BODY_CHARS,
@@ -15,7 +15,7 @@ import {
   type HttpRequestSpec,
   type HttpResponseInfo,
   type RestHistoryEntry,
-} from '@deckbuilder/server-core/protocol';
+} from '@deckbuilderkit/server-core/protocol';
 import { isBinary } from './bytes.ts';
 import { fromPlatform } from './platform-errors.ts';
 import { variableResolver, type VariableResolver } from './rest-env.ts';

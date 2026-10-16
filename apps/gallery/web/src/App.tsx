@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { PALETTES } from '@deckbuilder/server-core/palettes';
-import { CommandPalette, detectLanguage, effectiveKeys, ErrorBanner, AppFrame, Icon, isDesktop, KeybindingProvider, LayoutProvider, type PaletteItem, setFileAssociations, setLanguage, Sidebar, Spinner, ToastProvider, useAsync, useCommand, useCommandPalette, useHashRoute, useHeartbeat, useKeybindings, useTheme, useZen, useZoom } from '@deckbuilder/ui';
-import { EditorOptionsContext } from '@deckbuilder/editor/options';
+import { PALETTES } from '@deckbuilderkit/server-core/palettes';
+import { CommandPalette, detectLanguage, effectiveKeys, ErrorBanner, AppFrame, Icon, isDesktop, KeybindingProvider, LayoutProvider, type PaletteItem, setFileAssociations, setLanguage, Sidebar, Spinner, ToastProvider, useAsync, useCommand, useCommandPalette, useHashRoute, useHeartbeat, useKeybindings, useTheme, useZen, useZoom } from '@deckbuilderkit/ui';
+import { EditorOptionsContext } from '@deckbuilderkit/editor/options';
 import { APP } from '../../app';
 import { api, type Settings } from './api';
 import { commandById, commands, KEYS_COMMAND, navCommandId, SETTINGS_COMMAND } from './commands';

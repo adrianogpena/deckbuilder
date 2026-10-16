@@ -2,7 +2,7 @@ name: Release
 
 # Tag `<app>-v<version>` (e.g. `gallery-v0.3.0`) builds apps/<app> for every target and
 # uploads the executables, latest.json and latest.json.sig to a draft GitHub Release. <version> must match the app's package.json.
-# Tag `v<version>` (e.g. `v0.2.0`) publishes the @deckbuilder/* packages to npm; <version> must match the root package.json.
+# Tag `v<version>` (e.g. `v0.2.0`) publishes the @deckbuilderkit/* packages to npm; <version> must match the root package.json.
 on:
   push:
     tags: ['*-v*', 'v*']

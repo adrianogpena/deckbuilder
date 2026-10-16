@@ -6,12 +6,12 @@ import {
   type HttpRequestDraft,
   type HttpRequestSpec,
   type HttpResponseInfo,
-} from '@deckbuilder/server-core/protocol';
+} from '@deckbuilderkit/server-core/protocol';
 import type { Lang } from './languages';
 
-import type { HttpHeaderDraft } from '@deckbuilder/server-core/protocol';
+import type { HttpHeaderDraft } from '@deckbuilderkit/server-core/protocol';
 
-export type { HttpHeaderDraft, HttpRequestDraft } from '@deckbuilder/server-core/protocol';
+export type { HttpHeaderDraft, HttpRequestDraft } from '@deckbuilderkit/server-core/protocol';
 
 /** The timeout field's text (seconds) as whole-second milliseconds within the protocol bounds; undefined for empty or not a number. */
 export function timeoutFromSeconds(text: string): number | undefined {

@@ -1,4 +1,4 @@
-import { Badge, Icon, PanelNotice, t } from '@deckbuilder/ui';
+import { Badge, Icon, PanelNotice, t } from '@deckbuilderkit/ui';
 import { type KeyboardEvent, type PointerEvent, type ReactNode, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { SqlGraph } from './SqlGraph';
 import { type SqlLintSeverity, type SqlProblem, sqlLint } from './sql/lint';

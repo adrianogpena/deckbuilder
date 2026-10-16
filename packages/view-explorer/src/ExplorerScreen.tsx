@@ -1,7 +1,7 @@
 import './explorer.css';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { editorSettingsOf, type ExplorerSettings, type ExplorerViewSettings as Settings, generalSettingsOf, windowSettingsOf } from './settings';
-import { gitSettingsOf, setZen, useZen } from '@deckbuilder/ui';
+import { gitSettingsOf, setZen, useZen } from '@deckbuilderkit/ui';
 import {
   activate,
   activeTab,
@@ -44,10 +44,10 @@ import {
   relPath,
   type SortState,
   ProjectPicker,
-} from '@deckbuilder/ui';
-import { closeSession } from '@deckbuilder/terminal/session';
+} from '@deckbuilderkit/ui';
+import { closeSession } from '@deckbuilderkit/terminal/session';
 import { explorerApi as api, type LogSettings, type Project } from './client';
-import { terminalAppKeys } from '@deckbuilder/terminal';
+import { terminalAppKeys } from '@deckbuilderkit/terminal';
 import { explorerCommandById as commandById } from './commands';
 import { fullPath, nodeId } from './explorer-paths';
 import { t } from './i18n';
@@ -61,7 +61,7 @@ import { TreePane } from './explorer/TreePane';
 
 // The editor and viewers are large; they load when the first file opens.
 const FileTab = lazy(() => import('./explorer/FileTab').then((m) => ({ default: m.FileTab })));
-const TerminalPane = lazy(() => import('@deckbuilder/terminal').then((m) => ({ default: m.TerminalPane })));
+const TerminalPane = lazy(() => import('@deckbuilderkit/terminal').then((m) => ({ default: m.TerminalPane })));
 const CompareTab = lazy(() => import('./explorer/CompareTab').then((m) => ({ default: m.CompareTab })));
 const DetailsTab = lazy(() => import('./explorer/DetailsTab').then((m) => ({ default: m.DetailsTab })));
 

@@ -27,16 +27,16 @@ test('scaffolds demo and registers it', () => {
   for (const f of ['package.json', 'tsconfig.json', 'README.md', 'src/view.tsx', 'src/server.ts', 'src/i18n.ts', 'src/web.ts', 'src/styles.css']) {
     expect(existsSync(join(target, f))).toBe(true);
   }
-  expect(readFileSync(join(target, 'package.json'), 'utf8')).toContain('"@deckbuilder/view-demo"');
+  expect(readFileSync(join(target, 'package.json'), 'utf8')).toContain('"@deckbuilderkit/view-demo"');
   const view = readFileSync(join(target, 'src/view.tsx'), 'utf8');
   expect(view).toContain('demoView');
   expect(view).not.toContain('__VIEW_');
   const web = read('apps/gallery/web/src/views.ts');
-  expect(web).toContain("import { demoView } from '@deckbuilder/view-demo/web';");
+  expect(web).toContain("import { demoView } from '@deckbuilderkit/view-demo/web';");
   expect(web).toMatch(/demoView\(\{ group: 'nav.section.main', order: \d+ \}\)\],/);
   const server = read('apps/gallery/server/views.ts');
-  expect(server).toContain("import { demoServerView } from '@deckbuilder/view-demo/server';");
+  expect(server).toContain("import { demoServerView } from '@deckbuilderkit/view-demo/server';");
   expect(server.replaceAll('\r\n', '\n')).toContain('  demoServerView(),\n];');
-  expect(JSON.parse(read('apps/gallery/package.json')).dependencies['@deckbuilder/view-demo']).toBe('workspace:*');
+  expect(JSON.parse(read('apps/gallery/package.json')).dependencies['@deckbuilderkit/view-demo']).toBe('workspace:*');
   expect(validateViewId('demo', root)).toContain('already exists');
 });

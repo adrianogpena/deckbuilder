@@ -10,28 +10,28 @@
       },
     },
     "apps/gallery": {
-      "name": "@deckbuilder/gallery",
+      "name": "@deckbuilderkit/gallery",
       "version": "0.4.0",
       "dependencies": {
-        "@deckbuilder/db": "workspace:*",
-        "@deckbuilder/editor": "workspace:*",
-        "@deckbuilder/platform": "workspace:*",
-        "@deckbuilder/server-core": "workspace:*",
-        "@deckbuilder/server-mods": "workspace:*",
-        "@deckbuilder/shell": "workspace:*",
-        "@deckbuilder/sql-ui": "workspace:*",
-        "@deckbuilder/terminal": "workspace:*",
-        "@deckbuilder/ui": "workspace:*",
-        "@deckbuilder/view-explorer": "workspace:*",
-        "@deckbuilder/view-git": "workspace:*",
-        "@deckbuilder/view-rest": "workspace:*",
-        "@deckbuilder/view-terminal": "workspace:*",
-        "@deckbuilder/view-workbench": "workspace:*",
+        "@deckbuilderkit/db": "workspace:*",
+        "@deckbuilderkit/editor": "workspace:*",
+        "@deckbuilderkit/platform": "workspace:*",
+        "@deckbuilderkit/server-core": "workspace:*",
+        "@deckbuilderkit/server-mods": "workspace:*",
+        "@deckbuilderkit/shell": "workspace:*",
+        "@deckbuilderkit/sql-ui": "workspace:*",
+        "@deckbuilderkit/terminal": "workspace:*",
+        "@deckbuilderkit/ui": "workspace:*",
+        "@deckbuilderkit/view-explorer": "workspace:*",
+        "@deckbuilderkit/view-git": "workspace:*",
+        "@deckbuilderkit/view-rest": "workspace:*",
+        "@deckbuilderkit/view-terminal": "workspace:*",
+        "@deckbuilderkit/view-workbench": "workspace:*",
         "react": "^18.3.1",
         "react-dom": "^18.3.1",
       },
       "devDependencies": {
-        "@deckbuilder/build": "workspace:*",
+        "@deckbuilderkit/build": "workspace:*",
         "@types/react": "^18.3.12",
         "@types/react-dom": "^18.3.1",
         "@vitejs/plugin-react": "^4.3.4",
@@ -39,29 +39,29 @@
       },
     },
     "packages/build": {
-      "name": "@deckbuilder/build",
-      "version": "0.0.0",
+      "name": "@deckbuilderkit/build",
+      "version": "0.1.0",
       "bin": {
         "deckbuilder": "src/cli.ts",
       },
       "dependencies": {
-        "@deckbuilder/platform": "workspace:*",
-        "@deckbuilder/server-core": "workspace:*",
+        "@deckbuilderkit/platform": "workspace:*",
+        "@deckbuilderkit/server-core": "workspace:*",
         "sharp": "^0.35.5",
       },
     },
     "packages/db": {
-      "name": "@deckbuilder/db",
-      "version": "0.0.0",
+      "name": "@deckbuilderkit/db",
+      "version": "0.1.0",
       "dependencies": {
-        "@deckbuilder/server-core": "workspace:*",
-        "@deckbuilder/server-mods": "workspace:*",
+        "@deckbuilderkit/server-core": "workspace:*",
+        "@deckbuilderkit/server-mods": "workspace:*",
         "oracledb": "6.10.0",
       },
     },
     "packages/editor": {
-      "name": "@deckbuilder/editor",
-      "version": "0.0.0",
+      "name": "@deckbuilderkit/editor",
+      "version": "0.1.0",
       "dependencies": {
         "@codemirror/autocomplete": "^6.20.3",
         "@codemirror/commands": "^6.11.1",
@@ -75,8 +75,8 @@
         "@codemirror/search": "^6.7.2",
         "@codemirror/state": "^6.7.6",
         "@codemirror/view": "^6.43.14",
-        "@deckbuilder/server-core": "workspace:*",
-        "@deckbuilder/ui": "workspace:*",
+        "@deckbuilderkit/server-core": "workspace:*",
+        "@deckbuilderkit/ui": "workspace:*",
         "@lezer/common": "^1.5.0",
         "@lezer/highlight": "^1.2.5",
         "@lezer/markdown": "^1.8.0",
@@ -96,37 +96,37 @@
       },
     },
     "packages/platform": {
-      "name": "@deckbuilder/platform",
-      "version": "0.0.0",
+      "name": "@deckbuilderkit/platform",
+      "version": "0.1.0",
     },
     "packages/server-core": {
-      "name": "@deckbuilder/server-core",
-      "version": "0.0.0",
+      "name": "@deckbuilderkit/server-core",
+      "version": "0.1.0",
     },
     "packages/server-mods": {
-      "name": "@deckbuilder/server-mods",
-      "version": "0.0.0",
+      "name": "@deckbuilderkit/server-mods",
+      "version": "0.1.0",
       "dependencies": {
         "7z-wasm": "^1.2.0",
-        "@deckbuilder/platform": "workspace:*",
-        "@deckbuilder/server-core": "workspace:*",
+        "@deckbuilderkit/platform": "workspace:*",
+        "@deckbuilderkit/server-core": "workspace:*",
       },
     },
     "packages/shell": {
-      "name": "@deckbuilder/shell",
-      "version": "0.0.0",
+      "name": "@deckbuilderkit/shell",
+      "version": "0.1.0",
       "dependencies": {
-        "@deckbuilder/platform": "workspace:*",
-        "@deckbuilder/server-core": "workspace:*",
+        "@deckbuilderkit/platform": "workspace:*",
+        "@deckbuilderkit/server-core": "workspace:*",
         "webview-bun": "^2.4.0",
       },
     },
     "packages/sql-ui": {
-      "name": "@deckbuilder/sql-ui",
-      "version": "0.0.0",
+      "name": "@deckbuilderkit/sql-ui",
+      "version": "0.1.0",
       "dependencies": {
-        "@deckbuilder/editor": "workspace:*",
-        "@deckbuilder/ui": "workspace:*",
+        "@deckbuilderkit/editor": "workspace:*",
+        "@deckbuilderkit/ui": "workspace:*",
       },
       "devDependencies": {
         "@types/react": "^18.3.12",
@@ -140,12 +140,12 @@
       },
     },
     "packages/terminal": {
-      "name": "@deckbuilder/terminal",
-      "version": "0.0.0",
+      "name": "@deckbuilderkit/terminal",
+      "version": "0.1.0",
       "dependencies": {
-        "@deckbuilder/platform": "workspace:*",
-        "@deckbuilder/server-core": "workspace:*",
-        "@deckbuilder/ui": "workspace:*",
+        "@deckbuilderkit/platform": "workspace:*",
+        "@deckbuilderkit/server-core": "workspace:*",
+        "@deckbuilderkit/ui": "workspace:*",
         "@xterm/addon-clipboard": "^0.2.0",
         "@xterm/addon-fit": "^0.11.0",
         "@xterm/addon-search": "^0.16.0",
@@ -168,10 +168,10 @@
       },
     },
     "packages/ui": {
-      "name": "@deckbuilder/ui",
-      "version": "0.0.0",
+      "name": "@deckbuilderkit/ui",
+      "version": "0.1.0",
       "dependencies": {
-        "@deckbuilder/server-core": "workspace:*",
+        "@deckbuilderkit/server-core": "workspace:*",
         "@fontsource/geist": "^5.1.0",
         "@fontsource/geist-mono": "^5.1.0",
         "react-grid-layout": "^2.3.0",
@@ -188,16 +188,16 @@
       },
     },
     "packages/view-explorer": {
-      "name": "@deckbuilder/view-explorer",
-      "version": "0.0.0",
+      "name": "@deckbuilderkit/view-explorer",
+      "version": "0.1.0",
       "dependencies": {
-        "@deckbuilder/editor": "workspace:*",
-        "@deckbuilder/platform": "workspace:*",
-        "@deckbuilder/server-core": "workspace:*",
-        "@deckbuilder/server-mods": "workspace:*",
-        "@deckbuilder/sql-ui": "workspace:*",
-        "@deckbuilder/terminal": "workspace:*",
-        "@deckbuilder/ui": "workspace:*",
+        "@deckbuilderkit/editor": "workspace:*",
+        "@deckbuilderkit/platform": "workspace:*",
+        "@deckbuilderkit/server-core": "workspace:*",
+        "@deckbuilderkit/server-mods": "workspace:*",
+        "@deckbuilderkit/sql-ui": "workspace:*",
+        "@deckbuilderkit/terminal": "workspace:*",
+        "@deckbuilderkit/ui": "workspace:*",
       },
       "devDependencies": {
         "@types/react": "^18.3.12",
@@ -211,13 +211,13 @@
       },
     },
     "packages/view-git": {
-      "name": "@deckbuilder/view-git",
-      "version": "0.0.0",
+      "name": "@deckbuilderkit/view-git",
+      "version": "0.1.0",
       "dependencies": {
-        "@deckbuilder/editor": "workspace:*",
-        "@deckbuilder/server-core": "workspace:*",
-        "@deckbuilder/server-mods": "workspace:*",
-        "@deckbuilder/ui": "workspace:*",
+        "@deckbuilderkit/editor": "workspace:*",
+        "@deckbuilderkit/server-core": "workspace:*",
+        "@deckbuilderkit/server-mods": "workspace:*",
+        "@deckbuilderkit/ui": "workspace:*",
       },
       "devDependencies": {
         "@types/react": "^18.3.12",
@@ -231,14 +231,14 @@
       },
     },
     "packages/view-rest": {
-      "name": "@deckbuilder/view-rest",
-      "version": "0.0.0",
+      "name": "@deckbuilderkit/view-rest",
+      "version": "0.1.0",
       "dependencies": {
-        "@deckbuilder/editor": "workspace:*",
-        "@deckbuilder/platform": "workspace:*",
-        "@deckbuilder/server-core": "workspace:*",
-        "@deckbuilder/server-mods": "workspace:*",
-        "@deckbuilder/ui": "workspace:*",
+        "@deckbuilderkit/editor": "workspace:*",
+        "@deckbuilderkit/platform": "workspace:*",
+        "@deckbuilderkit/server-core": "workspace:*",
+        "@deckbuilderkit/server-mods": "workspace:*",
+        "@deckbuilderkit/ui": "workspace:*",
       },
       "devDependencies": {
         "@types/react": "^18.3.12",
@@ -252,12 +252,12 @@
       },
     },
     "packages/view-terminal": {
-      "name": "@deckbuilder/view-terminal",
-      "version": "0.0.0",
+      "name": "@deckbuilderkit/view-terminal",
+      "version": "0.1.0",
       "dependencies": {
-        "@deckbuilder/server-core": "workspace:*",
-        "@deckbuilder/terminal": "workspace:*",
-        "@deckbuilder/ui": "workspace:*",
+        "@deckbuilderkit/server-core": "workspace:*",
+        "@deckbuilderkit/terminal": "workspace:*",
+        "@deckbuilderkit/ui": "workspace:*",
       },
       "devDependencies": {
         "@types/react": "^18.3.12",
@@ -271,13 +271,13 @@
       },
     },
     "packages/view-workbench": {
-      "name": "@deckbuilder/view-workbench",
-      "version": "0.0.0",
+      "name": "@deckbuilderkit/view-workbench",
+      "version": "0.1.0",
       "dependencies": {
-        "@deckbuilder/editor": "workspace:*",
-        "@deckbuilder/server-core": "workspace:*",
-        "@deckbuilder/sql-ui": "workspace:*",
-        "@deckbuilder/ui": "workspace:*",
+        "@deckbuilderkit/editor": "workspace:*",
+        "@deckbuilderkit/server-core": "workspace:*",
+        "@deckbuilderkit/sql-ui": "workspace:*",
+        "@deckbuilderkit/ui": "workspace:*",
       },
       "devDependencies": {
         "@types/react": "^18.3.12",
@@ -364,37 +364,37 @@
 
     "@codemirror/view": ["@codemirror/view@6.43.14", "", { "dependencies": { "@codemirror/state": "^6.7.0", "crelt": "^1.0.6", "style-mod": "^4.1.0", "w3c-keyname": "^2.2.4" } }, "sha512-hC45YnmJNR1rz42OF57BLoQNFMV12/13drnvibDsR2quNDmldcb4WvYVV81hFQg56i9lcqQMEDqilhX2QDcGQQ=="],
 
-    "@deckbuilder/build": ["@deckbuilder/build@workspace:packages/build"],
+    "@deckbuilderkit/build": ["@deckbuilderkit/build@workspace:packages/build"],
 
-    "@deckbuilder/db": ["@deckbuilder/db@workspace:packages/db"],
+    "@deckbuilderkit/db": ["@deckbuilderkit/db@workspace:packages/db"],
 
-    "@deckbuilder/editor": ["@deckbuilder/editor@workspace:packages/editor"],
+    "@deckbuilderkit/editor": ["@deckbuilderkit/editor@workspace:packages/editor"],
 
-    "@deckbuilder/gallery": ["@deckbuilder/gallery@workspace:apps/gallery"],
+    "@deckbuilderkit/gallery": ["@deckbuilderkit/gallery@workspace:apps/gallery"],
 
-    "@deckbuilder/platform": ["@deckbuilder/platform@workspace:packages/platform"],
+    "@deckbuilderkit/platform": ["@deckbuilderkit/platform@workspace:packages/platform"],
 
-    "@deckbuilder/server-core": ["@deckbuilder/server-core@workspace:packages/server-core"],
+    "@deckbuilderkit/server-core": ["@deckbuilderkit/server-core@workspace:packages/server-core"],
 
-    "@deckbuilder/server-mods": ["@deckbuilder/server-mods@workspace:packages/server-mods"],
+    "@deckbuilderkit/server-mods": ["@deckbuilderkit/server-mods@workspace:packages/server-mods"],
 
-    "@deckbuilder/shell": ["@deckbuilder/shell@workspace:packages/shell"],
+    "@deckbuilderkit/shell": ["@deckbuilderkit/shell@workspace:packages/shell"],
 
-    "@deckbuilder/sql-ui": ["@deckbuilder/sql-ui@workspace:packages/sql-ui"],
+    "@deckbuilderkit/sql-ui": ["@deckbuilderkit/sql-ui@workspace:packages/sql-ui"],
 
-    "@deckbuilder/terminal": ["@deckbuilder/terminal@workspace:packages/terminal"],
+    "@deckbuilderkit/terminal": ["@deckbuilderkit/terminal@workspace:packages/terminal"],
 
-    "@deckbuilder/ui": ["@deckbuilder/ui@workspace:packages/ui"],
+    "@deckbuilderkit/ui": ["@deckbuilderkit/ui@workspace:packages/ui"],
 
-    "@deckbuilder/view-explorer": ["@deckbuilder/view-explorer@workspace:packages/view-explorer"],
+    "@deckbuilderkit/view-explorer": ["@deckbuilderkit/view-explorer@workspace:packages/view-explorer"],
 
-    "@deckbuilder/view-git": ["@deckbuilder/view-git@workspace:packages/view-git"],
+    "@deckbuilderkit/view-git": ["@deckbuilderkit/view-git@workspace:packages/view-git"],
 
-    "@deckbuilder/view-rest": ["@deckbuilder/view-rest@workspace:packages/view-rest"],
+    "@deckbuilderkit/view-rest": ["@deckbuilderkit/view-rest@workspace:packages/view-rest"],
 
-    "@deckbuilder/view-terminal": ["@deckbuilder/view-terminal@workspace:packages/view-terminal"],
+    "@deckbuilderkit/view-terminal": ["@deckbuilderkit/view-terminal@workspace:packages/view-terminal"],
 
-    "@deckbuilder/view-workbench": ["@deckbuilder/view-workbench@workspace:packages/view-workbench"],
+    "@deckbuilderkit/view-workbench": ["@deckbuilderkit/view-workbench@workspace:packages/view-workbench"],
 
     "@emnapi/runtime": ["@emnapi/runtime@1.11.3", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-Xz4Tpyki7XyrpbUK1jR1AhdAdaXyhhY4lZ3neLodmhpuWfy2PAQN5B46sAiU4liOXGLkHypn/qU+jvfWSCYYLA=="],
 

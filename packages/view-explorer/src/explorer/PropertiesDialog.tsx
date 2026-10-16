@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { copyText, errorMessage, errorOf, formatBytes, Modal, useToast } from '@deckbuilder/ui';
+import { copyText, errorMessage, errorOf, formatBytes, Modal, useToast } from '@deckbuilderkit/ui';
 import { explorerApi as api, type FsDuProgress, type FsInfo } from '../client';
 import { t } from '../i18n';
 

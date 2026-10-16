@@ -1,4 +1,4 @@
-import { defineView } from '@deckbuilder/ui';
+import { defineView } from '@deckbuilderkit/ui';
 import type { Settings } from '../api';
 import { GridScreen } from './GridScreen';
 

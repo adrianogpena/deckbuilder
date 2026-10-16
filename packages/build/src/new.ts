@@ -1,6 +1,6 @@
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { extname, join } from 'node:path';
-import { isUrlScheme } from '@deckbuilder/server-core/protocol';
+import { isUrlScheme } from '@deckbuilderkit/server-core/protocol';
 import { workspaceRoot } from './app.ts';
 
 const TEMPLATE = join(import.meta.dir, '..', 'template');

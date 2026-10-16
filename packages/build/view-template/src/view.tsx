@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { defineView } from '@deckbuilder/ui';
+import { defineView } from '@deckbuilderkit/ui';
 import { en, ptBR, t } from './i18n';
 
 export interface __VIEW_NAME__ViewOptions {

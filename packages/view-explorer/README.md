@@ -1,4 +1,4 @@
-# @deckbuilder/view-explorer
+# @deckbuilderkit/view-explorer
 
 Explorer
 

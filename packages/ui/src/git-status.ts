@@ -1,4 +1,4 @@
-import type { GitFile } from '@deckbuilder/server-core/protocol';
+import type { GitFile } from '@deckbuilderkit/server-core/protocol';
 
 export type GitStatusTone = 'ok' | 'warn' | 'err';
 

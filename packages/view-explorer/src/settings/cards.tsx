@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { deepEqual, FILE_DEFAULTS, fileSettingsOf, SettingItem, type SettingsCardProps, type SettingsFieldProps, useResync } from '@deckbuilder/ui';
+import { deepEqual, FILE_DEFAULTS, fileSettingsOf, SettingItem, type SettingsCardProps, type SettingsFieldProps, useResync } from '@deckbuilderkit/ui';
 import { t } from '../i18n';
 import type { ExplorerViewSettings } from '../settings';
 

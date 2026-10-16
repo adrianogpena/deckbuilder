@@ -1,4 +1,4 @@
-# @deckbuilder/view-rest
+# @deckbuilderkit/view-rest
 
 REST
 

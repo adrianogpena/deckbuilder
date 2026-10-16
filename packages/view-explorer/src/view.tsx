@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-import { defineView } from '@deckbuilder/ui';
+import { defineView } from '@deckbuilderkit/ui';
 import { bindExplorerClient, type ExplorerClients } from './client';
 import { explorerViewCommands } from './commands';
 import { en, ptBR } from './i18n';

@@ -1,4 +1,4 @@
-# @deckbuilder/view-workbench
+# @deckbuilderkit/view-workbench
 
 Workbench
 

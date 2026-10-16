@@ -1,5 +1,5 @@
 import type { Subprocess } from 'bun';
-import { appBrowserArgv } from '@deckbuilder/platform';
+import { appBrowserArgv } from '@deckbuilderkit/platform';
 import { DEFAULT_WINDOW, type WindowOptions } from './window.ts';
 
 export interface AppWindowOptions {

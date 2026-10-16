@@ -1,5 +1,5 @@
 {
-  "name": "@deckbuilder/db",
+  "name": "@deckbuilderkit/db",
   "version": "0.1.0",
   "license": "MIT",
   "repository": {
@@ -19,8 +19,8 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@deckbuilder/server-core": "workspace:*",
-    "@deckbuilder/server-mods": "workspace:*",
+    "@deckbuilderkit/server-core": "workspace:*",
+    "@deckbuilderkit/server-mods": "workspace:*",
     "oracledb": "6.10.0"
   }
 }

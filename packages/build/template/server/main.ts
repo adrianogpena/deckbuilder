@@ -1,6 +1,6 @@
 import { join } from 'node:path';
-import { appHome, createAutostart, pickFolder } from '@deckbuilder/platform';
-import { updatePublicKey } from '@deckbuilder/server-core';
+import { appHome, createAutostart, pickFolder } from '@deckbuilderkit/platform';
+import { updatePublicKey } from '@deckbuilderkit/server-core';
 import {
   createUpdater,
   folderSource,
@@ -13,9 +13,9 @@ import {
   themeHead,
   updateRoutes,
   type BaseSettings,
-} from '@deckbuilder/server-mods';
-import { runApp } from '@deckbuilder/shell';
-import { type Keymap, validKeymap } from '@deckbuilder/ui/keybindings';
+} from '@deckbuilderkit/server-mods';
+import { runApp } from '@deckbuilderkit/shell';
+import { type Keymap, validKeymap } from '@deckbuilderkit/ui/keybindings';
 import { APP } from '../app.ts';
 import pkg from '../package.json';
 import { routes } from './routes.ts';

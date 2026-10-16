@@ -1,12 +1,12 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { createToaster, saveFileAs, secretStore, writeFileAtomic } from '@deckbuilder/platform';
-import type { HttpRequestDraft } from '@deckbuilder/editor/http';
-import { connectionRoutes as dbConnectionRoutes, dbRoutes, dbSessions, parseOracleUrl, sqlHistory, validConnection, type DbConnectionFields } from '@deckbuilder/db';
-import { AppError, forbidden, invalid, isRecord, ndjson, notFound, type Routes } from '@deckbuilder/server-core';
-import { REST_ENV_MAX_VARS, REST_ENV_NAME_CHARS, REST_VAR_NAME, type RestEnvVar } from '@deckbuilder/server-core/protocol';
-import { fromPlatform, httpExecutor, httpRoutes, pickedPaths, recordRoutes, recordStore, restHistory, validateDraft } from '@deckbuilder/server-mods';
-import type { StartContext } from '@deckbuilder/shell';
+import { createToaster, saveFileAs, secretStore, writeFileAtomic } from '@deckbuilderkit/platform';
+import type { HttpRequestDraft } from '@deckbuilderkit/editor/http';
+import { connectionRoutes as dbConnectionRoutes, dbRoutes, dbSessions, parseOracleUrl, sqlHistory, validConnection, type DbConnectionFields } from '@deckbuilderkit/db';
+import { AppError, forbidden, invalid, isRecord, ndjson, notFound, type Routes } from '@deckbuilderkit/server-core';
+import { REST_ENV_MAX_VARS, REST_ENV_NAME_CHARS, REST_VAR_NAME, type RestEnvVar } from '@deckbuilderkit/server-core/protocol';
+import { fromPlatform, httpExecutor, httpRoutes, pickedPaths, recordRoutes, recordStore, restHistory, validateDraft } from '@deckbuilderkit/server-mods';
+import type { StartContext } from '@deckbuilderkit/shell';
 import { APP } from '../app.ts';
 import { home } from './stores.ts';
 

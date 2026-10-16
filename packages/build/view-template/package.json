@@ -1,5 +1,5 @@
 {
-  "name": "@deckbuilder/view-__VIEW_ID__",
+  "name": "@deckbuilderkit/view-__VIEW_ID__",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -9,8 +9,8 @@
     "./styles.css": "./src/styles.css"
   },
   "dependencies": {
-    "@deckbuilder/server-core": "workspace:*",
-    "@deckbuilder/ui": "workspace:*"
+    "@deckbuilderkit/server-core": "workspace:*",
+    "@deckbuilderkit/ui": "workspace:*"
   },
   "peerDependencies": {
     "react": "^18.3.1",

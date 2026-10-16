@@ -1,5 +1,5 @@
-import { type DialogFilter, pickFile, pickFolder, saveFileAs } from '@deckbuilder/platform';
-import type { Routes } from '@deckbuilder/server-core';
+import { type DialogFilter, pickFile, pickFolder, saveFileAs } from '@deckbuilderkit/platform';
+import type { Routes } from '@deckbuilderkit/server-core';
 import { fromPlatform } from './platform-errors.ts';
 
 const str = (v: unknown) => (typeof v === 'string' ? v : undefined);

@@ -1,5 +1,5 @@
-import type { SqlHistoryEntry } from '@deckbuilder/server-core/protocol';
-import type { DbConnection, SqlClient } from '@deckbuilder/sql-ui';
+import type { SqlHistoryEntry } from '@deckbuilderkit/server-core/protocol';
+import type { DbConnection, SqlClient } from '@deckbuilderkit/sql-ui';
 
 /** A project folder, as the Settings page lists the ones allowed to run SQL. */
 export interface WorkbenchProject {

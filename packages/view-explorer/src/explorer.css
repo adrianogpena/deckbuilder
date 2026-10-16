@@ -46,7 +46,7 @@
 .xp-details-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .ex-pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; height: 100%; overflow: hidden; }
-/* The plan table of the SQL results (@deckbuilder/sql-ui classes), scoped to the Explorer panels. */
+/* The plan table of the SQL results (@deckbuilderkit/sql-ui classes), scoped to the Explorer panels. */
 .ex-pane .wb-plan { display: flex; flex-direction: column; height: 100%; min-height: 0; }
 .ex-pane .wb-plan-bar { align-items: center; gap: var(--space-8); padding: var(--space-4) var(--space-8); border-bottom: 1px solid var(--border-soft); }
 .ex-pane .wb-plan-bar .mono-label { flex: 1; }

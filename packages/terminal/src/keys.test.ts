@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import type { KeyLike } from '@deckbuilder/ui/keybindings';
+import type { KeyLike } from '@deckbuilderkit/ui/keybindings';
 import { terminalKeyAction } from './keys.ts';
 
 const key = (letter: string, mods: Partial<KeyLike> = {}): KeyLike => ({

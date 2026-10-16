@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { type ApiError, errorOf } from '@deckbuilder/ui';
+import { type ApiError, errorOf } from '@deckbuilderkit/ui';
 import type { DbSchema, DbTableDetails, SqlClient } from './types';
 
 interface Entry {

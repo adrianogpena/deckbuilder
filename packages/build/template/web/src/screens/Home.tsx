@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Badge, CopyButton, ErrorBanner, Icon, isDesktop, PageHead, Spinner, useAsync } from '@deckbuilder/ui';
+import { Badge, CopyButton, ErrorBanner, Icon, isDesktop, PageHead, Spinner, useAsync } from '@deckbuilderkit/ui';
 import { api } from '../api';
 import { t } from '../i18n';
 

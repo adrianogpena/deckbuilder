@@ -1,6 +1,6 @@
-import { DEFAULT_FORMAT_OPTIONS, type SqlFormatOptions } from '@deckbuilder/editor/options';
-import type { CopyFormat, SqlRunnerSettings } from '@deckbuilder/sql-ui';
-import { DEFAULT_RESULT_FORMAT, FILE_DEFAULTS, fileBoolSetting, fileEnumSetting, fileSettingsOf, type FileSettings, type GitSettings, type LogSettings, type ResultFormat, type SectionPath, type SettingDef, SORT_ORDERS } from '@deckbuilder/ui';
+import { DEFAULT_FORMAT_OPTIONS, type SqlFormatOptions } from '@deckbuilderkit/editor/options';
+import type { CopyFormat, SqlRunnerSettings } from '@deckbuilderkit/sql-ui';
+import { DEFAULT_RESULT_FORMAT, FILE_DEFAULTS, fileBoolSetting, fileEnumSetting, fileSettingsOf, type FileSettings, type GitSettings, type LogSettings, type ResultFormat, type SectionPath, type SettingDef, SORT_ORDERS } from '@deckbuilderkit/ui';
 
 import type { ExplorerSettings } from './explorer-state';
 

@@ -1,7 +1,7 @@
 // One native window per Worker: Webview.run() blocks this thread until the window closes.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { getWindowPlacement, openExternal, parsePlacement, setWindowIconFromExe, setWindowPlacement, showWindow, type WindowPlacement } from '@deckbuilder/platform';
+import { getWindowPlacement, openExternal, parsePlacement, setWindowIconFromExe, setWindowPlacement, showWindow, type WindowPlacement } from '@deckbuilderkit/platform';
 import type { Pointer } from 'bun:ffi';
 import { SizeHint, Webview } from 'webview-bun';
 import { setWebviewZoom } from './webview-zoom.ts';

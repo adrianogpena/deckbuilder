@@ -1,4 +1,4 @@
-import { type ExportColumn, toCsv } from '@deckbuilder/ui';
+import { type ExportColumn, toCsv } from '@deckbuilderkit/ui';
 import { t } from './i18n';
 import type { SqlClient } from './types';
 

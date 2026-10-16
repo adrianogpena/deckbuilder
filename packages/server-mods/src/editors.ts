@@ -8,8 +8,8 @@ import {
   pickFile,
   readJsonFile,
   writeJsonAtomic,
-} from '@deckbuilder/platform';
-import { type EditorInfo, invalid, isRecord, type Routes } from '@deckbuilder/server-core';
+} from '@deckbuilderkit/platform';
+import { type EditorInfo, invalid, isRecord, type Routes } from '@deckbuilderkit/server-core';
 import { fromPlatform } from './platform-errors.ts';
 import type { RootedFs } from './rooted-fs.ts';
 

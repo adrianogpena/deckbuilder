@@ -1,8 +1,8 @@
 import { join } from 'node:path';
-import { readJsonFile, writeJsonAtomic } from '@deckbuilder/platform';
-import { isRecord, type Routes } from '@deckbuilder/server-core';
-import { ICON_SET_IDS, LAYOUT_MARK_IDS, layoutById } from '@deckbuilder/server-core/layouts';
-import { PALETTES, ZOOM_LEVELS, type ThemeKind, type ThemeSettings } from '@deckbuilder/server-core/palettes';
+import { readJsonFile, writeJsonAtomic } from '@deckbuilderkit/platform';
+import { isRecord, type Routes } from '@deckbuilderkit/server-core';
+import { ICON_SET_IDS, LAYOUT_MARK_IDS, layoutById } from '@deckbuilderkit/server-core/layouts';
+import { PALETTES, ZOOM_LEVELS, type ThemeKind, type ThemeSettings } from '@deckbuilderkit/server-core/palettes';
 
 /** Settings every app gets; apps extend this with their own fields. */
 export interface BaseSettings extends ThemeSettings {

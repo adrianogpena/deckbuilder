@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { type ImportedRequest, parseImport, warningText } from '@deckbuilder/editor';
-import { type ApiError, ErrorBanner, errorOf, Modal } from '@deckbuilder/ui';
+import { type ImportedRequest, parseImport, warningText } from '@deckbuilderkit/editor';
+import { type ApiError, ErrorBanner, errorOf, Modal } from '@deckbuilderkit/ui';
 import { restApi as api } from '../client';
 import { t } from '../i18n';
 

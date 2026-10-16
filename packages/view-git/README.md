@@ -1,4 +1,4 @@
-# @deckbuilder/view-git
+# @deckbuilderkit/view-git
 
 Git
 

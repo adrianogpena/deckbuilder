@@ -1,6 +1,6 @@
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { SqlHistoryEntry } from '@deckbuilder/server-core/protocol';
+import type { SqlHistoryEntry } from '@deckbuilderkit/server-core/protocol';
 
 export type { SqlHistoryEntry };
 

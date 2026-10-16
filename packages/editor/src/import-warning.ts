@@ -1,4 +1,4 @@
-import { tryT } from '@deckbuilder/ui';
+import { tryT } from '@deckbuilderkit/ui';
 
 /** `<code>:<argument>` from the parser → translated text; unknown codes show as they are. */
 export const warningText = (warning: string) => {

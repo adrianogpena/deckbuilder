@@ -10,7 +10,7 @@ import {
   TabWorkspace,
   type TabContext,
   useDebouncedSave,
-} from '@deckbuilder/ui';
+} from '@deckbuilderkit/ui';
 import type { Settings } from '../api';
 import { t } from '../i18n';
 

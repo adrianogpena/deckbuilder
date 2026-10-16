@@ -1,4 +1,4 @@
-import { errorOf, request } from '@deckbuilder/ui';
+import { errorOf, request } from '@deckbuilderkit/ui';
 import { TERMINAL_SOCKET_PATH } from './protocol.ts';
 import type { SessionInfo, TerminalProfile, TerminalProfileInfo } from './protocol.ts';
 

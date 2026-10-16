@@ -1,4 +1,4 @@
-import type { CommandDef } from '@deckbuilder/ui';
+import type { CommandDef } from '@deckbuilderkit/ui';
 import { t } from './i18n';
 
 export const workbenchCommands = (): CommandDef[] => [

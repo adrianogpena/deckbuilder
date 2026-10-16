@@ -1,7 +1,7 @@
 /// <reference path="./oracledb.d.ts" />
 import { createHash, randomUUID } from 'node:crypto';
 import oracledb, { type FetchMetadata, type FetchTypeResult } from 'oracledb';
-import { AppError, type Emit, invalid, notFound } from '@deckbuilder/server-core';
+import { AppError, type Emit, invalid, notFound } from '@deckbuilderkit/server-core';
 
 export interface DbCredentials {
   connectString: string;

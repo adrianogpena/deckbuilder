@@ -1,5 +1,5 @@
 import { isAbsolute } from 'node:path';
-import { defineServerView, type FieldSpec, isRecord, validGroup } from '@deckbuilder/server-core';
+import { defineServerView, type FieldSpec, isRecord, validGroup } from '@deckbuilderkit/server-core';
 import {
   isShellId,
   terminalRoutes,
@@ -9,7 +9,7 @@ import {
   type ColorScheme,
   type ShellId,
   type TerminalProfile,
-} from '@deckbuilder/terminal/server';
+} from '@deckbuilderkit/terminal/server';
 
 /** The part of the server settings the Terminal view owns; the app's `Settings` extends it. */
 export interface TerminalServerSettings {

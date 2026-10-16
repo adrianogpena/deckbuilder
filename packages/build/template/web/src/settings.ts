@@ -1,4 +1,4 @@
-import { createSettingsRegistry, DEFAULT_SECTIONS, sectionKey } from '@deckbuilder/ui';
+import { createSettingsRegistry, DEFAULT_SECTIONS, sectionKey } from '@deckbuilderkit/ui';
 import type { Settings } from './api';
 
 /** The built-in sections this app has screens for; add more (e.g. `editor`, `terminal`) as the app grows. */

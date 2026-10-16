@@ -1,4 +1,4 @@
-import { formatBytes, PanelBanner, t } from '@deckbuilder/ui';
+import { formatBytes, PanelBanner, t } from '@deckbuilderkit/ui';
 import { useMemo } from 'react';
 import { hexRows } from './table';
 

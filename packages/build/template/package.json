@@ -1,5 +1,5 @@
 {
-  "name": "@deckbuilder/__APP_DIR__",
+  "name": "@deckbuilderkit/__APP_DIR__",
   "version": "0.1.0",
   "description": "__APP_NAME__",
   "private": true,
@@ -13,16 +13,16 @@
     "build": "deckbuilder build"
   },
   "dependencies": {
-    "@deckbuilder/platform": "workspace:*",
-    "@deckbuilder/server-core": "workspace:*",
-    "@deckbuilder/server-mods": "workspace:*",
-    "@deckbuilder/shell": "workspace:*",
-    "@deckbuilder/ui": "workspace:*",
+    "@deckbuilderkit/platform": "workspace:*",
+    "@deckbuilderkit/server-core": "workspace:*",
+    "@deckbuilderkit/server-mods": "workspace:*",
+    "@deckbuilderkit/shell": "workspace:*",
+    "@deckbuilderkit/ui": "workspace:*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "@deckbuilder/build": "workspace:*",
+    "@deckbuilderkit/build": "workspace:*",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",

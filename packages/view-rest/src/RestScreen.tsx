@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { draftToSpec, hasAuthHeader, type HttpRequestDraft, type ImportedRequest, RequestEditor, ResponseView, toCurl } from '@deckbuilder/editor';
-import type { HttpResponseInfo, RestEnvVar } from '@deckbuilder/server-core/protocol';
-import { type ApiError, ErrorBanner, errorOf, Icon, PageHead, SplitView, useAsync, useCommand, useDebouncedSave, useDialogs, useViewRequest } from '@deckbuilder/ui';
+import { draftToSpec, hasAuthHeader, type HttpRequestDraft, type ImportedRequest, RequestEditor, ResponseView, toCurl } from '@deckbuilderkit/editor';
+import type { HttpResponseInfo, RestEnvVar } from '@deckbuilderkit/server-core/protocol';
+import { type ApiError, ErrorBanner, errorOf, Icon, PageHead, SplitView, useAsync, useCommand, useDebouncedSave, useDialogs, useViewRequest } from '@deckbuilderkit/ui';
 import { restCommands } from './commands';
 import { restApi as api } from './client';
 import type { RestSettings, RestViewSettings, SavedRequest } from './settings';

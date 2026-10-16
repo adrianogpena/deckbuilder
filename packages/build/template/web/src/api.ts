@@ -1,6 +1,6 @@
-import type { ThemeSettings } from '@deckbuilder/server-core/palettes';
-import type { UpdateState } from '@deckbuilder/server-core/protocol';
-import { type Keymap, type Language, request } from '@deckbuilder/ui';
+import type { ThemeSettings } from '@deckbuilderkit/server-core/palettes';
+import type { UpdateState } from '@deckbuilderkit/server-core/protocol';
+import { type Keymap, type Language, request } from '@deckbuilderkit/ui';
 
 export interface Settings extends ThemeSettings {
   language?: Language;
@@ -13,7 +13,7 @@ export interface Settings extends ThemeSettings {
   updateFolder: string;
 }
 
-/** GET /api/info (infoRoutes in @deckbuilder/server-mods). */
+/** GET /api/info (infoRoutes in @deckbuilderkit/server-mods). */
 export interface Info {
   name: string;
   version: string;

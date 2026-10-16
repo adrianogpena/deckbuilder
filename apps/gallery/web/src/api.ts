@@ -1,17 +1,17 @@
-import type { ArchiveContent, SqliteContent, SqlFormatOptions } from '@deckbuilder/editor';
-import type { HttpRequestDraft } from '@deckbuilder/editor/http';
-import type { ThemeSettings } from '@deckbuilder/server-core/palettes';
-import type { BackupInspect, EditorInfo, FsArchiveFormat, FsCompressRequest, FsCompressResult, FsDuProgress, FsExtractRequest, FsExtractResult, FsHash, FsInfo, GitCommit, GitCommitFile, GitDiff, GitFileContent, GitRepoInfo, GitStatus, HttpRequestSpec, HttpResponseInfo, ImportResult, RestEnvironment, RestEnvironmentInput, RestHistoryEntry, SqlHistoryEntry, TailChunk, UpdateState } from '@deckbuilder/server-core/protocol';
+import type { ArchiveContent, SqliteContent, SqlFormatOptions } from '@deckbuilderkit/editor';
+import type { HttpRequestDraft } from '@deckbuilderkit/editor/http';
+import type { ThemeSettings } from '@deckbuilderkit/server-core/palettes';
+import type { BackupInspect, EditorInfo, FsArchiveFormat, FsCompressRequest, FsCompressResult, FsDuProgress, FsExtractRequest, FsExtractResult, FsHash, FsInfo, GitCommit, GitCommitFile, GitDiff, GitFileContent, GitRepoInfo, GitStatus, HttpRequestSpec, HttpResponseInfo, ImportResult, RestEnvironment, RestEnvironmentInput, RestHistoryEntry, SqlHistoryEntry, TailChunk, UpdateState } from '@deckbuilderkit/server-core/protocol';
 
 export type { EditorInfo, FsDuProgress, FsHash, FsInfo, ImportResult, TailChunk };
-import type { SessionInfo, TerminalProfileInfo } from '@deckbuilder/terminal';
-import type { TerminalSettings, TerminalViewSettings } from '@deckbuilder/view-terminal/web';
-import type { ExplorerSettings, FsEntry, FsRead, Project, SearchHit, TextEncoding } from '@deckbuilder/view-explorer/web';
-import type { GitViewSettings } from '@deckbuilder/view-git/web';
-import type { RestTabsFile, RestViewSettings, SavedRequest } from '@deckbuilder/view-rest/web';
-import type { WorkbenchViewSettings } from '@deckbuilder/view-workbench/web';
-import type { CopyFormat, DbColumn, DbPlanRow, DbRunResult, DbSchema, DbSchemaTable, DbStatus, DbTableConstraint, DbTableDetails, DbTableIndex, DemoRow } from '@deckbuilder/sql-ui';
-import { type FileAssociation, type GitSettings, type FileSettings, type Keymap, type Language, type LogSettings, type ResultFormat, request, requestUpload, stream } from '@deckbuilder/ui';
+import type { SessionInfo, TerminalProfileInfo } from '@deckbuilderkit/terminal';
+import type { TerminalSettings, TerminalViewSettings } from '@deckbuilderkit/view-terminal/web';
+import type { ExplorerSettings, FsEntry, FsRead, Project, SearchHit, TextEncoding } from '@deckbuilderkit/view-explorer/web';
+import type { GitViewSettings } from '@deckbuilderkit/view-git/web';
+import type { RestTabsFile, RestViewSettings, SavedRequest } from '@deckbuilderkit/view-rest/web';
+import type { WorkbenchViewSettings } from '@deckbuilderkit/view-workbench/web';
+import type { CopyFormat, DbColumn, DbPlanRow, DbRunResult, DbSchema, DbSchemaTable, DbStatus, DbTableConstraint, DbTableDetails, DbTableIndex, DemoRow } from '@deckbuilderkit/sql-ui';
+import { type FileAssociation, type GitSettings, type FileSettings, type Keymap, type Language, type LogSettings, type ResultFormat, request, requestUpload, stream } from '@deckbuilderkit/ui';
 
 export type { TerminalSettings };
 
@@ -102,9 +102,9 @@ export type { CopyFormat };
 export type { LogSettings, ResultFormat, SqlFormatOptions };
 
 
-export { withWorkbenchDefaults, type WorkbenchDoc, type WorkbenchSettings } from '@deckbuilder/view-workbench/web';
+export { withWorkbenchDefaults, type WorkbenchDoc, type WorkbenchSettings } from '@deckbuilderkit/view-workbench/web';
 
-import type { DbConnection } from '@deckbuilder/sql-ui';
+import type { DbConnection } from '@deckbuilderkit/sql-ui';
 export type { DbConnection };
 
 export type { DbColumn, DbPlanRow, DbRunResult, DbSchema, DbSchemaTable, DbStatus, DbTableConstraint, DbTableDetails, DbTableIndex, DemoRow };
@@ -116,7 +116,7 @@ export type { ExplorerSettings, FsEntry, FsRead, Project, SearchHit, TextEncodin
 export type BackupInfo = BackupInspect;
 
 
-/** GET /api/info (infoRoutes in @deckbuilder/server-mods). */
+/** GET /api/info (infoRoutes in @deckbuilderkit/server-mods). */
 export interface Info {
   name: string;
   version: string;

@@ -1,7 +1,7 @@
 import { basename } from 'node:path';
-import { pickFile, saveFileAs, writeFileAtomic } from '@deckbuilder/platform';
-import { defineServerView, invalid, isRecord, type Routes } from '@deckbuilder/server-core';
-import { fromPlatform, recordRoutes, type RecordStore, type RestHistory, restTabsRoutes } from '@deckbuilder/server-mods';
+import { pickFile, saveFileAs, writeFileAtomic } from '@deckbuilderkit/platform';
+import { defineServerView, invalid, isRecord, type Routes } from '@deckbuilderkit/server-core';
+import { fromPlatform, recordRoutes, type RecordStore, type RestHistory, restTabsRoutes } from '@deckbuilderkit/server-mods';
 
 /** The part of the server settings the REST view owns; the app's `Settings` extends it. */
 export interface RestServerSettings {

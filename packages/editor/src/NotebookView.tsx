@@ -1,4 +1,4 @@
-import { PanelBanner, t } from '@deckbuilder/ui';
+import { PanelBanner, t } from '@deckbuilderkit/ui';
 import { useMemo } from 'react';
 import { CodeView } from './CodeView';
 import { MarkdownView } from './MarkdownView';

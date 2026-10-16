@@ -1,5 +1,5 @@
-import { pickFile, saveFileAs, writeJsonAtomic } from '@deckbuilder/platform';
-import { type BackupInspect, invalid, isRecord, type Routes } from '@deckbuilder/server-core';
+import { pickFile, saveFileAs, writeJsonAtomic } from '@deckbuilderkit/platform';
+import { type BackupInspect, invalid, isRecord, type Routes } from '@deckbuilderkit/server-core';
 import { fromPlatform } from './platform-errors.ts';
 import type { ImportResult, RecordStore, Rec } from './records.ts';
 import type { SettingsStore } from './settings.ts';

@@ -1,4 +1,4 @@
-import { createT, type Messages } from '@deckbuilder/ui';
+import { createT, type Messages } from '@deckbuilderkit/ui';
 
 export const en = {
   'nav.__VIEW_ID__': '__VIEW_TITLE__',

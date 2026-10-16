@@ -1,5 +1,5 @@
 import { hostname } from 'node:os';
-import type { AppIdentity, Routes } from '@deckbuilder/server-core';
+import type { AppIdentity, Routes } from '@deckbuilderkit/server-core';
 
 export interface AppInfo {
   name: string;

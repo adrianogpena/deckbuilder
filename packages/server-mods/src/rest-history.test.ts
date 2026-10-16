@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { mkdtemp, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { RouteContext } from '@deckbuilder/server-core';
-import type { HttpRequestDraft, RestHistoryEntry } from '@deckbuilder/server-core/protocol';
+import type { RouteContext } from '@deckbuilderkit/server-core';
+import type { HttpRequestDraft, RestHistoryEntry } from '@deckbuilderkit/server-core/protocol';
 import { httpExecutor, httpRoutes } from './http.ts';
 import { restHistory } from './rest-history.ts';
 

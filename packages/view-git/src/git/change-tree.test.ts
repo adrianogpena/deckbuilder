@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import type { GitFile } from '@deckbuilder/server-core/protocol';
+import type { GitFile } from '@deckbuilderkit/server-core/protocol';
 import { changeTree, folderPaths } from './change-tree';
 
 const file = (path: string): GitFile => ({ path, group: 'unstaged', index: '.', worktree: 'M' }) as GitFile;

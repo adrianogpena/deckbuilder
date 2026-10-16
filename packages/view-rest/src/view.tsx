@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-import { defineView } from '@deckbuilder/ui';
+import { defineView } from '@deckbuilderkit/ui';
 import { bindRestClient, type RestClient } from './client';
 import { restCommands } from './commands';
 import { en, ptBR } from './i18n';

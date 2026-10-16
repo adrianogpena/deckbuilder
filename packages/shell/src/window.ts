@@ -1,4 +1,4 @@
-import { showError } from '@deckbuilder/platform';
+import { showError } from '@deckbuilderkit/platform';
 
 export interface WindowOptions {
   title?: string;

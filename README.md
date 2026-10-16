@@ -14,7 +14,7 @@ Base for local-first desktop apps. A Bun workspace of shared packages plus thin 
 Use the packages in your own app:
 
 ```
-bun add @deckbuilder/ui @deckbuilder/server-core
+bun add @deckbuilderkit/ui @deckbuilderkit/server-core
 ```
 
 They ship TypeScript source, so they need Bun. To run the gallery example from source:

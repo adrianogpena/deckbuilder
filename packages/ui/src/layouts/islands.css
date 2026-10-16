@@ -8,7 +8,7 @@
   --radius-4xl: 6px; --radius-5xl: 14px;
   --island-radius: 10px;
   --island-gap: var(--space-6);
-  /* the terminal sits on the island, not on the frame colour (read by @deckbuilder/terminal theme.ts) */
+  /* the terminal sits on the island, not on the frame colour (read by @deckbuilderkit/terminal theme.ts) */
   --terminal-surface: var(--bg);
 }
 

@@ -1,4 +1,4 @@
-import { relPath } from '@deckbuilder/ui/rel-path';
+import { relPath } from '@deckbuilderkit/ui/rel-path';
 import type { SearchHit } from '../client';
 
 export interface FindResult {

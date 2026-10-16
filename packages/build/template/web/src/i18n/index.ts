@@ -1,4 +1,4 @@
-import { addMessages, createT } from '@deckbuilder/ui';
+import { addMessages, createT } from '@deckbuilderkit/ui';
 import { en } from './en';
 import { ptBR } from './pt-BR';
 

@@ -1,4 +1,4 @@
-import { SplitView } from '@deckbuilder/ui';
+import { SplitView } from '@deckbuilderkit/ui';
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { CodeEditor, type SelectionInfo } from './CodeEditor';
 import { markdownLive } from './markdownLive';

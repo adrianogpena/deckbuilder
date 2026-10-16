@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import type { RestHistoryEntry } from '@deckbuilder/server-core/protocol';
-import { type ApiError, ErrorBanner, errorOf, Icon, useAsync, type useDialogs } from '@deckbuilder/ui';
+import type { RestHistoryEntry } from '@deckbuilderkit/server-core/protocol';
+import { type ApiError, ErrorBanner, errorOf, Icon, useAsync, type useDialogs } from '@deckbuilderkit/ui';
 import { restApi as api } from '../client';
 import { t } from '../i18n';
 import { openRestTab } from './tabs-store';

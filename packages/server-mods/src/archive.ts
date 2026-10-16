@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import SevenZip from '7z-wasm';
 import wasmFile from '7z-wasm/7zz.wasm' with { type: 'file' };
-import { invalid } from '@deckbuilder/server-core';
+import { invalid } from '@deckbuilderkit/server-core';
 
 export interface ArchiveEntry {
   /** `/`-separated path inside the archive. */

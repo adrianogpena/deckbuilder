@@ -1,5 +1,5 @@
 {
-  "name": "@deckbuilder/build",
+  "name": "@deckbuilderkit/build",
   "version": "0.1.0",
   "license": "MIT",
   "repository": {
@@ -21,8 +21,8 @@
     "deckbuilder": "src/cli.ts"
   },
   "dependencies": {
-    "@deckbuilder/platform": "workspace:*",
-    "@deckbuilder/server-core": "workspace:*",
+    "@deckbuilderkit/platform": "workspace:*",
+    "@deckbuilderkit/server-core": "workspace:*",
     "sharp": "^0.35.5"
   }
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { requestBlob } from '@deckbuilder/ui';
+import { requestBlob } from '@deckbuilderkit/ui';
 import { resolveImagePath } from './resolve-image-path';
 
 const PLACEHOLDER = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';

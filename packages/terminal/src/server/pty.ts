@@ -1,4 +1,4 @@
-import { killTree } from '@deckbuilder/platform';
+import { killTree } from '@deckbuilderkit/platform';
 
 export interface Pty {
   write(data: string | Uint8Array): void;

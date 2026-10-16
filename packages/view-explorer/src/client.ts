@@ -1,8 +1,8 @@
-import type { ArchiveContent, HttpClient, SqliteContent } from '@deckbuilder/editor';
-import type { EditorInfo, FsArchiveFormat, FsCompressResult, FsDuProgress, FsExtractResult, FsHash, FsInfo, GitStatus, TailChunk } from '@deckbuilder/server-core/protocol';
-import type { SqlClient } from '@deckbuilder/sql-ui';
+import type { ArchiveContent, HttpClient, SqliteContent } from '@deckbuilderkit/editor';
+import type { EditorInfo, FsArchiveFormat, FsCompressResult, FsDuProgress, FsExtractResult, FsHash, FsInfo, GitStatus, TailChunk } from '@deckbuilderkit/server-core/protocol';
+import type { SqlClient } from '@deckbuilderkit/sql-ui';
 
-export type { LogSettings } from '@deckbuilder/ui';
+export type { LogSettings } from '@deckbuilderkit/ui';
 export type { EditorInfo, FsDuProgress, FsHash, FsInfo, TailChunk };
 
 /** A project folder the Explorer shows. */

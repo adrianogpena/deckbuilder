@@ -1,5 +1,5 @@
 import { useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
-import { Icon, ProjectPicker, type ProjectPickerProps, useCommand } from '@deckbuilder/ui';
+import { Icon, ProjectPicker, type ProjectPickerProps, useCommand } from '@deckbuilderkit/ui';
 import type { Project, SearchHit } from '../client';
 import { explorerCommandById as commandById } from '../commands';
 import { nodeId } from '../explorer-paths';

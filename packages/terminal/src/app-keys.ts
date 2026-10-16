@@ -1,4 +1,4 @@
-import type { CommandDef } from '@deckbuilder/ui';
+import type { CommandDef } from '@deckbuilderkit/ui';
 
 /**
  * Of `all` (every command of the app), those whose keys reach the app while a terminal in view `scope`

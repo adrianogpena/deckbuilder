@@ -1,5 +1,5 @@
-import type { HttpRequestDraft } from '@deckbuilder/editor';
-import type { SectionPath, SettingDef } from '@deckbuilder/ui';
+import type { HttpRequestDraft } from '@deckbuilderkit/editor';
+import type { SectionPath, SettingDef } from '@deckbuilderkit/ui';
 
 /** The stored REST screen state. */
 export interface RestSettings {

@@ -1,4 +1,4 @@
-import { TOKEN_HEADER } from '@deckbuilder/server-core/protocol';
+import { TOKEN_HEADER } from '@deckbuilderkit/server-core/protocol';
 import { type QueryParams, qs, RequestError } from './api-core';
 import { session } from './api';
 import { NdjsonError, readNdjson } from './ndjson';

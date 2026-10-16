@@ -1,5 +1,5 @@
-import type { HttpClient } from '@deckbuilder/editor';
-import type { RestEnvironment, RestEnvironmentInput, RestHistoryEntry } from '@deckbuilder/server-core/protocol';
+import type { HttpClient } from '@deckbuilderkit/editor';
+import type { RestEnvironment, RestEnvironmentInput, RestHistoryEntry } from '@deckbuilderkit/server-core/protocol';
 import type { RestTabsFile, SavedRequest } from './settings';
 
 /** The server calls the REST view makes (the sending and the environment list come from `HttpClient`); the app builds it from its api and passes it to `restView`. */

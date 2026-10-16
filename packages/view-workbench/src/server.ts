@@ -1,4 +1,4 @@
-import { defineServerView, isRecord } from '@deckbuilder/server-core';
+import { defineServerView, isRecord } from '@deckbuilderkit/server-core';
 
 /** The part of the server settings the Workbench view owns; the app's `Settings` extends it. */
 export interface WorkbenchServerSettings {

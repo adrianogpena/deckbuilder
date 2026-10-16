@@ -1,5 +1,5 @@
 {
-  "name": "@deckbuilder/ui",
+  "name": "@deckbuilderkit/ui",
   "version": "0.1.0",
   "license": "MIT",
   "repository": {
@@ -30,7 +30,7 @@
     "./styles.css": "./src/styles.css"
   },
   "dependencies": {
-    "@deckbuilder/server-core": "workspace:*",
+    "@deckbuilderkit/server-core": "workspace:*",
     "@fontsource/geist": "^5.1.0",
     "@fontsource/geist-mono": "^5.1.0",
     "react-grid-layout": "^2.3.0"

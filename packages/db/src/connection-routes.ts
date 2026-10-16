@@ -1,5 +1,5 @@
-import type { Routes } from '@deckbuilder/server-core';
-import { recordRoutes, type RecordStore } from '@deckbuilder/server-mods';
+import type { Routes } from '@deckbuilderkit/server-core';
+import { recordRoutes, type RecordStore } from '@deckbuilderkit/server-mods';
 import type { DbSessions } from './sessions.ts';
 
 const BASE = '/api/db/connections';

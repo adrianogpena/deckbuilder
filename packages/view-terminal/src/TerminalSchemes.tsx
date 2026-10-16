@@ -1,7 +1,7 @@
 import { type CSSProperties, type ReactNode, useEffect, useState } from 'react';
-import { Modal, SettingItem } from '@deckbuilder/ui';
-import { MAX_SCHEMES, parseWindowsTerminalSchemes, SCHEME_COLORS, TERMINAL_THEMES, themeOf, type ColorScheme } from '@deckbuilder/terminal/options';
-import type { TerminalProfile } from '@deckbuilder/terminal/protocol';
+import { Modal, SettingItem } from '@deckbuilderkit/ui';
+import { MAX_SCHEMES, parseWindowsTerminalSchemes, SCHEME_COLORS, TERMINAL_THEMES, themeOf, type ColorScheme } from '@deckbuilderkit/terminal/options';
+import type { TerminalProfile } from '@deckbuilderkit/terminal/protocol';
 import { t, type TerminalMessageKey } from './i18n';
 import { terminalDefault, type TerminalSettings, type TerminalViewSettings } from './settings';
 

@@ -1,4 +1,4 @@
-import { chordOf, type KeyLike } from '@deckbuilder/ui/keybindings';
+import { chordOf, type KeyLike } from '@deckbuilderkit/ui/keybindings';
 
 /**
  * Commands a terminal pane runs itself, with their default keys (the fallback without a keymap;

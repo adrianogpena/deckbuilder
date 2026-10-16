@@ -1,4 +1,4 @@
-import { type HighlightTerm, Icon, JsonTree, linesOf, LogView, PanelBanner, PanelLoading, PanelNotice, t } from '@deckbuilder/ui';
+import { type HighlightTerm, Icon, JsonTree, linesOf, LogView, PanelBanner, PanelLoading, PanelNotice, t } from '@deckbuilderkit/ui';
 import { lazy, Suspense, useMemo, useState } from 'react';
 import { type ArchiveContent, ArchiveView } from './ArchiveView';
 import { CodeView } from './CodeView';

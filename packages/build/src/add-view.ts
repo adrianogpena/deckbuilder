@@ -82,14 +82,14 @@ export function addView({ id, root, template = TEMPLATE }: AddViewOptions): stri
   edit(web, (text) => {
     const orders = [...text.matchAll(/order: (\d+)/g)].map((m) => Number(m[1]));
     const order = Math.max(0, ...orders) + 10;
-    const withImport = insertAfterLast(text, /^import .* from '@deckbuilder\/view-[\w-]+\/web';?$/, `import { ${n.camel}View } from '@deckbuilder/view-${id}/web';`, web);
+    const withImport = insertAfterLast(text, /^import .* from '@deckbuilderkit\/view-[\w-]+\/web';?$/, `import { ${n.camel}View } from '@deckbuilderkit/view-${id}/web';`, web);
     const marker = /\],(\r?\n\s*\{ fallback)/;
     if (!marker.test(withImport)) throw new Error(`Cannot register in ${web}: createViews list not found.`);
     return withImport.replace(marker, `, ${n.camel}View({ group: 'nav.section.main', order: ${order} })],$1`);
   });
 
   edit(server, (text) => {
-    const withImport = insertAfterLast(text, /^import .* from '@deckbuilder\/view-[\w-]+\/server';?$/, `import { ${n.camel}ServerView } from '@deckbuilder/view-${id}/server';`, server);
+    const withImport = insertAfterLast(text, /^import .* from '@deckbuilderkit\/view-[\w-]+\/server';?$/, `import { ${n.camel}ServerView } from '@deckbuilderkit/view-${id}/server';`, server);
     const marker = /(serverViews: ServerViewDef\[\] = \[[\s\S]*?\n)\];/;
     if (!marker.test(withImport)) throw new Error(`Cannot register in ${server}: serverViews list not found.`);
     return withImport.replace(marker, `$1  ${n.camel}ServerView(),\n];`);
@@ -97,7 +97,7 @@ export function addView({ id, root, template = TEMPLATE }: AddViewOptions): stri
 
   edit(pkgJson, (text) => {
     const pkg = JSON.parse(text) as { dependencies?: Record<string, string> };
-    const deps = { ...pkg.dependencies, [`@deckbuilder/view-${id}`]: 'workspace:*' };
+    const deps = { ...pkg.dependencies, [`@deckbuilderkit/view-${id}`]: 'workspace:*' };
     pkg.dependencies = Object.fromEntries(Object.entries(deps).sort(([a], [b]) => (a < b ? -1 : 1)));
     return `${JSON.stringify(pkg, null, 2)}\n`;
   });

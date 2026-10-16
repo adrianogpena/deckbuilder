@@ -1,4 +1,4 @@
-import { copyText, Icon, useToast } from '@deckbuilder/ui';
+import { copyText, Icon, useToast } from '@deckbuilderkit/ui';
 import { t } from './i18n';
 import type { DbPlanRow } from './types';
 

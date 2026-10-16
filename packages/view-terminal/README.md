@@ -1,4 +1,4 @@
-# @deckbuilder/view-terminal
+# @deckbuilderkit/view-terminal
 
 Terminal
 

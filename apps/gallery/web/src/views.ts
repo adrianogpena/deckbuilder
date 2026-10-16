@@ -1,10 +1,10 @@
 import { createElement } from 'react';
-import { addMessages, createViews, groupField, oneOf, PanelLoading, type ViewIds } from '@deckbuilder/ui';
-import { explorerView } from '@deckbuilder/view-explorer/web';
-import { gitView } from '@deckbuilder/view-git/web';
-import { restView } from '@deckbuilder/view-rest/web';
-import { terminalView } from '@deckbuilder/view-terminal/web';
-import { workbenchView } from '@deckbuilder/view-workbench/web';
+import { addMessages, createViews, groupField, oneOf, PanelLoading, type ViewIds } from '@deckbuilderkit/ui';
+import { explorerView } from '@deckbuilderkit/view-explorer/web';
+import { gitView } from '@deckbuilderkit/view-git/web';
+import { restView } from '@deckbuilderkit/view-rest/web';
+import { terminalView } from '@deckbuilderkit/view-terminal/web';
+import { workbenchView } from '@deckbuilderkit/view-workbench/web';
 import type { Settings } from './api';
 import { bindViews } from './commands';
 import { gridView } from './screens/grid.view';

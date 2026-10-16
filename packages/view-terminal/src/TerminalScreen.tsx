@@ -9,8 +9,8 @@ import {
   type TerminalProfileInfo,
   TerminalPane,
   terminalAppKeys,
-} from '@deckbuilder/terminal';
-import { SHELL_ICONS, SHELL_NAMES } from '@deckbuilder/terminal/protocol';
+} from '@deckbuilderkit/terminal';
+import { SHELL_ICONS, SHELL_NAMES } from '@deckbuilderkit/terminal/protocol';
 import {
   activate,
   activeTab,
@@ -37,7 +37,7 @@ import {
   useDebouncedSave,
   useDialogs,
   useKeybindings,
-} from '@deckbuilder/ui';
+} from '@deckbuilderkit/ui';
 import { TERMINAL_SCREEN_COMMANDS, terminalCommandById } from './commands';
 import { t } from './i18n';
 import { type TerminalViewSettings as Settings, terminalSettingsOf } from './settings';

@@ -1,5 +1,5 @@
 {
-  "name": "@deckbuilder/shell",
+  "name": "@deckbuilderkit/shell",
   "version": "0.1.0",
   "license": "MIT",
   "repository": {
@@ -20,8 +20,8 @@
     "./window-worker": "./src/window-worker.ts"
   },
   "dependencies": {
-    "@deckbuilder/platform": "workspace:*",
-    "@deckbuilder/server-core": "workspace:*",
+    "@deckbuilderkit/platform": "workspace:*",
+    "@deckbuilderkit/server-core": "workspace:*",
     "webview-bun": "^2.4.0"
   }
 }

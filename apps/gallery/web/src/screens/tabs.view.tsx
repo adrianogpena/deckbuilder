@@ -1,4 +1,4 @@
-import { defineView, tabCommands } from '@deckbuilder/ui';
+import { defineView, tabCommands } from '@deckbuilderkit/ui';
 import type { Settings } from '../api';
 import { TabsScreen } from './TabsScreen';
 

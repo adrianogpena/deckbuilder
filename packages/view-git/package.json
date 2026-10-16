@@ -1,5 +1,5 @@
 {
-  "name": "@deckbuilder/view-git",
+  "name": "@deckbuilderkit/view-git",
   "version": "0.1.0",
   "license": "MIT",
   "repository": {
@@ -21,10 +21,10 @@
     "./styles.css": "./src/git.css"
   },
   "dependencies": {
-    "@deckbuilder/editor": "workspace:*",
-    "@deckbuilder/server-core": "workspace:*",
-    "@deckbuilder/server-mods": "workspace:*",
-    "@deckbuilder/ui": "workspace:*"
+    "@deckbuilderkit/editor": "workspace:*",
+    "@deckbuilderkit/server-core": "workspace:*",
+    "@deckbuilderkit/server-mods": "workspace:*",
+    "@deckbuilderkit/ui": "workspace:*"
   },
   "peerDependencies": {
     "react": "^18.3.1",

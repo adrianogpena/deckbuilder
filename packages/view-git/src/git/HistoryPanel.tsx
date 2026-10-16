@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
-import type { GitCommit, GitCommitFile } from '@deckbuilder/server-core/protocol';
-import { type ApiError, ErrorBanner, errorOf, fileIconOf, Icon, useRovingList } from '@deckbuilder/ui';
+import type { GitCommit, GitCommitFile } from '@deckbuilderkit/server-core/protocol';
+import { type ApiError, ErrorBanner, errorOf, fileIconOf, Icon, useRovingList } from '@deckbuilderkit/ui';
 import { gitApi as api } from '../client';
 import { t } from '../i18n';
 import { commitStatusOf } from './sides';

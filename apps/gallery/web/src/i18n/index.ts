@@ -1,10 +1,10 @@
-import { sqlEn, sqlPtBR } from '@deckbuilder/sql-ui';
-import { addMessages, createT } from '@deckbuilder/ui';
-import type { ExplorerMessageKey } from '@deckbuilder/view-explorer/web';
-import type { GitMessageKey } from '@deckbuilder/view-git/web';
-import type { RestMessageKey } from '@deckbuilder/view-rest/web';
-import type { TerminalMessageKey } from '@deckbuilder/view-terminal/web';
-import type { WorkbenchMessageKey } from '@deckbuilder/view-workbench/web';
+import { sqlEn, sqlPtBR } from '@deckbuilderkit/sql-ui';
+import { addMessages, createT } from '@deckbuilderkit/ui';
+import type { ExplorerMessageKey } from '@deckbuilderkit/view-explorer/web';
+import type { GitMessageKey } from '@deckbuilderkit/view-git/web';
+import type { RestMessageKey } from '@deckbuilderkit/view-rest/web';
+import type { TerminalMessageKey } from '@deckbuilderkit/view-terminal/web';
+import type { WorkbenchMessageKey } from '@deckbuilderkit/view-workbench/web';
 import { en } from './en';
 import { ptBR } from './pt-BR';
 

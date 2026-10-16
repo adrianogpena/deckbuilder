@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { CodeEditor } from '@deckbuilder/editor';
-import { type ApiError, copyText, ErrorBanner, errorOf, Modal } from '@deckbuilder/ui';
+import { CodeEditor } from '@deckbuilderkit/editor';
+import { type ApiError, copyText, ErrorBanner, errorOf, Modal } from '@deckbuilderkit/ui';
 import { restApi as api } from '../client';
 import { t } from '../i18n';
 

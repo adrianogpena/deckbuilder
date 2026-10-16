@@ -1,4 +1,4 @@
-import type { GitCommit, GitCommitFile, GitDiff, GitFileContent, GitRepoInfo, GitStatus } from '@deckbuilder/server-core/protocol';
+import type { GitCommit, GitCommitFile, GitDiff, GitFileContent, GitRepoInfo, GitStatus } from '@deckbuilderkit/server-core/protocol';
 
 /** A project the screen can focus. */
 export interface GitProject {

@@ -15,7 +15,7 @@ import {
   validGridItems,
   type GridItem,
   type PanelDef,
-} from '@deckbuilder/ui';
+} from '@deckbuilderkit/ui';
 import { api, type Settings } from '../api';
 import { t } from '../i18n';
 

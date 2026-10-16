@@ -1,4 +1,4 @@
-import { DataTable, OutputPanel, SplitView } from '@deckbuilder/ui';
+import { DataTable, OutputPanel, SplitView } from '@deckbuilderkit/ui';
 import { PlanView } from './PlanView';
 import { type useSqlRunner } from './useSqlRunner';
 

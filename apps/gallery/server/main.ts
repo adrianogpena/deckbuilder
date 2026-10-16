@@ -1,6 +1,6 @@
 import { join } from 'node:path';
-import { appHome, createAutostart, pickFolder } from '@deckbuilder/platform';
-import { applyViewSettings, type FieldSpec, mountViews, updatePublicKey, validGroup } from '@deckbuilder/server-core';
+import { appHome, createAutostart, pickFolder } from '@deckbuilderkit/platform';
+import { applyViewSettings, type FieldSpec, mountViews, updatePublicKey, validGroup } from '@deckbuilderkit/server-core';
 import {
   backupRoutes,
   createUpdater,
@@ -14,18 +14,18 @@ import {
   themeHead,
   updateRoutes,
   type BaseSettings,
-} from '@deckbuilder/server-mods';
-import { runApp } from '@deckbuilder/shell';
-import type { ExplorerServerSettings } from '@deckbuilder/view-explorer/server';
-import type { GitServerSettings } from '@deckbuilder/view-git/server';
-import { restHistorySizeOf, type RestServerSettings } from '@deckbuilder/view-rest/server';
-import type { TerminalServerSettings } from '@deckbuilder/view-terminal/server';
-import { historySizeOf, type WorkbenchServerSettings } from '@deckbuilder/view-workbench/server';
-import { type GridItem, validGridItems } from '@deckbuilder/ui/grid';
-import { validKeymap, type Keymap } from '@deckbuilder/ui/keybindings';
-import { type FileAssociation, validFileAssociations } from '@deckbuilder/ui/file-associations';
-import { type FileSettings, validFileSettings } from '@deckbuilder/ui/file-settings';
-import { type LogSettings, validLogSettings } from '@deckbuilder/ui/log';
+} from '@deckbuilderkit/server-mods';
+import { runApp } from '@deckbuilderkit/shell';
+import type { ExplorerServerSettings } from '@deckbuilderkit/view-explorer/server';
+import type { GitServerSettings } from '@deckbuilderkit/view-git/server';
+import { restHistorySizeOf, type RestServerSettings } from '@deckbuilderkit/view-rest/server';
+import type { TerminalServerSettings } from '@deckbuilderkit/view-terminal/server';
+import { historySizeOf, type WorkbenchServerSettings } from '@deckbuilderkit/view-workbench/server';
+import { type GridItem, validGridItems } from '@deckbuilderkit/ui/grid';
+import { validKeymap, type Keymap } from '@deckbuilderkit/ui/keybindings';
+import { type FileAssociation, validFileAssociations } from '@deckbuilderkit/ui/file-associations';
+import { type FileSettings, validFileSettings } from '@deckbuilderkit/ui/file-settings';
+import { type LogSettings, validLogSettings } from '@deckbuilderkit/ui/log';
 import { APP } from '../app.ts';
 import pkg from '../package.json';
 import { dbConnections, environments, requests, restHistoryStore, routes, sqlHistoryStore } from './routes.ts';
@@ -46,7 +46,7 @@ export interface Settings extends BaseSettings, TerminalServerSettings, Workbenc
   updateFolder: string;
   /** Keybinding overrides by command id, checked by `validKeymap`. */
   keybindings?: Keymap;
-  /** Layout of the Tabs screen (`serialize` of `@deckbuilder/ui`'s tabs); the UI validates it on restore. */
+  /** Layout of the Tabs screen (`serialize` of `@deckbuilderkit/ui`'s tabs); the UI validates it on restore. */
   tabsLayout?: unknown;
   /** Layout of the Grid screen, checked by `validGridItems`. */
   gridLayout?: GridItem[];

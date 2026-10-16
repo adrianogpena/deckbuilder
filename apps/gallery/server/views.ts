@@ -1,11 +1,11 @@
 import { join } from 'node:path';
-import { appHome } from '@deckbuilder/platform';
-import type { ServerViewDef } from '@deckbuilder/server-core';
-import { explorerServerView } from '@deckbuilder/view-explorer/server';
-import { gitServerView } from '@deckbuilder/view-git/server';
-import { restServerView } from '@deckbuilder/view-rest/server';
-import { terminalServerView } from '@deckbuilder/view-terminal/server';
-import { workbenchServerView } from '@deckbuilder/view-workbench/server';
+import { appHome } from '@deckbuilderkit/platform';
+import type { ServerViewDef } from '@deckbuilderkit/server-core';
+import { explorerServerView } from '@deckbuilderkit/view-explorer/server';
+import { gitServerView } from '@deckbuilderkit/view-git/server';
+import { restServerView } from '@deckbuilderkit/view-rest/server';
+import { terminalServerView } from '@deckbuilderkit/view-terminal/server';
+import { workbenchServerView } from '@deckbuilderkit/view-workbench/server';
 import { APP } from '../app.ts';
 import { MULTI_DELETE_ENABLED } from '../app.ts';
 

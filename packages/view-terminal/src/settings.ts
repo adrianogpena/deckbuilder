@@ -1,6 +1,6 @@
-import { DEFAULT_WORD_SEPARATORS, TERMINAL_THEMES, type ColorScheme } from '@deckbuilder/terminal/options';
-import type { TerminalProfile } from '@deckbuilder/terminal/protocol';
-import { bool, type FieldDef, groupField, num, oneOf, type SettingDef, settingDefaultsOf, str } from '@deckbuilder/ui';
+import { DEFAULT_WORD_SEPARATORS, TERMINAL_THEMES, type ColorScheme } from '@deckbuilderkit/terminal/options';
+import type { TerminalProfile } from '@deckbuilderkit/terminal/protocol';
+import { bool, type FieldDef, groupField, num, oneOf, type SettingDef, settingDefaultsOf, str } from '@deckbuilderkit/ui';
 
 export type TerminalFontWeight = 'normal' | 'bold' | '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900';
 

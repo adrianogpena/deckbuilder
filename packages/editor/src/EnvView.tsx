@@ -1,4 +1,4 @@
-import { Icon, t } from '@deckbuilder/ui';
+import { Icon, t } from '@deckbuilderkit/ui';
 import { useMemo, useState } from 'react';
 import { parseEnv } from './table';
 

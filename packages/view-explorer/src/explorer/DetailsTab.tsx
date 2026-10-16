@@ -18,8 +18,8 @@ import {
   useDialogs,
   useToast,
   type ApiError,
-} from '@deckbuilder/ui';
-import type { FsArchiveFormat } from '@deckbuilder/server-core/protocol';
+} from '@deckbuilderkit/ui';
+import type { FsArchiveFormat } from '@deckbuilderkit/server-core/protocol';
 import { multiDeleteEnabled } from '../options';
 import { explorerApi as api, type FsEntry, type Project } from '../client';
 import { fullPath } from '../explorer-paths';
