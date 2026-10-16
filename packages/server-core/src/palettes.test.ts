@@ -27,7 +27,7 @@ test('every palette has every token, colours are valid and ids unique', () => {
   );
   expect(invalid).toEqual([]);
   expect(new Set(PALETTES.map((p) => p.id)).size).toBe(PALETTES.length);
-  expect(PALETTES.length).toBe(25);
+  expect(PALETTES.length).toBe(27);
 });
 
 test('deckbuilder-dark is the dark block of styles.css plus the new tokens', () => {

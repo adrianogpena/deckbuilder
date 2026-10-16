@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from 'react';
 import { useLayout } from '../layout';
+import { t } from '../i18n';
 import { HeaderNav } from './HeaderNav';
 import { BrandMark, Icon, type IconName } from './ui';
 
@@ -105,4 +106,24 @@ export function BaseSidebar<Id extends string>({ name, sections, current, onSele
       )}
     </nav>
   );
+}
+
+/** Atlas groups the nav by what it works on; ids not listed join the last group, in their order. */
+const ATLAS_GROUPS: Array<{ title: 'atlas.nav.files' | 'atlas.nav.tools'; ids: string[] }> = [
+  { title: 'atlas.nav.files', ids: ['explorer', 'git'] },
+  { title: 'atlas.nav.tools', ids: ['workbench', 'rest', 'terminal'] },
+];
+
+/** Atlas: the base sidebar with the app's items regrouped into labelled Files / Tools sections. */
+export function AtlasSidebar<Id extends string>(props: SidebarProps<Id>) {
+  const items = props.sections.flatMap((s) => s.items);
+  const listed = new Set(ATLAS_GROUPS.flatMap((g) => g.ids));
+  const sections = ATLAS_GROUPS.map((g, i) => ({
+    title: t(g.title),
+    items: [
+      ...g.ids.flatMap((id) => items.filter((item) => item.id === id)),
+      ...(i === ATLAS_GROUPS.length - 1 ? items.filter((item) => !listed.has(item.id)) : []),
+    ],
+  })).filter((s) => s.items.length > 0);
+  return <BaseSidebar {...props} sections={sections} />;
 }

@@ -30,7 +30,7 @@ export function applyMainMenu(s: LayoutStructure, mode?: MainMenu): LayoutStruct
 }
 
 /** Layouts whose navigation is a header (or otherwise not a side dock): the dock side does not apply. */
-export const HEADER_NAV_LAYOUTS: readonly string[] = ['ribbon', 'ledger', 'atlas'];
+export const HEADER_NAV_LAYOUTS: readonly string[] = ['ribbon', 'ledger'];
 
 export function supportsDock(layoutId: string): boolean {
   return !HEADER_NAV_LAYOUTS.includes(layoutId);
@@ -85,6 +85,8 @@ export const LAYOUTS: readonly Layout[] = [
     id: 'ledger', label: 'Ledger', icons: 'original',
     structure: { ...ORIGINAL_STRUCTURE, navFooter: 'none', navPlacement: 'header', tabBarPosition: 'top' },
   },
+  // Files-first: labelled sectioned sidebar (mainMenu 'icons' still collapses it), coloured Atom icons, tools in a status row.
+  { id: 'atlas', label: 'Atlas', icons: 'atom', structure: { ...ORIGINAL_STRUCTURE, sidebarMode: 'expanded', sidebarBrand: false, navFooter: 'none' } },
 ];
 
 export const ICON_SET_IDS: readonly string[] = ['original', 'material', 'atom'];

@@ -49,6 +49,22 @@ export function IslandsAppFrame({ zen, sidebar, children }: AppFrameProps) {
   );
 }
 
+/** Atlas: the global tools move from the sidebar footer to the right end of a frame-wide status row.
+ *  The row is the frame's own, so it stays when the per-file status bar (`statusBar`) is off. */
+export function AtlasAppFrame({ tools, children, ...rest }: AppFrameProps) {
+  return (
+    <BaseAppFrame {...rest}>
+      {children}
+      {tools && (
+        <footer className="atlas-statusbar">
+          <span className="spacer" />
+          {tools}
+        </footer>
+      )}
+    </BaseAppFrame>
+  );
+}
+
 export function AppFrame(props: AppFrameProps) {
   const { Frame } = useLayout().shell;
   return <Frame {...props} />;

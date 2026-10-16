@@ -17,6 +17,7 @@
 @import './layouts/modeline.css';
 @import './layouts/ribbon.css';
 @import './layouts/ledger.css';
+@import './layouts/atlas.css';
 
 :root,
 :root[data-theme='dark'] {
