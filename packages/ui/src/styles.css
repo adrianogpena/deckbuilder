@@ -13,6 +13,8 @@
 @import './layouts/material.css';
 @import './layouts/blueprint.css';
 @import './layouts/transit.css';
+@import './layouts/islands.css';
+@import './layouts/modeline.css';
 
 :root,
 :root[data-theme='dark'] {

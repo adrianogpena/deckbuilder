@@ -75,6 +75,8 @@ export const LAYOUTS: readonly Layout[] = [
   { id: 'material', label: 'Material', icons: 'material', structure: { ...ORIGINAL_STRUCTURE, sidebarMode: 'expanded' } },
   { id: 'blueprint', label: 'Blueprint', icons: 'original', structure: { ...ORIGINAL_STRUCTURE, sidebarBrand: true } },
   { id: 'transit', label: 'Transit', icons: 'original', structure: { ...ORIGINAL_STRUCTURE, sidebarMode: 'expanded' } },
+  { id: 'islands', label: 'Islands', icons: 'original', structure: { ...ORIGINAL_STRUCTURE, sidebarMode: 'collapsed', sidebarBrand: false, statusBar: true } },
+  { id: 'modeline', label: 'Modeline', icons: 'original', structure: { ...ORIGINAL_STRUCTURE, sidebarBrand: false, tabBarPosition: 'bottom' } },
 ];
 
 export const ICON_SET_IDS: readonly string[] = ['original', 'material', 'atom'];

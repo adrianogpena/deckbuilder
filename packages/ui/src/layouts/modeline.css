@@ -1,0 +1,100 @@
+/* Modeline: a terminal-native app. Mono type everywhere, box-drawing rules, no radius. The nav
+   rail shows single letters, tabs sit at the bottom as numbered text (`1:name`), and the status
+   bar is a vim-style modeline led by the current screen as the mode block. The accent (ochre)
+   marks the mode block and the selection fill only; boldness is spent on the type. */
+
+/* Size variables */
+:root[data-layout='modeline'] {
+  --font-sans: var(--font-mono);
+  --font-body-size: 12.5px;
+  --radius-2xs: 0; --radius-xs: 0; --radius-sm: 0; --radius-md: 0; --radius-lg: 0;
+  --radius-xl: 0; --radius-2xl: 0; --radius-3xl: 0; --radius-4xl: 0; --radius-5xl: 0;
+  /* 12.5 body, 12 secondary, 11 captions; headings never above 14 */
+  --fs-3xs: 11px; --fs-2xs: 11px; --fs-xs: 11px; --fs-xs-plus: 12px; --fs-sm: 12px;
+  --fs-sm-plus: 12.5px; --fs-md: 12.5px; --fs-lg: 13px; --fs-xl: 14px; --fs-2xl: 14px;
+  --control-h: 24px; --control-h-sm: 22px; --control-h-xs: 22px; --control-h-2xs: 20px; --control-h-3xs: 18px;
+  --tabbar-h: 28px; --statusbar-h: 22px; --header-h: 28px; --panel-head-h: 30px;
+  --sidebar-w-collapsed: 32px; --rail-w: 32px;
+  --rule-w: 1px;
+  --heading-weight: 600;
+  --mode-pad: 0 var(--space-8);
+}
+
+/* Colour remaps on body, not :root: useTheme writes the palette tokens inline on <html>. The
+   accent fills only the mode block and the selection; nav and tab markers go to plain ink. */
+:root[data-layout='modeline'] body {
+  --selected: color-mix(in srgb, var(--accent) 22%, var(--bg));
+  --side-active: var(--hover);
+  --accent-soft: color-mix(in srgb, var(--accent) 22%, transparent);
+  font: var(--font-body-size)/1.45 var(--font-mono);
+}
+/* The shell is exactly the viewport: clip (not hidden, which still scrolls on focus) so a menu or
+   the bottom tab/status rows can never grow or scroll the document. */
+:root[data-layout='modeline'], :root[data-layout='modeline'] body { overflow: clip; }
+:root[data-layout='modeline'] .sidebar.collapsed .side-item { overflow: hidden; }
+:root[data-layout='modeline'] ::selection { background: var(--accent); color: var(--ink-on-accent); }
+
+/* Headings: weight and case, not size. */
+:root[data-layout='modeline'] h1, :root[data-layout='modeline'] h2, :root[data-layout='modeline'] h3 {
+  font-size: var(--fs-xl); font-weight: var(--heading-weight); letter-spacing: 0;
+}
+:root[data-layout='modeline'] .panel-title, :root[data-layout='modeline'] .modal-head {
+  font-weight: var(--heading-weight); text-transform: lowercase;
+}
+
+/* Nav rail: single letters (first letter of the item's name), icons hidden; the active letter
+   is inverse ink, not accent. */
+:root[data-layout='modeline'] .sidebar { border-right: var(--rule-w) solid var(--border); }
+:root[data-layout='modeline'] .app.sidebar-right > .sidebar { border-left: var(--rule-w) solid var(--border); }
+:root[data-layout='modeline'] .sidebar.collapsed .side-item { height: var(--control-h); font-weight: var(--heading-weight); }
+:root[data-layout='modeline'] .sidebar.collapsed .side-item > .icon { display: none; }
+:root[data-layout='modeline'] .sidebar.collapsed .side-item::after {
+  content: attr(aria-label); display: inline-block; width: 1ch; overflow: hidden; white-space: nowrap;
+  font-family: var(--font-mono); font-size: var(--fs-md); text-transform: uppercase;
+}
+:root[data-layout='modeline'] .side-item.active::before { display: none; }
+:root[data-layout='modeline'] .sidebar.collapsed .side-item.active { background: var(--text); color: var(--bg); }
+:root[data-layout='modeline'] .side-item.active .icon { color: inherit; }
+
+/* Tabs (bottom): numbered text tabs, `1:name`; the active one is inverse ink. */
+:root[data-layout='modeline'] .tabbar { height: var(--tabbar-h); counter-reset: modeline-tab; }
+:root[data-layout='modeline'] .pane.tabbar-bottom .tabbar { border-top: var(--rule-w) solid var(--border); }
+:root[data-layout='modeline'] .pane.tabbar-bottom.focused .tabbar { box-shadow: none; }
+:root[data-layout='modeline'] .tab-chip { counter-increment: modeline-tab; border: 0; margin: 0; background: transparent; }
+:root[data-layout='modeline'] .pane.tabbar-bottom .tab-chip { margin: 0; border: 0; }
+:root[data-layout='modeline'] .tab-chip::before, :root[data-layout='modeline'] .pane.tabbar-bottom .tab-chip.active::before { display: none; }
+:root[data-layout='modeline'] .tab-chip > .icon { display: none; }
+:root[data-layout='modeline'] .tab-title::before { content: counter(modeline-tab) ":"; color: var(--text-3); }
+:root[data-layout='modeline'] .tab-chip.active { background: var(--text); color: var(--bg); }
+:root[data-layout='modeline'] .tab-chip.active .tab-title::before { color: inherit; }
+
+/* Modeline: segments split by box rules; the mode block leads in the accent. */
+:root[data-layout='modeline'] .modeline { display: flex; align-items: stretch; border-top: var(--rule-w) solid var(--border); background: var(--bg-elev); }
+:root[data-layout='modeline'] .modeline .status-bar { flex: 1; min-width: 0; border-top: 0; gap: 0; padding: 0; font-size: var(--fs-sm); }
+:root[data-layout='modeline'] .modeline-mode {
+  display: flex; align-items: center; padding: var(--mode-pad); min-height: var(--statusbar-h);
+  background: var(--accent); color: var(--ink-on-accent); font-family: var(--font-mono); font-size: var(--fs-sm);
+  font-weight: var(--heading-weight); text-transform: uppercase; white-space: nowrap;
+}
+:root[data-layout='modeline'] .status-item { padding: 0 var(--space-8); border-right: var(--rule-w) solid var(--border); border-radius: 0; }
+:root[data-layout='modeline'] .spacer + .status-item, :root[data-layout='modeline'] .spacer ~ .status-item { border-right: 0; border-left: var(--rule-w) solid var(--border); }
+:root[data-layout='modeline'] .app.zen .modeline, :root[data-layout='modeline'][data-status-bar='false'] .modeline { display: none; }
+
+/* Panels: box-drawing heads. */
+:root[data-layout='modeline'] .panel-head { height: var(--panel-head-h); border-bottom: var(--rule-w) solid var(--border); }
+:root[data-layout='modeline'] .card { box-shadow: none; border: var(--rule-w) solid var(--border); }
+
+/* Buttons: `[ label ]` text, inverse on hover; primary stays ink, not accent. */
+:root[data-layout='modeline'] .btn { border-color: transparent; background: transparent; box-shadow: none; }
+:root[data-layout='modeline'] .btn:not(.btn-icon)::before { content: "[ "; color: var(--text-3); }
+:root[data-layout='modeline'] .btn:not(.btn-icon)::after { content: " ]"; color: var(--text-3); }
+:root[data-layout='modeline'] .btn:hover:not(:disabled) { background: var(--text); color: var(--bg); border-color: var(--text); }
+:root[data-layout='modeline'] .btn:hover:not(:disabled)::before, :root[data-layout='modeline'] .btn:hover:not(:disabled)::after { color: inherit; }
+:root[data-layout='modeline'] .btn-primary { background: transparent; border-color: transparent; color: var(--text); font-weight: var(--heading-weight); }
+:root[data-layout='modeline'] .btn-primary:hover:not(:disabled) { background: var(--text); border-color: var(--text); color: var(--bg); }
+
+/* Terminal: xterm keeps --bg-sunken, which sits close to the frame; a box rule marks its edge. */
+:root[data-layout='modeline'] .terminal-pane:not(.preview) .terminal-host .xterm { outline: var(--rule-w) solid var(--border); }
+
+/* Modals: square, border plus shadow. */
+:root[data-layout='modeline'] .modal { border: var(--rule-w) solid var(--border); box-shadow: var(--shadow); }

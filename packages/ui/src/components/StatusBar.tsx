@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useSyncExternalStore, type ReactNode } from 'react';
 import { useLayout } from '../layout';
 
 export interface StatusItem {
@@ -39,6 +39,38 @@ export function BaseStatusBar({ items }: StatusBarProps) {
       {items.filter((i) => i.align === 'left').map(render)}
       <span className="spacer" />
       {items.filter((i) => i.align !== 'left').map(render)}
+    </div>
+  );
+}
+
+/** Islands: the same items, on the frame (transparent, no strip). */
+export function IslandsStatusBar(props: StatusBarProps) {
+  const { structure } = useLayout();
+  if (!structure.statusBar) return null;
+  return (
+    <div className="islands-status">
+      <BaseStatusBar {...props} />
+    </div>
+  );
+}
+
+/** Label of the current screen, as the Sidebar writes it on <html data-screen-label>. */
+function subscribeScreenLabel(onChange: () => void): () => void {
+  const observer = new MutationObserver(onChange);
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-screen-label'] });
+  return () => observer.disconnect();
+}
+const screenLabel = () => document.documentElement.dataset.screenLabel ?? '';
+
+/** Modeline: a vim-style line; the current screen leads as the mode block, items follow as segments. */
+export function ModelineStatusBar(props: StatusBarProps) {
+  const mode = useSyncExternalStore(subscribeScreenLabel, screenLabel, () => '');
+  const { structure } = useLayout();
+  if (!structure.statusBar) return null;
+  return (
+    <div className="modeline">
+      {mode && <span className="modeline-mode">{mode}</span>}
+      <BaseStatusBar {...props} />
     </div>
   );
 }

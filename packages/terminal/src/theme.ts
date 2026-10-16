@@ -28,8 +28,10 @@ const SLOTS: [keyof ITheme, string][] = [
 /** Builds an xterm theme from the app's CSS tokens; `read` returns a token's value, empty when unset. */
 export function xtermTheme(read: (token: string) => string): ITheme {
   const theme: Record<string, string> = {};
+  // A layout can set --terminal-surface to put the terminal on another surface than --bg-sunken.
+  const surface = read('--terminal-surface').trim();
   for (const [slot, token] of SLOTS) {
-    const value = read(token).trim();
+    const value = token === '--bg-sunken' && surface ? surface : read(token).trim();
     if (value) theme[slot] = value;
   }
   return theme as ITheme;

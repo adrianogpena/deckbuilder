@@ -2,9 +2,9 @@ import { createContext, useContext, useEffect, useMemo, type ComponentType, type
 import { applyDockSide, applyMainMenu, LAYOUT_MARK_IDS, resolveIconSetId, resolveLayout, supportsDock, type Layout, type LayoutStructure, type MainMenu } from '@deckbuilder/server-core/layouts';
 import { setFileIconVariants } from './file-icons';
 import { iconSetById } from './icons';
-import { BaseAppFrame, type AppFrameProps } from './components/AppFrame';
+import { BaseAppFrame, IslandsAppFrame, type AppFrameProps } from './components/AppFrame';
 import { BaseSidebar, type SidebarProps } from './components/Sidebar';
-import { BaseStatusBar, type StatusBarProps } from './components/StatusBar';
+import { BaseStatusBar, IslandsStatusBar, ModelineStatusBar, type StatusBarProps } from './components/StatusBar';
 import { BaseTabBar, type TabBarProps } from './components/TabWorkspace';
 
 export interface ShellComponents {
@@ -20,6 +20,9 @@ const SHELLS: Record<string, Partial<ShellComponents>> = {};
 export function registerShell(layoutId: string, parts: Partial<ShellComponents>): void {
   SHELLS[layoutId] = { ...SHELLS[layoutId], ...parts };
 }
+
+registerShell('islands', { Frame: IslandsAppFrame, StatusBar: IslandsStatusBar });
+registerShell('modeline', { StatusBar: ModelineStatusBar });
 
 export interface LayoutContext {
   layout: Layout;

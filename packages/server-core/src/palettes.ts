@@ -212,6 +212,16 @@ const transit = (id: string, label: string, kind: ThemeKind, roles: Roles, exact
   id, label, family: 'transit', kind, tokens: { ...fromRoles(kind, roles), ...exact },
 });
 
+/** Islands family: green-grey frame with lighter islands; exact frame, surface, line and ink values. */
+const islands = (id: string, label: string, kind: ThemeKind, roles: Roles, exact: Partial<Record<Token, string>>): Palette => ({
+  id, label, family: 'islands', kind, tokens: { ...fromRoles(kind, roles), ...exact },
+});
+
+/** Modeline family: deep teal terminal dark and pale teal light; ochre accent; exact surface and ink values. */
+const modeline = (id: string, label: string, kind: ThemeKind, roles: Roles, exact: Partial<Record<Token, string>>): Palette => ({
+  id, label, family: 'modeline', kind, tokens: { ...fromRoles(kind, roles), ...exact },
+});
+
 export const PALETTES: readonly Palette[] = [
   { id: DEFAULT_DARK, label: 'DeckBuilder Dark', family: 'deckbuilder', kind: 'dark', tokens: DECKBUILDER_DARK },
   { id: DEFAULT_LIGHT, label: 'DeckBuilder Light', family: 'deckbuilder', kind: 'light', tokens: DECKBUILDER_LIGHT },
@@ -264,6 +274,30 @@ export const PALETTES: readonly Palette[] = [
     0xf4f5f7, 0xffffff, 0xcdd3db, 0x1a1f26, 0x808a97, 0x1f62c4, 0x6a48c9, 0x0e8a87, 0x1e8a4b, 0xa87100, 0xb0347e, 0xc8322c], {
     '--bg-sunken': '#e8ebef', '--bg': '#f4f5f7', '--bg-elev': '#ffffff', '--panel': '#ffffff', '--panel-2': '#f8f9fa',
     '--border': '#cdd3db', '--text': '#1a1f26', '--text-2': '#4d5663', '--text-3': '#808a97', '--accent': '#1f62c4',
+    '--ink-on-accent': '#ffffff',
+  }),
+  islands('islands-dark', 'Islands Dark', 'dark', [
+    0x1c221f, 0x232a26, 0x303a34, 0xe4eae5, 0x76847b, 0x8fc17a, 0xb7a0e0, 0x7cc4c9, 0x7fd19a, 0xe3c56e, 0xe79d6a, 0xef7b72], {
+    '--bg-sunken': '#161b18', '--bg': '#1c221f', '--bg-elev': '#232a26', '--panel': '#232a26', '--panel-2': '#29312c',
+    '--border': '#303a34', '--text': '#e4eae5', '--text-2': '#a9b5ad', '--text-3': '#76847b', '--accent': '#8fc17a',
+    '--ink-on-accent': '#161b18', '--shadow': '0 18px 48px rgba(6, 10, 8, 0.55)',
+  }),
+  islands('islands-light', 'Islands Light', 'light', [
+    0xeef2ee, 0xfbfcfb, 0xc6d0c8, 0x18221c, 0x7c8b81, 0x3e7d4a, 0x6a52b8, 0x1f6f8b, 0x2f7d3e, 0x9a6b00, 0xb0561c, 0xc23b32], {
+    '--bg-sunken': '#d9e0da', '--bg': '#eef2ee', '--bg-elev': '#fbfcfb', '--panel': '#fbfcfb', '--panel-2': '#f3f6f3',
+    '--border': '#c6d0c8', '--text': '#18221c', '--text-2': '#4a5a4f', '--text-3': '#7c8b81', '--accent': '#3e7d4a',
+    '--ink-on-accent': '#ffffff',
+  }),
+  modeline('modeline-dark', 'Modeline Dark', 'dark', [
+    0x0f2a2e, 0x143338, 0x2c4d52, 0xd8e4df, 0x6a817c, 0xe2b33c, 0xc39bd3, 0x6cc4c4, 0x8cc47a, 0xe2b33c, 0xe08a4f, 0xe5675f], {
+    '--bg-sunken': '#0c2427', '--bg': '#0f2a2e', '--bg-elev': '#143338', '--panel': '#143338', '--panel-2': '#183a40',
+    '--border': '#2c4d52', '--text': '#d8e4df', '--text-2': '#9db3ad', '--text-3': '#6a817c', '--accent': '#e2b33c',
+    '--ink-on-accent': '#0c2427',
+  }),
+  modeline('modeline-light', 'Modeline Light', 'light', [
+    0xedf1f0, 0xf7f9f8, 0xb9c6c3, 0x123236, 0x748a8c, 0x9a6b00, 0x7b4a9a, 0x16777a, 0x2f7a3a, 0x9a6b00, 0xa84d14, 0xb8322c], {
+    '--bg-sunken': '#e2e8e6', '--bg': '#edf1f0', '--bg-elev': '#f7f9f8', '--panel': '#f7f9f8', '--panel-2': '#f1f5f4',
+    '--border': '#b9c6c3', '--text': '#123236', '--text-2': '#40595c', '--text-3': '#748a8c', '--accent': '#9a6b00',
     '--ink-on-accent': '#ffffff',
   }),
 ];
