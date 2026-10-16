@@ -53,6 +53,9 @@ jobs:
   publish:
     if: ${{ startsWith(github.ref_name, 'v') }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write # npm trusted publishing (OIDC), no token secret
     env:
       TAG: ${{ github.ref_name }}
     steps:
@@ -73,11 +76,10 @@ jobs:
           fi
       - run: bun run typecheck
       - name: Publish the packages
+        # Trusted publishing needs npm 11.5.1+; the runner's npm is older.
         run: |
-          echo '//registry.npmjs.org/:_authToken=${NPM_TOKEN}' > "$HOME/.npmrc"
+          npm install -g npm@11
           bun scripts/publish.ts
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Create a release with the changelog
         run: |
           bun -e "

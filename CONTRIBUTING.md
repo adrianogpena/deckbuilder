@@ -475,7 +475,7 @@ Every `packages/*` is published to npm as `@deckbuilderkit/<name>` (TypeScript s
 
 1. Bump `version` in the root `package.json` and in every `packages/*/package.json` (`scripts/publish.ts` refuses a mismatch).
 2. Check locally: `bun scripts/publish.ts --dry-run` prints the publish order and version and packs each package without publishing.
-3. Tag and push: `git tag v0.2.0 && git push origin v0.2.0`. The `publish` job in `.github/workflows/release.yml` checks the tag against the root version, type-checks, runs `bun scripts/publish.ts` with the `NPM_TOKEN` repository secret (an npm automation token for the `@deckbuilderkit` scope) and creates a GitHub release with the commits since the previous `v*` tag (`releaseNotes` in `packages/build/src/release.ts`).
+3. Tag and push: `git tag v0.2.0 && git push origin v0.2.0`. The `publish` job in `.github/workflows/release.yml` checks the tag against the root version, type-checks, runs `bun scripts/publish.ts` through npm trusted publishing (each `@deckbuilderkit` package trusts this repo and `release.yml`; no token) and creates a GitHub release with the commits since the previous `v*` tag (`releaseNotes` in `packages/build/src/release.ts`).
 
 `publish.ts` replaces `workspace:*` with the version only in the packed manifests; the repo's `package.json` files are restored. Tags `v*` publish packages; tags `<app>-v*` release an app.
 

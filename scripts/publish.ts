@@ -2,7 +2,7 @@
  * Publishes every packages/* to npm at the root package.json version, in dependency order.
  * `workspace:*` deps become that version in the packed manifest only; package.json files are
  * restored afterwards. `--dry-run` prints the order and version and packs, without publishing.
- * Auth comes from .npmrc (`//registry.npmjs.org/:_authToken=${NPM_TOKEN}`).
+ * Runs `npm publish`, which authenticates through npm trusted publishing (GitHub OIDC) in CI.
  */
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -76,7 +76,7 @@ for (const p of order) {
     run(['bun', 'pm', 'pack', '--destination', out], p.dir);
     if (!dryRun) {
       const tgz = join(out, `${p.name.replace('@', '').replace('/', '-')}-${version}.tgz`);
-      run(['bun', 'publish', tgz, '--access', 'public'], p.dir);
+      run(['npm', 'publish', tgz, '--access', 'public'], p.dir);
     }
   } finally {
     writeFileSync(file, p.raw);
