@@ -1,7 +1,8 @@
 import { effectiveKind, familySibling, PALETTES, resolvePalette, type ThemeKind, type ThemePreference, type ThemeSettings, ZOOM_LEVELS } from '@deckbuilder/server-core/palettes';
-import { DEFAULT_LAYOUT, hasLabelledMenu, ICON_SET_IDS, LAYOUTS, resolveLayout } from '@deckbuilder/server-core/layouts';
+import { DEFAULT_LAYOUT, hasLabelledMenu, ICON_SET_IDS, LAYOUT_MARK_IDS, LAYOUTS, resolveLayout, supportsDock } from '@deckbuilder/server-core/layouts';
 import { isDesktop } from '../api';
 import { t, tryT } from '../i18n';
+import { LayoutMark } from '../layout-marks';
 import { SettingItem } from './SettingFields';
 import { useSystemKind } from '../theme';
 
@@ -109,6 +110,49 @@ export function IconsField({ value, onChange }: Props) {
           {ICON_SET_IDS.map((id) => <option key={id} value={id}>{name(id)}</option>)}
         </select>
       </label>
+    </SettingItem>
+  );
+}
+
+/** Dock side (left or right); disabled with a note for layouts with a header menu. */
+export function DockField({ value, onChange }: Props) {
+  const layout = resolveLayout(value.layout);
+  const supported = supportsDock(layout.id);
+  const side = value.dock ?? layout.structure.sidebarSide;
+  return (
+    <SettingItem id="theme.dock" modified={!!value.dock}>
+      <label className="field">
+        <span className="mono-label">{t('settings.appearance.dock')}</span>
+        <select value={side} disabled={!supported} onChange={(e) => onChange({ dock: e.target.value as 'left' | 'right' })}>
+          <option value="left">{t('settings.appearance.dockLeft')}</option>
+          <option value="right">{t('settings.appearance.dockRight')}</option>
+        </select>
+        <span className="muted">{t(supported ? 'settings.appearance.dockDesc' : 'settings.appearance.dockUnsupported')}</span>
+      </label>
+    </SettingItem>
+  );
+}
+
+/** The brand-mark picker; '' follows the active layout. Each option shows its mark. */
+export function LayoutIconField({ value, onChange }: Props) {
+  const own = resolveLayout(value.layout);
+  const name = (id: string) => tryT(`layout.${id}`) ?? LAYOUTS.find((l) => l.id === id)?.label ?? id;
+  return (
+    <SettingItem id="theme.layoutIcon" modified={!!value.layoutIcon}>
+      <div className="field">
+        <span className="mono-label">{t('settings.appearance.layoutIcon')}</span>
+        <div className="chips">
+          <button className={`chip${!value.layoutIcon ? ' chip-on' : ''}`} onClick={() => onChange({ layoutIcon: '' })}>
+            {t('settings.appearance.layoutIconFollow', { name: name(own.id) })}
+          </button>
+          {LAYOUT_MARK_IDS.map((id) => (
+            <button key={id} className={`chip${value.layoutIcon === id ? ' chip-on' : ''}`} title={name(id)} aria-label={name(id)} onClick={() => onChange({ layoutIcon: id })}>
+              <LayoutMark layoutId={id} size={18} />
+            </button>
+          ))}
+        </div>
+        <span className="muted">{t('settings.appearance.layoutIconDesc')}</span>
+      </div>
     </SettingItem>
   );
 }

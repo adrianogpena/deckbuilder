@@ -260,7 +260,7 @@ kbd {
 .app.sidebar-right { grid-template-columns: 1fr var(--sidebar-w); }
 .app.sidebar-right.nav-collapsed { grid-template-columns: 1fr var(--sidebar-w-collapsed); }
 .app.sidebar-right.zen { grid-template-columns: 1fr; }
-.app.sidebar-right > .sidebar { order: 2; border-right: 0; border-left: 1px solid var(--border-soft); }
+.app.sidebar-right > .sidebar { order: 2; border-right: 0; border-left: 1px solid var(--border); }
 .app.sidebar-right .side-item.active::before { left: auto; right: 0; }
 .sidebar.collapsed .brand { justify-content: center; padding: var(--space-10) 0 var(--space-8); }
 .sidebar.collapsed .side-scroll { padding: var(--space-4) 0 var(--space-24); }
@@ -509,6 +509,8 @@ html[data-status-bar="false"] .status-bar { display: none; }
 .toast-error { border-color: color-mix(in srgb, var(--err) 45%, var(--border)); }
 .toast-error > .icon { color: var(--err); }
 .toast-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+/* Dock on the right: toasts move to the left so they do not cover the nav. */
+:root[data-dock='right'] .toasts { right: auto; left: 16px; align-items: flex-start; }
 @keyframes toast-in { from { opacity: 0; transform: translateY(6px); } }
 
 /* ---- output panel */

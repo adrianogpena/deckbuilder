@@ -17,6 +17,10 @@ export interface ThemeSettings {
   icons?: string;
   /** Main menu style for layouts with a labelled menu; unset means 'labels'. */
   mainMenu?: 'labels' | 'icons';
+  /** Side of the main menu dock; unset means the layout's own. */
+  dock?: 'left' | 'right';
+  /** Layout id (LAYOUT_MARK_IDS) whose brand mark is shown; unset follows the active layout. */
+  layoutIcon?: string;
 }
 
 export const ZOOM_LEVELS = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2] as const;

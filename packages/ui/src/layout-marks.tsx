@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { LAYOUT_MARK_IDS } from '@deckbuilder/server-core/layouts';
 
 /**
  * One mark per layout id, drawn from design/layout-icons/<id>.svg (32x32, currentColor with opacity layers).
@@ -21,7 +22,7 @@ const MARKS: Record<string, (p: string) => string> = {
 };
 
 /** The layout ids that have a mark of their own; any other id gets the stack mark. */
-export const LAYOUT_MARK_IDS: readonly string[] = Object.keys(MARKS);
+export { LAYOUT_MARK_IDS };
 
 /** The inner SVG markup of a layout's mark; unknown ids fall back to the stack ('original'). */
 export function layoutMarkSvg(layoutId: string, prefix: string): string {

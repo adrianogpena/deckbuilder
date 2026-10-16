@@ -370,8 +370,8 @@ export type { IconName } from '../icons';
 
 /** The active layout's mark (the stack for unknown layouts), coloured by `.brand-mark` (accent). */
 export function BrandMark({ size = 30 }: { size?: number }) {
-  const { layout } = useLayout();
-  return <LayoutMark className="brand-mark" layoutId={layout.id} size={size} />;
+  const { markId } = useLayout();
+  return <LayoutMark className="brand-mark" layoutId={markId} size={size} />;
 }
 
 export function Icon({ name, size = 16 }: { name: IconName | ImageIconName; size?: number }) {

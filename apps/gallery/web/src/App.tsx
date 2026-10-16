@@ -181,7 +181,7 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
   );
 
   return (
-    <LayoutProvider layout={settings.layout} icons={settings.icons} mainMenu={settings.mainMenu}>
+    <LayoutProvider layout={settings.layout} icons={settings.icons} mainMenu={settings.mainMenu} dock={settings.dock} layoutIcon={settings.layoutIcon}>
     <ToastProvider defaultTimeout={general.toastDuration}>
       <EditorOptionsContext.Provider value={editorOptions}>
       <TerminalOptionsContext.Provider value={terminalOptions}>

@@ -27,6 +27,23 @@ export function applyMainMenu(s: LayoutStructure, mode?: MainMenu): LayoutStruct
   return mode === 'icons' && s.sidebarMode === 'expanded' ? { ...s, sidebarMode: 'collapsed' } : s;
 }
 
+/** Layouts whose navigation is a header (or otherwise not a side dock): the dock side does not apply. */
+export const HEADER_NAV_LAYOUTS: readonly string[] = ['ribbon', 'ledger', 'atlas'];
+
+export function supportsDock(layoutId: string): boolean {
+  return !HEADER_NAV_LAYOUTS.includes(layoutId);
+}
+
+/** The structure with the dock side applied; unset keeps the layout's own side. */
+export function applyDockSide(s: LayoutStructure, side?: 'left' | 'right'): LayoutStructure {
+  return side && side !== s.sidebarSide ? { ...s, sidebarSide: side } : s;
+}
+
+/** Ids of the brand marks (one per designed layout), selectable as the layout icon. */
+export const LAYOUT_MARK_IDS: readonly string[] = [
+  'original', 'dense', 'calm', 'dock-right', 'material', 'labeled', 'blueprint', 'islands', 'transit', 'modeline', 'ribbon', 'ledger', 'atlas',
+];
+
 export interface Layout {
   id: string;
   label: string;

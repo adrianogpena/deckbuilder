@@ -1,5 +1,5 @@
 import { type CSSProperties, Fragment, lazy, type ReactNode, Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { AppearanceFields, IconsField, LayoutField, MainMenuField, SettingItem, SettingLinksProvider, type SettingLinks, SettingRow, useRevealSetting, useRovingList, SETTING_ROW_CONTROLS,fileSettingsOf, ZoomField, type ApiError, detectLanguage, type FileAssociation, validFileAssociations, ErrorBanner, errorMessage, errorOf, GLOBAL, isDesktop, KeybindingsEditor, LANGUAGES, isModified, resetPatch, Modal, parseSettingsQuery, settingDescriptionText, toggleModifiedFilter, Spinner, useAsync, Icon, IconPicker, type IconName, useKeybindings, type Language, type SettingDef, type SettingsSectionNode, sectionKey } from '@deckbuilder/ui';
+import { AppearanceFields, DockField, IconsField, LayoutIconField, LayoutField, MainMenuField, SettingItem, SettingLinksProvider, type SettingLinks, SettingRow, useRevealSetting, useRovingList, SETTING_ROW_CONTROLS,fileSettingsOf, ZoomField, type ApiError, detectLanguage, type FileAssociation, validFileAssociations, ErrorBanner, errorMessage, errorOf, GLOBAL, isDesktop, KeybindingsEditor, LANGUAGES, isModified, resetPatch, Modal, parseSettingsQuery, settingDescriptionText, toggleModifiedFilter, Spinner, useAsync, Icon, IconPicker, type IconName, useKeybindings, type Language, type SettingDef, type SettingsSectionNode, sectionKey } from '@deckbuilder/ui';
 import type { ColorScheme } from '@deckbuilder/terminal/options';
 import { isShellId, SHELL_ICONS, SHELL_IDS, SHELL_NAMES, type TerminalProfile, type TerminalProfileInfo } from '@deckbuilder/terminal/protocol';
 import { APP } from '../../../app';
@@ -190,7 +190,9 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
                 <AppearanceFields value={draft} onChange={change} />
                 <LayoutField value={draft} onChange={change} />
                 <MainMenuField value={draft} onChange={change} />
+                <DockField value={draft} onChange={change} />
                 <IconsField value={draft} onChange={change} />
+                <LayoutIconField value={draft} onChange={change} />
               </div>
             </section>
             <SettingRows ids={groupIds('appearance')} settings={draft} onChange={change} />

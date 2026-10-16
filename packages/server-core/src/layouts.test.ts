@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { applyMainMenu, DEFAULT_LAYOUT, hasLabelledMenu, LAYOUTS, ORIGINAL_STRUCTURE, resolveLayout } from './layouts.ts';
+import { applyDockSide, applyMainMenu, supportsDock, DEFAULT_LAYOUT, hasLabelledMenu, LAYOUTS, ORIGINAL_STRUCTURE, resolveLayout } from './layouts.ts';
 
 test('layout ids are unique and include the default', () => {
   const ids = LAYOUTS.map((l) => l.id);
@@ -27,4 +27,16 @@ test('applyMainMenu collapses an expanded sidebar for icons only', () => {
   expect(applyMainMenu(expanded, 'labels')).toBe(expanded);
   expect(applyMainMenu(expanded)).toBe(expanded);
   expect(applyMainMenu(ORIGINAL_STRUCTURE, 'icons')).toBe(ORIGINAL_STRUCTURE);
+});
+
+test('applyDockSide moves the sidebar and keeps the layout side when unset', () => {
+  const right = applyDockSide(ORIGINAL_STRUCTURE, 'right');
+  expect(right.sidebarSide).toBe('right');
+  expect(applyDockSide(ORIGINAL_STRUCTURE)).toBe(ORIGINAL_STRUCTURE);
+  expect(applyDockSide(ORIGINAL_STRUCTURE, 'left')).toBe(ORIGINAL_STRUCTURE);
+});
+
+test('header-nav layouts do not support the dock side', () => {
+  expect(supportsDock('original')).toBe(true);
+  expect(supportsDock('ribbon')).toBe(false);
 });
