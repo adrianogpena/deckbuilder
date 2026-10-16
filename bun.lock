@@ -11,7 +11,7 @@
     },
     "apps/gallery": {
       "name": "@deckbuilderkit/gallery",
-      "version": "0.1.0",
+      "version": "0.1.2",
       "dependencies": {
         "@deckbuilderkit/db": "workspace:*",
         "@deckbuilderkit/editor": "workspace:*",
