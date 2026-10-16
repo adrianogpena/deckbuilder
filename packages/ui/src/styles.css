@@ -8,6 +8,9 @@
 /* Layouts: layout files are imported here as @import './layouts/<id>.css';, each scoped under
    :root[data-layout='<id>'], overriding the size variables below and any rule. 'original' is
    this file and has no layout file. */
+@import './layouts/dense.css';
+@import './layouts/calm.css';
+@import './layouts/material.css';
 
 :root,
 :root[data-theme='dark'] {

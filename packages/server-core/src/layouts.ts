@@ -63,7 +63,17 @@ export const ORIGINAL_STRUCTURE: LayoutStructure = {
   navFooter: 'sidebar',
 };
 
-export const LAYOUTS: readonly Layout[] = [{ id: 'original', label: 'Original', icons: 'original', structure: ORIGINAL_STRUCTURE }];
+export const LAYOUTS: readonly Layout[] = [
+  { id: 'original', label: 'Original', icons: 'original', structure: ORIGINAL_STRUCTURE },
+  { id: 'dense', label: 'Dense', icons: 'original', structure: ORIGINAL_STRUCTURE },
+  {
+    id: 'calm',
+    label: 'Calm',
+    icons: 'original',
+    structure: { ...ORIGINAL_STRUCTURE, sidebarBrand: false, statusBar: false },
+  },
+  { id: 'material', label: 'Material', icons: 'material', structure: { ...ORIGINAL_STRUCTURE, sidebarMode: 'expanded' } },
+];
 
 export const ICON_SET_IDS: readonly string[] = ['original', 'material', 'atom'];
 

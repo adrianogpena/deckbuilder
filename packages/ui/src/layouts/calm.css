@@ -1,0 +1,18 @@
+/* Calm: larger type and controls, no brand row, no status bar; spacing instead of lines. */
+:root[data-layout='calm'] {
+  --radius-2xs: 3px; --radius-xs: 5px; --radius-sm: 6px; --radius-md: 7px; --radius-lg: 8px;
+  --radius-xl: 10px; --radius-2xl: 11px; --radius-3xl: 12px; --radius-4xl: 14px; --radius-5xl: 16px;
+  --fs-3xs: 11px; --fs-2xs: 11.5px; --fs-xs: 12px; --fs-xs-plus: 12.5px; --fs-sm: 13px;
+  --fs-sm-plus: 13.5px; --fs-md: 14px; --fs-lg: 15px; --fs-xl: 17px; --fs-2xl: 19px;
+  --control-h: 34px; --control-h-sm: 32px; --control-h-xs: 30px; --control-h-2xs: 26px; --control-h-3xs: 24px;
+  --sidebar-w-collapsed: 52px; --tabbar-h: 44px; --header-h: 40px; --panel-head-h: 44px; --rail-w: 44px;
+  --space-16: 20px; --space-24: 32px;
+}
+
+/* Panel heads: no bottom rule, spacing separates head from body. */
+:root[data-layout='calm'] .panel-head { border-bottom: 0; }
+
+/* Nav: active item as a soft accent pill, no edge marker. */
+:root[data-layout='calm'] .side-item { border-radius: 999px; }
+:root[data-layout='calm'] .side-item.active { background: var(--accent-soft); }
+:root[data-layout='calm'] .side-item.active::before { display: none; }
