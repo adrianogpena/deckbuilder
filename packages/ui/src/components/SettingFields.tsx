@@ -1,4 +1,4 @@
-import { createContext, Fragment, type ReactNode, type RefObject, useContext, useEffect, useState } from 'react';
+import { createContext, Fragment, type ReactNode, type RefObject, useContext, useEffect, useRef, useState } from 'react';
 import { tryT } from '../i18n';
 import { isModified, type SettingDef } from '../settings-schema';
 
@@ -187,4 +187,19 @@ function SettingControl<S>({ def, settings, onChange }: { def: SettingDef<S>; se
         />
       );
   }
+}
+
+/**
+ * For a field that edits `value` as local text: runs `resync` when `value` changes from outside (a page Reset) while
+ * the returned textarea ref is not focused, so the text shows the new value.
+ */
+export function useResync(value: unknown, resync: () => void) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  const key = JSON.stringify(value);
+  const run = useRef(resync);
+  run.current = resync;
+  useEffect(() => {
+    if (document.activeElement !== ref.current) run.current();
+  }, [key]);
+  return ref;
 }

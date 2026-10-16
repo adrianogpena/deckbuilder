@@ -1,6 +1,6 @@
 import { DEFAULT_FORMAT_OPTIONS, type SqlFormatOptions } from '@deckbuilder/editor/options';
 import type { CopyFormat, SqlRunnerSettings } from '@deckbuilder/sql-ui';
-import { DEFAULT_RESULT_FORMAT, type FileSettings, type GitSettings, type LogSettings, type ResultFormat } from '@deckbuilder/ui';
+import { DEFAULT_RESULT_FORMAT, FILE_DEFAULTS, fileBoolSetting, fileEnumSetting, fileSettingsOf, type FileSettings, type GitSettings, type LogSettings, type ResultFormat, type SectionPath, type SettingDef, SORT_ORDERS } from '@deckbuilder/ui';
 
 import type { ExplorerSettings } from './explorer-state';
 
@@ -66,3 +66,42 @@ export const sqlRunnerSettings = (s: ReturnType<typeof withWorkbenchDefaults>): 
   confirmDestructive: s.confirmDestructive,
   queryTimeout: s.queryTimeout,
 });
+
+const explorer: SectionPath = ['explorer'];
+
+/** The `files.*` rows of the Explorer section; the editor's saving rows stay with the app. */
+export const explorerSettingDefs: SettingDef<ExplorerViewSettings>[] = [
+  fileBoolSetting('previewTabs', explorer, 10, 'settings.explorer.previewTabs'),
+  fileBoolSetting('autoReveal', explorer, 20, 'settings.explorer.autoReveal'),
+  fileBoolSetting('breadcrumbs', explorer, 30, 'settings.explorer.breadcrumbs'),
+  fileBoolSetting('compactFolders', explorer, 40, 'settings.explorer.compact'),
+  fileEnumSetting('sortOrder', explorer, 50, 'settings.explorer.sort', SORT_ORDERS),
+  fileBoolSetting('fileNesting', explorer, 60, 'settings.explorer.nesting'),
+  {
+    id: 'files.nestingPatterns',
+    kind: 'custom',
+    section: explorer,
+    order: 70,
+    label: 'settings.explorer.nesting.patterns',
+    description: 'settings.explorer.nesting.patterns.hint',
+    default: FILE_DEFAULTS.nestingPatterns,
+    get: (s) => fileSettingsOf(s.files).nestingPatterns,
+    set: (s, v) => ({ files: { ...fileSettingsOf(s.files), nestingPatterns: v as Record<string, string> } }),
+  },
+  {
+    id: 'files.exclude',
+    kind: 'custom',
+    section: explorer,
+    order: 80,
+    label: 'settings.explorer.exclude',
+    description: 'settings.explorer.exclude.hint',
+    default: FILE_DEFAULTS.exclude,
+    get: (s) => fileSettingsOf(s.files).exclude,
+    set: (s, v) => ({ files: { ...fileSettingsOf(s.files), exclude: v as string[] } }),
+  },
+  fileBoolSetting('confirmDelete', explorer, 90, 'settings.explorer.confirmDelete'),
+  fileBoolSetting('confirmDragDrop', explorer, 100, 'settings.explorer.confirmDragDrop'),
+  fileBoolSetting('showHidden', explorer, 110, 'settings.explorer.showHidden'),
+  fileBoolSetting('restoreTabs', explorer, 120, 'settings.explorer.restoreTabs'),
+  fileBoolSetting('markdownToc', explorer, 130, 'settings.explorer.markdownToc'),
+];

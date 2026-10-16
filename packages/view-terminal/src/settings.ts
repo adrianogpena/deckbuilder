@@ -93,7 +93,7 @@ export const terminalSettingDefs: SettingDef<TerminalViewSettings>[] = [
   field('padding', 250, num(8, 0, 48), 'appearance'),
   field('scrollbar', 260, oneOf('visible', ['visible', 'hover', 'hidden']), 'appearance'),
   field('dimUnfocused', 270, num(0, 0, 80), 'appearance'),
-  { id: 'terminal.schemes', kind: 'custom', section: ['terminal', 'appearance'], order: 280, label: 'settings.terminal.schemes', description: 'settings.terminal.schemes.hint', default: [] as ColorScheme[] },
+  { id: 'terminal.schemes', kind: 'custom', section: ['terminal', 'appearance'], order: 280, label: 'settings.terminal.schemes', description: 'settings.terminal.schemes.hint', default: [] as ColorScheme[], get: (s) => s.terminal?.schemes ?? [], set: (s, v) => ({ terminal: { ...s.terminal, schemes: v as ColorScheme[] } }) },
   field('wordSeparators', 300, str(DEFAULT_WORD_SEPARATORS), 'behavior'),
   field('scrollSensitivity', 310, num(1, 1, 10), 'behavior'),
   field('fastScrollSensitivity', 320, num(5, 1, 20), 'behavior'),
@@ -110,7 +110,7 @@ export const terminalSettingDefs: SettingDef<TerminalViewSettings>[] = [
   field('confirmCloseRunning', 450, bool(true), 'tabs'),
   field('shellIntegration', 500, bool(true), 'profiles'),
   field('commandDecorations', 510, bool(true), 'profiles'),
-  { id: 'terminal.profiles', kind: 'custom', section: ['terminal', 'profiles'], order: 600, label: 'settings.terminal.profiles', description: 'settings.terminal.profiles.hint', default: [] as TerminalProfile[] },
+  { id: 'terminal.profiles', kind: 'custom', section: ['terminal', 'profiles'], order: 600, label: 'settings.terminal.profiles', description: 'settings.terminal.profiles.hint', default: [] as TerminalProfile[], get: (s) => s.terminal?.profiles ?? [], set: (s, v) => ({ terminal: { ...s.terminal, profiles: v as TerminalProfile[] } }) },
 ];
 
 const defaults = settingDefaultsOf(terminalSettingDefs, 'terminal') as Required<TerminalSettings>;

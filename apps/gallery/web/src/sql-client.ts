@@ -22,6 +22,7 @@ export const sqlClient: SqlClient = {
 /** What the Workbench view calls: the SQL client plus connections, scripts, history and project files. */
 export const workbenchClient: WorkbenchClient = {
   ...sqlClient,
+  projects: () => api.projects(),
   createConnection: (input) => api.createDbConnection(input),
   updateConnection: (id, input) => api.updateDbConnection(id, input),
   deleteConnection: (id) => api.deleteDbConnection(id),

@@ -4,6 +4,7 @@ import { defineView } from '@deckbuilder/ui';
 import { terminalCommands } from './commands';
 import { en, ptBR } from './i18n';
 import { terminalSettingDefs, type TerminalViewSettings, terminalSettingsOf } from './settings';
+import { TerminalProfilesCard, terminalSettingFields } from './settings/cards';
 
 // xterm.js is large; the screen loads on first visit.
 const TerminalScreen = lazy(() => import('./TerminalScreen').then((m) => ({ default: m.TerminalScreen })));
@@ -27,6 +28,17 @@ export function terminalView({ group, order }: TerminalViewOptions) {
     provider: TerminalOptions,
     commands: terminalCommands,
     settings: { defs: terminalSettingDefs },
+    settingsCards: {
+      sections: [
+        { path: ['terminal'], order: 70, label: 'settings.section.terminal' },
+        { path: ['terminal', 'profiles'], order: 10, label: 'settings.section.terminal.profiles' },
+        { path: ['terminal', 'appearance'], order: 20, label: 'settings.section.terminal.appearance' },
+        { path: ['terminal', 'tabs'], order: 30, label: 'settings.section.terminal.tabs' },
+        { path: ['terminal', 'behavior'], order: 40, label: 'settings.section.terminal.behavior' },
+      ],
+      cards: { 'terminal.profiles': TerminalProfilesCard },
+      fields: terminalSettingFields,
+    },
     messages: { en, 'pt-BR': ptBR },
   });
 }

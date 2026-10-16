@@ -78,7 +78,7 @@ const resultBool = (key: 'hideMidnight' | 'thousandsSeparator', order: number, l
 });
 
 export const workbenchSettingDefs: SettingDef<WorkbenchViewSettings>[] = [
-  { id: 'workbench.explorerProjects', kind: 'custom', section: workbench, order: 10, label: 'settings.workbench.projects', description: 'settings.workbench.projects.hint', default: [] as string[] },
+  { id: 'workbench.explorerProjects', kind: 'custom', section: workbench, order: 10, label: 'settings.workbench.projects', description: 'settings.workbench.projects.hint', default: [] as string[], get: (s) => withWorkbenchDefaults(s.workbench).explorerProjects, set: (s, v) => withWorkbench(s, { explorerProjects: v as string[] }) },
   {
     id: 'workbench.maxRows',
     kind: 'number',

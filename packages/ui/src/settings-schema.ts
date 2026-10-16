@@ -57,14 +57,17 @@ export interface EnumSetting<S, V extends EnumValue = EnumValue> extends ValueSe
 }
 
 /** A setting with no single get/set path (projects list, nesting patterns, exclude); its screen renders it. */
-export interface CustomSetting<V = unknown> extends SettingBase {
+export interface CustomSetting<V = unknown, S = any> extends SettingBase {
   kind: 'custom';
   label?: string;
   description?: string;
   default: V;
+  /** How the screen reads the value (modified marks) and resets it; without them the screen leaves the setting alone. */
+  get?(settings: S): V;
+  set?(settings: S, value: V): Partial<S>;
 }
 
-export type SettingDef<S> = BooleanSetting<S> | NumberSetting<S> | StringSetting<S> | EnumSetting<S> | CustomSetting;
+export type SettingDef<S> = BooleanSetting<S> | NumberSetting<S> | StringSetting<S> | EnumSetting<S> | CustomSetting<unknown, S>;
 
 export const sectionKey = (path: SectionPath): string => path.join('.');
 
@@ -120,7 +123,7 @@ export function createSettingsRegistry<S>(): SettingsRegistry<S> {
   return registry;
 }
 
-/** The built-in Settings menu. Labels are i18n keys `settings.section.<dotted path>`. */
+/** The app-level Settings menu; views add their own sections (`settingsCards`). Labels are i18n keys `settings.section.<dotted path>`. */
 export const DEFAULT_SECTIONS: readonly SettingsSection[] = [
   ['general', 10],
   ['appearance', 20],
@@ -128,15 +131,6 @@ export const DEFAULT_SECTIONS: readonly SettingsSection[] = [
   ['editor', 40],
   ['editor.fileTypes', 10],
   ['editor.externalEditors', 20],
-  ['explorer', 50],
-  ['workbench', 60],
-  ['workbench.results', 10],
-  ['workbench.sqlFormatter', 20],
-  ['terminal', 70],
-  ['terminal.profiles', 10],
-  ['terminal.appearance', 20],
-  ['terminal.tabs', 30],
-  ['terminal.behavior', 40],
   ['keyboard', 80],
   ['keyboard.shortcuts', 10],
   ['system', 90],
@@ -282,3 +276,13 @@ export const bool = (default_: boolean): FieldDef => ({ kind: 'boolean', default
 export const str = (default_: string): FieldDef => ({ kind: 'string', default: default_ });
 export const num = (default_: number, min: number, max: number): FieldDef => ({ kind: 'number', default: default_, min, max });
 export const oneOf = (default_: string, values: readonly string[]): FieldDef => ({ kind: 'enum', default: default_, values });
+
+/** Structural equality for JSON-like values (arrays, plain objects, primitives). */
+export function deepEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  const ka = Object.keys(a);
+  const kb = Object.keys(b);
+  return ka.length === kb.length && ka.every((k) => Object.hasOwn(b, k) && deepEqual((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]));
+}

@@ -77,7 +77,7 @@ describe('default sections', () => {
     expect(new Set(keys).size).toBe(keys.length);
     const r = createSettingsRegistry<S>();
     registerDefaultSections(r);
-    const workbench = r.sectionTree().find((n) => n.path[0] === 'workbench')!;
-    expect(workbench.children.map((c) => c.path.join('.'))).toEqual(['workbench.results', 'workbench.sqlFormatter']);
+    const editor = r.sectionTree().find((n) => n.path[0] === 'editor')!;
+    expect(editor.children.map((c) => c.path.join('.'))).toEqual(['editor.fileTypes', 'editor.externalEditors']);
   });
 });

@@ -1,5 +1,6 @@
 import { isRecord } from '@deckbuilder/server-core/protocol';
 import { NESTING_DEFAULTS, type NestingPatterns } from './file-nesting';
+import type { SectionPath, SettingDef } from './settings-schema';
 
 export type AutoSave = 'off' | 'afterDelay' | 'onFocusChange';
 export const AUTO_SAVE: readonly AutoSave[] = ['off', 'afterDelay', 'onFocusChange'];
@@ -96,4 +97,24 @@ export function validFileSettings(raw: unknown): FileSettings | null {
   }
   if (SORT_ORDERS.includes(raw.sortOrder as SortOrder)) out.sortOrder = raw.sortOrder as SortOrder;
   return out;
+}
+
+/** The part of an app's settings that holds the `files` group. */
+export interface FileGroupSettings {
+  files?: FileSettings;
+}
+
+type FileBoolKey = { [K in keyof FileSettings]-?: Required<FileSettings>[K] extends boolean ? K : never }[keyof FileSettings];
+
+const fileGet = <K extends keyof FileSettings>(k: K) => (s: FileGroupSettings) => fileSettingsOf(s.files)[k];
+const fileSet = (k: keyof FileSettings) => (s: FileGroupSettings, v: unknown): Partial<FileGroupSettings> => ({ files: { ...fileSettingsOf(s.files), [k]: v } });
+
+/** A `files.<key>` on/off setting; `label` is its i18n key, `<label>.hint` its description. */
+export function fileBoolSetting(key: FileBoolKey, section: SectionPath, order: number, label: string): SettingDef<FileGroupSettings> {
+  return { id: `files.${key}`, kind: 'boolean', section, order, label, description: `${label}.hint`, default: FILE_DEFAULTS[key], get: fileGet(key) as (s: FileGroupSettings) => boolean, set: fileSet(key) };
+}
+
+/** A `files.<key>` choice setting. */
+export function fileEnumSetting<K extends 'autoSave' | 'sortOrder'>(key: K, section: SectionPath, order: number, label: string, values: readonly Required<FileSettings>[K][]): SettingDef<FileGroupSettings> {
+  return { id: `files.${key}`, kind: 'enum', section, order, label, description: `${label}.hint`, default: FILE_DEFAULTS[key], values, get: fileGet(key), set: fileSet(key) };
 }

@@ -4,7 +4,8 @@ import { bindExplorerClient, type ExplorerClients } from './client';
 import { explorerViewCommands } from './commands';
 import { en, ptBR } from './i18n';
 import { setMultiDelete } from './options';
-import type { ExplorerViewSettings } from './settings';
+import { explorerSettingDefs, type ExplorerViewSettings } from './settings';
+import { ExcludeSettingField, ExplorerCard, NestingSettingField } from './settings/cards';
 
 const ExplorerScreen = lazy(() => import('./ExplorerScreen').then((m) => ({ default: m.ExplorerScreen })));
 
@@ -26,6 +27,12 @@ export function explorerView({ group, order, client, multiDelete = false }: Expl
     nav: { group, icon: 'folder', label: 'nav.explorer', order },
     render: ({ settings, onSave }) => <ExplorerScreen settings={settings} onSave={onSave} />,
     commands: explorerViewCommands,
+    settings: { defs: explorerSettingDefs },
+    settingsCards: {
+      sections: [{ path: ['explorer'], order: 50, label: 'settings.section.explorer' }],
+      cards: { explorer: ExplorerCard },
+      fields: { 'files.nestingPatterns': NestingSettingField, 'files.exclude': ExcludeSettingField },
+    },
     messages: { en, 'pt-BR': ptBR },
   });
 }

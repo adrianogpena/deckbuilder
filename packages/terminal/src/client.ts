@@ -30,6 +30,11 @@ export function openSession(opts: { cols: number; rows: number; cwd?: TerminalCw
   return request<Ticketed>('POST', '/api/terminal/open', {}, { cols, rows, root: cwd?.root, path: cwd?.path, launch, profile, dir });
 }
 
+/** Shell ids installed on the server (for the default shell select). */
+export function listShells(): Promise<string[]> {
+  return request<string[]>('GET', '/api/terminal/shells');
+}
+
 /** Built-in profiles (installed shells, overrides applied), then custom ones. */
 export function listProfiles(): Promise<TerminalProfileInfo[]> {
   return request<TerminalProfileInfo[]>('GET', '/api/terminal/profiles');

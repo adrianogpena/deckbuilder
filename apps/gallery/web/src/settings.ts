@@ -1,10 +1,7 @@
 import {
   AUTO_SAVE,
-  FILE_DEFAULTS,
-  SORT_ORDERS,
-  type BooleanSetting,
-  type EnumSetting,
-  type FileSettings,
+  fileBoolSetting,
+  fileEnumSetting,
   type SectionPath,
   bool,
   createSettingsRegistry,
@@ -13,7 +10,6 @@ import {
   num,
   oneOf,
   str,
-  fileSettingsOf,
   registerDefaultSections,
 } from '@deckbuilder/ui';
 import type { AppearanceSettings, EditorSettings, GeneralSettings, KeyboardSettings, Settings, WindowSettings } from './api';
@@ -35,37 +31,6 @@ export const settingDefaults = <O>(prefix: string): O =>
 
 const general: SectionPath = ['general'];
 const editor: SectionPath = ['editor'];
-const explorer: SectionPath = ['explorer'];
-
-const fileGet = <K extends keyof FileSettings>(k: K) => (s: Settings) => fileSettingsOf(s.files)[k] as Required<FileSettings>[K];
-const fileSet = (k: keyof FileSettings) => (s: Settings, v: unknown): Partial<Settings> => ({ files: { ...fileSettingsOf(s.files), [k]: v } });
-
-type FileBool = 'trimTrailingWhitespace' | 'insertFinalNewline' | 'previewTabs' | 'autoReveal' | 'breadcrumbs' | 'compactFolders' | 'fileNesting' | 'confirmDelete' | 'confirmDragDrop' | 'showHidden' | 'restoreTabs' | 'markdownToc';
-
-const fileBool = (key: FileBool, section: SectionPath, order: number, label: string): BooleanSetting<Settings> => ({
-  id: `files.${key}`,
-  kind: 'boolean',
-  section,
-  order,
-  label,
-  description: `${label}.hint`,
-  default: FILE_DEFAULTS[key],
-  get: fileGet(key),
-  set: fileSet(key),
-});
-
-const fileEnum = <K extends 'autoSave' | 'sortOrder'>(key: K, section: SectionPath, order: number, label: string, values: readonly Required<FileSettings>[K][]): EnumSetting<Settings> => ({
-  id: `files.${key}`,
-  kind: 'enum',
-  section,
-  order,
-  label,
-  description: `${label}.hint`,
-  default: FILE_DEFAULTS[key],
-  values,
-  get: fileGet(key),
-  set: fileSet(key),
-});
 
 type Group = 'appearance' | 'editor' | 'window' | 'general' | 'keyboard';
 
@@ -141,24 +106,9 @@ settingsRegistry.registerSettings([
     set: (_, rememberSettingsPage) => ({ rememberSettingsPage }),
   },
 
-  fileEnum('autoSave', editor, 10, 'settings.explorer.autoSave', AUTO_SAVE),
-  fileBool('trimTrailingWhitespace', editor, 20, 'settings.explorer.trim'),
-  fileBool('insertFinalNewline', editor, 30, 'settings.explorer.finalNewline'),
-
-  fileBool('previewTabs', explorer, 10, 'settings.explorer.previewTabs'),
-  fileBool('autoReveal', explorer, 20, 'settings.explorer.autoReveal'),
-  fileBool('breadcrumbs', explorer, 30, 'settings.explorer.breadcrumbs'),
-  fileBool('compactFolders', explorer, 40, 'settings.explorer.compact'),
-  fileEnum('sortOrder', explorer, 50, 'settings.explorer.sort', SORT_ORDERS),
-  fileBool('fileNesting', explorer, 60, 'settings.explorer.nesting'),
-  { id: 'files.nestingPatterns', kind: 'custom', section: explorer, order: 70, label: 'settings.explorer.nesting.patterns', description: 'settings.explorer.nesting.patterns.hint', default: FILE_DEFAULTS.nestingPatterns },
-  { id: 'files.exclude', kind: 'custom', section: explorer, order: 80, label: 'settings.explorer.exclude', description: 'settings.explorer.exclude.hint', default: FILE_DEFAULTS.exclude },
-  fileBool('confirmDelete', explorer, 90, 'settings.explorer.confirmDelete'),
-  fileBool('confirmDragDrop', explorer, 100, 'settings.explorer.confirmDragDrop'),
-  fileBool('showHidden', explorer, 110, 'settings.explorer.showHidden'),
-  fileBool('restoreTabs', explorer, 120, 'settings.explorer.restoreTabs'),
-  fileBool('markdownToc', explorer, 130, 'settings.explorer.markdownToc'),
-
+  fileEnumSetting('autoSave', editor, 10, 'settings.explorer.autoSave', AUTO_SAVE),
+  fileBoolSetting('trimTrailingWhitespace', editor, 20, 'settings.explorer.trim'),
+  fileBoolSetting('insertFinalNewline', editor, 30, 'settings.explorer.finalNewline'),
 ]);
 
 /** The appearance settings with their defaults filled in. */

@@ -1,16 +1,10 @@
-import { type CSSProperties, Fragment, lazy, type ReactNode, Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { AppearanceFields, DockField, IconsField, LayoutIconField, LayoutField, MainMenuField, SettingItem, SettingLinksProvider, type SettingLinks, SettingRow, useRevealSetting, useRovingList, SETTING_ROW_CONTROLS,fileSettingsOf, ZoomField, type ApiError, detectLanguage, type FileAssociation, validFileAssociations, ErrorBanner, errorMessage, errorOf, GLOBAL, isDesktop, KeybindingsEditor, LANGUAGES, isModified, resetPatch, Modal, parseSettingsQuery, settingDescriptionText, toggleModifiedFilter, Spinner, useAsync, Icon, IconPicker, type IconName, useKeybindings, type Language, type SettingDef, type SettingsSectionNode, sectionKey } from '@deckbuilder/ui';
-import type { ColorScheme } from '@deckbuilder/terminal/options';
-import { isShellId, SHELL_ICONS, SHELL_IDS, SHELL_NAMES, type TerminalProfile, type TerminalProfileInfo } from '@deckbuilder/terminal/protocol';
+import { type CSSProperties, Fragment, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { AppearanceFields, DockField, IconsField, LayoutIconField, LayoutField, MainMenuField, SettingLinksProvider, type SettingLinks, SettingRow, useRevealSetting, useRovingList, SETTING_ROW_CONTROLS,ZoomField, type ApiError, detectLanguage, type FileAssociation, validFileAssociations, deepEqual, ErrorBanner, errorMessage, errorOf, GLOBAL, isDesktop, KeybindingsEditor, LANGUAGES, isModified, resetPatch, Modal, parseSettingsQuery, settingDescriptionText, toggleModifiedFilter, Spinner, useAsync, useKeybindings, tryT, type Language, type SettingDef, type SettingsSectionNode, sectionKey } from '@deckbuilder/ui';
 import { APP } from '../../../app';
 import { views } from '../views';
-import { api, type BackupInfo, type EditorInfo, type Project, type ImportResult, type Settings, type SqlFormatOptions, withWorkbenchDefaults } from '../api';
+import { api, type BackupInfo, type EditorInfo, type ImportResult, type Settings } from '../api';
 import { type MessageKey, t } from '../i18n';
-import { en } from '../i18n/en';
-import { settingDefault, settingsRegistry } from '../settings';
-import { ProfileAppearanceFields, SchemesRow, ThemeRow } from '@deckbuilder/view-terminal/web';
-
-const CodeView = lazy(() => import('@deckbuilder/editor').then((m) => ({ default: m.CodeView })));
+import { settingsRegistry } from '../settings';
 
 interface Props {
   settings: Settings;
@@ -22,8 +16,7 @@ interface Props {
 type Change = (patch: Partial<Settings>) => void;
 
 /** Translates `key` when it is a message, else falls back. */
-const tr = (key: string | undefined, fallback?: string): string =>
-  !key ? (fallback ?? '') : Object.hasOwn(en, key) ? t(key as MessageKey) : (fallback ?? key);
+const tr = (key: string | undefined, fallback?: string): string => (!key ? (fallback ?? '') : (tryT(key) ?? fallback ?? key));
 
 const sectionLabel = (node: SettingsSectionNode): string => {
   const key = sectionKey(node.path);
@@ -54,42 +47,18 @@ interface SectionHit {
   ids: string[];
 }
 
-/** How the screen reads and writes the custom (hand-rendered) schema settings. */
-const CUSTOM: Record<string, { get: (s: Settings) => unknown; set: (s: Settings, value: unknown) => Partial<Settings> }> = {
-  'files.nestingPatterns': {
-    get: (s) => fileSettingsOf(s.files).nestingPatterns,
-    set: (s, v) => ({ files: { ...fileSettingsOf(s.files), nestingPatterns: v as Record<string, string> } }),
-  },
-  'files.exclude': {
-    get: (s) => fileSettingsOf(s.files).exclude,
-    set: (s, v) => ({ files: { ...fileSettingsOf(s.files), exclude: v as string[] } }),
-  },
-  'terminal.profiles': {
-    get: (s) => s.terminal?.profiles ?? [],
-    set: (s, v) => ({ terminal: { ...s.terminal, profiles: v as TerminalProfile[] } }),
-  },
-  'terminal.schemes': {
-    get: (s) => s.terminal?.schemes ?? [],
-    set: (s, v) => ({ terminal: { ...s.terminal, schemes: v as ColorScheme[] } }),
-  },
-  'workbench.explorerProjects': {
-    get: (s) => withWorkbenchDefaults(s.workbench).explorerProjects,
-    set: (s, v) => ({ workbench: { ...withWorkbenchDefaults(s.workbench), explorerProjects: v as string[] } }),
-  },
-};
-
-/** Whether the screen can read and reset the setting (every non-custom one, and the custom ones in `CUSTOM`). */
-const handled = (def: SettingDef<Settings>): boolean => def.kind !== 'custom' || Object.hasOwn(CUSTOM, def.id);
+/** Whether the screen can read and reset the setting (every non-custom one, and the custom ones that give a getter and setter). */
+const handled = (def: SettingDef<Settings>): boolean => def.kind !== 'custom' || (!!def.get && !!def.set);
 
 /** A setting's value in `s`. */
-const valueOf = (def: SettingDef<Settings>, s: Settings): unknown => (def.kind === 'custom' ? CUSTOM[def.id]?.get(s) : def.get(s));
+const valueOf = (def: SettingDef<Settings>, s: Settings): unknown => (def.get ? def.get(s) : undefined);
 
 /** The patch that sets every one of `defs` back to its default, built on `s`. */
 function defaultsPatch(defs: SettingDef<Settings>[], s: Settings): Partial<Settings> {
   let acc = s;
   let patch: Partial<Settings> = {};
   for (const def of defs) {
-    const p = def.kind === 'custom' ? CUSTOM[def.id]?.set(acc, def.default) : resetPatch(def, acc);
+    const p = def.kind === 'custom' ? def.set?.(acc, def.default) : resetPatch(def, acc);
     if (!p) continue;
     acc = { ...acc, ...p };
     patch = { ...patch, ...p };
@@ -218,21 +187,7 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
         );
       case 'editor.fileTypes': return <FileTypesCard value={draft.fileAssociations ?? []} onChange={(fileAssociations) => change({ fileAssociations })} />;
       case 'editor.externalEditors': return <EditorsCard />;
-      case 'explorer': return <ExplorerCard settings={draft} onChange={change} />;
-      case 'rest': return <SettingRows ids={groupIds('rest')} settings={draft} onChange={change} />;
-      case 'workbench': return <WorkbenchCard settings={draft} onChange={change} />;
-      case 'workbench.results': return <ResultsCard settings={draft} onChange={change} />;
-      case 'workbench.sqlFormatter': return <FormatterCard settings={draft} onChange={change} />;
-      case 'terminal': return null;
-      case 'terminal.profiles':
-        return (
-          <>
-            <TerminalCard shell={draft.terminal?.shell ?? 'auto'} onShell={(shell) => change({ terminal: { ...draft.terminal, shell } })} />
-            <SettingRows ids={settingsRegistry.settingsIn(['terminal', 'profiles']).map((d) => d.id)} settings={draft} onChange={change} />
-          </>
-        );
       case 'keyboard': return <SettingRows ids={groupIds('keyboard')} settings={draft} onChange={change} />;
-      case 'git': return <SettingRows ids={groupIds('git')} settings={draft} onChange={change} />;
       case 'keyboard.shortcuts': return <ShortcutsSection settings={settings} onChange={onChange} />;
       case 'system.updates': return <UpdatesCard folder={draft.updateFolder} onFolder={(updateFolder) => change({ updateFolder })} />;
       case 'system.backup': return (
@@ -244,7 +199,9 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
         />
       );
       default: {
-        // Sections other packages or apps add: their schema rows.
+        // A view's page for its section, else the section's schema rows.
+        const Card = views.settingsCards.cards[key];
+        if (Card) return <Card settings={draft} onChange={change} row={(id) => <SettingFieldById key={id} id={id} settings={draft} onChange={change} />} rows={(ids) => <SettingRows ids={[...ids]} settings={draft} onChange={change} />} />;
         const path = key.split('.');
         const defs = settingsRegistry.settingsIn(path);
         return defs.length > 0 ? <SettingRows ids={defs.map((d) => d.id)} settings={draft} onChange={change} /> : null;
@@ -445,23 +402,17 @@ function Row({ id, settings, onChange }: { id: string; settings: Settings; onCha
   return <SettingRow def={settingsRegistry.setting(id)!} settings={settings} onChange={onChange} />;
 }
 
-/** A schema setting, custom ones with the field their section uses. */
+/** A schema setting, with the hand-written field its view gives it (custom ones always have one). */
 function SettingField({ def, settings, onChange }: { def: SettingDef<Settings>; settings: Settings; onChange: Change }) {
-  if (def.id === 'terminal.defaultProfile') return <DefaultProfileRow def={def} settings={settings} onChange={onChange} />;
-  if (def.id === 'terminal.theme') return <ThemeRow settings={settings} onChange={onChange} />;
-  if (def.id === 'terminal.pasteLargeSize' && settings.terminal?.pasteWarning === 'never') {
-    return <fieldset className="setting-disabled" disabled><SettingRow def={def} settings={settings} onChange={onChange} /></fieldset>;
-  }
-  if (def.kind !== 'custom') return <SettingRow def={def} settings={settings} onChange={onChange} />;
-  const files = fileSettingsOf(settings.files);
-  switch (def.id) {
-    case 'files.nestingPatterns': return <NestingField value={files.nestingPatterns} onChange={(nestingPatterns) => onChange({ files: { ...files, nestingPatterns } })} />;
-    case 'files.exclude': return <ExcludeField value={files.exclude} onChange={(exclude) => onChange({ files: { ...files, exclude } })} />;
-    case 'workbench.explorerProjects': return <ProjectsRow settings={settings} onChange={onChange} />;
-    case 'terminal.schemes': return <SchemesRow settings={settings} onChange={onChange} />;
-    case 'terminal.profiles': return <ProfilesRow settings={settings} onChange={onChange} />;
-    default: return null;
-  }
+  const Field = views.settingsCards.fields[def.id];
+  if (Field) return <Field def={def} settings={settings} onChange={onChange} />;
+  return def.kind === 'custom' ? null : <SettingRow def={def} settings={settings} onChange={onChange} />;
+}
+
+/** The setting `id` as a row; nothing when it is not registered. */
+function SettingFieldById({ id, settings, onChange }: { id: string; settings: Settings; onChange: Change }) {
+  const def = settingsRegistry.setting(id);
+  return def ? <SettingField def={def} settings={settings} onChange={onChange} /> : null;
 }
 
 /** Schema settings as one card of rows (search results, sections with no screen of their own). */
@@ -524,280 +475,6 @@ function EditorCard({ settings, onChange }: { settings: Settings; onChange: (pat
         <Row id="files.insertFinalNewline" settings={settings} onChange={onChange} />
       </div>
     </section>
-  );
-}
-
-/** How the Explorer tree and its tabs behave (`files.*` settings, shared with the file tabs). */
-function ExplorerCard({ settings, onChange }: { settings: Settings; onChange: (patch: Partial<Settings>) => void }) {
-  const files = fileSettingsOf(settings.files);
-  const set = (patch: Partial<typeof files>) => onChange({ files: { ...files, ...patch } });
-  return (
-    <>
-    <section className="section">
-      <h4 className="mono-label">{t('settings.explorer.tabs')}</h4>
-      <div className="card form">
-        <Row id="files.previewTabs" settings={settings} onChange={onChange} />
-        <Row id="files.autoReveal" settings={settings} onChange={onChange} />
-        <Row id="files.breadcrumbs" settings={settings} onChange={onChange} />
-        <Row id="files.restoreTabs" settings={settings} onChange={onChange} />
-        <Row id="files.markdownToc" settings={settings} onChange={onChange} />
-      </div>
-    </section>
-    <section className="section">
-      <h4 className="mono-label">{t('settings.explorer.view')}</h4>
-      <div className="card form">
-        <Row id="files.compactFolders" settings={settings} onChange={onChange} />
-        <Row id="files.sortOrder" settings={settings} onChange={onChange} />
-        <Row id="files.fileNesting" settings={settings} onChange={onChange} />
-        <Row id="git.explorerDecorations" settings={settings} onChange={onChange} />
-        <Row id="files.showHidden" settings={settings} onChange={onChange} />
-        <Row id="files.confirmDelete" settings={settings} onChange={onChange} />
-        <Row id="files.confirmDragDrop" settings={settings} onChange={onChange} />
-        {files.fileNesting && <NestingField value={files.nestingPatterns} onChange={(nestingPatterns) => set({ nestingPatterns })} />}
-        <ExcludeField value={files.exclude} onChange={(exclude) => set({ exclude })} />
-      </div>
-    </section>
-    </>
-  );
-}
-
-const FORMAT_GROUPS: ReadonlyArray<{ id: string; keys: ReadonlyArray<keyof SqlFormatOptions> }> = [
-  { id: 'case', keys: ['keywordCase', 'functionCase'] },
-  { id: 'select', keys: ['columnsPerLine', 'newlineAfterSelect', 'singleColumnInline'] },
-  { id: 'conditions', keys: ['conditionPerLine', 'andOrPosition', 'joinConditionOnNewLine', 'spaceAroundOperators'] },
-  { id: 'subqueries', keys: ['caseLayout', 'caseMaxWidth', 'subqueryNewlineAfterParen', 'subqueryCloseParenOnOwnLine'] },
-  { id: 'statements', keys: ['indent', 'groupOrderListPerLine', 'fromTablesPerLine', 'setItemsPerLine', 'blankLineBetweenStatements'] },
-];
-
-/** Exercises every format option: comments, CASE, JOIN, several FROM tables, IN list, subqueries, GROUP/ORDER lists, UPDATE SET. */
-const FORMAT_SAMPLE =
-  "-- active staff per department\n" +
-  "select e.id, e.name, lower(d.title) as dept, count(*) as n, case when e.salary>5000 then 'high' when e.salary>2000 then 'mid' else 'low' end as band /* salary band */ " +
-  "from employees e join departments d on d.id=e.dept_id and d.active=1, locations l " +
-  "where e.active=1 and l.id=d.location_id and (e.status in ('A', 'B', 'C') or e.manager_id is null) and d.region in (select region from regions where code='EU') " +
-  "group by e.id, e.name, d.title, e.salary order by dept, e.name;\n" +
-  "update employees set salary=salary*1.1, updated=sysdate, note='raise' where dept_id in (select id from departments where region='EU');";
-
-/** Allowed projects as a short list with remove buttons, and a searchable "add" list for the rest. */
-function ProjectsField({ projects, error, onRetry, value, onChange }: {
-  projects: Project[] | undefined;
-  error: ApiError | undefined;
-  onRetry: () => void;
-  value: string[];
-  onChange: (next: string[]) => void;
-}) {
-  const [adding, setAdding] = useState(false);
-  const [query, setQuery] = useState('');
-  const allowed = projects?.filter((p) => value.includes(p.id)) ?? [];
-  const q = norm(query);
-  const candidates = projects?.filter((p) => !value.includes(p.id) && (!q || norm(p.name).includes(q) || norm(p.path).includes(q))) ?? [];
-  const add = (id: string) => {
-    onChange([...value, id]);
-    setAdding(false);
-    setQuery('');
-  };
-  return (
-    <div className="field">
-      <span className="mono-label">{t('settings.workbench.projects')}</span>
-      {error && <ErrorBanner error={error} onRetry={onRetry} compact />}
-      {!projects && !error && <Spinner small />}
-      {projects?.length === 0 && <span className="muted">{t('settings.workbench.projects.none')}</span>}
-      {projects && allowed.length === 0 && projects.length > 0 && <span className="muted">{t('settings.workbench.projects.empty')}</span>}
-      {allowed.map((p) => (
-        <div key={p.id} className="check-row">
-          <span>{p.name}</span>
-          <button className="btn btn-sm" onClick={() => onChange(value.filter((id) => id !== p.id))}>{t('settings.workbench.projects.remove')}</button>
-        </div>
-      ))}
-      {projects && projects.length > allowed.length && (adding ? (
-        <>
-          <input autoFocus value={query} placeholder={t('settings.workbench.projects.search')} spellCheck={false} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && setAdding(false)} />
-          <div className="project-add-list">
-            {candidates.length === 0 && <span className="muted">{t('settings.workbench.projects.noMatch')}</span>}
-            {candidates.map((p) => (
-              <button key={p.id} className="menu-item" onClick={() => add(p.id)}>
-                <span className="menu-label">{p.name}</span>
-                <span className="muted">{p.path}</span>
-              </button>
-            ))}
-          </div>
-        </>
-      ) : (
-        <button className="btn btn-sm" style={{ alignSelf: 'flex-start' }} onClick={() => setAdding(true)}>{t('settings.workbench.projects.add')}</button>
-      ))}
-      <span className="muted">{t('settings.workbench.projects.hint')}</span>
-    </div>
-  );
-}
-
-/** The allowed projects field with the project list loaded. */
-function ProjectsRow({ settings, onChange }: { settings: Settings; onChange: Change }) {
-  const projects = useAsync(() => api.projects(), []);
-  const wb = withWorkbenchDefaults(settings.workbench);
-  const id = 'workbench.explorerProjects';
-  const fallback = settingDefault<string[]>(id);
-  const save = (explorerProjects: string[]) => onChange({ workbench: { ...wb, explorerProjects } });
-  return (
-    <SettingItem id={id} modified={!deepEqual(wb.explorerProjects, fallback)}>
-      <ProjectsField
-        projects={projects.data}
-        error={projects.error}
-        onRetry={projects.reload}
-        value={wb.explorerProjects}
-        onChange={save}
-      />
-    </SettingItem>
-  );
-}
-
-/** Structural equality for JSON-like values (arrays, plain objects, primitives). */
-function deepEqual(a: unknown, b: unknown): boolean {
-  if (a === b) return true;
-  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
-  if (Array.isArray(a) !== Array.isArray(b)) return false;
-  const ka = Object.keys(a);
-  const kb = Object.keys(b);
-  return ka.length === kb.length && ka.every((k) => Object.hasOwn(b, k) && deepEqual((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]));
-}
-
-/** Which projects run SQL from the Explorer, and how many rows a run fetches. */
-function WorkbenchCard({ settings, onChange }: { settings: Settings; onChange: Change }) {
-  return (
-    <section className="section">
-      <h4 className="mono-label">{t('settings.workbench.sql')}</h4>
-      <div className="card form">
-        <ProjectsRow settings={settings} onChange={onChange} />
-        <Row id="workbench.maxRows" settings={settings} onChange={onChange} />
-        <Row id="workbench.confirmDestructive" settings={settings} onChange={onChange} />
-        <Row id="workbench.queryTimeout" settings={settings} onChange={onChange} />
-        <Row id="workbench.historySize" settings={settings} onChange={onChange} />
-      </div>
-    </section>
-  );
-}
-
-/** How result cells read and copy. */
-function ResultsCard({ settings, onChange }: { settings: Settings; onChange: Change }) {
-  return (
-    <section className="section">
-      <div className="card form">
-        <Row id="workbench.results.nullText" settings={settings} onChange={onChange} />
-        <Row id="workbench.results.dateFormat" settings={settings} onChange={onChange} />
-        <Row id="workbench.results.hideMidnight" settings={settings} onChange={onChange} />
-        <Row id="workbench.results.timestampFormat" settings={settings} onChange={onChange} />
-        <Row id="workbench.results.thousandsSeparator" settings={settings} onChange={onChange} />
-        <Row id="workbench.copyFormat" settings={settings} onChange={onChange} />
-      </div>
-    </section>
-  );
-}
-
-/** The SQL formatter options with a live preview. */
-function FormatterCard({ settings, onChange }: { settings: Settings; onChange: Change }) {
-  const wb = withWorkbenchDefaults(settings.workbench);
-  const [preview, setPreview] = useState(FORMAT_SAMPLE);
-  useEffect(() => {
-    let live = true;
-    import('@deckbuilder/editor').then(({ formatSql }) => {
-      let text = FORMAT_SAMPLE;
-      try {
-        text = formatSql(FORMAT_SAMPLE, wb.format);
-      } catch { /* keep the raw sample */ }
-      if (live) setPreview(text);
-    });
-    return () => { live = false; };
-  }, [wb.format]);
-  return (
-    <div className="settings-format">
-      <aside className="settings-format-preview">
-        <h4 className="mono-label">{t('settings.workbench.preview')}</h4>
-        <span className="muted">{t('settings.workbench.preview.hint')}</span>
-        <Suspense fallback={null}><Suspense fallback={null}><CodeView value={preview} lang="sql" /></Suspense></Suspense>
-      </aside>
-      <div className="settings-format-options">
-        {FORMAT_GROUPS.map((group) => (
-          <section key={group.id} className="section">
-            <h4 className="mono-label">{t(`settings.workbench.group.${group.id}` as MessageKey)}</h4>
-            <div className="card form">
-              {group.keys.map((key) => <Row key={key} id={`workbench.format.${key}`} settings={settings} onChange={onChange} />)}
-            </div>
-          </section>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/**
- * For a field that edits `value` as local text: runs `resync` when `value` changes from outside (a page Reset) while
- * the returned textarea ref is not focused, so the text shows the new value.
- */
-function useResync(value: unknown, resync: () => void) {
-  const ref = useRef<HTMLTextAreaElement>(null);
-  const key = JSON.stringify(value);
-  const run = useRef(resync);
-  run.current = resync;
-  useEffect(() => {
-    if (document.activeElement !== ref.current) run.current();
-  }, [key]);
-  return ref;
-}
-
-function NestingField({ value, onChange }: { value: Record<string, string>; onChange: (next: Record<string, string>) => void }) {
-  const toText = (v: Record<string, string>) => Object.entries(v).map(([k, c]) => `${k}: ${c}`).join(String.fromCharCode(10));
-  const [text, setText] = useState(toText(value));
-  const area = useResync(value, () => setText(toText(value)));
-  const id = 'files.nestingPatterns';
-  const fallback = settingDefault<Record<string, string>>(id);
-  return (
-    <SettingItem id={id} modified={!deepEqual(value, fallback)}>
-    <div className="field">
-      <span className="mono-label">{t('settings.explorer.nesting.patterns')}</span>
-      <textarea
-        ref={area}
-        value={text}
-        rows={6}
-        spellCheck={false}
-        aria-label={t('settings.explorer.nesting.patterns')}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={() => {
-          const next: Record<string, string> = {};
-          for (const line of text.split(String.fromCharCode(10))) {
-            const at = line.indexOf(':');
-            const parent = line.slice(0, at).trim();
-            const children = line.slice(at + 1).trim();
-            if (at > 0 && parent && children) next[parent] = children;
-          }
-          onChange(next);
-        }}
-      />
-      <span className="muted">{t('settings.explorer.nesting.patterns.hint')}</span>
-    </div>
-    </SettingItem>
-  );
-}
-
-function ExcludeField({ value, onChange }: { value: string[]; onChange: (next: string[]) => void }) {
-  const [text, setText] = useState(value.join('\n'));
-  const area = useResync(value, () => setText(value.join('\n')));
-  const id = 'files.exclude';
-  const fallback = settingDefault<string[]>(id);
-  return (
-    <SettingItem id={id} modified={!deepEqual(value, fallback)}>
-    <div className="field">
-      <span className="mono-label">{t('settings.explorer.exclude')}</span>
-      <textarea
-        ref={area}
-        value={text}
-        rows={4}
-        spellCheck={false}
-        aria-label={t('settings.explorer.exclude')}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={() => onChange(text.split('\n').map((l) => l.trim()).filter(Boolean))}
-      />
-      <span className="muted">{t('settings.explorer.exclude.hint')}</span>
-    </div>
-    </SettingItem>
   );
 }
 
@@ -875,301 +552,6 @@ function FileTypesCard({ value, onChange }: { value: FileAssociation[]; onChange
         </div>
       </div>
     </section>
-  );
-}
-
-function TerminalCard({ shell, onShell }: { shell: string; onShell: (shell: string) => void }) {
-  const shells = useAsync(() => api.terminalShells(), []);
-  return (
-    <section className="section">
-      <div className="card form">
-        {shells.error && <ErrorBanner error={shells.error} onRetry={shells.reload} compact />}
-        <label className="field">
-          <span className="mono-label">{t('settings.terminal.shell')}</span>
-          <select value={shell} disabled={!shells.data} onChange={(e) => onShell(e.target.value)}>
-            <option value="auto">{t('settings.terminal.auto')}</option>
-            {shells.data?.filter((id) => id !== 'auto').map((id) => <option key={id} value={id}>{SHELL_NAMES[id as keyof typeof SHELL_NAMES] ?? id}</option>)}
-          </select>
-          <span className="muted">{t('settings.terminal.hint')}</span>
-        </label>
-      </div>
-    </section>
-  );
-}
-
-/** The default profile: a select of the available, visible profiles; empty follows the shell setting. */
-function DefaultProfileRow({ def, settings, onChange }: { def: SettingDef<Settings>; settings: Settings; onChange: Change }) {
-  const infos = useAsync(() => api.terminalProfiles(), []);
-  const value = String(valueOf(def, settings) ?? '');
-  const options = mergeProfiles(infos.data ?? [], settings.terminal?.profiles ?? []).filter((p) => p.available && !p.hidden);
-  const known = options.some((p) => p.id === value);
-  return (
-    <SettingItem id={def.id} modified={isModified(def, settings)}>
-      <label className="field">
-        <span className="mono-label">{tr(def.label)}</span>
-        <select value={value} onChange={(e) => onChange({ terminal: { ...settings.terminal, defaultProfile: e.target.value } })}>
-          <option value="">{t('settings.terminal.defaultProfile.none')}</option>
-          {!known && value && <option value={value}>{value}</option>}
-          {options.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
-        <span className="muted">{tr(def.description)}</span>
-      </label>
-    </SettingItem>
-  );
-}
-
-const isBuiltinId = (id: string) => isShellId(id) && id !== 'auto';
-const DEFAULT_ICON = 'terminal';
-const iconOf = (p: TerminalProfile): IconName =>
-  (p.icon || (isBuiltinId(p.shell) ? SHELL_ICONS[p.shell as keyof typeof SHELL_ICONS] : '') || DEFAULT_ICON) as IconName;
-const defaultIconOf = (p: TerminalProfile): IconName => (isBuiltinId(p.id) ? SHELL_ICONS[p.id as keyof typeof SHELL_ICONS] : DEFAULT_ICON) as IconName;
-const ABSOLUTE = /^([a-zA-Z]:[\\/]|\/|\\\\)/;
-const ENV_KEY = /^[A-Za-z_][A-Za-z0-9_]*$/;
-const MAX_PROFILES = 50;
-
-type ProfileRowData = TerminalProfile & { available: boolean };
-
-/** The server's profiles with the draft's overrides and custom entries applied: built-ins first, then custom ones. */
-function mergeProfiles(infos: TerminalProfileInfo[], saved: TerminalProfile[]): ProfileRowData[] {
-  const byId = new Map(saved.map((p) => [p.id, p]));
-  const builtin = infos
-    .filter((p) => isBuiltinId(p.id))
-    .map((p) => {
-      const o = byId.get(p.id);
-      return { ...p, ...(o ?? {}), id: p.id, shell: p.shell, available: p.available, icon: o?.icon ?? p.icon };
-    });
-  const custom = saved.filter((p) => !isBuiltinId(p.id)).map((p) => ({ ...p, available: true }));
-  return [...builtin, ...custom];
-}
-
-/** An entry without the keys that hold their defaults, so a reset built-in leaves no override behind. */
-function compact(p: TerminalProfile): TerminalProfile {
-  const out: TerminalProfile = { ...p };
-  for (const key of ['command', 'args', 'env', 'cwd', 'icon', 'hidden', 'shellIntegration', 'appearance'] as const) {
-    const v = out[key];
-    const empty = v === undefined || v === '' || v === false && key === 'hidden' || (Array.isArray(v) && v.length === 0) || ((key === 'env' || key === 'appearance') && !!v && Object.keys(v).length === 0);
-    if (empty) delete out[key];
-  }
-  return out;
-}
-
-const linesOf = (text: string) => text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-const envOf = (text: string): Record<string, string> => {
-  const env: Record<string, string> = {};
-  for (const line of linesOf(text)) {
-    const at = line.indexOf('=');
-    const key = at < 0 ? '' : line.slice(0, at).trim();
-    if (ENV_KEY.test(key)) env[key] = line.slice(at + 1);
-  }
-  return env;
-};
-
-/** A multi-line field kept as free text while typing; `parse` turns it into the stored value. */
-function TextLinesField<V>({ label, hint, value, toText, parse, onChange }: {
-  label: string;
-  hint: string;
-  value: V;
-  toText: (v: V) => string;
-  parse: (text: string) => V;
-  onChange: (v: V) => void;
-}) {
-  const [text, setText] = useState(() => toText(value));
-  // An outside change (reset) replaces the text; typing keeps it.
-  useEffect(() => {
-    if (!deepEqual(parse(text), value)) setText(toText(value));
-  }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
-  return (
-    <label className="field">
-      <span className="mono-label">{label}</span>
-      <textarea rows={3} value={text} spellCheck={false} onChange={(e) => { setText(e.target.value); onChange(parse(e.target.value)); }} />
-      <span className="muted">{hint}</span>
-    </label>
-  );
-}
-
-function ProfilesRow({ settings, onChange }: { settings: Settings; onChange: Change }) {
-  const fallback = settingDefault<TerminalProfile[]>('terminal.profiles');
-  const saved = settings.terminal?.profiles ?? [];
-  return (
-    <SettingItem id="terminal.profiles" modified={!deepEqual(saved, fallback)}>
-      <ProfilesField value={saved} terminal={settings.terminal} onChange={(profiles) => onChange({ terminal: { ...settings.terminal, profiles } })} />
-    </SettingItem>
-  );
-}
-
-function ProfilesField({ value, terminal, onChange }: { value: TerminalProfile[]; terminal: Settings['terminal']; onChange: (profiles: TerminalProfile[]) => void }) {
-  const infos = useAsync(() => api.terminalProfiles(), []);
-  const [editing, setEditing] = useState<string>();
-  const [picking, setPicking] = useState<string>();
-  const rows = mergeProfiles(infos.data ?? [], value);
-  const listed = rows.filter((p) => !isBuiltinId(p.id) || p.available);
-
-  // Writes a row's fields; a built-in keeps only its overrides and drops out when nothing is left.
-  const update = (id: string, patch: Partial<TerminalProfile>) => {
-    const current = value.find((p) => p.id === id);
-    if (!isBuiltinId(id)) {
-      onChange(value.map((p) => (p.id === id ? compact({ ...p, ...patch }) : p)));
-      return;
-    }
-    const name = SHELL_NAMES[id as keyof typeof SHELL_NAMES];
-    const next = compact({ ...(current ?? { id, name, shell: id as TerminalProfile['shell'] }), ...patch });
-    const bare = next.name === name && Object.keys(next).every((k) => ['id', 'name', 'shell'].includes(k));
-    const others = value.filter((p) => p.id !== id);
-    onChange(bare ? others : current ? value.map((p) => (p.id === id ? next : p)) : [...others, next]);
-  };
-  const add = () => {
-    let id = `custom-${Date.now().toString(36)}`;
-    while (value.some((p) => p.id === id)) id += 'x';
-    const shell = ((infos.data ?? []).find((p) => isBuiltinId(p.id) && p.available)?.id ?? 'powershell') as TerminalProfile['shell'];
-    onChange([...value, { id, name: t('settings.terminal.profiles.newName'), shell }]);
-    setEditing(id);
-  };
-  const remove = (id: string) => {
-    if (editing === id) setEditing(undefined);
-    onChange(value.filter((p) => p.id !== id));
-  };
-  const pickingRow = rows.find((p) => p.id === picking);
-
-  return (
-    <div className="field profiles">
-      <span className="mono-label">{t('settings.terminal.profiles')}</span>
-      <span className="muted">{t('settings.terminal.profiles.hint')}</span>
-      {infos.error && <ErrorBanner error={infos.error} onRetry={infos.reload} compact />}
-      {!infos.data && !infos.error && <Spinner small />}
-      <div className="profile-list">
-        {listed.map((p) => {
-          const builtin = isBuiltinId(p.id);
-          const open = editing === p.id;
-          return (
-            <div key={p.id} className={`profile-row${p.hidden ? ' is-hidden' : ''}${open ? ' is-open' : ''}`}>
-              <button className="btn btn-sm btn-icon btn-ghost" title={t('settings.terminal.profiles.changeIcon')} aria-label={t('settings.terminal.profiles.changeIcon')} onClick={() => setPicking(p.id)}>
-                <Icon name={iconOf(p)} size={16} />
-              </button>
-              <span className="profile-name">{p.name}{p.hidden && <span className="muted"> ({t('settings.terminal.profiles.hidden')})</span>}</span>
-              <span className="muted profile-shell">
-                {p.shell === 'custom' ? t('settings.terminal.profiles.shell.custom') : SHELL_NAMES[p.shell as keyof typeof SHELL_NAMES] ?? p.shell}
-                {' · '}{builtin ? t('settings.terminal.profiles.builtin') : t('settings.terminal.profiles.custom')}
-              </span>
-              <span className="profile-actions">
-                {builtin && <button className="btn btn-sm" onClick={() => update(p.id, { hidden: !p.hidden })}>{t(p.hidden ? 'settings.terminal.profiles.show' : 'settings.terminal.profiles.hide')}</button>}
-                <button className="btn btn-sm" aria-expanded={open} onClick={() => setEditing(open ? undefined : p.id)}>{t(open ? 'settings.terminal.profiles.done' : 'settings.terminal.profiles.edit')}</button>
-                {!builtin && <button className="btn btn-sm" onClick={() => remove(p.id)}>{t('settings.terminal.profiles.delete')}</button>}
-              </span>
-              {open && (
-                <ProfileEditor
-                  profile={p}
-                  terminal={terminal}
-                  builtin={builtin}
-                  onChange={(patch) => update(p.id, patch)}
-                  onPickIcon={() => setPicking(p.id)}
-                  onReset={builtin && value.some((v) => v.id === p.id) ? () => onChange(value.filter((v) => v.id !== p.id)) : undefined}
-                />
-              )}
-            </div>
-          );
-        })}
-      </div>
-      <div className="row">
-        <button className="btn btn-sm" disabled={value.length >= MAX_PROFILES} onClick={add}>{t('settings.terminal.profiles.add')}</button>
-      </div>
-      {pickingRow && (
-        <IconPicker
-          value={iconOf(pickingRow)}
-          onPick={(icon) => {
-            update(pickingRow.id, { icon });
-            setPicking(undefined);
-          }}
-          onClose={() => setPicking(undefined)}
-        />
-      )}
-    </div>
-  );
-}
-
-function ProfileEditor({ profile: p, terminal, builtin, onChange, onPickIcon, onReset }: {
-  profile: ProfileRowData;
-  terminal: Settings['terminal'];
-  builtin: boolean;
-  onChange: (patch: Partial<TerminalProfile>) => void;
-  onPickIcon: () => void;
-  onReset?: () => void;
-}) {
-  const shells = SHELL_IDS.filter((id) => id !== 'auto');
-  const defaultName = builtin ? SHELL_NAMES[p.id as keyof typeof SHELL_NAMES] : undefined;
-  const invalid = !p.name.trim() || (p.shell === 'custom' && !(p.command && ABSOLUTE.test(p.command)));
-  const field = (id: string, modified: boolean, child: ReactNode) => <SettingItem id={`terminal.profiles.${p.id}.${id}`} modified={modified}>{child}</SettingItem>;
-  return (
-    <div className="profile-editor">
-      {invalid && <span className="req-hint tone-warn">{t('settings.terminal.profiles.invalid')}</span>}
-      {field('name', builtin && p.name !== defaultName, (
-        <label className="field">
-          <span className="mono-label">{t('settings.terminal.profiles.name')}</span>
-          <input value={p.name} spellCheck={false} onChange={(e) => onChange({ name: e.target.value })} />
-        </label>
-      ))}
-      {!builtin && (
-        <div className="field">
-          <span className="mono-label">{t('settings.terminal.profiles.shell')}</span>
-          <select
-            value={p.shell}
-            aria-label={t('settings.terminal.profiles.shell')}
-            onChange={(e) => onChange({ shell: e.target.value as TerminalProfile['shell'], ...(e.target.value === 'custom' ? {} : { command: undefined }) })}
-          >
-            {shells.map((id) => <option key={id} value={id}>{SHELL_NAMES[id as keyof typeof SHELL_NAMES]}</option>)}
-            <option value="custom">{t('settings.terminal.profiles.shell.custom')}</option>
-          </select>
-        </div>
-      )}
-      {!builtin && p.shell === 'custom' && (
-        <label className="field">
-          <span className="mono-label">{t('settings.terminal.profiles.command')}</span>
-          <input value={p.command ?? ''} spellCheck={false} onChange={(e) => onChange({ command: e.target.value })} />
-          <span className="muted">{t('settings.terminal.profiles.command.hint')}</span>
-        </label>
-      )}
-      {field('args', (p.args?.length ?? 0) > 0, (
-        <TextLinesField label={t('settings.terminal.profiles.args')} hint={t('settings.terminal.profiles.args.hint')} value={p.args ?? []} toText={(v) => v.join('\n')} parse={linesOf} onChange={(args) => onChange({ args })} />
-      ))}
-      {field('env', Object.keys(p.env ?? {}).length > 0, (
-        <TextLinesField
-          label={t('settings.terminal.profiles.env')}
-          hint={t('settings.terminal.profiles.env.hint')}
-          value={p.env ?? {}}
-          toText={(v) => Object.entries(v).map(([k, x]) => `${k}=${x}`).join('\n')}
-          parse={envOf}
-          onChange={(env) => onChange({ env })}
-        />
-      ))}
-      {field('cwd', !!p.cwd, (
-        <label className="field">
-          <span className="mono-label">{t('settings.terminal.profiles.cwd')}</span>
-          <input value={p.cwd ?? ''} spellCheck={false} onChange={(e) => onChange({ cwd: e.target.value })} />
-          <span className="muted">{t('settings.terminal.profiles.cwd.hint')}</span>
-        </label>
-      ))}
-      {field('icon', !!p.icon && p.icon !== defaultIconOf(p), (
-        <div className="field">
-          <span className="mono-label">{t('settings.terminal.profiles.changeIcon')}</span>
-          <div className="row">
-            <button className="btn btn-sm" onClick={onPickIcon}><Icon name={iconOf(p)} size={16} /> {iconOf(p)}</button>
-            <button className="btn btn-sm" disabled={!p.icon} onClick={() => onChange({ icon: undefined })}>{t('settings.terminal.profiles.defaultIcon')}</button>
-          </div>
-        </div>
-      ))}
-      {field('shellIntegration', p.shellIntegration === false, (
-        <label className="field setting-check">
-          <span className="mono-label">{t('settings.terminal.profiles.shellIntegration')}</span>
-          <input
-            type="checkbox"
-            checked={p.shellIntegration !== false}
-            aria-label={t('settings.terminal.profiles.shellIntegration')}
-            onChange={(e) => onChange({ shellIntegration: e.target.checked ? undefined : false })}
-          />
-        </label>
-      ))}
-      <ProfileAppearanceFields value={p.appearance} terminal={terminal} onChange={(appearance) => onChange({ appearance })} />
-      {onReset && <div className="row"><button className="btn btn-sm" onClick={onReset}>{t('settings.terminal.profiles.reset')}</button></div>}
-    </div>
   );
 }
 

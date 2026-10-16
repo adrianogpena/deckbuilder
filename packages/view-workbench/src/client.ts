@@ -1,8 +1,16 @@
 import type { SqlHistoryEntry } from '@deckbuilder/server-core/protocol';
 import type { DbConnection, SqlClient } from '@deckbuilder/sql-ui';
 
+/** A project folder, as the Settings page lists the ones allowed to run SQL. */
+export interface WorkbenchProject {
+  id: string;
+  name: string;
+  path: string;
+}
+
 /** The server calls the Workbench makes; the app builds it from its api and passes it to `workbenchView`. */
 export interface WorkbenchClient extends SqlClient {
+  projects: () => Promise<WorkbenchProject[]>;
   createConnection: (input: Record<string, unknown>) => Promise<DbConnection>;
   updateConnection: (id: string, input: Record<string, unknown>) => Promise<DbConnection>;
   deleteConnection: (id: string) => Promise<unknown>;

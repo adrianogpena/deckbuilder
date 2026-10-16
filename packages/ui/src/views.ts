@@ -2,13 +2,40 @@ import { type ComponentType, createContext, createElement, type ReactNode, Suspe
 import { tryT } from './i18n';
 import type { IconName } from './icons';
 import type { CommandDef } from './keybindings';
-import type { SettingDef, SettingsRegistry } from './settings-schema';
+import type { SettingDef, SettingsRegistry, SettingsSection } from './settings-schema';
 
 export interface ViewProps<S> {
   settings: S;
   onSave(patch: Partial<S>): void;
   go(id: string): void;
   options?: unknown;
+}
+
+/** What the Settings screen gives a view's settings card. */
+export interface SettingsCardProps<S> {
+  settings: S;
+  onChange(patch: Partial<S>): void;
+  /** One schema setting as a row (its hand-written field when the view has one); nothing when the app has not registered it. */
+  row(id: string): ReactNode;
+  /** Schema settings as one card of rows. */
+  rows(ids: readonly string[]): ReactNode;
+}
+
+/** The hand-written row of a schema setting. */
+export interface SettingsFieldProps<S> {
+  def: SettingDef<S>;
+  settings: S;
+  onChange(patch: Partial<S>): void;
+}
+
+/** What a view adds to Settings: its nav sections, the page of each, and hand-written rows. */
+export interface ViewSettingsCards<S> {
+  /** Nav entries (label key `settings.section.<path>`); the app lists them with its own sections, ordered by `order`. */
+  sections: SettingsSection[];
+  /** Page of a section by its dotted key; a section without one shows its schema rows. */
+  cards?: Record<string, ComponentType<SettingsCardProps<S>>>;
+  /** Row of a schema setting by id, for custom settings and rows that need more than a plain control. */
+  fields?: Record<string, ComponentType<SettingsFieldProps<S>>>;
 }
 
 export interface ViewDef<Id extends string, S, K extends string = string> {
@@ -27,6 +54,7 @@ export interface ViewDef<Id extends string, S, K extends string = string> {
   /** App-wide keys. */
   keybindings?(): CommandDef[];
   settings?: { defs: SettingDef<S>[] };
+  settingsCards?: ViewSettingsCards<S>;
   messages: { en: Record<K, string> & Record<string, string>; 'pt-BR': Record<string, string> };
 }
 
@@ -165,8 +193,17 @@ export function createViews<const Defs extends readonly AnyView[]>(defs: Defs, o
     Providers,
     commands: (): CommandDef[] => defs.flatMap((d) => d.commands?.() ?? []),
     keybindings: (): CommandDef[] => defs.flatMap((d) => d.keybindings?.() ?? []),
+    /** The views' sections and settings go into the app's registry. */
     registerSettings(registry: SettingsRegistry<S>): void {
-      for (const d of defs) if (d.settings) registry.registerSettings(d.settings.defs);
+      for (const d of defs) {
+        for (const section of d.settingsCards?.sections ?? []) registry.registerSection(section);
+        if (d.settings) registry.registerSettings(d.settings.defs);
+      }
+    },
+    /** The Settings pages and hand-written rows the views add, by section key and setting id. */
+    settingsCards: {
+      cards: Object.assign({}, ...defs.map((d) => d.settingsCards?.cards)) as Record<string, ComponentType<SettingsCardProps<S>>>,
+      fields: Object.assign({}, ...defs.map((d) => d.settingsCards?.fields)) as Record<string, ComponentType<SettingsFieldProps<S>>>,
     },
     messages,
   };
