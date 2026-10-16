@@ -1,6 +1,6 @@
 import { lazy } from 'react';
 import { defineView } from '@deckbuilderkit/ui';
-import { bindRestClient, type RestClient } from './client';
+import { bindRestClient, restClient, type RestClient } from './client';
 import { restCommands } from './commands';
 import { en, ptBR } from './i18n';
 import { restSettingDefs, type RestViewSettings } from './settings';
@@ -12,10 +12,10 @@ export interface RestViewOptions {
   group: string;
   order: number;
   /** The server calls the screen makes. */
-  client: RestClient;
+  client?: RestClient;
 }
 
-export function restView({ group, order, client }: RestViewOptions) {
+export function restView({ group, order, client = restClient }: RestViewOptions) {
   bindRestClient(client);
   return defineView<'rest', RestViewSettings, 'nav.rest'>({
     id: 'rest',

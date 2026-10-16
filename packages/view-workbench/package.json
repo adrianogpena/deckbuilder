@@ -21,8 +21,10 @@
     "./styles.css": "./src/workbench.css"
   },
   "dependencies": {
+    "@deckbuilderkit/db": "workspace:*",
     "@deckbuilderkit/editor": "workspace:*",
     "@deckbuilderkit/server-core": "workspace:*",
+    "@deckbuilderkit/server-mods": "workspace:*",
     "@deckbuilderkit/sql-ui": "workspace:*",
     "@deckbuilderkit/ui": "workspace:*"
   },

@@ -1,7 +1,7 @@
 import { basename } from 'node:path';
 import { pickFile, saveFileAs, writeFileAtomic } from '@deckbuilderkit/platform';
 import { defineServerView, invalid, isRecord, type Routes } from '@deckbuilderkit/server-core';
-import { fromPlatform, recordRoutes, type RecordStore, type RestHistory, restTabsRoutes } from '@deckbuilderkit/server-mods';
+import { environmentRoutes, fromPlatform, httpSharedRoutes, recordRoutes, type AppStores, type RecordStore, type RestHistory, restTabsRoutes } from '@deckbuilderkit/server-mods';
 
 /** The part of the server settings the REST view owns; the app's `Settings` extends it. */
 export interface RestServerSettings {
@@ -65,15 +65,17 @@ interface SavedRequestRecord {
 /**
  * Server half of the REST view: saved requests, open tabs, request history and the `rest` settings group.
  * Stores come from the app (`ctx.stores`): `requests` (a `RecordStore`) and `restHistory` (a `RestHistory`, whose `append` the app's
- * `httpRoutes` `onSend` calls). `/api/http/*` and the environments stay app-mounted (the Explorer's curl panel uses them too).
+ * `httpRoutes` `onSend` calls). `/api/http/*` is a shared route group (also mounted by Explorer, once) and the environments routes come from `environmentRoutes`; `ctx.stores` is `appStores(...)`.
  */
 export const restServerView = () =>
   defineServerView<RestServerSettings>({
     id: 'rest',
+    shared: [{ id: 'http', routes: (ctx) => httpSharedRoutes(ctx.stores as unknown as AppStores) }],
     routes: (ctx): Routes => {
       const requests = ctx.stores.requests as RecordStore<SavedRequestRecord>;
       const history = ctx.stores.restHistory as RestHistory;
       return {
+        ...environmentRoutes(ctx.stores as unknown as AppStores),
         ...recordRoutes(requests, '/api/requests'),
         // The saved Authorization value, only for Copy as curl.
         'GET /api/requests/auth': async ({ query }) => {

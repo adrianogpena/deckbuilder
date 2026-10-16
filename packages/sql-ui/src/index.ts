@@ -7,3 +7,4 @@ export { DEFAULT_RESULTS, SqlResults } from './SqlResults';
 export * from './types';
 export { type Shown, type SqlRunnerSettings, type TableRow, useSqlRunner } from './useSqlRunner';
 export { type TableDetailsEntry, useSqlSchema, useTableDetails } from './useSqlSchema';
+export { sqlClient } from './sql-client';

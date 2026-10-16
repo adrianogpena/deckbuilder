@@ -41,6 +41,11 @@ export interface ServerViewDef<S = any> {
   sockets?(ctx: ServerViewContext<S>): SocketRoutes;
   /** Routes outside the session token check (see `ServerOptions.unauthenticated`); each handler checks its own credentials. */
   unauthenticated?(ctx: ServerViewContext<S>): Routes;
+  /**
+   * Route groups several views need (e.g. `/api/db/*` for Workbench and Explorer): `mountViews` mounts
+   * each `id` once, using the first view that lists it.
+   */
+  shared?: ReadonlyArray<{ id: string; routes(ctx: ServerViewContext<S>): Routes }>;
   onQuit?(): void | Promise<void>;
   settings?: {
     /** Group key -> validator returning the clean value, or null when invalid. */
@@ -72,6 +77,7 @@ export function mountViews<S>(
   ctx: ServerViewContext<S>,
 ): { routes: Routes; sockets: SocketRoutes; unauthenticated: Routes; onQuit(): Promise<void> } {
   const ids = new Set<string>();
+  const sharedIds = new Set<string>();
   const routes: Routes = {};
   const sockets: SocketRoutes = {};
   const unauthenticated: Routes = {};
@@ -81,6 +87,14 @@ export function mountViews<S>(
     for (const [key, h] of Object.entries(d.routes(ctx))) {
       if (Object.hasOwn(routes, key)) throw new Error(`Duplicate route: ${key} (view ${d.id})`);
       routes[key] = h;
+    }
+    for (const s of d.shared ?? []) {
+      if (sharedIds.has(s.id)) continue;
+      sharedIds.add(s.id);
+      for (const [key, h] of Object.entries(s.routes(ctx))) {
+        if (Object.hasOwn(routes, key)) throw new Error(`Duplicate route: ${key} (shared ${s.id})`);
+        routes[key] = h;
+      }
     }
     for (const [key, h] of Object.entries(d.unauthenticated?.(ctx) ?? {})) {
       if (Object.hasOwn(unauthenticated, key)) throw new Error(`Duplicate unauthenticated route: ${key} (view ${d.id})`);

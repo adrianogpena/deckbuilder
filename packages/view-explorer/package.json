@@ -21,6 +21,7 @@
     "./styles.css": "./src/explorer.css"
   },
   "dependencies": {
+    "@deckbuilderkit/db": "workspace:*",
     "@deckbuilderkit/editor": "workspace:*",
     "@deckbuilderkit/platform": "workspace:*",
     "@deckbuilderkit/server-core": "workspace:*",

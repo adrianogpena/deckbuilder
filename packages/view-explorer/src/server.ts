@@ -1,7 +1,8 @@
 import { statSync } from 'node:fs';
 import { openWithDefault, revealInFolder } from '@deckbuilderkit/platform';
 import { defineServerView, invalid, isRecord, type ServerViewDef } from '@deckbuilderkit/server-core';
-import { dialogRoutes, editorRoutes, fromPlatform, pickedPaths, recordRoutes, rootedFs, type RootedFs } from '@deckbuilderkit/server-mods';
+import { dbSharedRoutes, type DbStores } from '@deckbuilderkit/db';
+import { dialogRoutes, editorRoutes, fromPlatform, httpSharedRoutes, pickedPaths, recordRoutes, rootedFs, type AppStores, type RootedFs } from '@deckbuilderkit/server-mods';
 import type { ExplorerSettings } from './explorer-state';
 
 /** The part of the server settings the Explorer view owns; the app's `Settings` extends it. */
@@ -108,6 +109,10 @@ export function explorerServerView(opts: ExplorerServerOptions = {}): ExplorerSe
   };
   const view = defineServerView<ExplorerServerSettings>({
     id: 'explorer',
+    shared: [
+      { id: 'db', routes: (ctx) => dbSharedRoutes(ctx.stores as unknown as DbStores, ctx.dataDir) },
+      { id: 'http', routes: (ctx) => httpSharedRoutes(ctx.stores as unknown as AppStores) },
+    ],
     routes(ctx) {
       const stores = ctx.stores as unknown as Stores;
       const rooted = rootedFs({ multiDelete: opts.multiDelete, roots: stores.projectRoots });

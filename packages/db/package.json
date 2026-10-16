@@ -19,6 +19,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@deckbuilderkit/platform": "workspace:*",
     "@deckbuilderkit/server-core": "workspace:*",
     "@deckbuilderkit/server-mods": "workspace:*",
     "oracledb": "6.10.0"

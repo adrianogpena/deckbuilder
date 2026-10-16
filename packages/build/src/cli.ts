@@ -9,6 +9,7 @@ import { loadApp, workspaceRoot } from './app.ts';
 import { keygen } from './keys.ts';
 import { createApp } from './new.ts';
 import { BUMPS, release, writeManifest } from './release.ts';
+import { upgradeApp } from './upgrade.ts';
 
 const [command, ...args] = process.argv.slice(2);
 
@@ -43,6 +44,13 @@ Next:
 
 Next:
   bun install`);
+    return;
+  }
+
+  if (command === 'upgrade') {
+    const { version, updated, skipped } = await upgradeApp(process.cwd());
+    if (updated.length > 0) console.log(`Upgraded ${updated.length} @deckbuilderkit package(s) to ${version}.`);
+    if (skipped.length > 0) console.log(`Left ${skipped.join(', ')} untouched (link:/workspace: ranges, local app).`);
     return;
   }
 
@@ -110,7 +118,10 @@ wrote ${publicKey} (public: commit it; the exe embeds it)`);
                               id = URL scheme, data folder ~/.<id>
   add view <id>               scaffold packages/view-<id> from the view template and register it
                               in the gallery (run from the repo root)
-  dev [server flags]          server (--dev, watch mode) + Vite dev server; e.g. dev --window, dev --app
+  upgrade                     bump every @deckbuilderkit/* dependency of the app in the current
+                              folder to the latest published version, then bun install
+                              (link:/workspace: ranges stay as they are)
+  dev [server flags]        server (--dev, watch mode) + Vite dev server; e.g. dev --window, dev --app
   build:web                   bundle web/ into dist/web
   build [--target <list>]     build:web, then one exe per target into release/
                               targets: windows-x64, linux-x64, linux-arm64, darwin-x64,

@@ -2,6 +2,7 @@ import { lazy } from 'react';
 import { defineView } from '@deckbuilderkit/ui';
 import { bindExplorerClient, type ExplorerClients } from './client';
 import { explorerViewCommands } from './commands';
+import { explorerClients } from './default-client';
 import { en, ptBR } from './i18n';
 import { setMultiDelete } from './options';
 import { explorerSettingDefs, type ExplorerViewSettings } from './settings';
@@ -14,12 +15,12 @@ export interface ExplorerViewOptions {
   group: string;
   order: number;
   /** The server calls the screen makes. */
-  client: ExplorerClients;
+  client?: ExplorerClients;
   /** Whether the tree may delete several entries at once; off when omitted. */
   multiDelete?: boolean;
 }
 
-export function explorerView({ group, order, client, multiDelete = false }: ExplorerViewOptions) {
+export function explorerView({ group, order, client = explorerClients, multiDelete = false }: ExplorerViewOptions) {
   bindExplorerClient(client);
   setMultiDelete(multiDelete);
   return defineView<'explorer', ExplorerViewSettings, 'nav.explorer'>({

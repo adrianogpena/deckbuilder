@@ -469,6 +469,24 @@ push and pull request.
 - **macOS**: the output is a plain executable, not an `.app` bundle, and it is unsigned:
   `xattr -d com.apple.quarantine <file>` after downloading. Not tested on a Mac yet.
 
+## Using deckbuilder in a new app
+
+```
+bunx @deckbuilderkit/build new <dir> --views explorer,git,rest,terminal,workbench [--local] [--git] [--name <Name>] [--id <id>]
+```
+
+From this repo: `bun packages/build/src/cli.ts new ...`. `<dir>` is relative to the current directory.
+Home and Settings are always included. Each view brings its own server routes, stores
+(`appStores`/`dbStores`) and default client, so there is nothing app-side to write.
+
+- `--local`: dependencies become `link:@deckbuilderkit/<pkg>` and `new` runs `bun link` in each package
+  dir (registering them in bun's global link registry). Use it to try unpublished changes.
+- `--git`: runs `git init` in the new app.
+- `deckbuilder upgrade` (in the app dir): bumps all `@deckbuilderkit/*` deps together to the latest
+  published version, then runs `bun install`. `link:` and `workspace:` ranges are left alone.
+- `bun scripts/check-single-views.ts [id]`: generates each view alone and typechecks it. CI's
+  `single-view` job does the same per view.
+
 ## Releasing packages
 
 Every `packages/*` is published to npm as `@deckbuilderkit/<name>` (TypeScript source; Bun resolves the `.ts` exports). `apps/*` are not published. All packages share the root `package.json` `version` and are bumped together.

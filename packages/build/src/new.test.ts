@@ -7,12 +7,17 @@ test('defaults name and id from the folder', () => {
   expect(validateNewApp({ dir: 'my-tool' })).toEqual({ app: { dir: 'my-tool', name: 'My Tool', id: 'mytool' } });
 });
 
+test('names the app from the last path segment', () => {
+  expect(validateNewApp({ dir: '../my-tool/' })).toEqual({ app: { dir: 'my-tool', name: 'My Tool', id: 'mytool' } });
+  expect(validateNewApp({ dir: 'C:\\apps\\my-tool' })).toEqual({ app: { dir: 'my-tool', name: 'My Tool', id: 'mytool' } });
+});
+
 test('takes explicit name and id', () => {
   expect(validateNewApp({ dir: 'my-tool', name: ' Tool ', id: 'tool' })).toEqual({ app: { dir: 'my-tool', name: 'Tool', id: 'tool' } });
 });
 
 test('rejects bad folder names and ids', () => {
-  for (const dir of ['', 'My-Tool', '1tool', 'a_b', '../x', 'a/b']) expect('error' in validateNewApp({ dir })).toBe(true);
+  for (const dir of ['', 'My-Tool', '1tool', 'a_b', '../X', 'a/b_c']) expect('error' in validateNewApp({ dir })).toBe(true);
   expect('error' in validateNewApp({ dir: 'tool', id: 'My Tool' })).toBe(true);
   expect('error' in validateNewApp({ dir: 'tool', id: '1x' })).toBe(true);
 });
@@ -64,9 +69,9 @@ test('published package.json depends on the current version of every package and
 
 test('local package.json links the checkout packages', () => {
   const json = appPackageJson(APP, { views: ['terminal'], local: true }, PKG);
-  expect(json.dependencies['@deckbuilderkit/ui']).toBe('link:C:/repo/packages/ui');
-  expect(json.dependencies['@deckbuilderkit/view-terminal']).toBe('link:C:/repo/packages/view-terminal');
-  expect(json.devDependencies['@deckbuilderkit/build']).toBe('link:C:/repo/packages/build');
+  expect(json.dependencies['@deckbuilderkit/ui']).toBe('link:@deckbuilderkit/ui');
+  expect(json.dependencies['@deckbuilderkit/view-terminal']).toBe('link:@deckbuilderkit/view-terminal');
+  expect(json.devDependencies['@deckbuilderkit/build']).toBe('link:@deckbuilderkit/build');
 });
 
 test('only the chosen views are dependencies and imports', () => {
@@ -85,7 +90,29 @@ test('generated view composition and merged Settings', () => {
   expect(viewSettingsSource([], PKG.scope)).toContain('interface ViewSettings {}');
 });
 
-test('rejects views that are unknown or need app glue', () => {
+test('rejects unknown views', () => {
   expect(() => viewSpecs(['nope'])).toThrow('Unknown view');
-  expect(() => viewSpecs(['git'])).toThrow('needs an app client');
+});
+
+test('every view generates its web and server calls', () => {
+  for (const [id, web, server] of [['explorer', 'explorerView', 'explorerServerView'], ['git', 'gitView', 'gitServerView'], ['rest', 'restView', 'restServerView'], ['workbench', 'workbenchView', 'workbenchServerView']] as const) {
+    expect(webViewsSource([id], PKG.scope)).toContain(`${web}({ group: 'nav.section.main', order: 20 })`);
+    expect(serverViewsSource([id], PKG.scope)).toContain(`${server}(`);
+    expect(serverViewsSource([id], PKG.scope)).toContain("from '@deckbuilderkit/server-mods'");
+  }
+});
+
+test('stores are built only for the views that need them', () => {
+  expect(serverViewsSource(['git'], PKG.scope)).not.toContain('dbStores');
+  expect(serverViewsSource(['rest'], PKG.scope)).toContain('...appStores(APP.id, { secrets })');
+  expect(serverViewsSource(['terminal'], PKG.scope)).toContain('export const stores = {};');
+  for (const id of ['explorer', 'workbench']) expect(serverViewsSource([id], PKG.scope)).toContain('...dbStores(APP.id, { secrets })');
+  expect(appPackageJson(APP, { views: ['workbench'], local: false }, PKG).dependencies['@deckbuilderkit/db']).toBe('1.2.3');
+  expect(appPackageJson(APP, { views: ['git'], local: false }, PKG).dependencies['@deckbuilderkit/db']).toBeUndefined();
+});
+
+test('terminal resolves its cwd through the explorer when both are chosen', () => {
+  const source = serverViewsSource(['explorer', 'terminal'], PKG.scope);
+  expect(source).toContain('const explorer = explorerServerView();');
+  expect(source).toContain('resolveCwd: explorer.resolveCwd');
 });

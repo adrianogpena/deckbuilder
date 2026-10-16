@@ -1,5 +1,6 @@
 import type { SqlHistoryEntry } from '@deckbuilderkit/server-core/protocol';
-import type { DbConnection, SqlClient } from '@deckbuilderkit/sql-ui';
+import { type DbConnection, type SqlClient, sqlClient } from '@deckbuilderkit/sql-ui';
+import { request } from '@deckbuilderkit/ui';
 
 /** A project folder, as the Settings page lists the ones allowed to run SQL. */
 export interface WorkbenchProject {
@@ -25,3 +26,21 @@ export interface WorkbenchClient extends SqlClient {
   readFile: (root: string, path: string) => Promise<{ text?: string; encoding?: string; mtime?: number; truncated?: boolean }>;
   writeFile: (root: string, path: string, text: string, expectedMtime: number | undefined, encoding?: string) => Promise<{ mtime: number }>;
 }
+
+/** The default `WorkbenchClient`: the server's `/api/db/*`, `/api/projects` and `/api/fs` routes over fetch. */
+export const workbenchClient: WorkbenchClient = {
+  ...sqlClient,
+  projects: () => request<WorkbenchProject[]>('GET', '/api/projects'),
+  createConnection: (input) => request<DbConnection>('POST', '/api/db/connections', {}, input),
+  updateConnection: (id, input) => request<DbConnection>('PUT', '/api/db/connections', { id }, input),
+  deleteConnection: (id) => request<{ ok: true }>('DELETE', '/api/db/connections', { id }),
+  testConnection: (input) => request<{ ok: true }>('POST', '/api/db/test', {}, input),
+  script: (id) => request<{ text: string }>('GET', '/api/db/script', { id }).then((r) => r.text),
+  saveScript: (id, text) => request<{ ok: true }>('PUT', '/api/db/script', { id }, { text }),
+  listHistory: (filter = {}) => request<SqlHistoryEntry[]>('GET', '/api/db/history', filter),
+  deleteHistory: (ids) => request<{ ok: true }>('POST', '/api/db/history/delete', {}, { ids }),
+  clearHistory: () => request<{ ok: true }>('POST', '/api/db/history/clear'),
+  readFile: (root, path) => request<{ text?: string; encoding?: string; mtime?: number; truncated?: boolean }>('GET', '/api/fs/read', { root, path }),
+  writeFile: (root, path, text, expectedMtime, encoding) =>
+    request<{ mtime: number }>('POST', '/api/fs/write', {}, { root, path, text, expectedMtime, encoding }),
+};

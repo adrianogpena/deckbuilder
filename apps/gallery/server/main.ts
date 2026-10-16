@@ -28,8 +28,8 @@ import { type FileSettings, validFileSettings } from '@deckbuilderkit/ui/file-se
 import { type LogSettings, validLogSettings } from '@deckbuilderkit/ui/log';
 import { APP } from '../app.ts';
 import pkg from '../package.json';
-import { dbConnections, environments, requests, restHistoryStore, routes, sqlHistoryStore } from './routes.ts';
-import { pickedFolders, projectRoots, projects } from './stores.ts';
+import { routes } from './routes.ts';
+import { stores } from './stores.ts';
 import { serverViews } from './views.ts';
 
 export interface Settings extends BaseSettings, TerminalServerSettings, WorkbenchServerSettings, RestServerSettings, GitServerSettings, ExplorerServerSettings {
@@ -149,8 +149,8 @@ const settings = settingsStore<Settings>({
   },
   onChange(next, prev) {
     if (next.autostart !== prev.autostart) void autostart.set(next.autostart);
-    sqlHistoryStore.setMax(historySizeOf(next));
-    restHistoryStore.setMax(restHistorySizeOf(next));
+    stores.sqlHistory.setMax(historySizeOf(next));
+    stores.restHistory.setMax(restHistorySizeOf(next));
     if (next.updateFolder !== prev.updateFolder) void updater.check();
   },
 });
@@ -165,10 +165,10 @@ const updater = createUpdater({
 });
 
 const { closeToTray } = await settings.load();
-sqlHistoryStore.setMax(historySizeOf(await settings.load()));
-restHistoryStore.setMax(restHistorySizeOf(await settings.load()));
+stores.sqlHistory.setMax(historySizeOf(await settings.load()));
+stores.restHistory.setMax(restHistorySizeOf(await settings.load()));
 
-const mounted = mountViews(serverViews, { dataDir, settings, stores: { projects, projectRoots, pickedFolders, dbConnections, requests, environments, restHistory: restHistoryStore } });
+const mounted = mountViews(serverViews, { dataDir, settings, stores });
 
 await runApp({
   app: APP,
@@ -184,7 +184,7 @@ await runApp({
     },
     ...updateRoutes(updater, ctx.quit),
     // Machine-specific: autostart writes the Run key, updateFolder is a local or share path.
-    ...backupRoutes({ app: { id: APP.id, version: pkg.version }, settings, stores: { projects, dbConnections, requests, environments }, excludeSettings: ['autostart', 'updateFolder'] }),
+    ...backupRoutes({ app: { id: APP.id, version: pkg.version }, settings, stores: { projects: stores.projects, dbConnections: stores.dbConnections, requests: stores.requests, environments: stores.environments }, excludeSettings: ['autostart', 'updateFolder'] }),
     ...routes(ctx),
     ...mounted.routes,
   }),

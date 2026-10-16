@@ -19,7 +19,7 @@ import { type Keymap, validKeymap } from '@deckbuilderkit/ui/keybindings';
 import { APP } from '../app.ts';
 import pkg from '../package.json';
 import { routes } from './routes.ts';
-import { serverViews, type ViewSettings } from './views.ts';
+import { serverViews, stores, type ViewSettings } from './views.ts';
 
 export interface Settings extends BaseSettings, ViewSettings {
   /** Keybinding overrides by command id, checked by `validKeymap`. */
@@ -69,7 +69,7 @@ const updater = createUpdater({
 });
 
 const { closeToTray } = await settings.load();
-const mounted = mountViews(serverViews, { dataDir, settings, stores: {} });
+const mounted = mountViews(serverViews, { dataDir, settings, stores });
 
 await runApp({
   app: APP,

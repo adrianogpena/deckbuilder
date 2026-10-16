@@ -1,6 +1,6 @@
 import { lazy } from 'react';
 import { defineView } from '@deckbuilderkit/ui';
-import { bindGitClient, type GitClient } from './client';
+import { bindGitClient, gitClient, type GitClient } from './client';
 import { gitCommands } from './commands';
 import { en, ptBR } from './i18n';
 import type { GitViewSettings } from './settings';
@@ -12,10 +12,10 @@ export interface GitViewOptions {
   group: string;
   order: number;
   /** The server calls the screen makes. */
-  client: GitClient;
+  client?: GitClient;
 }
 
-export function gitView({ group, order, client }: GitViewOptions) {
+export function gitView({ group, order, client = gitClient }: GitViewOptions) {
   bindGitClient(client);
   return defineView<'git', GitViewSettings, 'nav.git'>({
     id: 'git',

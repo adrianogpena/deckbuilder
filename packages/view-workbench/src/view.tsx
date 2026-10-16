@@ -1,6 +1,6 @@
 import { lazy } from 'react';
 import { defineView } from '@deckbuilderkit/ui';
-import type { WorkbenchClient } from './client';
+import { workbenchClient, type WorkbenchClient } from './client';
 import { workbenchCommands } from './commands';
 import { en, ptBR } from './i18n';
 import { workbenchSettingDefs, type WorkbenchViewSettings } from './settings';
@@ -14,10 +14,10 @@ export interface WorkbenchViewOptions {
   group: string;
   order: number;
   /** The server calls the screen makes. */
-  client: WorkbenchClient;
+  client?: WorkbenchClient;
 }
 
-export function workbenchView({ group, order, client }: WorkbenchViewOptions) {
+export function workbenchView({ group, order, client = workbenchClient }: WorkbenchViewOptions) {
   return defineView<'workbench', WorkbenchViewSettings, 'nav.workbench'>({
     id: 'workbench',
     nav: { group, icon: 'play', label: 'nav.workbench', order },

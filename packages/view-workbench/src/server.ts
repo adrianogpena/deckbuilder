@@ -1,3 +1,4 @@
+import { dbSharedRoutes, type DbStores } from '@deckbuilderkit/db';
 import { defineServerView, isRecord } from '@deckbuilderkit/server-core';
 
 /** The part of the server settings the Workbench view owns; the app's `Settings` extends it. */
@@ -153,10 +154,11 @@ export const historySizeOf = (s: WorkbenchServerSettings) => {
   return typeof n === 'number' && Number.isInteger(n) && n >= 0 ? n : 500;
 };
 
-/** Server half of the Workbench view: the `workbench` settings group. The `/api/db/*` routes stay app-mounted (the Explorer's SQL panel uses them too). */
+/** Server half of the Workbench view: the `workbench` settings group. The `/api/db/*` routes are the shared group `db` (also Explorer); `ctx.stores` needs `dbStores(...)`. */
 export const workbenchServerView = () =>
   defineServerView<WorkbenchServerSettings>({
     id: 'workbench',
+    shared: [{ id: 'db', routes: (ctx) => dbSharedRoutes(ctx.stores as unknown as DbStores, ctx.dataDir) }],
     routes: () => ({}),
     settings: { validate: { workbench: validWorkbench } },
   });
