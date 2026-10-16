@@ -198,6 +198,8 @@ export const en = {
   'settings.general.startScreen.workbench': 'Workbench',
   'settings.general.startScreen.rest': 'REST',
   'settings.general.startScreen.terminal': 'Terminal',
+  'settings.general.startScreen.git': 'Git',
+  'settings.general.startScreen.agents': 'Agents',
   'settings.editors.notFound': 'Not found',
   'settings.editors.choose': 'Choose…',
   'settings.editors.reset': 'Reset',

@@ -1,16 +1,9 @@
 import { closeSync, openSync, readSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-export interface AgentSession {
-  id: string;
-  account: string;
-  cwd: string;
-  title: string;
-  firstPrompt: string;
-  updatedAt: number;
-  gitBranch?: string;
-  model?: string;
-}
+import type { AgentSession } from '../protocol.ts';
+
+export type { AgentSession };
 
 export interface ProjectRef {
   name: string;

@@ -200,6 +200,8 @@ export const ptBR: Messages<typeof en> = {
   'settings.general.startScreen.workbench': 'Workbench',
   'settings.general.startScreen.rest': 'REST',
   'settings.general.startScreen.terminal': 'Terminal',
+  'settings.general.startScreen.git': 'Git',
+  'settings.general.startScreen.agents': 'Agents',
   'settings.editors.notFound': 'Não encontrado',
   'settings.editors.choose': 'Escolher…',
   'settings.editors.reset': 'Redefinir',

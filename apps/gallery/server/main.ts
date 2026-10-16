@@ -18,6 +18,7 @@ import {
 import { runApp } from '@deckbuilderkit/shell';
 import type { ExplorerServerSettings } from '@deckbuilderkit/view-explorer/server';
 import type { GitServerSettings } from '@deckbuilderkit/view-git/server';
+import type { AgentsServerSettings } from '@deckbuilderkit/view-agents/server';
 import { restHistorySizeOf, type RestServerSettings } from '@deckbuilderkit/view-rest/server';
 import type { TerminalServerSettings } from '@deckbuilderkit/view-terminal/server';
 import { historySizeOf, type WorkbenchServerSettings } from '@deckbuilderkit/view-workbench/server';
@@ -32,7 +33,7 @@ import { routes } from './routes.ts';
 import { stores } from './stores.ts';
 import { serverViews } from './views.ts';
 
-export interface Settings extends BaseSettings, TerminalServerSettings, WorkbenchServerSettings, RestServerSettings, GitServerSettings, ExplorerServerSettings {
+export interface Settings extends BaseSettings, TerminalServerSettings, WorkbenchServerSettings, RestServerSettings, GitServerSettings, ExplorerServerSettings, AgentsServerSettings {
   /** Start at Windows login (exe only). */
   autostart: boolean;
   /** Tray icon, so closing the window keeps the app running; read at startup. */
@@ -102,7 +103,7 @@ const WINDOW_SPEC: Record<string, FieldSpec> = {
 const GENERAL_SPEC: Record<string, FieldSpec> = {
   confirmCloseDirty: 'boolean',
   toastDuration: [1000, 60_000],
-  startScreen: ['home', 'tabs', 'grid', 'explorer', 'workbench', 'rest', 'terminal', 'git'],
+  startScreen: ['home', 'tabs', 'grid', 'explorer', 'workbench', 'rest', 'terminal', 'git', 'agents'],
 };
 const KEYBOARD_SPEC: Record<string, FieldSpec> = {
   chordTimeout: [500, 10_000],

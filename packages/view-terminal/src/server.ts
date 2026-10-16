@@ -2,6 +2,7 @@ import { isAbsolute } from 'node:path';
 import { defineServerView, type FieldSpec, isRecord, validGroup } from '@deckbuilderkit/server-core';
 import {
   isShellId,
+  type Launchers,
   terminalRoutes,
   terminalSessions,
   validAppearance,
@@ -115,10 +116,12 @@ export interface TerminalServerViewOptions {
   integrationDir: string;
   /** Absolute folder of a project-relative path (`cwd` of a tab). */
   resolveCwd(root: string, path: string): Promise<string>;
+  /** Extra programs the client may start by id (see `launchers`), e.g. the Agents view's `claude`. */
+  launchers?: Launchers;
 }
 
 /** Server half of the Terminal view: routes, sockets, session cleanup and the `terminal` settings groups. */
-export function terminalServerView({ integrationDir, resolveCwd }: TerminalServerViewOptions) {
+export function terminalServerView({ integrationDir, resolveCwd, launchers }: TerminalServerViewOptions) {
   /** Shells of every Terminal tab; they outlive the window's sockets and end at app quit. */
   const sessions = terminalSessions();
   let mounted: ReturnType<typeof terminalRoutes> | undefined;
@@ -139,6 +142,7 @@ export function terminalServerView({ integrationDir, resolveCwd }: TerminalServe
       shellIntegration: async () => (await setting('shellIntegration')) !== false,
       integrationDir,
       resolveCwd,
+      launchers,
     }));
   };
   return defineServerView<TerminalServerSettings>({

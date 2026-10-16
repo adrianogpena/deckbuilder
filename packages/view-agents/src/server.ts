@@ -1,26 +1,36 @@
 import { type FSWatcher, mkdirSync, readFileSync, watch, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { defineServerView, socketTickets, type SocketData, type SocketRoutes } from '@deckbuilderkit/server-core';
+import { defineServerView, socketTickets, validGroup, type SocketData, type SocketRoutes } from '@deckbuilderkit/server-core';
 import type { ServerWebSocket } from 'bun';
 import { CHAT_SOCKET_PATH, type ChatClientFrame, type ChatServerFrame } from './chat-protocol.ts';
+import type { AgentSessionView, AgentsFrame } from './protocol.ts';
+import type { AgentsMode, AgentsSettings } from './settings-types.ts';
 import { type AgentAccount, detectAccounts } from './server/accounts.ts';
+import { CLAUDE_LAUNCHER_ID, claudeLauncher } from './server/launcher.ts';
 import { type ChatManager, type ChatSession, type ChatSubscriber, createChatManager } from './server/chat/manager.ts';
 import { CHAT_MCP_PATH } from './server/chat/permission-mcp.ts';
 import type { SpawnFn } from './server/chat/process.ts';
-import { type AgentSession, createSessionScanner, matchProject, type ProjectRef } from './server/discovery.ts';
+import { createSessionScanner, matchProject } from './server/discovery.ts';
+import { createProjectsStore, type ProjectsStore } from './server/projects.ts';
 import { type AgentStatus, createStatusTracker, readPidFiles } from './server/status.ts';
+
+/** The part of the server settings the Agents view owns; the app's `Settings` extends it. */
+export interface AgentsServerSettings {
+  /** Agents settings, checked by `validAgents`. */
+  agents?: AgentsSettings;
+}
+
+/** A copy of `raw` when it is a well-formed Agents settings group, else null. */
+const AGENTS_MODES: AgentsMode[] = ['terminal', 'chat'];
+
+export const validAgents = (raw: unknown): AgentsSettings | null => validGroup(raw, { mode: AGENTS_MODES }) as AgentsSettings | null;
 
 export const AGENTS_SOCKET_PATH = '/api/agents/socket';
 const RESCAN_MS = 10_000;
 const DEBOUNCE_MS = 300;
 
-/** A session as the UI gets it: its status and the project its cwd belongs to. */
-export interface AgentSessionView extends AgentSession {
-  status: AgentStatus;
-  project?: string;
-  seenAt?: number;
-}
+export type { AgentSessionView };
 
 export interface AgentsServerViewOptions {
   /** Home holding the `.claude*` account dirs; defaults to the user's home. */
@@ -30,10 +40,13 @@ export interface AgentsServerViewOptions {
   chat?: { spawn?: SpawnFn; claudeCmd?: string; env?: Record<string, string | undefined>; idleMs?: number };
 }
 
-/** Socket text frames: the full session list when it changes, else only the status map (session id -> status). */
-export type AgentsFrame =
-  | { type: 'sessions'; sessions: AgentSessionView[] }
-  | { type: 'status'; status: Record<string, AgentStatus> };
+export type { AgentsFrame };
+
+/** The `claude` terminal launcher for `terminalServerView({ launchers: launchers({ claude: agentsLauncher() }) })`; same `home` as the view. */
+export function agentsLauncher(opts: Pick<AgentsServerViewOptions, 'home'> & { env?: Record<string, string | undefined>; cmd?: string } = {}) {
+  const home = opts.home ?? homedir();
+  return claudeLauncher({ accounts: () => detectAccounts(home), env: opts.env, cmd: opts.cmd });
+}
 
 /** Server half of the Agents view: accounts, sessions with live status, and a socket pushing changes. */
 export function agentsServerView(opts: AgentsServerViewOptions = {}) {
@@ -51,7 +64,7 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
   let debounce: ReturnType<typeof setTimeout> | undefined;
   let seenFile = '';
   let seen: Record<string, number> | undefined;
-  let projects: () => Promise<ProjectRef[]> = async () => [];
+  let projects: ProjectsStore | undefined;
   let last = { sessions: '', status: '' };
 
   const loadSeen = () => {
@@ -76,12 +89,13 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
 
   const compute = async () => {
     const accs = accounts();
-    const refs = await projects();
+    const refs = projects?.list() ?? [];
     const statuses = tracker.update(accs.flatMap((a) => readPidFiles(a.dir)));
     const s = loadSeen();
     const sessions: AgentSessionView[] = scanner
       .scan(accs.map((a) => ({ id: a.id, dir: a.dir })))
-      .map((x) => ({ ...x, status: statuses.get(x.id) ?? 'stopped', project: matchProject(x.cwd, refs)?.name, seenAt: s[x.id] }))
+      .map((x) => ({ ...x, status: statuses.get(x.id) ?? 'stopped', project: matchProject(x.cwd, refs)?.id, seenAt: s[x.id] }))
+      .filter((x) => x.project !== undefined)
       .sort((a, b) => b.updatedAt - a.updatedAt);
     const status: Record<string, AgentStatus> = {};
     for (const x of sessions) status[x.id] = x.status;
@@ -134,16 +148,38 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
     timer = undefined;
   };
 
-  return defineServerView({
+  return defineServerView<AgentsServerSettings>({
     id: 'agents',
+    settings: { validate: { agents: validAgents } },
     routes: (ctx) => {
       seenFile = join(ctx.dataDir, 'agents', 'seen.json');
       chat = createChatManager({ ...opts.chat, dir: join(ctx.dataDir, 'agents', 'chat'), accounts, baseUrl: () => baseUrl });
-      const store = ctx.stores.projects as { list(): Promise<ProjectRef[]> } | undefined;
-      projects = async () => (store ? await store.list() : []);
+      const store = createProjectsStore(join(ctx.dataDir, 'agents', 'projects.json'));
+      projects = store;
       return {
         'GET /api/agents/accounts': () => accounts(),
         'GET /api/agents/sessions': async () => (await compute()).sessions,
+        'GET /api/agents/projects': () => store.list(),
+        'POST /api/agents/projects': async ({ json }) => {
+          const p = store.add(await json<{ name?: unknown; path?: unknown }>());
+          if (p) void refresh(true);
+          return p ? { ok: true, project: p } : { ok: false };
+        },
+        'DELETE /api/agents/projects': ({ url }) => {
+          const ok = store.remove(url?.searchParams.get('id') ?? '');
+          if (ok) void refresh(true);
+          return { ok };
+        },
+        // Terminal mode: returns the launcher args for `POST /api/terminal/open`. A new session gets its id here
+        // (`--session-id`), so the pty is linked to it from the start through `meta.agentSession`.
+        'POST /api/agents/terminal/prepare': async ({ json }) => {
+          const b = await json<{ account?: unknown; sessionId?: unknown }>();
+          const acc = accounts().find((a) => a.id === b.account);
+          if (!acc) return { ok: false };
+          const resume = typeof b.sessionId === 'string' && b.sessionId !== '';
+          const sessionId = resume ? (b.sessionId as string) : crypto.randomUUID();
+          return { ok: true, sessionId, launch: { id: CLAUDE_LAUNCHER_ID, args: { account: acc.id, sessionId, resume } } };
+        },
         'POST /api/agents/seen': async ({ json }) => {
           const b = await json<{ sessionId?: unknown }>();
           if (typeof b.sessionId !== 'string' || !b.sessionId) return { ok: false };

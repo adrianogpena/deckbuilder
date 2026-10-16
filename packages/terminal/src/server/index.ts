@@ -1,4 +1,4 @@
-export { isUuid, launchers, type Launcher } from './launchers.ts';
+export { isUuid, launchers, type Launcher, type Launchers } from './launchers.ts';
 export { terminalRoutes, type TerminalRoutesOptions } from './routes.ts';
 export { isShellId, SHELL_IDS, type ShellId } from './shells.ts';
 export type { TerminalProfile, TerminalProfileInfo } from '../protocol.ts';

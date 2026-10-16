@@ -1,7 +1,9 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-export type AgentStatus = 'error' | 'needs-you' | 'running' | 'done' | 'idle' | 'stopped';
+import type { AgentStatus } from '../protocol.ts';
+
+export type { AgentStatus };
 
 export interface PidEntry {
   pid: number;

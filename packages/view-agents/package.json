@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@deckbuilderkit/server-core": "workspace:*",
+    "@deckbuilderkit/terminal": "workspace:*",
     "@deckbuilderkit/ui": "workspace:*"
   },
   "peerDependencies": {

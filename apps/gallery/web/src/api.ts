@@ -8,6 +8,7 @@ import type { SessionInfo, TerminalProfileInfo } from '@deckbuilderkit/terminal'
 import type { TerminalSettings, TerminalViewSettings } from '@deckbuilderkit/view-terminal/web';
 import type { ExplorerSettings, FsEntry, FsRead, Project, SearchHit, TextEncoding } from '@deckbuilderkit/view-explorer/web';
 import type { GitViewSettings } from '@deckbuilderkit/view-git/web';
+import type { AgentsViewSettings } from '@deckbuilderkit/view-agents/web';
 import type { RestViewSettings } from '@deckbuilderkit/view-rest/web';
 import type { WorkbenchViewSettings } from '@deckbuilderkit/view-workbench/web';
 import type { CopyFormat, DbColumn, DbPlanRow, DbRunResult, DbSchema, DbSchemaTable, DbStatus, DbTableConstraint, DbTableDetails, DbTableIndex, DemoRow } from '@deckbuilderkit/sql-ui';
@@ -15,7 +16,7 @@ import { type FileAssociation, type GitSettings, type FileSettings, type Keymap,
 
 export type { TerminalSettings };
 
-export interface Settings extends ThemeSettings, TerminalViewSettings, WorkbenchViewSettings, RestViewSettings, GitViewSettings {
+export interface Settings extends ThemeSettings, TerminalViewSettings, WorkbenchViewSettings, RestViewSettings, GitViewSettings, AgentsViewSettings {
   language?: Language;
   /** The main menu shows only its icons. */
   /** Keybinding overrides by command id; the server validates it. */

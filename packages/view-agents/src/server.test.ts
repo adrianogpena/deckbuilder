@@ -18,6 +18,8 @@ test('accounts, sessions and seen routes', async () => {
     settings: { load: async () => ({}) },
     stores: { projects: { list: async () => [{ name: 'P', path: 'C:\\proj' }] } },
   });
+  expect(await routes['GET /api/agents/sessions']!({} as never)).toEqual([]);
+  await routes['POST /api/agents/projects']!({ json: async () => ({ path: 'C:\\proj' }) } as never);
   const accounts = (await routes['GET /api/agents/accounts']!({} as never)) as unknown[];
   expect(accounts).toHaveLength(1);
   const sessions = (await routes['GET /api/agents/sessions']!({} as never)) as Array<{ id: string; status: string }>;

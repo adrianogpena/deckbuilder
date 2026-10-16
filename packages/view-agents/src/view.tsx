@@ -1,6 +1,10 @@
-import type { ReactNode } from 'react';
+import { lazy } from 'react';
 import { defineView } from '@deckbuilderkit/ui';
-import { en, ptBR, t } from './i18n';
+import { agentsCommands } from './commands';
+import { en, ptBR } from './i18n';
+import { agentsSettingDefs, type AgentsViewSettings } from './settings';
+
+const AgentsScreen = lazy(() => import('./web/AgentsScreen').then((m) => ({ default: m.AgentsScreen })));
 
 export interface AgentsViewOptions {
   /** i18n key of the nav section title. */
@@ -9,14 +13,13 @@ export interface AgentsViewOptions {
 }
 
 export function agentsView({ group, order }: AgentsViewOptions) {
-  return defineView<'agents', object, 'nav.agents'>({
+  return defineView<'agents', AgentsViewSettings, 'nav.agents'>({
     id: 'agents',
     nav: { group, icon: 'home', label: 'nav.agents', order },
-    render: (): ReactNode => (
-      <div className="view-agents">
-        <h1>{t('agents.heading')}</h1>
-      </div>
-    ),
+    render: () => <AgentsScreen />,
+    commands: agentsCommands,
+    settings: { defs: agentsSettingDefs },
+    settingsCards: { sections: [{ path: ['agents'], order: 90, label: 'settings.section.agents' }] },
     messages: { en, 'pt-BR': ptBR },
   });
 }

@@ -1,13 +1,9 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 
-export interface AgentAccount {
-  id: string;
-  dir: string;
-  email?: string;
-  label: string;
-  isDefault: boolean;
-}
+import type { AgentAccount } from '../protocol.ts';
+
+export type { AgentAccount };
 
 function readEmail(file: string): string | undefined {
   try {
