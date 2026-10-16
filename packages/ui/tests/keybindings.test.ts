@@ -204,6 +204,7 @@ describe('gallery default keymap', () => {
       localStorage: storage, sessionStorage: storage,
     });
     const { commands } = await import('../../../apps/gallery/web/src/commands.ts');
-    expect(conflictsOf(commands(), {})).toEqual([]);
+    const { views } = await import('../../../apps/gallery/web/src/views.ts');
+    expect(conflictsOf(commands(views), {})).toEqual([]);
   });
 });

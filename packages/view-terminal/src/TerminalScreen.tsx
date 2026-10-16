@@ -35,11 +35,11 @@ import {
   useCommand,
   useDebouncedSave,
   useDialogs,
+  useKeybindings,
 } from '@deckbuilder/ui';
-import type { Settings } from '../api';
-import { commandById, TERMINAL_SCREEN_COMMANDS, terminalAppKeys } from '../commands';
-import { t } from '../i18n';
-import { generalSettingsOf, terminalSettingsOf } from '../settings';
+import { TERMINAL_SCREEN_COMMANDS, terminalAppKeys, terminalCommandById } from './commands';
+import { t } from './i18n';
+import { type TerminalViewSettings as Settings, terminalSettingsOf } from './settings';
 import './terminal-screen.css';
 
 /**
@@ -119,6 +119,7 @@ export function TerminalScreen({ settings, onSave }: { settings: Settings; onSav
   const [profiles, setProfiles] = useState<TerminalProfileInfo[]>([]);
   const [iconTab, setIconTab] = useState<string | null>(null);
   const dialogs = useDialogs();
+  const keys = useKeybindings();
   /** Bell count of each session when the user last saw it in the menu. */
   const seenBells = useRef<Record<string, number>>({});
   /** Each mounted pane's handle, by tab id (tab menu: clear, zoom). */
@@ -243,7 +244,7 @@ export function TerminalScreen({ settings, onSave }: { settings: Settings; onSav
     };
   }
   // A fixed list, so the hook order is fixed.
-  for (const id of TERMINAL_SCREEN_COMMANDS) useCommand(commandById(id), () => screenCommands[id]?.());
+  for (const id of TERMINAL_SCREEN_COMMANDS) useCommand(terminalCommandById(id), () => screenCommands[id]?.());
 
   const paneRun = (tab: Tab<Route>, command: Parameters<TerminalPaneHandle['run']>[0]) => () => handles.current.get(tab.id)?.run(command);
 
@@ -320,7 +321,7 @@ export function TerminalScreen({ settings, onSave }: { settings: Settings; onSav
   return (
     <div className="terminal-screen screen-edges">
       <TabWorkspace
-        confirmCloseDirty={generalSettingsOf(settings).confirmCloseDirty}
+        confirmCloseDirty={settings.general?.confirmCloseDirty ?? true}
         confirmClose={confirmClose}
         layout={layout}
         onChange={change}
@@ -357,7 +358,7 @@ export function TerminalScreen({ settings, onSave }: { settings: Settings; onSav
               dir={tab.route.dir}
               restartOnExit={term.onExit === 'restart'}
               onSession={(id) => onSession(tab.id, id)}
-              appKeys={terminalAppKeys('terminal')}
+              appKeys={terminalAppKeys('terminal', keys?.defs ?? [])}
               onTitle={(title) => {
                 const session = sessionOf(tab.id);
                 if (session) setTitles((m) => ({ ...m, [session]: title }));

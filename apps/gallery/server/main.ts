@@ -1,6 +1,6 @@
-import { isAbsolute, join } from 'node:path';
+import { join } from 'node:path';
 import { appHome, createAutostart, pickFolder } from '@deckbuilder/platform';
-import { isRecord, updatePublicKey } from '@deckbuilder/server-core';
+import { applyViewSettings, type FieldSpec, isRecord, mountViews, updatePublicKey, validGroup } from '@deckbuilder/server-core';
 import {
   backupRoutes,
   createUpdater,
@@ -16,7 +16,7 @@ import {
   type BaseSettings,
 } from '@deckbuilder/server-mods';
 import { runApp } from '@deckbuilder/shell';
-import { isShellId, terminalRoutes, terminalSessions, validAppearance, validSchemes, type ColorScheme, type ShellId, type TerminalProfile } from '@deckbuilder/terminal/server';
+import type { TerminalServerSettings } from '@deckbuilder/view-terminal/server';
 import { type GridItem, validGridItems } from '@deckbuilder/ui/grid';
 import type { ResultFormat } from '@deckbuilder/ui/table';
 import { validKeymap, type Keymap } from '@deckbuilder/ui/keybindings';
@@ -25,9 +25,10 @@ import { type FileSettings, validFileSettings } from '@deckbuilder/ui/file-setti
 import { type LogSettings, validLogSettings } from '@deckbuilder/ui/log';
 import { APP } from '../app.ts';
 import pkg from '../package.json';
-import { dbConnections, environments, openRoutes, projects, requests, resolveCwd, restHistoryStore, routes, sqlHistoryStore } from './routes.ts';
+import { dbConnections, environments, openRoutes, projects, requests, restHistoryStore, routes, sqlHistoryStore } from './routes.ts';
+import { serverViews } from './views.ts';
 
-export interface Settings extends BaseSettings {
+export interface Settings extends BaseSettings, TerminalServerSettings {
   /** Start at Windows login (exe only). */
   autostart: boolean;
   /** Tray icon, so closing the window keeps the app running; read at startup. */
@@ -59,8 +60,6 @@ export interface Settings extends BaseSettings {
   workbench?: WorkbenchSettings;
   /** REST screen: split fractions of the editor and the response. */
   rest?: RestSettings;
-  /** Terminal: the shell new sessions start, plus look and behavior, checked by `validTerminal`. */
-  terminal?: { shell?: ShellId; profiles?: TerminalProfile[]; schemes?: ColorScheme[]; [field: string]: string | number | boolean | TerminalProfile[] | ColorScheme[] | undefined };
   /** Fonts, editor font metrics and motion, checked by `validGroup`. */
   appearance?: Record<string, string | number | boolean>;
   /** How text editors behave, checked by `validGroup`. */
@@ -72,8 +71,6 @@ export interface Settings extends BaseSettings {
   /** Shortcut behavior, checked by `validGroup`. */
   keyboard?: Record<string, string | number | boolean>;
   git?: Record<string, string | number | boolean>;
-  /** Layout of the Terminal screen's tabs (`serialize`); the UI validates it on restore. */
-  terminalLayout?: unknown;
 }
 
 export interface RestSettings {
@@ -348,8 +345,6 @@ function validRest(raw: unknown): RestSettings | null {
   return out;
 }
 
-type FieldSpec = 'boolean' | 'string' | readonly [min: number, max: number] | readonly string[];
-
 const APPEARANCE_SPEC: Record<string, FieldSpec> = {
   uiFontFamily: 'string',
   editorFontFamily: 'string',
@@ -380,7 +375,7 @@ const WINDOW_SPEC: Record<string, FieldSpec> = {
 const GENERAL_SPEC: Record<string, FieldSpec> = {
   confirmCloseDirty: 'boolean',
   toastDuration: [1000, 60_000],
-  startScreen: ['home', 'tabs', 'grid', 'explorer', 'workbench', 'rest', 'terminal'],
+  startScreen: ['home', 'tabs', 'grid', 'explorer', 'workbench', 'rest', 'terminal', 'git'],
 };
 const KEYBOARD_SPEC: Record<string, FieldSpec> = {
   chordTimeout: [500, 10_000],
@@ -389,112 +384,6 @@ const GIT_SPEC: Record<string, FieldSpec> = {
   diffMode: ['split', 'inline'],
   explorerDecorations: 'boolean',
 };
-const FONT_WEIGHTS = ['normal', 'bold', '100', '200', '300', '400', '500', '600', '700', '800', '900'];
-const TERMINAL_SPEC: Record<string, FieldSpec> = {
-  fontFamily: 'string',
-  fontSize: [8, 32],
-  cursorStyle: ['block', 'bar', 'underline'],
-  cursorBlink: 'boolean',
-  scrollback: [100, 100_000],
-  copyOnSelect: 'boolean',
-  rightClickPaste: 'boolean',
-  restoreTabs: 'boolean',
-  tabTitle: 'string',
-  lineHeight: [1, 2],
-  letterSpacing: [0, 10],
-  fontWeight: FONT_WEIGHTS,
-  fontWeightBold: FONT_WEIGHTS,
-  // A preset or custom scheme id; an unknown one follows the app.
-  theme: 'string',
-  padding: [0, 48],
-  scrollbar: ['visible', 'hover', 'hidden'],
-  dimUnfocused: [0, 80],
-  pasteWarning: ['multiLine', 'large', 'never'],
-  pasteLargeSize: [256, 1_000_000],
-  trimCopy: 'boolean',
-  minimumContrastRatio: [1, 21],
-  ligatures: 'boolean',
-  gpuAcceleration: ['auto', 'on', 'off'],
-  bellStyle: ['tab', 'sound', 'both', 'none'],
-  wordSeparators: 'string',
-  scrollSensitivity: [1, 10],
-  fastScrollSensitivity: [1, 20],
-  altIsMeta: 'boolean',
-  onExit: ['keep', 'close', 'closeIfClean', 'restart'],
-  confirmCloseRunning: 'boolean',
-  shellIntegration: 'boolean',
-  commandDecorations: 'boolean',
-  defaultCwd: 'string',
-  defaultProfile: 'string',
-};
-
-const MAX_PROFILES = 50;
-const PROFILE_KEYS = new Set(['id', 'name', 'shell', 'command', 'args', 'env', 'cwd', 'icon', 'hidden', 'shellIntegration', 'appearance']);
-const ENV_KEY = /^[A-Za-z_][A-Za-z0-9_]*$/;
-const strUpTo = (v: unknown, max: number): v is string => typeof v === 'string' && v.length <= max;
-const optional = (v: unknown, ok: (v: unknown) => boolean) => v === undefined || ok(v);
-
-/** A terminal profile with only known keys and bounded strings; a custom one needs an absolute `command`. */
-function validProfile(v: unknown): TerminalProfile | null {
-  if (!isRecord(v) || !Object.keys(v).every((k) => PROFILE_KEYS.has(k))) return null;
-  if (!strUpTo(v.id, 64) || !v.id || !strUpTo(v.name, 80) || !v.name) return null;
-  if (v.shell !== 'custom' && !isShellId(v.shell)) return null;
-  if (!optional(v.command, (c) => strUpTo(c, 1024) && isAbsolute(c))) return null;
-  if (v.shell === 'custom' && !v.command) return null;
-  if (!optional(v.args, (a) => Array.isArray(a) && a.length <= 50 && a.every((x) => strUpTo(x, 1024)))) return null;
-  const envOk = (e: unknown) =>
-    isRecord(e) && Object.keys(e).length <= 50 && Object.entries(e).every(([k, x]) => k.length <= 128 && ENV_KEY.test(k) && strUpTo(x, 4096));
-  if (!optional(v.env, envOk)) return null;
-  if (!optional(v.cwd, (c) => strUpTo(c, 1024)) || !optional(v.icon, (c) => strUpTo(c, 64))) return null;
-  if (!optional(v.hidden, (b) => typeof b === 'boolean') || !optional(v.shellIntegration, (b) => typeof b === 'boolean')) return null;
-  if (!optional(v.appearance, (a) => validAppearance(a) !== null)) return null;
-  return v as unknown as TerminalProfile;
-}
-
-/** Up to MAX_PROFILES valid profiles with distinct ids, else null. */
-function validProfiles(raw: unknown): TerminalProfile[] | null {
-  if (!Array.isArray(raw) || raw.length > MAX_PROFILES) return null;
-  const out = raw.map(validProfile);
-  if (out.some((p) => !p)) return null;
-  return new Set(out.map((p) => p!.id)).size === out.length ? (out as TerminalProfile[]) : null;
-}
-
-/** A copy of `raw` when every key is in `spec` and its value fits, else null. */
-function validGroup(raw: unknown, spec: Record<string, FieldSpec>): Record<string, string | number | boolean> | null {
-  if (!isRecord(raw)) return null;
-  const out: Record<string, string | number | boolean> = {};
-  for (const [key, v] of Object.entries(raw)) {
-    if (!Object.hasOwn(spec, key)) return null;
-    const s = spec[key]!;
-    if (s === 'boolean') {
-      if (typeof v !== 'boolean') return null;
-    } else if (s === 'string') {
-      if (typeof v !== 'string' || v.length > 300) return null;
-    } else if (typeof s[0] === 'number') {
-      if (typeof v !== 'number' || !Number.isFinite(v) || v < s[0] || v > (s[1] as number)) return null;
-    } else if (typeof v !== 'string' || !(s as readonly string[]).includes(v)) return null;
-    out[key] = v;
-  }
-  return out;
-}
-
-/** The terminal group: a valid `shell` id plus the fields of `TERMINAL_SPEC`. */
-function validTerminal(raw: unknown): Settings['terminal'] | null {
-  if (!isRecord(raw)) return null;
-  const { shell, profiles, schemes, ...rest } = raw;
-  if (shell !== undefined && !isShellId(shell)) return null;
-  const validated = profiles === undefined ? undefined : validProfiles(profiles);
-  if (validated === null) return null;
-  const validSchemeList = schemes === undefined ? undefined : validSchemes(schemes);
-  if (validSchemeList === null) return null;
-  if (typeof rest.theme === 'string' && !/^[\w.-]{1,64}$/.test(rest.theme)) return null;
-  const fields: NonNullable<Settings['terminal']> | null = validGroup(rest, TERMINAL_SPEC);
-  if (!fields) return null;
-  if (validated) fields.profiles = validated;
-  if (validSchemeList) fields.schemes = validSchemeList;
-  return shell === undefined ? fields : { ...fields, shell };
-}
-
 const dataDir = appHome(APP.id);
 const autostart = createAutostart({ name: APP.name });
 /** `workbench.historySize` (default 500; 0 = no SQL history). */
@@ -540,8 +429,6 @@ const settings = settingsStore<Settings>({
     if (workbench) next.workbench = workbench;
     const rest = validRest(patch.rest);
     if (rest) next.rest = rest;
-    const terminal = validTerminal(patch.terminal);
-    if (terminal) next.terminal = terminal;
     const appearance = validGroup(patch.appearance, APPEARANCE_SPEC);
     if (appearance) next.appearance = appearance;
     const editor = validGroup(patch.editor, EDITOR_SPEC);
@@ -554,11 +441,9 @@ const settings = settingsStore<Settings>({
     if (keyboard) next.keyboard = keyboard;
     const git = validGroup(patch.git, GIT_SPEC);
     if (git) next.git = git;
-    if (typeof patch.terminalLayout === 'object' && patch.terminalLayout !== null && JSON.stringify(patch.terminalLayout).length < MAX_TABS_LAYOUT_BYTES) {
-      next.terminalLayout = patch.terminalLayout;
-    }
     const keybindings = validKeymap(patch.keybindings);
     if (keybindings) next.keybindings = keybindings;
+    applyViewSettings(serverViews, patch, next as unknown as Record<string, unknown>);
   },
   onChange(next, prev) {
     if (next.autostart !== prev.autostart) void autostart.set(next.autostart);
@@ -581,25 +466,7 @@ const { closeToTray } = await settings.load();
 sqlHistoryStore.setMax(historySizeOf(await settings.load()));
 restHistoryStore.setMax(restHistorySizeOf(await settings.load()));
 
-/** Shells of every Terminal tab; they outlive the window's sockets and end at app quit. */
-const sessions = terminalSessions();
-const terminalSetting = async (key: string) => (await settings.load()).terminal?.[key];
-const terminal = terminalRoutes({
-  sessions,
-  shell: async () => (await settings.load()).terminal?.shell ?? 'auto',
-  profiles: async () => (await settings.load()).terminal?.profiles ?? [],
-  defaultProfile: async () => {
-    const v = await terminalSetting('defaultProfile');
-    return typeof v === 'string' ? v : '';
-  },
-  defaultCwd: async () => {
-    const v = await terminalSetting('defaultCwd');
-    return typeof v === 'string' ? v : '';
-  },
-  shellIntegration: async () => (await terminalSetting('shellIntegration')) !== false,
-  integrationDir: join(dataDir, 'shell-integration'),
-  resolveCwd,
-});
+const mounted = mountViews(serverViews, { dataDir, settings, stores: { projects, dbConnections, requests, environments } });
 
 await runApp({
   app: APP,
@@ -617,11 +484,11 @@ await runApp({
     // Machine-specific: autostart writes the Run key, updateFolder is a local or share path.
     ...backupRoutes({ app: { id: APP.id, version: pkg.version }, settings, stores: { projects, dbConnections, requests, environments }, excludeSettings: ['autostart', 'updateFolder'] }),
     ...routes(ctx),
-    ...terminal.routes,
+    ...mounted.routes,
   }),
-  sockets: terminal.sockets,
+  sockets: mounted.sockets,
   unauthenticated: openRoutes,
-  onQuit: () => sessions.closeAll(),
+  onQuit: () => mounted.onQuit(),
   webDir: join(import.meta.dir, '../dist/web'),
   transformIndex: themeHead(settings),
   urlProtocol: true,

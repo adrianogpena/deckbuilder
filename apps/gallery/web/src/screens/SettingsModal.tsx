@@ -3,12 +3,12 @@ import { AppearanceFields, DockField, IconsField, LayoutIconField, LayoutField, 
 import type { ColorScheme } from '@deckbuilder/terminal/options';
 import { isShellId, SHELL_ICONS, SHELL_IDS, SHELL_NAMES, type TerminalProfile, type TerminalProfileInfo } from '@deckbuilder/terminal/protocol';
 import { APP } from '../../../app';
-import { NAV } from '../nav';
+import { views } from '../views';
 import { api, type BackupInfo, type EditorInfo, type Project, type ImportResult, type Settings, type SqlFormatOptions, withWorkbenchDefaults } from '../api';
 import { type MessageKey, t } from '../i18n';
 import { en } from '../i18n/en';
 import { settingDefault, settingsRegistry } from '../settings';
-import { ProfileAppearanceFields, SchemesRow, ThemeRow } from './TerminalSchemes';
+import { ProfileAppearanceFields, SchemesRow, ThemeRow } from '@deckbuilder/view-terminal/web';
 
 const CodeView = lazy(() => import('@deckbuilder/editor').then((m) => ({ default: m.CodeView })));
 
@@ -508,8 +508,7 @@ function GeneralSection({ settings, onChange, onQuit }: Props) {
 function ShortcutsSection({ settings, onChange }: { settings: Settings; onChange: Change }) {
   const keys = useKeybindings();
   if (!keys) return null;
-  const screens = NAV.flatMap((s) => s.items);
-  const scopeLabel = (scope: string) => (scope === GLOBAL ? t('keys.global') : t(screens.find((i) => i.id === scope)?.label ?? 'nav.home'));
+  const scopeLabel = (scope: string) => (scope === GLOBAL ? t('keys.global') : views.has(scope) ? views.label(scope) : t('nav.home'));
   return <KeybindingsEditor defs={keys.defs} keymap={settings.keybindings ?? {}} onChange={(keybindings) => onChange({ keybindings })} scopeLabel={scopeLabel} />;
 }
 

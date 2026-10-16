@@ -2,10 +2,10 @@ import { type CSSProperties, type ReactNode, useEffect, useState } from 'react';
 import { Modal, SettingItem } from '@deckbuilder/ui';
 import { MAX_SCHEMES, parseWindowsTerminalSchemes, SCHEME_COLORS, TERMINAL_THEMES, themeOf, type ColorScheme } from '@deckbuilder/terminal/options';
 import type { TerminalProfile } from '@deckbuilder/terminal/protocol';
-import { type MessageKey, t } from '../i18n';
-import { settingDefault } from '../settings';
-import type { Settings, TerminalSettings } from '../api';
+import { t, type TerminalMessageKey } from './i18n';
+import { terminalDefault, type TerminalSettings, type TerminalViewSettings } from './settings';
 
+type Settings = TerminalViewSettings;
 type Change = (patch: Partial<Settings>) => void;
 type ProfileAppearance = NonNullable<TerminalProfile['appearance']>;
 type SchemeColors = Omit<ColorScheme, 'id' | 'name'>;
@@ -17,7 +17,7 @@ const CURSOR_STYLES = ['block', 'bar', 'underline'] as const;
 const ANSI_KEYS = ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white', 'brightBlack', 'brightRed', 'brightGreen', 'brightYellow', 'brightBlue', 'brightMagenta', 'brightCyan', 'brightWhite'] as const;
 const BUILTIN_THEMES = TERMINAL_THEMES as readonly string[];
 
-const msg = (key: string, params?: Record<string, string | number>) => t(key as MessageKey, params as never);
+const msg = (key: string, params?: Record<string, string | number>) => t(key as TerminalMessageKey, params as never);
 const builtinName = (id: string) => msg(`settings.terminal.theme.${id}`);
 
 /** A name not in `names`: `base`, else `base (2)`, `base (3)`, ... */
@@ -253,7 +253,7 @@ export function ThemeRow({ settings, onChange }: { settings: Settings; onChange:
   const value = settings.terminal?.theme ?? 'app';
   const label = t('settings.terminal.theme');
   return (
-    <SettingItem id="terminal.theme" modified={value !== settingDefault('terminal.theme')}>
+    <SettingItem id="terminal.theme" modified={value !== terminalDefault('theme')}>
       <label className="field">
         <span className="mono-label">{label}</span>
         <ThemeSelect value={value} schemes={settings.terminal?.schemes ?? []} label={label} onChange={(theme) => onChange({ terminal: { ...settings.terminal, theme } })} />
@@ -297,7 +297,7 @@ function OptionalNumber({ value, min, max, step, placeholder, label, onChange }:
 /** The optional Appearance part of a profile; an empty field inherits the global terminal setting. */
 export function ProfileAppearanceFields({ value, terminal, onChange }: { value: ProfileAppearance | undefined; terminal: TerminalSettings | undefined; onChange: (appearance: ProfileAppearance | undefined) => void }) {
   const a = value ?? {};
-  const inherited = (k: keyof ProfileAppearance): unknown => (terminal as Record<string, unknown> | undefined)?.[k] ?? settingDefault(`terminal.${k}`);
+  const inherited = (k: keyof ProfileAppearance): unknown => (terminal as Record<string, unknown> | undefined)?.[k] ?? terminalDefault(k);
   const set = (patch: Partial<ProfileAppearance>) => {
     const next: Record<string, unknown> = { ...a, ...patch };
     for (const k of Object.keys(next)) if (next[k] === undefined || next[k] === '') delete next[k];

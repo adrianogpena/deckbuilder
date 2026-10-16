@@ -249,3 +249,36 @@ export function toggleModifiedFilter(query: string): string {
 export function settingDescriptionText(description: string, labelOf: (id: string) => string | undefined): string {
   return description.replace(/#([\w.-]+)#/g, (_, id: string) => labelOf(id) ?? id);
 }
+
+export type FieldDef =
+  | { kind: 'boolean'; default: boolean }
+  | { kind: 'string'; default: string }
+  | { kind: 'number'; default: number; min: number; max: number }
+  | { kind: 'enum'; default: string; values: readonly string[] };
+
+/** A setting stored at `settings[group][key]`; id `group.key`, labels `settings.group.key` and `.hint`. */
+export const groupField = <S, G extends keyof S & string>(
+  group: G,
+  key: string,
+  order: number,
+  def: FieldDef,
+  section: SectionPath = [group],
+): SettingDef<S> => {
+  const read = (s: S) => (s[group] as Record<string, unknown> | undefined)?.[key] ?? def.default;
+  const set = (s: S, v: unknown): Partial<S> => ({ [group]: { ...(s[group] as object | undefined), [key]: v } }) as unknown as Partial<S>;
+  return {
+    id: `${group}.${key}`,
+    section,
+    order,
+    label: `settings.${group}.${key}`,
+    description: `settings.${group}.${key}.hint`,
+    ...def,
+    get: read,
+    set,
+  } as unknown as SettingDef<S>;
+};
+
+export const bool = (default_: boolean): FieldDef => ({ kind: 'boolean', default: default_ });
+export const str = (default_: string): FieldDef => ({ kind: 'string', default: default_ });
+export const num = (default_: number, min: number, max: number): FieldDef => ({ kind: 'number', default: default_, min, max });
+export const oneOf = (default_: string, values: readonly string[]): FieldDef => ({ kind: 'enum', default: default_, values });

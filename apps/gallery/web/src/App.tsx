@@ -1,27 +1,15 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PALETTES } from '@deckbuilder/server-core/palettes';
-import { CommandPalette, detectLanguage, effectiveKeys, ErrorBanner, AppFrame, Icon, isDesktop, KeybindingProvider, LayoutProvider, type PaletteItem, PanelLoading, setFileAssociations, setLanguage, Sidebar, Spinner, ToastProvider, useAsync, useCommand, useCommandPalette, useHashRoute, useHeartbeat, useKeybindings, useTheme, useZoom } from '@deckbuilder/ui';
+import { CommandPalette, detectLanguage, effectiveKeys, ErrorBanner, AppFrame, Icon, isDesktop, KeybindingProvider, LayoutProvider, type PaletteItem, setFileAssociations, setLanguage, Sidebar, Spinner, ToastProvider, useAsync, useCommand, useCommandPalette, useHashRoute, useHeartbeat, useKeybindings, useTheme, useZoom } from '@deckbuilder/ui';
 import { EditorOptionsContext } from '@deckbuilder/editor/options';
-import { TerminalOptionsContext } from '@deckbuilder/terminal/options';
 import { APP } from '../../app';
 import { api, type Settings } from './api';
 import { commandById, commands, KEYS_COMMAND, navCommandId, SETTINGS_COMMAND } from './commands';
-import { t } from './i18n';
-import { appearanceSettingsOf, editorSettingsOf, generalSettingsOf, gitSettingsOf, keyboardSettingsOf, terminalSettingsOf, windowSettingsOf } from './settings';
+import { type MessageKey, t } from './i18n';
+import { appearanceSettingsOf, editorSettingsOf, generalSettingsOf, keyboardSettingsOf, windowSettingsOf } from './settings';
 import { useZen } from './zen';
-import { NAV, SCREENS, type ScreenId } from './nav';
-import { ExplorerScreen } from './screens/ExplorerScreen';
-import { GridScreen } from './screens/GridScreen';
-import { Home } from './screens/Home';
 import { SettingsModal } from './screens/SettingsModal';
-import { TabsScreen } from './screens/TabsScreen';
-
-// The editor and its language parsers are a separate chunk, loaded on first visit.
-const WorkbenchScreen = lazy(() => import('./screens/WorkbenchScreen').then((m) => ({ default: m.WorkbenchScreen })));
-const RestScreen = lazy(() => import('./screens/RestScreen').then((m) => ({ default: m.RestScreen })));
-// xterm.js is large too.
-const TerminalScreen = lazy(() => import('./screens/TerminalScreen').then((m) => ({ default: m.TerminalScreen })));
-const GitScreen = lazy(() => import('./screens/GitScreen').then((m) => ({ default: m.GitScreen })));
+import { views, type ScreenId } from './views';
 
 // Retrying can't revive a used launch code or a stale token; the user has to open the app again.
 const SESSION_ERRORS = ['invalidCode', 'invalidToken'];
@@ -65,12 +53,12 @@ function Shell({ initialSettings }: { initialSettings: Settings }) {
     window.addEventListener('hashchange', take);
     return () => window.removeEventListener('hashchange', take);
   }, []);
-  const [screen, go] = useHashRoute(SCREENS, generalSettingsOf(settings).startScreen as ScreenId);
+  const [screen, go] = useHashRoute(views.ids, generalSettingsOf(settings).startScreen as ScreenId);
   shown.current = screen;
   setLanguage(settings.language ?? detectLanguage());
   setFileAssociations(settings.fileAssociations);
   return (
-    <KeybindingProvider defs={commands()} keymap={settings.keybindings ?? {}} scope={screen} sequenceTimeout={keyboardSettingsOf(settings).chordTimeout}>
+    <KeybindingProvider defs={commands(views)} keymap={settings.keybindings ?? {}} scope={screen} sequenceTimeout={keyboardSettingsOf(settings).chordTimeout}>
       <Main settings={settings} setSettings={setSettings} screen={screen} go={go} overlay={overlay} setOverlay={setOverlay} />
     </KeybindingProvider>
   );
@@ -96,7 +84,6 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
   const editorOptions = useMemo(() => editorSettingsOf(settings), [settings.editor]);
   const windowOptions = useMemo(() => windowSettingsOf(settings), [settings.window]);
   const general = useMemo(() => generalSettingsOf(settings), [settings.general]);
-  const terminalOptions = useMemo(() => terminalSettingsOf(settings), [settings.terminal]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -118,8 +105,7 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
   }, [windowOptions]);
 
   useEffect(() => {
-    const item = NAV.flatMap((s) => s.items).find((i) => i.id === screen);
-    document.title = item ? `${t(item.label)} · ${APP.name}` : APP.name;
+    document.title = views.has(screen) ? `${views.label(screen)} · ${APP.name}` : APP.name;
   }, [screen, settings.language]);
 
   const save = useCallback((patch: Partial<Settings>) => {
@@ -127,7 +113,7 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
     api.saveSettings(patch).catch(() => { /* preferences are best-effort */ });
   }, []);
 
-  const navItems = NAV.flatMap((s) => s.items);
+  const navItems = views.nav.flatMap((s) => s.items);
   // The nav list is a constant, so the hooks run in the same order every render.
   for (const item of navItems) useCommand(commandById(navCommandId(item.id)), () => go(item.id));
   useCommand(commandById(SETTINGS_COMMAND), () => setOverlay('settings'));
@@ -140,7 +126,7 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
   const nextTheme = kind === 'dark' ? 'light' : 'dark';
   const items = useMemo<PaletteItem[]>(() => {
     const goTo = navItems.map((i): PaletteItem => ({
-      id: `go:${i.id}`, group: t('palette.group.go'), label: t(i.label), hint: chordOf(navCommandId(i.id)), keywords: [i.id], run: () => go(i.id),
+      id: `go:${i.id}`, group: t('palette.group.go'), label: views.label(i.id), hint: chordOf(navCommandId(i.id)), keywords: [i.id], run: () => go(i.id),
     }));
     const overlays: PaletteItem[] = [
       { id: 'app:settings', group: t('palette.group.go'), label: t('nav.settings'), hint: chordOf(SETTINGS_COMMAND), keywords: ['settings', 'preferences'], run: () => setOverlay('settings') },
@@ -162,9 +148,9 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
 
   if (stopped) return <div className="boot"><span>{t('app.stopped', { name: APP.name })}</span></div>;
 
-  const sections = NAV.map((s) => ({
-    title: t(s.title),
-    items: s.items.map((i) => ({ ...i, label: t(i.label), hint: chordOf(navCommandId(i.id)) })),
+  const sections = views.nav.map((s) => ({
+    title: t(s.group as MessageKey),
+    items: s.items.map((i) => ({ ...i, label: views.label(i.id), hint: chordOf(navCommandId(i.id)) })),
   }));
   const settingsChord = chordOf(SETTINGS_COMMAND);
   const settingsTitle = settingsChord ? `${t('nav.settings')} (${settingsChord})` : t('nav.settings');
@@ -184,42 +170,21 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
     <LayoutProvider layout={settings.layout} icons={settings.icons} mainMenu={settings.mainMenu} dock={settings.dock} layoutIcon={settings.layoutIcon}>
     <ToastProvider defaultTimeout={general.toastDuration}>
       <EditorOptionsContext.Provider value={editorOptions}>
-      <TerminalOptionsContext.Provider value={terminalOptions}>
+      <views.Providers settings={settings}>
       <AppFrame
         zen={zen}
         tools={footer}
         sidebar={<Sidebar name={APP.name} sections={sections} current={screen} onSelect={go} footer={footer} />}
       >
-        <main className="main">{renderScreen(screen, settings, save, go)}</main>
+        <main className="main">{views.render(screen, { settings, onSave: save, go: go as (id: string) => void })}</main>
         {overlay && (
           <SettingsModal key={overlay} settings={settings} onChange={save} onQuit={() => setStopped(true)} onClose={() => setOverlay(null)} initialSection={overlay === 'keys' ? 'keyboard.shortcuts' : overlay.startsWith('settings/') ? overlay.slice('settings/'.length) : undefined} />
         )}
         {palette.open && <CommandPalette items={items} initialQuery={palette.initialQuery} onClose={() => palette.setOpen(false)} />}
       </AppFrame>
-      </TerminalOptionsContext.Provider>
+      </views.Providers>
       </EditorOptionsContext.Provider>
     </ToastProvider>
     </LayoutProvider>
   );
-}
-
-function renderScreen(screen: ScreenId, settings: Settings, save: (patch: Partial<Settings>) => void, go: (screen: ScreenId) => void) {
-  switch (screen) {
-    case 'tabs':
-      return <TabsScreen settings={settings} onSave={save} />;
-    case 'grid':
-      return <GridScreen settings={settings} onSave={save} />;
-    case 'explorer':
-      return <ExplorerScreen settings={settings} onSave={save} go={go} />;
-    case 'workbench':
-      return <Suspense fallback={<PanelLoading />}><WorkbenchScreen settings={settings} onSave={save} /></Suspense>;
-    case 'rest':
-      return <Suspense fallback={<PanelLoading />}><RestScreen settings={settings} onSave={save} /></Suspense>;
-    case 'terminal':
-      return <Suspense fallback={<PanelLoading />}><TerminalScreen settings={settings} onSave={save} /></Suspense>;
-    case 'git':
-      return <Suspense fallback={<PanelLoading />}><GitScreen settings={settings} onSave={save} go={go}initialDiffMode={gitSettingsOf(settings).diffMode} /></Suspense>;
-    default:
-      return <Home />;
-  }
 }

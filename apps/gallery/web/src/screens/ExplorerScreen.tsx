@@ -32,6 +32,7 @@ import {
   useAsync,
   useCommand,
   useDebouncedSave,
+  useKeybindings,
   type Layout,
   type QuickOpenFile,
   useProvideQuickOpen,
@@ -43,10 +44,10 @@ import {
 import { closeSession } from '@deckbuilder/terminal/session';
 import { api, type ExplorerSettings, type LogSettings, type Project, type Settings } from '../api';
 import { takeExplorerRequest } from '../explorer-request';
-import { commandById, terminalAppKeys } from '../commands';
+import { terminalAppKeys } from '@deckbuilder/view-terminal/web';
+import { commandById } from '../commands';
 import { fullPath, nodeId } from '../explorer-paths';
 import { t } from '../i18n';
-import type { ScreenId } from '../nav';
 import { setZen, useZen } from '../zen';
 import { ProjectPicker } from './explorer/ProjectPicker';
 import { useCopyPath } from './explorer/copy-path';
@@ -189,8 +190,9 @@ function closeTabsWhere(layout: Layout<Route>, matches: (route: Route) => boolea
 /** Ids of `project` under `path`, the folder itself included. */
 const idsUnder = (project: string, path: string) => (id: string) => id.startsWith(`${project}:`) && relPath.isUnder(id.slice(project.length + 1), path);
 
-export function ExplorerScreen({ settings, onSave, go }: { settings: Settings; onSave: (patch: Partial<Settings>) => void; go: (screen: ScreenId) => void }) {
+export function ExplorerScreen({ settings, onSave, go }: { settings: Settings; onSave: (patch: Partial<Settings>) => void; go: (screen: string) => void }) {
   const projects = useAsync(() => api.projects(), []);
+  const keys = useKeybindings();
   const list = projects.data ?? [];
   const [state, setState] = useState(() => initialState(settings.explorer, editorSettingsOf(settings).wordWrap, fileSettingsOf(settings.files).restoreTabs));
   const latest = useRef(state);
@@ -630,7 +632,7 @@ export function ExplorerScreen({ settings, onSave, go }: { settings: Settings; o
                   session={tab.route.session}
                   cwd={{ root: tab.route.project, path: tab.route.path }}
                   onSession={(id) => onSession(tab.id, id)}
-                  appKeys={terminalAppKeys('explorer')}
+                  appKeys={terminalAppKeys('explorer', keys?.defs ?? [])}
                 />
               </Suspense>
             ) : tab.route.kind === 'details' ? (

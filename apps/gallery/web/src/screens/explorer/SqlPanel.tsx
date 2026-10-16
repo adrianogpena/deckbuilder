@@ -4,7 +4,6 @@ import { Badge, ErrorBanner, Icon, Modal, SplitView, type TabAction, useAsync, u
 import { api, type DbConnection, withWorkbenchDefaults, type WorkbenchSettings } from '../../api';
 import { commandById } from '../../commands';
 import { t } from '../../i18n';
-import type { ScreenId } from '../../nav';
 import { DEFAULT_RESULTS, SqlResults } from '../workbench/SqlResults';
 import { useSqlRunner } from '../workbench/useSqlRunner';
 import { useSqlSchema } from '../workbench/useSqlSchema';
@@ -21,7 +20,7 @@ export interface ExplorerSqlProps {
   /** Fractions of the editor and the results panel. */
   sizes?: [number, number];
   onSizesChange(sizes: [number, number]): void;
-  go(screen: ScreenId): void;
+  go(screen: string): void;
   /** Active REST environment id ('' = none); `.curl` runs substitute its variables. */
   restEnvironment?: string;
 }

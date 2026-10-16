@@ -4,12 +4,15 @@ import type { ThemeSettings } from '@deckbuilder/server-core/palettes';
 import type { BackupInspect, EditorInfo, FsArchiveFormat, FsCompressRequest, FsCompressResult, FsDuProgress, FsExtractRequest, FsExtractResult, FsHash, FsInfo, GitCommit, GitCommitFile, GitDiff, GitFileContent, GitRepoInfo, GitStatus, HttpRequestSpec, HttpResponseInfo, ImportResult, RestEnvironment, RestEnvironmentInput, RestHistoryEntry, SqlHistoryEntry, TailChunk, UpdateState } from '@deckbuilder/server-core/protocol';
 
 export type { EditorInfo, FsDuProgress, FsHash, FsInfo, ImportResult, TailChunk };
-import type { ColorScheme, SessionInfo, TerminalProfile, TerminalProfileInfo } from '@deckbuilder/terminal';
+import type { SessionInfo, TerminalProfileInfo } from '@deckbuilder/terminal';
+import type { TerminalSettings, TerminalViewSettings } from '@deckbuilder/view-terminal/web';
 import type { CopyFormat } from './screens/workbench/copy-format';
 import { settingDefault, settingDefaults } from './settings';
 import { type FileAssociation, type FileSettings, type Keymap, type Language, type LogSettings, type ResultFormat, request, requestUpload, stream } from '@deckbuilder/ui';
 
-export interface Settings extends ThemeSettings {
+export type { TerminalSettings };
+
+export interface Settings extends ThemeSettings, TerminalViewSettings {
   language?: Language;
   /** The main menu shows only its icons. */
   /** Keybinding overrides by command id; the server validates it. */
@@ -38,8 +41,6 @@ export interface Settings extends ThemeSettings {
   workbench?: Partial<WorkbenchSettings>;
   /** State of the REST screen; the server validates it. */
   rest?: RestSettings;
-  /** Terminal screen: the shell id new sessions start (`'auto'` when omitted); the server validates it. */
-  terminal?: TerminalSettings & { shell?: string };
   /** Fonts, editor font metrics and motion; the server validates it. */
   appearance?: AppearanceSettings;
   /** How text editors behave; the server validates it. */
@@ -52,8 +53,6 @@ export interface Settings extends ThemeSettings {
   keyboard?: KeyboardSettings;
   /** Git screen behavior; the server validates it. */
   git?: GitSettings;
-  /** Layout of the Terminal screen's tabs; restored (and validated) by the screen. */
-  terminalLayout?: unknown;
 }
 
 export interface AppearanceSettings {
@@ -107,63 +106,6 @@ export interface GitSettings {
   /** Whether the Explorer tree colours changed files and marks them with their git status. */
   explorerDecorations?: boolean;
 }
-
-export interface TerminalSettings {
-  fontFamily?: string;
-  /** Pixels, 8 to 32. */
-  fontSize?: number;
-  cursorStyle?: 'block' | 'bar' | 'underline';
-  cursorBlink?: boolean;
-  /** Lines kept, 100 to 100 000. */
-  scrollback?: number;
-  copyOnSelect?: boolean;
-  rightClickPaste?: boolean;
-  restoreTabs?: boolean;
-  tabTitle?: string;
-  /** 1 to 2. */
-  lineHeight?: number;
-  /** Pixels, 0 to 10. */
-  letterSpacing?: number;
-  fontWeight?: TerminalFontWeight;
-  fontWeightBold?: TerminalFontWeight;
-  /** A preset id ('app', 'dark-plus', ...) or a `schemes` id; an unknown one follows the app. */
-  theme?: string;
-  /** Custom color schemes (at most 100). */
-  schemes?: ColorScheme[];
-  /** Pixels, 0 to 48. */
-  padding?: number;
-  scrollbar?: 'visible' | 'hover' | 'hidden';
-  /** Percent, 0 to 80. */
-  dimUnfocused?: number;
-  pasteWarning?: 'multiLine' | 'large' | 'never';
-  /** Characters, 256 to 1 000 000. */
-  pasteLargeSize?: number;
-  trimCopy?: boolean;
-  /** 1 to 21. */
-  minimumContrastRatio?: number;
-  ligatures?: boolean;
-  gpuAcceleration?: 'auto' | 'on' | 'off';
-  bellStyle?: 'tab' | 'sound' | 'both' | 'none';
-  wordSeparators?: string;
-  /** 1 to 10. */
-  scrollSensitivity?: number;
-  /** 1 to 20. */
-  fastScrollSensitivity?: number;
-  altIsMeta?: boolean;
-  onExit?: 'keep' | 'close' | 'closeIfClean' | 'restart';
-  confirmCloseRunning?: boolean;
-  /** OSC 133/OSC 7 scripts injected into supported shells; default true. */
-  shellIntegration?: boolean;
-  commandDecorations?: boolean;
-  /** Start directory when the tab and profile give none; `~` = home. */
-  defaultCwd?: string;
-  /** Profile id for new tabs; '' = the `shell` setting. */
-  defaultProfile?: string;
-  /** Overrides of built-in profiles (shell id as `id`) and custom profiles. */
-  profiles?: TerminalProfile[];
-}
-
-export type TerminalFontWeight = 'normal' | 'bold' | '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900';
 
 export interface RestSettings {
   sizes?: { main: [number, number] };

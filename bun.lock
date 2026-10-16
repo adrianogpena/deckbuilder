@@ -21,6 +21,7 @@
         "@deckbuilder/shell": "workspace:*",
         "@deckbuilder/terminal": "workspace:*",
         "@deckbuilder/ui": "workspace:*",
+        "@deckbuilder/view-terminal": "workspace:*",
         "react": "^18.3.1",
         "react-dom": "^18.3.1",
       },
@@ -162,6 +163,25 @@
         "react-dom": "^18.3.1",
       },
     },
+    "packages/view-terminal": {
+      "name": "@deckbuilder/view-terminal",
+      "version": "0.0.0",
+      "dependencies": {
+        "@deckbuilder/server-core": "workspace:*",
+        "@deckbuilder/terminal": "workspace:*",
+        "@deckbuilder/ui": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/react": "^18.3.12",
+        "@types/react-dom": "^18.3.1",
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
+      },
+      "peerDependencies": {
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
+      },
+    },
   },
   "packages": {
     "7z-wasm": ["7z-wasm@1.2.0", "", { "dependencies": { "readline-sync": "^1.4.10" }, "bin": { "7z-wasm": "bin/cli" } }, "sha512-AZjtWXFleAe5nQ27JYISs70cICjO0zZr4LU45I9pXKcrhG0qiEWgq3Vjwr9JHHihFLuqgc7uSHYVn/z3vXCjdw=="],
@@ -255,6 +275,8 @@
     "@deckbuilder/terminal": ["@deckbuilder/terminal@workspace:packages/terminal"],
 
     "@deckbuilder/ui": ["@deckbuilder/ui@workspace:packages/ui"],
+
+    "@deckbuilder/view-terminal": ["@deckbuilder/view-terminal@workspace:packages/view-terminal"],
 
     "@emnapi/runtime": ["@emnapi/runtime@1.11.3", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-Xz4Tpyki7XyrpbUK1jR1AhdAdaXyhhY4lZ3neLodmhpuWfy2PAQN5B46sAiU4liOXGLkHypn/qU+jvfWSCYYLA=="],
 

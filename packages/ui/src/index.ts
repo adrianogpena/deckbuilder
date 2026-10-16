@@ -49,3 +49,4 @@ export * from './layout-marks';
 export * from './tree';
 export * from './rel-path';
 export * from './roving-list';
+export * from './views';

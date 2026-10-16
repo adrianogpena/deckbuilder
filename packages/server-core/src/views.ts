@@ -1,0 +1,88 @@
+import { isRecord } from './protocol.ts';
+import type { Routes, SocketRoutes } from './server.ts';
+
+export type FieldSpec = 'boolean' | 'string' | readonly [min: number, max: number] | readonly string[];
+
+/** A copy of `raw` when every key is in `spec` and its value fits, else null. */
+export function validGroup(raw: unknown, spec: Record<string, FieldSpec>): Record<string, string | number | boolean> | null {
+  if (!isRecord(raw)) return null;
+  const out: Record<string, string | number | boolean> = {};
+  for (const [key, v] of Object.entries(raw)) {
+    if (!Object.hasOwn(spec, key)) return null;
+    const s = spec[key]!;
+    if (s === 'boolean') {
+      if (typeof v !== 'boolean') return null;
+    } else if (s === 'string') {
+      if (typeof v !== 'string' || v.length > 300) return null;
+    } else if (typeof s[0] === 'number') {
+      if (typeof v !== 'number' || !Number.isFinite(v) || v < s[0] || v > (s[1] as number)) return null;
+    } else if (typeof v !== 'string' || !(s as readonly string[]).includes(v)) return null;
+    out[key] = v;
+  }
+  return out;
+}
+
+export interface ServerViewContext<S> {
+  dataDir: string;
+  settings: { load(): Promise<S> };
+  stores: Record<string, unknown>;
+  options?: unknown;
+}
+
+export interface ServerViewDef<S = any> {
+  id: string;
+  routes(ctx: ServerViewContext<S>): Routes;
+  sockets?(ctx: ServerViewContext<S>): SocketRoutes;
+  onQuit?(): void | Promise<void>;
+  settings?: {
+    /** Group key -> validator returning the clean value, or null when invalid. */
+    validate: Record<string, (raw: unknown) => unknown | null>;
+    spec?: Record<string, FieldSpec>;
+  };
+}
+
+export function defineServerView<S = any>(def: ServerViewDef<S>): ServerViewDef<S> {
+  return def;
+}
+
+/**
+ * For the settings store `apply`: copies each group of `patch` that a view validates into `next`;
+ * groups unknown to every view or failing validation are skipped.
+ */
+export function applyViewSettings(defs: readonly ServerViewDef[], patch: Record<string, unknown>, next: Record<string, unknown>): void {
+  for (const d of defs) {
+    for (const [group, validate] of Object.entries(d.settings?.validate ?? {})) {
+      if (!Object.hasOwn(patch, group)) continue;
+      const v = validate(patch[group]);
+      if (v !== null) next[group] = v;
+    }
+  }
+}
+
+export function mountViews<S>(
+  defs: readonly ServerViewDef<S>[],
+  ctx: ServerViewContext<S>,
+): { routes: Routes; sockets: SocketRoutes; onQuit(): Promise<void> } {
+  const ids = new Set<string>();
+  const routes: Routes = {};
+  const sockets: SocketRoutes = {};
+  for (const d of defs) {
+    if (ids.has(d.id)) throw new Error(`View already registered: ${d.id}`);
+    ids.add(d.id);
+    for (const [key, h] of Object.entries(d.routes(ctx))) {
+      if (Object.hasOwn(routes, key)) throw new Error(`Duplicate route: ${key} (view ${d.id})`);
+      routes[key] = h;
+    }
+    for (const [path, s] of Object.entries(d.sockets?.(ctx) ?? {})) {
+      if (Object.hasOwn(sockets, path)) throw new Error(`Duplicate socket: ${path} (view ${d.id})`);
+      sockets[path] = s;
+    }
+  }
+  return {
+    routes,
+    sockets,
+    async onQuit() {
+      for (const d of defs) await d.onQuit?.();
+    },
+  };
+}
