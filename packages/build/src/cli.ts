@@ -15,18 +15,19 @@ const [command, ...args] = process.argv.slice(2);
 async function main(): Promise<void> {
   // Only `new` runs outside an app folder.
   if (command === 'new') {
-    const { values, positionals } = parseArgs({ args, allowPositionals: true, options: { name: { type: 'string' }, id: { type: 'string' } } });
+    const { values, positionals } = parseArgs({ args, allowPositionals: true, options: { name: { type: 'string' }, id: { type: 'string' }, views: { type: 'string' }, local: { type: 'boolean', default: false }, git: { type: 'boolean', default: false } } });
     const [dir] = positionals;
     if (!dir) {
-      console.error('Usage: deckbuilder new <dir> [--name <Name>] [--id <id>]');
+      console.error('Usage: deckbuilder new <dir> [--views a,b] [--local] [--git] [--name <Name>] [--id <id>]');
       process.exit(1);
     }
-    const target = await createApp({ dir, name: values.name, id: values.id }, process.cwd());
+    const views = values.views?.split(',').filter(Boolean);
+    const target = await createApp({ dir, name: values.name, id: values.id, views, local: values.local, git: values.git }, process.cwd());
     console.log(`Created ${target}
 
 Next:
+  cd ${dir}
   bun install
-  cd apps/${dir}
   bun run dev`);
     return;
   }
@@ -102,9 +103,11 @@ wrote ${publicKey} (public: commit it; the exe embeds it)`);
     default:
       console.log(`Usage: deckbuilder <command>
 
-  new <dir> [--name <Name>] [--id <id>]
-                              create apps/<dir> from the template (run from the repo root:
-                              bun run new <dir>); id = URL scheme, data folder ~/.<id>
+  new <dir> [--views a,b] [--local] [--git] [--name <Name>] [--id <id>]
+                              create a standalone app in ./<dir> on the published packages,
+                              composing the chosen views (e.g. terminal); --local links the
+                              packages of this checkout instead; --git runs git init;
+                              id = URL scheme, data folder ~/.<id>
   add view <id>               scaffold packages/view-<id> from the view template and register it
                               in the gallery (run from the repo root)
   dev [server flags]          server (--dev, watch mode) + Vite dev server; e.g. dev --window, dev --app

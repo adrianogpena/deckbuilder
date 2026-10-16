@@ -63,6 +63,12 @@ function run(cmd: string[], cwd: string): void {
   if (r.exitCode !== 0) throw new Error(`${cmd.join(' ')} failed in ${cwd}`);
 }
 
+/** True when name@version is already on npm, so a failed release can be re-run. */
+async function published(name: string): Promise<boolean> {
+  const res = await fetch(`https://registry.npmjs.org/${name.replace('/', '%2f')}/${version}`);
+  return res.ok;
+}
+
 const order = publishOrder(pkgs);
 console.log(`${dryRun ? 'dry run: ' : ''}version ${version}, order:`);
 order.forEach((p, i) => console.log(`  ${i + 1}. ${p.name}`));
@@ -70,6 +76,10 @@ order.forEach((p, i) => console.log(`  ${i + 1}. ${p.name}`));
 const out = mkdtempSync(join(tmpdir(), 'deckbuilder-pack-'));
 mkdirSync(out, { recursive: true });
 for (const p of order) {
+  if (!dryRun && (await published(p.name))) {
+    console.log(`${p.name}@${version} is already published, skipped`);
+    continue;
+  }
   const file = join(p.dir, 'package.json');
   writeFileSync(file, JSON.stringify(pinned(p.json), null, 2) + '\n');
   try {

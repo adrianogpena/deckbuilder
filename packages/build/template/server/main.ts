@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { appHome, createAutostart, pickFolder } from '@deckbuilderkit/platform';
-import { updatePublicKey } from '@deckbuilderkit/server-core';
+import { applyViewSettings, mountViews, updatePublicKey } from '@deckbuilderkit/server-core';
 import {
   createUpdater,
   folderSource,
@@ -19,8 +19,9 @@ import { type Keymap, validKeymap } from '@deckbuilderkit/ui/keybindings';
 import { APP } from '../app.ts';
 import pkg from '../package.json';
 import { routes } from './routes.ts';
+import { serverViews, type ViewSettings } from './views.ts';
 
-export interface Settings extends BaseSettings {
+export interface Settings extends BaseSettings, ViewSettings {
   /** Keybinding overrides by command id, checked by `validKeymap`. */
   keybindings?: Keymap;
   /** Start at Windows login (exe only). */
@@ -50,6 +51,7 @@ const settings = settingsStore<Settings>({
     }
     const keybindings = validKeymap(patch.keybindings);
     if (keybindings) next.keybindings = keybindings;
+    applyViewSettings(serverViews, patch, next as unknown as Record<string, unknown>);
   },
   onChange(next, prev) {
     if (next.autostart !== prev.autostart) void autostart.set(next.autostart);
@@ -67,6 +69,7 @@ const updater = createUpdater({
 });
 
 const { closeToTray } = await settings.load();
+const mounted = mountViews(serverViews, { dataDir, settings, stores: {} });
 
 await runApp({
   app: APP,
@@ -81,8 +84,12 @@ await runApp({
       return settings.save({ updateFolder: path });
     },
     ...updateRoutes(updater, ctx.quit),
+    ...mounted.routes,
     ...routes(ctx),
   }),
+  sockets: mounted.sockets,
+  unauthenticated: mounted.unauthenticated,
+  onQuit: () => mounted.onQuit(),
   webDir: join(import.meta.dir, '../dist/web'),
   transformIndex: themeHead(settings),
   urlProtocol: true,

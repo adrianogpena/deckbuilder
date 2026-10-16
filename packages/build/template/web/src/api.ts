@@ -1,8 +1,9 @@
 import type { ThemeSettings } from '@deckbuilderkit/server-core/palettes';
 import type { UpdateState } from '@deckbuilderkit/server-core/protocol';
+import type { ViewSettings } from './view-settings';
 import { type Keymap, type Language, request } from '@deckbuilderkit/ui';
 
-export interface Settings extends ThemeSettings {
+export interface Settings extends ThemeSettings, ViewSettings {
   language?: Language;
   /** The main menu shows only its icons. */
   /** Keybinding overrides by command id; the server validates it. */
