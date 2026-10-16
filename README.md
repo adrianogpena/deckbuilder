@@ -11,23 +11,37 @@ Base for local-first desktop apps. A Bun workspace of shared packages plus thin 
 
 ## Install
 
-Use the packages in your own app:
+Requirements: [Bun](https://bun.sh) 1.3 or newer (not needed for the gallery executable). Window mode needs the OS web view: WebView2 on Windows 10/11, WebKitGTK 6.0 on Linux (`sudo apt install libwebkitgtk-6.0-4` on Debian/Ubuntu).
+
+**Try the gallery**: download the executable for your system from the [gallery releases](https://github.com/adrianogpena/deckbuilder/releases?q=gallery-v) (Windows, Linux and macOS, x64 and arm64) and run it.
+
+**Create an app** on the published packages:
 
 ```
-bun add @deckbuilderkit/ui @deckbuilderkit/server-core
+bunx --package @deckbuilderkit/build deckbuilder new my-app --views terminal --git
+cd my-app
+bun install
+bun run dev
 ```
 
-They ship TypeScript source, so they need Bun. To run the gallery example from source:
+It starts with Home and Settings; `--views` adds view packages (only `terminal` for now), `--name` sets the display name and `--id` the data folder `~/.<id>`.
 
-- [Bun](https://bun.sh) 1.3 or newer.
-- Window mode needs the OS web view: WebView2 on Windows 10/11, WebKitGTK 6.0 on Linux (`sudo apt install libwebkitgtk-6.0-4` on Debian/Ubuntu).
+**Add packages** to an existing Bun app:
+
+```
+bun add @deckbuilderkit/ui @deckbuilderkit/server-core @deckbuilderkit/view-terminal
+```
+
+They ship TypeScript source, so they need Bun. Views are published as `@deckbuilderkit/view-*` (explorer, git, rest, terminal, workbench).
+
+**From source**, to run the gallery or work on the packages:
 
 ```
 bun install
 bun run dev
 ```
 
-Open the URL the server prints. To build the executable, see [CONTRIBUTING.md](CONTRIBUTING.md).
+Open the URL the server prints. To build the executable or create an app linked to the checkout (`new --local`), see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Views
 
