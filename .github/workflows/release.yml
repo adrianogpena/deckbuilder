@@ -78,7 +78,7 @@ jobs:
       - name: Publish the packages
         # Trusted publishing needs npm 11.5.1+; the runner's npm is older.
         run: |
-          npm install -g npm@11
+          sudo npm install -g npm@11
           bun scripts/publish.ts
       - name: Create a release with the changelog
         run: |
