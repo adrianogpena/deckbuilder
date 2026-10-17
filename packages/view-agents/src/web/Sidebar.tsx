@@ -47,17 +47,17 @@ export function compactTokens(n: number): string {
   return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
 }
 
-/** The quiet usage line of a session row and its breakdown tooltip; undefined when nothing is known. */
+/** The status glyph of a row (sdeck look); its colour comes from the status class. */
+export const STATUS_GLYPH: Record<AgentStatus, string> = {
+  running: '●', 'needs-you': '◐', done: '✓', idle: '○', starting: '⟳', error: '✕', exited: '✕', stopped: '■',
+};
+
+/** The context % of a row and its token breakdown tooltip; undefined when the context is unknown. */
 function sessionUsage(s: AgentSessionView): { line: string; title: string } | undefined {
-  const parts: string[] = [];
-  const lines: string[] = [];
-  if (s.contextPercent !== undefined) {
-    parts.push(`${s.contextPercent}% ${t('agents.context')}`);
-    lines.push(`${t('agents.context')}: ${s.contextPercent}%`);
-  }
+  if (s.contextPercent === undefined) return undefined;
+  const lines: string[] = [`${t('agents.context')}: ${s.contextPercent}%`];
   const tk = s.tokens;
   if (tk) {
-    parts.push(`${compactTokens(tk.input)} ${t('agents.tokens.in')}`, `${compactTokens(tk.output)} ${t('agents.tokens.out')}`, `${compactTokens(tk.cacheCreation + tk.cacheRead)} ${t('agents.tokens.cache')}`);
     const fmt = (n: number) => n.toLocaleString();
     lines.push(
       `${t('agents.tokens.input')}: ${fmt(tk.input)}`,
@@ -66,7 +66,7 @@ function sessionUsage(s: AgentSessionView): { line: string; title: string } | un
       `${t('agents.tokens.cacheRead')}: ${fmt(tk.cacheRead)}`,
     );
   }
-  return parts.length ? { line: parts.join(' · '), title: lines.join('\n') } : undefined;
+  return { line: `${s.contextPercent}%`, title: lines.join('\n') };
 }
 
 function UsageBar({ label, limit }: { label: string; limit?: AgentRateLimit }) {
@@ -213,7 +213,7 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
     if (renaming === s.id) {
       return (
         <div key={s.id} className="agents-session-edit">
-          <span className={`agents-dot ${s.status}`} role="img" title={label} aria-label={label} />
+          <span className={`agents-glyph ${s.status}`} role="img" title={label} aria-label={label}>{STATUS_GLYPH[s.status]}</span>
           <input
             className="agents-rename"
             autoFocus
@@ -236,11 +236,14 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
       );
     }
     const use = sessionUsage(s);
+    const pin = s.pin ?? (s.pinned ? 'top' : undefined);
+    const pinLabel = t(pin === 'top' ? 'agents.pinned' : 'agents.pinnedBottom');
+    const tone = s.status === 'running' || s.status === 'needs-you' ? ' strong' : s.status === 'error' ? ' failed' : '';
     return (
       <button
         key={s.id}
         type="button"
-        className={`agents-session${s.id === selectedId ? ' selected' : ''}${s.pinned ? ' pinned' : ''}`}
+        className={`agents-session${s.id === selectedId ? ' selected' : ''}${pin ? ' pinned' : ''}${tone}`}
         aria-current={s.id === selectedId ? 'true' : undefined}
         onClick={() => onSelect(s.id)}
         onContextMenu={(e) => {
@@ -253,16 +256,17 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
           startRename(s.id);
         }}
       >
-        <span className={`agents-dot ${s.status}`} role="img" title={label} aria-label={label} />
+        <span className="agents-lead" aria-hidden="true" />
+        <span className={`agents-glyph ${s.status}`} role="img" title={label} aria-label={label}>{STATUS_GLYPH[s.status]}</span>
+        {pin && <span className="agents-mark" role="img" title={pinLabel} aria-label={pinLabel}>{pin === 'top' ? '↑' : '↓'}</span>}
+        {s.external && <span className="agents-mark" role="img" title={t('agents.external.note')} aria-label={t('agents.external')}>↗</span>}
         <span className="agents-session-text">
           <span className="agents-session-title" title={name}>
-            {s.pinned && <span className="agents-pin" role="img" title={t('agents.pinned')} aria-label={t('agents.pinned')} />}
             {m.positions ? highlightRuns(name, m.positions).map((r, i) => (r.hit ? <mark key={i}>{r.text}</mark> : r.text)) : name}
           </span>
           {m.snippet && <span className="agents-session-snippet" title={m.snippet}>{m.snippet}</span>}
-          {use && <span className="agents-session-usage" title={use.title}>{use.line}</span>}
         </span>
-        <span className="agents-status">{s.external ? `${label} · ${t('agents.external')}` : label}</span>
+        {use && <span className="agents-ctx" title={use.title}>{use.line}</span>}
       </button>
     );
   };
@@ -334,12 +338,13 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
       {searching && groups.length === 0 && archived.length === 0 && <p className="agents-empty">{t('agents.noMatches')}</p>}
       {groups.map(({ project, list }) => (
         <section key={project.id} className="agents-project">
-          <header>
+          <header className="agents-group-row">
             <h3 title={project.path}>
               {onSelectProject ? (
                 <button type="button" className="agents-project-name" aria-current={project.id === selectedProjectId ? 'true' : undefined} onClick={() => onSelectProject(project.id)}>{project.name}</button>
               ) : project.name}
             </h3>
+            <GroupCounts list={list.map((x) => x.s)} />
             <span>
               <button type="button" className="agents-remove" title={t('agents.remove')} aria-label={t('agents.remove')} onClick={() => onRemoveProject(project.id)}>x</button>
               <button type="button" className="agents-new" title={t('agents.new.title')} aria-label={t('agents.new.title')} onClick={() => onNewSession(project.id)}>+</button>
@@ -351,7 +356,7 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
       ))}
       {archived.length > 0 && (
         <section className="agents-project agents-archived">
-          <header>
+          <header className="agents-group-row">
             <button type="button" className="agents-archived-toggle" aria-expanded={archivedShown} onClick={() => setArchivedOpen((v) => !v)}>
               <span aria-hidden="true">{archivedShown ? '▾' : '▸'}</span> {t('agents.archived')} ({archived.length})
             </button>
@@ -361,5 +366,18 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
       )}
       {menu && <ContextMenu at={menu.at} items={menuItems(menu.session)} onClose={() => setMenu(undefined)} />}
     </nav>
+  );
+}
+
+/** '(count)', then '●R' and '◐W' only when non-zero, after a folder or project name. */
+function GroupCounts({ list }: { list: AgentSessionView[] }) {
+  const running = list.filter((s) => s.status === 'running').length;
+  const waiting = list.filter((s) => s.status === 'needs-you').length;
+  return (
+    <span className="agents-group-counts">
+      <span className="agents-group-count">({list.length})</span>
+      {running > 0 && <span className="agents-glyph running" title={t('agents.status.running')}>●{running}</span>}
+      {waiting > 0 && <span className="agents-glyph needs-you" title={t('agents.status.needs-you')}>◐{waiting}</span>}
+    </span>
   );
 }
