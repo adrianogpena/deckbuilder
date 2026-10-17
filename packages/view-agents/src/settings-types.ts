@@ -13,6 +13,11 @@ export interface AgentsSettings {
   notifyNeedsYou?: boolean;
   notifyDone?: boolean;
   notifyError?: boolean;
+  /** Shell command lines run on a status transition (blank = off). */
+  'hooks.onRunning'?: string;
+  'hooks.onWaiting'?: string;
+  'hooks.onDone'?: string;
+  'hooks.onError'?: string;
   /** Claude executable; blank or omitted = detect (`claude.exe`, the npm shim's native binary, the shim). */
   claudeCommand?: string;
   /** Extra arguments appended after the ones the view passes to `claude`. */

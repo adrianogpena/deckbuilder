@@ -58,58 +58,88 @@ export function mapStatus(raw: string | undefined): 'running' | 'needs-you' | 'i
   return 'idle';
 }
 
-const ORDER: AgentStatus[] = ['error', 'needs-you', 'running', 'done', 'idle', 'stopped'];
+const ORDER: AgentStatus[] = ['exited', 'error', 'needs-you', 'running', 'done', 'starting', 'idle', 'stopped'];
 
-/** Highest-precedence status: error > needs-you > running > done > idle > stopped. */
+/** Highest-precedence status: exited > error > needs-you > running > done > starting > idle > stopped. */
 export function pickStatus(candidates: AgentStatus[]): AgentStatus {
   for (const s of ORDER) if (candidates.includes(s)) return s;
   return 'stopped';
 }
 
-/** Tracks transitions across polls: the first status is a baseline, running -> idle becomes done until seen. */
-export function createStatusTracker() {
+/** Options of one poll: the persisted seen marks and the lifecycle sets (sessions with a pty but no pid record yet / whose process ended). */
+export interface StatusContext {
+  seen?: Record<string, number>;
+  starting?: Iterable<string>;
+  exited?: Iterable<string>;
+}
+
+/**
+ * Tracks transitions across polls: the first status is a baseline, running -> idle stamps a done time.
+ * A done / error is unseen while its stamp differs from the session's seen mark.
+ */
+export function createStatusTracker(now: () => number = Date.now) {
   const prev = new Map<string, 'running' | 'needs-you' | 'idle'>();
-  const done = new Set<string>();
+  const doneAt = new Map<string, number>();
+  const errorAt = new Map<string, number>();
   const errored = new Set<string>();
   const dismissed = new Map<string, string>();
   return {
     /**
-     * Feed the live pid entries of one poll (all accounts); returns session id -> status (absent = stopped).
+     * Feed the live pid entries of one poll (all accounts); returns session id -> status (absent = not running, see `offline`).
      * `screenErrors` (session id -> message) holds the errors found on terminal screens; an error shows until the session runs again.
      */
-    update(entries: PidEntry[], screenErrors?: Map<string, string>): Map<string, AgentStatus> {
+    update(entries: PidEntry[], screenErrors?: Map<string, string>, ctx: StatusContext = {}): Map<string, AgentStatus> {
       const out = new Map<string, AgentStatus>();
       const live = new Set<string>();
       for (const e of entries) {
-        live.add(e.sessionId);
+        const id = e.sessionId;
+        live.add(id);
         const cur = mapStatus(e.status);
-        const msg = screenErrors?.get(e.sessionId);
-        if (msg === undefined) dismissed.delete(e.sessionId);
+        const msg = screenErrors?.get(id);
+        if (msg === undefined) dismissed.delete(id);
         if (cur === 'running') {
-          errored.delete(e.sessionId);
-          if (msg !== undefined) dismissed.set(e.sessionId, msg);
-        } else if (msg !== undefined && dismissed.get(e.sessionId) !== msg) errored.add(e.sessionId);
-        if (prev.get(e.sessionId) === 'running' && cur === 'idle') done.add(e.sessionId);
-        else if (cur !== 'idle') done.delete(e.sessionId);
-        prev.set(e.sessionId, cur);
-        const base: AgentStatus = cur === 'idle' && done.has(e.sessionId) ? 'done' : cur;
-        const shown: AgentStatus = errored.has(e.sessionId) ? 'error' : base;
-        const prior = out.get(e.sessionId);
-        out.set(e.sessionId, pickStatus(prior ? [shown, prior] : [shown]));
+          errored.delete(id);
+          errorAt.delete(id);
+          if (msg !== undefined) dismissed.set(id, msg);
+        } else if (msg !== undefined && dismissed.get(id) !== msg && !errored.has(id)) {
+          errored.add(id);
+          errorAt.set(id, now());
+        }
+        if (prev.get(id) === 'running' && cur === 'idle') doneAt.set(id, now());
+        else if (cur !== 'idle') doneAt.delete(id);
+        prev.set(id, cur);
+        const stamp = doneAt.get(id);
+        const base: AgentStatus = cur === 'idle' && stamp !== undefined && stamp !== ctx.seen?.[id] ? 'done' : cur;
+        const shown: AgentStatus = errored.has(id) ? 'error' : base;
+        const prior = out.get(id);
+        out.set(id, pickStatus(prior ? [shown, prior] : [shown]));
       }
+      for (const id of ctx.starting ?? []) if (!out.has(id)) out.set(id, screenErrors?.has(id) ? 'error' : 'starting');
+      for (const id of ctx.exited ?? []) out.set(id, 'exited');
       for (const id of [...prev.keys()]) {
         if (!live.has(id)) {
           prev.delete(id);
-          done.delete(id);
           errored.delete(id);
           dismissed.delete(id);
         }
       }
       return out;
     },
-    /** The user opened the session: clears done. */
-    markSeen(sessionId: string) {
-      done.delete(sessionId);
+    /** Status of a session running nowhere: unseen done -> done, unseen error -> exited, else stopped. */
+    offline(sessionId: string, seen?: Record<string, number>): AgentStatus {
+      const d = doneAt.get(sessionId);
+      if (d !== undefined && d !== seen?.[sessionId]) return 'done';
+      const e = errorAt.get(sessionId);
+      if (e !== undefined && e !== seen?.[sessionId]) return 'exited';
+      return 'stopped';
+    },
+    /** Timestamp of the session's current error, else its current done; what acknowledging stores as the seen mark. */
+    stamp(sessionId: string): number | undefined {
+      return errorAt.get(sessionId) ?? doneAt.get(sessionId);
+    },
+    /** Writes a fresh done (mark unread on a session with no status). */
+    forceDone(sessionId: string) {
+      doneAt.set(sessionId, now());
     },
   };
 }

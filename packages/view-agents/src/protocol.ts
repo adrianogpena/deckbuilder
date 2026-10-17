@@ -8,7 +8,13 @@ export interface AgentAccount {
   isDefault: boolean;
 }
 
-export type AgentStatus = 'error' | 'needs-you' | 'running' | 'done' | 'idle' | 'stopped';
+/** UI status: Running, Waiting (`needs-you`), Done (unseen), Idle, Starting, Error (shown on screen), Exited, Stopped. */
+export type AgentStatus = 'running' | 'needs-you' | 'done' | 'idle' | 'starting' | 'error' | 'exited' | 'stopped';
+
+/** Category of a status: Starting + Running = running; Done + Waiting = waiting; Exited + Error = error. */
+export type AgentCategory = 'running' | 'waiting' | 'idle' | 'error' | 'stopped';
+
+export const STATUS_CATEGORY: Record<AgentStatus, AgentCategory> = { starting: 'running', running: 'running', done: 'waiting', 'needs-you': 'waiting', idle: 'idle', exited: 'error', error: 'error', stopped: 'stopped' };
 
 export interface AgentSession {
   id: string;
@@ -83,6 +89,8 @@ export interface AgentSessionView extends AgentSession {
   /** Id of the added project the cwd belongs to. */
   project?: string;
   seenAt?: number;
+  /** A process runs it now (pid record, starting or exited pty); false for an offline session showing Done / Exited from an unseen mark. */
+  live?: boolean;
   /** Claude is running this session in another terminal (live pid file that is not ours). */
   external?: boolean;
   /** `starting`: our terminal runs it but Claude's pid file has not appeared yet; `exited`: the process ended and its terminal is still listed. */

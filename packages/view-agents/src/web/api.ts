@@ -62,6 +62,8 @@ export const listAgentSessions = () => request<AgentSessionView[]>('GET', '/api/
 /** Marks a session as seen (clears its `done` state). */
 export const sessionHistory = (sessionId: string) => request<{ events: ChatEvent[] }>('GET', '/api/agents/history', { sessionId });
 
+/** Mark unread: done / error become unseen again; a session with no status gets a fresh done. */
+export const markUnread = (sessionId: string) => request<{ ok: boolean }>('POST', '/api/agents/unread', {}, { sessionId });
 export const markSeen = (sessionId: string) => request<{ ok: boolean }>('POST', '/api/agents/seen', {}, { sessionId });
 export const reportShown = (sessionId: string | null) => request<{ ok: boolean }>('POST', '/api/agents/shown', {}, { sessionId });
 
@@ -76,6 +78,8 @@ export async function openAgentsSocket(onFrame: (f: { type: string; [k: string]:
   return () => ws.close();
 }
 
+export type { AgentAlert } from '../server/alerts.ts';
+export const listAlerts = () => request<import('../server/alerts.ts').AgentAlert[]>('GET', '/api/agents/alerts');
 export const listAgentProjects = () => request<AgentProject[]>('GET', '/api/agents/projects');
 export const addAgentProject = (input: { name?: string; path: string }) => request<{ ok: boolean; project?: AgentProject }>('POST', '/api/agents/projects', {}, input);
 export const removeAgentProject = (id: string) => request<{ ok: boolean }>('DELETE', '/api/agents/projects', { id });

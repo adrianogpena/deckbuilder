@@ -8,7 +8,9 @@ import { CHAT_SOCKET_PATH, type ChatClientFrame, type ChatServerFrame } from './
 import type { AgentAccountUsage, AgentLaunch, AgentRunning, AgentSessionView, AgentsCapWarn, AgentsFrame, AgentStopResult } from './protocol.ts';
 import type { AgentsMode, AgentsSettings } from './settings-types.ts';
 import { type AgentAccount, detectAccounts } from './server/accounts.ts';
-import { createNotifier, NOTIFY_LABEL } from './server/notify.ts';
+import { createAlerts } from './server/alerts.ts';
+import { createHooks } from './server/hooks.ts';
+import { createNotifier, createTransitions, NOTIFY_LABEL } from './server/notify.ts';
 import { CLAUDE_LAUNCHER_ID, claudeLauncher } from './server/launcher.ts';
 import { claudeCommand } from './server/claude-command.ts';
 import { type ChatManager, type ChatSession, type ChatSubscriber, createChatManager } from './server/chat/manager.ts';
@@ -36,7 +38,7 @@ export interface AgentsServerSettings {
 /** A copy of `raw` when it is a well-formed Agents settings group, else null. */
 const AGENTS_MODES: AgentsMode[] = ['terminal', 'chat'];
 
-const AGENTS_SPEC = { mode: AGENTS_MODES, softCap: [1, 100], notifyNeedsYou: 'boolean', notifyDone: 'boolean', notifyError: 'boolean', autoSettle: 'boolean', claudeCommand: 'string' } as const;
+const AGENTS_SPEC = { mode: AGENTS_MODES, softCap: [1, 100], notifyNeedsYou: 'boolean', notifyDone: 'boolean', notifyError: 'boolean', autoSettle: 'boolean', claudeCommand: 'string', 'hooks.onRunning': 'string', 'hooks.onWaiting': 'string', 'hooks.onDone': 'string', 'hooks.onError': 'string' } as const;
 
 /** Validates the group; a valid one is the saved one, so the cached `claude` resolution is refilled from it. */
 export const validAgents = (raw: unknown): AgentsSettings | null => {
@@ -121,8 +123,12 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
   /** Session the web reports as on screen (Agents view open and focused); no toast for it. */
   let shownId: string | undefined;
   const toaster = opts.toast ? undefined : createToaster();
+  const show = opts.toast ?? ((x: { title: string; body: string; launch: string }) => toaster?.show(x));
+  const hooks = createHooks({ settings: async () => (await loadSettings()).agents, flash: (message) => show({ title: 'Agents', body: message, launch: '' }) }, createTransitions());
+  let alertsDir: string | undefined;
+  const alerts = createAlerts(() => alertsDir, createTransitions());
   const notifier = createNotifier({
-    show: opts.toast ?? ((x) => toaster?.show(x)),
+    show,
     link: () => opts.link?.(),
     settings: async () => (await loadSettings()).agents,
     shown: () => shownId,
@@ -189,6 +195,14 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
     }
   };
 
+  /** Stores the exact stamp of the session's current done / error as its seen mark (skipped when equal). */
+  const acknowledge = (id: string) => {
+    const stamp = tracker.stamp(id);
+    if (stamp === undefined || loadSeen()[id] === stamp) return;
+    loadSeen()[id] = stamp;
+    saveSeen();
+  };
+
   const accounts = (): AgentAccount[] => detectAccounts(home);
 
   const compute = async () => {
@@ -201,13 +215,14 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
     }
     const pids = accs.flatMap((a) => readPidFiles(a.dir));
     const lc = lifecycleStep(pids);
-    const statuses = tracker.update(pids, screenErrors);
-    const external = externalIds(pids, [...liveTerminalIds(), ...(chat?.live().ids ?? [])]);
     const s = loadSeen();
+    const statuses = tracker.update(pids, screenErrors, { seen: s, starting: lc.starting, exited: lc.exited.keys() });
+    const statusOf = (id: string): AgentStatus => statuses.get(id) ?? tracker.offline(id, s);
+    const external = externalIds(pids, [...liveTerminalIds(), ...(chat?.live().ids ?? [])]);
     const usage = usageReader.read(accs);
     const views: AgentSessionView[] = scanner
       .scan(accs.map((a) => ({ id: a.id, dir: a.dir })))
-      .map((x) => ({ ...x, lifecycle: lc.exited.has(x.id) ? ('exited' as const) : lc.starting.has(x.id) ? ('starting' as const) : undefined, exitCode: lc.exited.get(x.id), contextPercent: usageContextPercent(usage.bySession.get(x.id)) ?? x.contextPercent, status: statuses.get(x.id) ?? 'stopped', external: external.has(x.id) || undefined, project: matchProject(x.cwd, refs)?.id, seenAt: s[x.id] }))
+      .map((x) => ({ ...x, lifecycle: lc.exited.has(x.id) ? ('exited' as const) : lc.starting.has(x.id) ? ('starting' as const) : undefined, exitCode: lc.exited.get(x.id), contextPercent: usageContextPercent(usage.bySession.get(x.id)) ?? x.contextPercent, status: statusOf(x.id), live: statuses.has(x.id) || undefined, external: external.has(x.id) || undefined, project: matchProject(x.cwd, refs)?.id, seenAt: s[x.id] }))
       .filter((x) => x.project !== undefined)
       .sort((a, b) => b.updatedAt - a.updatedAt);
     if ((await loadSettings()).agents?.autoSettle !== false) sessionState?.settle(views);
@@ -219,12 +234,14 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
       const project = matchProject(term.cwd, refs)?.id;
       if (project === undefined) continue;
       const lifecycle = lc.exited.has(term.sessionId) ? ('exited' as const) : lc.starting.has(term.sessionId) ? ('starting' as const) : undefined;
-      views.push({ id: term.sessionId, account: term.account, cwd: term.cwd, title: '', firstPrompt: '', updatedAt: Date.now(), status: statuses.get(term.sessionId) ?? 'stopped', project, lifecycle, exitCode: lc.exited.get(term.sessionId), seenAt: s[term.sessionId] });
+      views.push({ id: term.sessionId, account: term.account, cwd: term.cwd, title: '', firstPrompt: '', updatedAt: Date.now(), status: statusOf(term.sessionId), live: statuses.has(term.sessionId) || undefined, project, lifecycle, exitCode: lc.exited.get(term.sessionId), seenAt: s[term.sessionId] });
     }
     const sessions = views.map((x) => ({ ...x, ...sessionState?.get(x.id) }));
     const status: Record<string, AgentStatus> = {};
     for (const x of sessions) status[x.id] = x.status;
+    void hooks.observe(sessions);
     void notifier.observe(sessions);
+    alerts.observe(sessions);
     return { sessions, status, usage: usage.accounts as AgentAccountUsage[] };
   };
 
@@ -296,6 +313,7 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
     settings: { validate: { agents: validAgents } },
     routes: (ctx) => {
       seenFile = join(ctx.dataDir, 'agents', 'seen.json');
+      alertsDir = join(ctx.dataDir, 'agents', 'alerts');
       usageDir = join(ctx.dataDir, 'agents', 'usage');
       chat = createChatManager({ ...opts.chat, dir: join(ctx.dataDir, 'agents', 'chat'), accounts, baseUrl: () => baseUrl });
       const store = createProjectsStore(join(ctx.dataDir, 'agents', 'projects.json'));
@@ -335,6 +353,7 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
           const acc = accounts().find((a) => a.id === b.account);
           return acc ? statusline.uninstall(acc) : { ok: false, error: 'unknownAccount' };
         },
+        'GET /api/agents/alerts': () => alerts.list(),
         'GET /api/agents/sessions': async () => (await compute()).sessions,
         'GET /api/agents/projects': () => store.list(),
         // Pin / rename / archive one session (no path params in the router, so the id is in the body); '' or null clears the name.
@@ -414,7 +433,7 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
         'POST /api/agents/session/stop': async ({ json }): Promise<AgentStopResult> => {
           const b = await json<{ sessionId?: unknown }>();
           if (typeof b.sessionId !== 'string' || !b.sessionId) return { ok: false, error: 'unknownSession' };
-          tracker.markSeen(b.sessionId);
+          acknowledge(b.sessionId);
           const r = chat?.stop(b.sessionId) ?? 'none';
           if (r === 'busy') return { ok: false, error: 'busy' };
           killTerminals(b.sessionId);
@@ -443,10 +462,23 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
         'POST /api/agents/seen': async ({ json }) => {
           const b = await json<{ sessionId?: unknown }>();
           if (typeof b.sessionId !== 'string' || !b.sessionId) return { ok: false };
-          tracker.markSeen(b.sessionId);
-          loadSeen()[b.sessionId] = Date.now();
-          saveSeen();
-          void refresh(true);
+          acknowledge(b.sessionId);
+          await refresh(true);
+          return { ok: true };
+        },
+        // Mark unread: done / error clear the seen mark; no status writes a fresh done; running / waiting do nothing.
+        'POST /api/agents/unread': async ({ json }) => {
+          const b = await json<{ sessionId?: unknown }>();
+          if (typeof b.sessionId !== 'string' || !b.sessionId) return { ok: false };
+          const id = b.sessionId;
+          const st = (await compute()).status[id];
+          if (st === 'running' || st === 'needs-you' || st === 'starting') return { ok: true };
+          if (tracker.stamp(id) === undefined) tracker.forceDone(id);
+          else if (loadSeen()[id] !== undefined) {
+            delete loadSeen()[id];
+            saveSeen();
+          }
+          await refresh(true);
           return { ok: true };
         },
         // The web reports which session is on screen (null when the Agents view is hidden or the window unfocused).

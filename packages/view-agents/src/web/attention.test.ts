@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { AgentSessionView, AgentStatus } from './api';
-import { compareSessions, needsYouCount, nextWaiting } from './attention';
+import { compareSessions, needsYouCount, nextWaiting, statusCounts } from './attention';
 
 const s = (id: string, status: AgentStatus, updatedAt: number, external = false) => ({ id, status, updatedAt, external }) as AgentSessionView;
 
@@ -19,4 +19,9 @@ describe('attention', () => {
   test('counts needs-you', () => {
     expect(needsYouCount([s('a', 'needs-you', 1), s('b', 'done', 1), s('c', 'needs-you', 2)])).toBe(2);
   });
+});
+
+test('statusCounts keeps unseen done apart from waiting', () => {
+  const c = statusCounts([s('a', 'done', 1), s('b', 'needs-you', 1), s('c', 'starting', 1), s('d', 'running', 1), s('e', 'exited', 1), s('f', 'error', 1)]);
+  expect(c).toEqual({ running: 2, waiting: 1, done: 1, idle: 0, error: 2, stopped: 0 });
 });

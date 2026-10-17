@@ -6,6 +6,7 @@ import { agentsCommands } from '../commands';
 import { t } from '../i18n';
 import { type AgentProject, type AgentRunning, type AgentSessionView, dismissRecovery, listAgentProjects, listRecovery, markSeen, removeAgentProject, reportShown, restartSession, startInBackground, startSession, stopChat, stopSession, terminalOf } from './api';
 import { AddProject } from './AddProject';
+import { AlertsPanel } from './AlertsPanel';
 import { displayName, needsYouCount, nextWaiting } from './attention';
 import { ChatPane } from './chat/ChatPane';
 import { ExternalPane } from './ExternalPane';
@@ -70,6 +71,7 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
   const [error, setError] = useState('');
   const [projects, setProjects] = useState<AgentProject[]>([]);
   const [adding, setAdding] = useState(false);
+  const [alertsOpen, setAlertsOpen] = useState(false);
   const [chats, setChats] = useState<ChatEntry[]>([]);
   const [switching, setSwitching] = useState(false);
   const [viewing, setViewing] = useState<string>();
@@ -170,6 +172,7 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
     if (next) void select(next.id);
   }, [sessions, select]);
   useCommand(agentsCommands()[2]!, jumpWaiting);
+  useCommand(agentsCommands()[3]!, () => setAlertsOpen(true));
 
   const resume = useCallback(
     async (items: AgentRunning[]) => {
@@ -362,6 +365,7 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
           onStartBackground={(s) => void startBackground(s)}
         />
       }
+      {alertsOpen && <AlertsPanel projects={projects} onClose={() => setAlertsOpen(false)} />}
       {adding && <AddProject added={projects} onAdded={(p) => setProjects((l) => [...l, p])} onClose={() => setAdding(false)} />}
       <section className="agents-main">
         <header className="agents-main-head">
@@ -385,6 +389,9 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
               ))}
             </div>
           )}
+          <button type="button" className="agents-toggle" title={t('agents.alerts.title')} aria-label={t('agents.alerts.title')} onClick={() => setAlertsOpen(true)}>
+            🔔
+          </button>
           <button
             type="button"
             className="agents-toggle agents-panel-toggle"

@@ -25,16 +25,29 @@ export const NOTIFY_LABEL: Record<NotifyStatus, string> = { 'needs-you': 'Needs 
 
 const SETTING_KEY = { 'needs-you': 'notifyNeedsYou', done: 'notifyDone', error: 'notifyError' } as const;
 
-/** Toasts for sessions that turn needs-you, done or error and are not on screen. The first poll is a baseline. */
-export function createNotifier(opts: NotifierOptions) {
+export interface Transitions {
+  /** Sessions whose status differs from the previous observation; first sight (and return after leaving) is never a change. */
+  diff(sessions: AgentSessionView[]): AgentSessionView[];
+}
+
+export function createTransitions(): Transitions {
   let prev: Map<string, AgentStatus> | undefined;
   return {
-    async observe(sessions: AgentSessionView[]): Promise<void> {
+    diff(sessions) {
       const before = prev;
       prev = new Map(sessions.map((s) => [s.id, s.status]));
-      if (!before) return;
+      if (!before) return [];
+      return sessions.filter((s) => before.has(s.id) && before.get(s.id) !== s.status);
+    },
+  };
+}
+
+/** Toasts for sessions that turn needs-you, done or error and are not on screen. The first poll is a baseline. */
+export function createNotifier(opts: NotifierOptions, transitions: Transitions = createTransitions()) {
+  return {
+    async observe(sessions: AgentSessionView[]): Promise<void> {
       const shown = opts.shown();
-      const changed = sessions.filter((s) => (s.status === 'needs-you' || s.status === 'done' || s.status === 'error') && before.has(s.id) && before.get(s.id) !== s.status && s.id !== shown);
+      const changed = transitions.diff(sessions).filter((s) => (s.status === 'needs-you' || s.status === 'done' || s.status === 'error') && s.id !== shown);
       if (changed.length === 0) return;
       const cfg = await opts.settings().catch(() => undefined);
       for (const s of changed) {

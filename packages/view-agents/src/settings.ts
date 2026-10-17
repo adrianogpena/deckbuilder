@@ -40,4 +40,8 @@ export const agentsSettingDefs: SettingDef<AgentsViewSettings>[] = [
   groupField<AgentsViewSettings, 'agents'>('agents', 'notifyError', 50, bool(true)),
   groupField<AgentsViewSettings, 'agents'>('agents', 'claudeCommand', 60, str('')),
   claudeArgsDef,
+  groupField<AgentsViewSettings, 'agents'>('agents', 'hooks.onRunning', 80, str('')),
+  groupField<AgentsViewSettings, 'agents'>('agents', 'hooks.onWaiting', 90, str('')),
+  groupField<AgentsViewSettings, 'agents'>('agents', 'hooks.onDone', 100, str('')),
+  groupField<AgentsViewSettings, 'agents'>('agents', 'hooks.onError', 110, str('')),
 ];

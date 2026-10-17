@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ContextMenu, type ContextMenuItem, fuzzyScore, highlightRuns, useRovingList, useToast } from '@deckbuilderkit/ui';
 import { t } from '../i18n';
-import { type AgentAccountUsage, type AgentProject, type AgentRateLimit, type AgentSessionView, type AgentStatus, patchSessionState, searchSessions } from './api';
+import { type AgentAccountUsage, type AgentProject, type AgentRateLimit, type AgentSessionView, type AgentStatus, markUnread, patchSessionState, searchSessions } from './api';
 import { compareSessions, displayName } from './attention';
 
 export interface SidebarProps {
@@ -28,6 +28,8 @@ export function statusLabel(s: AgentStatus): string {
     case 'running': return t('agents.status.running');
     case 'done': return t('agents.status.done');
     case 'idle': return t('agents.status.idle');
+    case 'starting': return t('agents.status.starting');
+    case 'exited': return t('agents.status.exited');
     default: return t('agents.status.stopped');
   }
 }
@@ -76,7 +78,7 @@ function UsageBar({ label, limit }: { label: string; limit?: AgentRateLimit }) {
   );
 }
 
-const STATUSES: AgentStatus[] = ['needs-you', 'error', 'running', 'done', 'idle', 'stopped'];
+const STATUSES: AgentStatus[] = ['needs-you', 'error', 'exited', 'running', 'starting', 'done', 'idle', 'stopped'];
 
 /** How a session matched the search: fuzzy name positions, or a full-text snippet. */
 interface RowMatch {
@@ -177,7 +179,7 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
 
   const lifecycleItems = (s: AgentSessionView): Array<ContextMenuItem | 'sep'> => {
     if (s.external) return [];
-    const live = s.status !== 'stopped' || s.lifecycle !== undefined;
+    const live = !!s.live || s.lifecycle !== undefined;
     const items: ContextMenuItem[] = [];
     if (!live && onStartBackground) items.push({ id: 'startBackground', label: t('agents.startBackground'), run: () => onStartBackground(s) });
     if (live && onStop) items.push({ id: 'stop', label: t('agents.stop'), run: () => onStop(s) });
@@ -189,6 +191,7 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
     ...lifecycleItems(s),
     { id: 'pin', label: s.pinned ? t('agents.unpin') : t('agents.pin'), run: () => update(s.id, { pinned: !s.pinned }) },
     // Deferred so the menu gives the focus back before the rename input takes it.
+    { id: 'unread', label: t('agents.markUnread'), run: () => void markUnread(s.id).catch(() => undefined) },
     { id: 'rename', label: t('agents.rename'), hint: 'F2', run: () => setTimeout(() => startRename(s.id), 0) },
     'sep',
     { id: 'archive', label: s.archived ? t('agents.unarchive') : t('agents.archive'), run: () => update(s.id, { archived: !s.archived }) },

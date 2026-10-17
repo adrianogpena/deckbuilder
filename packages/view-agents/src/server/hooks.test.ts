@@ -1,0 +1,56 @@
+import { expect, test } from 'bun:test';
+import type { AgentSessionView, AgentStatus } from '../protocol.ts';
+import type { AgentsSettings } from '../settings-types.ts';
+import { createHooks, hookKey } from './hooks.ts';
+import { createTransitions } from './notify.ts';
+
+const sess = (id: string, status: AgentStatus) => ({ id, status, title: id, firstPrompt: '', cwd: '/p', project: 'pr' }) as AgentSessionView;
+
+function setup(cfg: AgentsSettings, fail = false) {
+  const runs: Array<{ command: string; env: Record<string, string> }> = [];
+  const flashes: string[] = [];
+  const h = createHooks(
+    {
+      settings: async () => cfg,
+      flash: (m) => flashes.push(m),
+      spawn: async (command, o) => {
+        if (fail) throw new Error('boom');
+        runs.push({ command, env: o.env });
+      },
+    },
+    createTransitions(),
+  );
+  return { h, runs, flashes };
+}
+
+test('maps statuses to hooks by category', () => {
+  expect(['starting', 'running', 'needs-you', 'done', 'error', 'exited', 'idle', 'stopped'].map((s) => hookKey(s as AgentStatus))).toEqual(['onRunning', 'onRunning', 'onWaiting', 'onDone', 'onError', 'onError', undefined, undefined]);
+});
+
+test('first sight is silent, transitions run once with env, blank is off', async () => {
+  const { h, runs } = setup({ 'hooks.onWaiting': '  echo w ', 'hooks.onDone': '   ', 'hooks.onRunning': 'echo r' });
+  await h.observe([sess('a', 'idle')]);
+  await h.observe([sess('a', 'running'), sess('b', 'needs-you')]);
+  await h.observe([sess('a', 'running')]);
+  await h.observe([sess('a', 'needs-you'), sess('b', 'done')]);
+  await h.observe([sess('a', 'needs-you')]);
+  await h.observe([sess('a', 'idle')]);
+  expect(runs.map((r) => r.command)).toEqual(['echo r', 'echo w']);
+  expect(runs[0]!.env).toMatchObject({ DECKBUILDER_SESSION_ID: 'a', DECKBUILDER_STATUS: 'running', DECKBUILDER_PROJECT: 'pr', DECKBUILDER_CWD: '/p' });
+});
+
+test('a session that leaves and returns is first sight again', async () => {
+  const { h, runs } = setup({ 'hooks.onRunning': 'x' });
+  await h.observe([sess('a', 'idle')]);
+  await h.observe([]);
+  await h.observe([sess('a', 'running')]);
+  expect(runs).toEqual([]);
+});
+
+test('start failure flashes once per run', async () => {
+  const { h, flashes } = setup({ 'hooks.onRunning': 'x' }, true);
+  await h.observe([sess('a', 'idle')]);
+  await h.observe([sess('a', 'running')]);
+  await Bun.sleep(5);
+  expect(flashes).toEqual(['Hook failed to start: boom']);
+});
