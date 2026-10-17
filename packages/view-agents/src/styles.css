@@ -105,6 +105,7 @@
 .agents-pane { display: flex; flex: 1; min-width: 0; min-height: 0; }
 .agents-placeholder { margin: auto; }
 .agents-panel { display: flex; flex-direction: column; width: 320px; min-height: 0; background: var(--bg-sunken); border-left: 1px solid var(--border-soft); }
+.agents-panel-wide { width: min(45%, 110ch); }
 .agents-panel-head { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-bottom: 1px solid var(--border-soft); }
 .agents-panel-tabs { display: inline-flex; flex: 1; gap: 4px; }
 .agents-panel-tabs button { background: none; border: 0; border-radius: 4px; color: var(--ink-muted); cursor: pointer; padding: 2px 10px; font-size: var(--fs-sm); }
@@ -265,6 +266,20 @@
 .agents-changes-code { width: 1.2em; font-family: monospace; text-align: center; flex-shrink: 0; }
 .agents-changes-conflict { color: #e5484d; }
 .agents-changes-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
+.agents-traj { display: flex; flex: 1; min-height: 0; gap: var(--space-6); font-size: var(--fs-md); }
+.agents-traj-list { list-style: none; margin: 0; padding: 0; flex: 0 0 clamp(16ch, 34%, 36ch); min-width: 0; overflow-y: auto; border-right: 1px solid var(--border-soft); }
+.agents-traj-step { display: flex; align-items: baseline; gap: var(--space-4); width: 100%; padding: var(--space-2) var(--space-4); text-align: left; background: none; border: 0; border-radius: var(--radius-xs); color: var(--text-2); cursor: pointer; font: inherit; font-size: var(--fs-sm); }
+.agents-traj-step:hover { background: var(--bg-hover); }
+.agents-traj-step[aria-pressed='true'] { color: var(--text); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.agents-traj-step:focus-visible { outline: none; box-shadow: inset 0 0 0 1px var(--accent); }
+.agents-traj-kind { flex-shrink: 0; color: var(--text-3); }
+.agents-traj-user .agents-traj-kind { color: var(--accent); }
+.agents-traj-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agents-traj-mark { flex-shrink: 0; color: var(--err); }
+.agents-traj-error .agents-traj-label { color: var(--err); }
+.agents-traj-detail { flex: 1; min-width: 0; margin: 0; padding: var(--space-4) var(--space-6); overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-mono); font-size: var(--fs-sm); color: var(--text); background: var(--bg); border-radius: var(--radius-xs); }
+.agents-traj-detail:focus-visible { outline: none; box-shadow: inset 0 0 0 1px var(--accent); }
+.agents-traj-loading { display: flex; flex: 1; align-items: center; justify-content: center; }
 .agents-changes-diff { flex: 1; min-height: 200px; display: flex; flex-direction: column; border-top: 1px solid color-mix(in srgb, currentColor 15%, transparent); }
 
 .agents-notes { display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 6px; padding: 8px; }
@@ -345,3 +360,15 @@
 .agents-usage-tab .sev-warn { color: var(--warn); }
 .agents-usage-tab .sev-err { color: var(--err); }
 .agents-usage-tab .stale .agents-usage-cells > span.on, .agents-usage-tab .stale .agents-usage-pct { color: var(--text-3); }
+
+.agents-skills { display: flex; flex-direction: column; gap: var(--space-8); min-width: 0; }
+.agents-skills-tabs { display: flex; gap: var(--space-4); }
+.agents-skills-tab { padding: var(--space-4) var(--space-8); border: 1px solid var(--border); border-radius: var(--radius-md); background: transparent; color: var(--text-2); font: inherit; cursor: pointer; }
+.agents-skills-tab[aria-selected='true'] { color: var(--text); background: var(--selected); }
+.agents-skills-loading { display: flex; align-items: center; justify-content: center; }
+.agents-skills-head { display: flex; gap: var(--space-6); margin-top: var(--space-6); }
+.agents-skills-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.agents-skills-row { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-4) var(--space-6); border-radius: var(--radius-md); min-width: 0; }
+.agents-skills-row:focus-visible { outline: 1px solid var(--accent); }
+.agents-skills-name { color: var(--text); }
+.agents-skills-desc { color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

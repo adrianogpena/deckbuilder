@@ -2,7 +2,7 @@ import { request, stream } from '@deckbuilderkit/ui';
 import { listSessions, openSession, type Ticketed } from '@deckbuilderkit/terminal/session';
 import type { ChatEvent } from '../chat-protocol.ts';
 import { t } from '../i18n';
-import type { AgentDeleteResult, AgentRestoreResult, AgentTrashEntry, AgentTrashError, AgentLaunch, AgentLifecycleError, AgentStopResult, AgentAccount,AgentAccountUsage, AgentProject, AgentRateLimit, AgentRunning, AgentSearchHit, AgentSessionView, AgentsCapWarn, AgentStatus, AgentStatuslineError, AgentStatuslineStatus, AgentTagCount, AgentTree, AgentTreePatch } from '../protocol.ts';
+import type { AgentDeleteResult, AgentRestoreResult, AgentTrashEntry, AgentTrashError, AgentLaunch, AgentLifecycleError, AgentStopResult, AgentAccount,AgentAccountUsage, AgentProject, AgentRateLimit, AgentRunning, AgentSearchHit, AgentSessionView, AgentsCapWarn, AgentStatus, AgentStatuslineError, AgentStatuslineStatus, AgentSkillsResponse, AgentTagCount, AgentTraceResponse, AgentTree, AgentTreePatch } from '../protocol.ts';
 
 export type { AgentAccount, AgentAccountUsage, AgentProject, AgentRateLimit, AgentRunning, AgentSearchHit, AgentSessionView, AgentsCapWarn, AgentStatus, AgentStatuslineError, AgentStatuslineStatus, AgentTagCount, AgentTree, AgentTreePatch };
 
@@ -70,7 +70,9 @@ export async function terminalOf(sessionId: string): Promise<string | undefined>
 export const listAgentSessions = () => request<AgentSessionView[]>('GET', '/api/agents/sessions');
 
 /** Marks a session as seen (clears its `done` state). */
-export const lastResponse = (sessionId: string) => request<{ text: string | null }>('GET', '/api/agents/last-response', { sessionId });
+export const getTrace = (sessionId: string) => request<AgentTraceResponse>('GET', '/api/agents/trace', { sessionId });
+export const listSkills = () => request<AgentSkillsResponse>('GET', '/api/agents/skills');
+export const lastResponse =(sessionId: string) => request<{ text: string | null }>('GET', '/api/agents/last-response', { sessionId });
 export const sessionHistory = (sessionId: string) => request<{ events: ChatEvent[] }>('GET', '/api/agents/history', { sessionId });
 
 /** Mark unread: done / error become unseen again; a session with no status gets a fresh done. */

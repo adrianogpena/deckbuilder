@@ -24,4 +24,6 @@ export const agentsCommands = (): CommandDef[] => [
   { id: 'agents.openTrash', scope: 'agents', label: t('keys.agents.openTrash'), keys: [] },
   { id: 'agents.usage', scope: 'agents', label: t('keys.agents.usage'), keys: [] },
   { id: 'agents.switchAccount', scope: 'agents', label: t('keys.agents.switchAccount'), keys: [] },
+  { id: 'agents.trajectory', scope: 'agents', label: t('keys.agents.trajectory'), keys: [] },
+  { id: 'agents.skills', scope: 'agents', label: t('keys.agents.skills'), keys: [] },
 ];

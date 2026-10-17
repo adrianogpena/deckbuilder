@@ -9,6 +9,7 @@ import { lastResponse, type AgentProject, type AgentRunning, type AgentSessionVi
 import { AddProject } from './AddProject';
 import { AlertsPanel } from './AlertsPanel';
 import { UsageTab } from './UsageTab';
+import { SkillsPanel } from './SkillsPanel';
 import { displayName, needsYouCount, nextWaiting } from './attention';
 import { ChatPane } from './chat/ChatPane';
 import { ExternalPane } from './ExternalPane';
@@ -18,7 +19,8 @@ import { listAccounts, setActiveAccount } from './api';
 import { RecoveryBanner } from './RecoveryBanner';
 import { ChangesTab } from './ChangesTab';
 import { NotesTab } from './NotesTab';
-import { SidePanel } from './SidePanel';
+import { readPanelTab, SidePanel, type SidePanelTab, writePanelTab } from './SidePanel';
+import { TrajectoryTab } from './TrajectoryTab';
 import { StoppedPane } from './StoppedPane';
 import { GroupSummary } from './GroupSummary';
 import { Sidebar } from './Sidebar';
@@ -88,6 +90,7 @@ export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false, usageS
   const keys = useKeybindings();
   const [hidden, setHidden] = useState(readHidden);
   const [panelHidden, setPanelHidden] = useState(readPanelHidden);
+  const [panelTab, setPanelTab] = useState<SidePanelTab>(readPanelTab);
   const [selectedId, setSelectedId] = useState<string>();
   const [newFor, setNewFor] = useState<string>();
   /** Project row whose summary fills the main pane; cleared when a session gets selected. */
@@ -119,6 +122,7 @@ export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false, usageS
   const [adding, setAdding] = useState(false);
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [usageOpen, setUsageOpen] = useState(false);
+  const [skillsOpen, setSkillsOpen] = useState(false);
   const [chats, setChats] = useState<ChatEntry[]>([]);
   const [switching, setSwitching] = useState(false);
   const [viewing, setViewing] = useState<string>();
@@ -163,6 +167,17 @@ export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false, usageS
     });
   }, []);
   useCommand(agentsCommands()[1]!, togglePanel);
+  const showTrajectory = useCallback(() => {
+    setPanelHidden(false);
+    try {
+      localStorage.setItem(PANEL_KEY, '0');
+    } catch {
+      /* storage unavailable */
+    }
+    setPanelTab('trajectory');
+    writePanelTab('trajectory');
+  }, []);
+  useCommand(agentsCommands()[22]!, showTrajectory);
 
   const waiting = needsYouCount(sessions);
   useEffect(() => {
@@ -224,6 +239,7 @@ export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false, usageS
   useCommand(agentsCommands()[2]!, jumpWaiting);
   useCommand(agentsCommands()[3]!, () => setAlertsOpen(true));
   useCommand(agentsCommands()[20]!, () => setUsageOpen(true));
+  useCommand(agentsCommands()[23]!, () => setSkillsOpen(true));
 
   const resume = useCallback(
     async (items: AgentRunning[]) => {
@@ -490,6 +506,7 @@ export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false, usageS
       }
       {alertsOpen && <AlertsPanel projects={projects} onClose={() => setAlertsOpen(false)} />}
       {usageOpen && <UsageTab usage={usage} activeAccount={usageViewData(sessions.find((s) => s.id === selectedId), usage, []).usage?.account} use24h={usageSettings?.use24h} onClose={() => setUsageOpen(false)} />}
+      {skillsOpen && <SkillsPanel onClose={() => setSkillsOpen(false)} />}
       {adding && <AddProject added={projects} onAdded={(p) => setProjects((l) => [...l, p])} onClose={() => setAdding(false)} />}
       <section className="agents-main">
         <header className="agents-main-head">
@@ -634,7 +651,7 @@ export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false, usageS
           {!summaryProject && !folderFor && !inTerminal && !inChat && !inExternal && !inPreview && newFor === undefined && <p className="agents-empty agents-placeholder">{t('agents.pick')}</p>}
         </div>
       </section>
-      {!panelHidden && <SidePanel onClose={togglePanel} notes={<NotesTab project={selected?.project} canSend={(inTerminal || inChat) && newFor === undefined} onSend={sendToSession} />} changes={<ChangesTab root={projects.find((p) => p.id === selected?.project)?.path ?? selected?.cwd} status={selected?.status} />} />}
+      {!panelHidden && <SidePanel onClose={togglePanel} tab={panelTab} onTabChange={setPanelTab} trajectory={<TrajectoryTab sessionId={selected?.id} available={!!selected && selected.lifecycle !== 'starting'} onClose={togglePanel} />} notes={<NotesTab project={selected?.project} canSend={(inTerminal || inChat) && newFor === undefined} onSend={sendToSession} />} changes={<ChangesTab root={projects.find((p) => p.id === selected?.project)?.path ?? selected?.cwd} status={selected?.status} />} />}
     </div>
   );
 }

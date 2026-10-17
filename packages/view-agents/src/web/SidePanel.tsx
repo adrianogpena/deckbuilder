@@ -1,17 +1,27 @@
 import { type ReactNode, useState } from 'react';
 import { t } from '../i18n';
 
-export type SidePanelTab = 'changes' | 'notes';
+export type SidePanelTab = 'changes' | 'notes' | 'trajectory';
 
 const TAB_KEY = 'deckbuilder.agents.panelTab';
-const TABS: SidePanelTab[] = ['changes', 'notes'];
+const TABS: SidePanelTab[] = ['changes', 'notes', 'trajectory'];
 
-const readTab = (): SidePanelTab => {
+/** The remembered tab (`deckbuilder.agents.panelTab`), Changes by default. */
+export const readPanelTab = (): SidePanelTab => {
   try {
     const v = localStorage.getItem(TAB_KEY);
-    return v === 'notes' ? 'notes' : 'changes';
+    return v === 'notes' || v === 'trajectory' ? v : 'changes';
   } catch {
     return 'changes';
+  }
+};
+
+/** Remembers the active tab. */
+export const writePanelTab = (tab: SidePanelTab) => {
+  try {
+    localStorage.setItem(TAB_KEY, tab);
+  } catch {
+    /* storage unavailable */
   }
 };
 
@@ -20,24 +30,27 @@ export interface SidePanelProps {
   changes?: ReactNode;
   /** Content of the Notes tab; a placeholder when absent. */
   notes?: ReactNode;
+  /** Content of the Trajectory tab; a placeholder when absent. */
+  trajectory?: ReactNode;
+  /** Active tab when controlled by the parent; else kept here. */
+  tab?: SidePanelTab;
+  onTabChange?: (tab: SidePanelTab) => void;
   onClose: () => void;
 }
 
-/** Right side panel of the Agents view: Changes / Notes tabs, the active one remembered. */
-export function SidePanel({ changes, notes, onClose }: SidePanelProps) {
-  const [tab, setTab] = useState(readTab);
+/** Right side panel of the Agents view: Changes / Notes / Trajectory tabs, the active one remembered. */
+export function SidePanel({ changes, notes, trajectory, tab: controlled, onTabChange, onClose }: SidePanelProps) {
+  const [own, setOwn] = useState(readPanelTab);
+  const tab = controlled ?? own;
   const pick = (next: SidePanelTab) => {
-    setTab(next);
-    try {
-      localStorage.setItem(TAB_KEY, next);
-    } catch {
-      /* storage unavailable */
-    }
+    setOwn(next);
+    writePanelTab(next);
+    onTabChange?.(next);
   };
-  const content = tab === 'changes' ? changes : notes;
+  const content = tab === 'changes' ? changes : tab === 'notes' ? notes : trajectory;
 
   return (
-    <aside className="agents-panel" aria-label={t('agents.panel.label')}>
+    <aside className={`agents-panel${tab === 'trajectory' ? ' agents-panel-wide' : ''}`} aria-label={t('agents.panel.label')}>
       <header className="agents-panel-head">
         <div className="agents-panel-tabs" role="tablist">
           {TABS.map((id) => (

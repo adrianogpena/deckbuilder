@@ -5,7 +5,7 @@ import { createToaster } from '@deckbuilderkit/platform';
 import { defineServerView, ndjson, socketTickets, validGroup, type SocketData, type SocketRoutes } from '@deckbuilderkit/server-core';
 import type { ServerWebSocket } from 'bun';
 import { CHAT_SOCKET_PATH, type ChatClientFrame, type ChatServerFrame } from './chat-protocol.ts';
-import type { AgentAccountUsage, AgentActiveAccountResult, AgentActiveAccountSet, AgentLaunch, AgentRunning, AgentSessionView, AgentsCapWarn, AgentsFrame, AgentStopResult } from './protocol.ts';
+import type { AgentLocal, AgentSkill, AgentAccountUsage, AgentActiveAccountResult, AgentActiveAccountSet, AgentLaunch, AgentRunning, AgentSessionView, AgentsCapWarn, AgentsFrame, AgentStopResult } from './protocol.ts';
 import type { AgentsMode, AgentsSettings, AgentsUsagePosition } from './settings-types.ts';
 import { type AgentAccount, accountByDir, createAccountRegistry, detectAccounts, resolveActiveAccount } from './server/accounts.ts';
 import { createAlerts } from './server/alerts.ts';
@@ -18,6 +18,8 @@ import { type ChatManager, type ChatSession, type ChatSubscriber, createChatMana
 import { findSessionFile, loadHistory } from './server/chat/normalize.ts';
 import { createTailer, type Tailer } from './server/tail.ts';
 import { lastResponse } from './server/last-response.ts';
+import { readTrace } from './server/trace.ts';
+import { listAgents, listSkills } from './server/skills.ts';
 import { CHAT_MCP_PATH } from './server/chat/permission-mcp.ts';
 import type { SpawnFn } from './server/chat/process.ts';
 import { capPerProject, createSessionScanner, matchProject } from './server/discovery.ts';
@@ -594,6 +596,20 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
             if (file) return { text: lastResponse(file) };
           }
           return { text: null };
+        },
+        'GET /api/agents/skills': async () => {
+          const accs = accounts();
+          const active = activeOf(accs, (await loadSettings().catch(() => ({}) as AgentsServerSettings)).agents);
+          const dir = active?.dir;
+          return { account: active?.id ?? '', skills: dir ? listSkills(dir) : [], agents: dir ? listAgents(dir) : [] } satisfies { account: string; skills: AgentSkill[]; agents: AgentLocal[] };
+        },
+        'GET /api/agents/trace': ({ url }) => {
+          const id = url?.searchParams.get('sessionId') ?? '';
+          for (const a of accounts()) {
+            const file = findSessionFile(a.dir, id);
+            if (file) return { steps: readTrace(file) };
+          }
+          return { steps: [] };
         },
         'GET /api/agents/recovery': async () => {
           const { sessions } = await compute();

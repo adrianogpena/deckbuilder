@@ -286,6 +286,37 @@ export type AgentsFrame =
   | { type: 'git'; status: Record<string, GitStatus> }
   | { type: 'tail'; sessionId: string; turns: Array<{ role: 'user' | 'assistant'; text: string }> };
 
+/** One step of a session trace (user prompt, assistant reply or tool call with its result). */
+export interface AgentTraceStep {
+  kind: 'user' | 'assistant' | 'tool';
+  label: string;
+  detail: string;
+  error?: boolean;
+}
+
+export type AgentSkillState = 'on' | 'name-only' | 'user-invocable-only' | 'off';
+
+export interface AgentSkill {
+  name: string;
+  description: string;
+  state: AgentSkillState;
+}
+
+export interface AgentLocal {
+  name: string;
+  description: string;
+}
+
+export interface AgentSkillsResponse {
+  account: string;
+  skills: AgentSkill[];
+  agents: AgentLocal[];
+}
+
+export interface AgentTraceResponse {
+  steps: AgentTraceStep[];
+}
+
 /** A project added to the Agents view. */
 export interface AgentProject {
   id: string;
