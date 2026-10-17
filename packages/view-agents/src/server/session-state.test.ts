@@ -2,16 +2,16 @@ import { expect, test } from 'bun:test';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createSessionStateStore, SETTLE_AFTER_MS } from './session-state.ts';
+import { createSessionStateStore, normalizeTags, SETTLE_AFTER_MS, tagCounts } from './session-state.ts';
 
 test('set merges, clears the name and persists', () => {
   const file = join(mkdtempSync(join(tmpdir(), 'agents-state-')), 'agents', 'session-state.json');
   const s = createSessionStateStore(file);
   expect(s.get('a')).toBeUndefined();
-  expect(s.set('a', { pinned: true, name: ' My name ' })).toEqual({ pinned: true, name: 'My name' });
-  expect(s.set('a', { archived: true })).toEqual({ pinned: true, name: 'My name', archived: true });
-  expect(s.set('a', { name: '' })).toEqual({ pinned: true, archived: true });
-  expect(createSessionStateStore(file).get('a')).toEqual({ pinned: true, archived: true });
+  expect(s.set('a', { pin: 'cycle', name: ' My name ' })).toEqual({ pin: 'top', name: 'My name' });
+  expect(s.set('a', { archived: true })).toEqual({ pin: 'top', name: 'My name', archived: true });
+  expect(s.set('a', { name: '' })).toEqual({ pin: 'top', archived: true });
+  expect(createSessionStateStore(file).get('a')).toEqual({ pin: 'top', archived: true });
 });
 
 test('settle archives old stopped sessions once, never after a manual unarchive', () => {
@@ -31,4 +31,21 @@ test('settle archives old stopped sessions once, never after a manual unarchive'
   expect(s.get('busy')).toBeUndefined();
   expect(s.get('manual')?.archived).toBe(false);
   expect(s.settle(list, now)).toBe(false);
+});
+
+test('tags: normalise, replace, batch add, remove everywhere, counts', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ss-'));
+  const store = createSessionStateStore(join(dir, 's.json'));
+  expect(normalizeTags(' b, a ,,b, A b ')).toEqual(['b', 'a', 'A b']);
+  expect(store.set('s1', { tags: 'x, y ,x' }).tags).toEqual(['x', 'y']);
+  expect(store.set('s1', { tags: ' , ' }).tags).toBeUndefined();
+  store.set('s1', { tags: 'x,y' });
+  store.addTags(['s1', 's2'], 'z, x');
+  expect(store.get('s1')!.tags).toEqual(['x', 'y', 'z']);
+  expect(store.get('s2')!.tags).toEqual(['z', 'x']);
+  store.set('s3', { archived: true, tags: 'x' });
+  expect(store.removeTag('x')).toBe(3);
+  expect(store.get('s3')!.tags).toBeUndefined();
+  expect(createSessionStateStore(join(dir, 's.json')).get('s2')!.tags).toEqual(['z']);
+  expect(tagCounts([{ tags: ['b', 'B'] }, { tags: ['a', 'b'] }, {}])).toEqual([{ tag: 'a', count: 1 }, { tag: 'B', count: 1 }, { tag: 'b', count: 2 }]);
 });

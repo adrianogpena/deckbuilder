@@ -9,6 +9,8 @@ export interface AgentsSettings {
   softCap?: number;
   /** Selecting a stopped session resumes it; off (default) shows the stopped-session card instead. */
   resumeOnSelect?: boolean;
+  /** Sessions kept per project (live ones always count first); 10 when omitted. */
+  maxSessionsPerProject?: number;
   /** Archive stopped sessions idle for 7+ days automatically; on when omitted. */
   autoSettle?: boolean;
   /** Toast when a session needs you / finishes / fails and is not on screen; on when omitted. */

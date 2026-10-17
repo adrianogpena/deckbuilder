@@ -16,6 +16,52 @@ export type AgentCategory = 'running' | 'waiting' | 'idle' | 'error' | 'stopped'
 
 export const STATUS_CATEGORY: Record<AgentStatus, AgentCategory> = { starting: 'running', running: 'running', done: 'waiting', 'needs-you': 'waiting', idle: 'idle', exited: 'error', error: 'error', stopped: 'stopped' };
 
+export type AgentPin = 'top' | 'bottom';
+
+/** A tree folder: random 8-hex id, a label, and the project keys in it (stored order). */
+export interface AgentTreeFolder {
+  id: string;
+  name: string;
+  projects: string[];
+}
+
+export type AgentTreeSort = 'manual' | 'recent' | 'actionable';
+export type AgentTreeView = 'normal' | 'active';
+
+/** `<dataDir>/agents/tree.json`, all keyed by project key (`GET`/`PATCH /api/agents/tree`). */
+export interface AgentTree {
+  folders: AgentTreeFolder[];
+  topOrder: string[];
+  sessionOrder: Record<string, string[]>;
+  /** Node keys: `folder:<id>` and `project:<project key>`. */
+  collapsed: string[];
+  sort: AgentTreeSort;
+  view: AgentTreeView;
+}
+
+/** Body of `PATCH /api/agents/tree`; the reply is `{ ok, error?, tree }`. */
+export type AgentTreePatch =
+  | { collapse: { key: string; collapsed: boolean } }
+  | { sort: AgentTreeSort }
+  | { view: AgentTreeView }
+  | { move: { kind: 'folder'; id: string; dir: -1 | 1 } }
+  | { move: { kind: 'project'; key: string; dir: -1 | 1; folder?: string; displayed: string[] } }
+  | { move: { kind: 'session'; project: string; id: string; dir: -1 | 1; displayed: string[] } }
+  | { freeze: Record<string, string[]> }
+  | { newSession: { project: string; id: string } }
+  | { clearedId: { project: string; oldId: string; newId: string } }
+  | { folderCreate: { name: string } }
+  | { folderRename: { id: string; name: string } }
+  | { folderDelete: { id: string } }
+  /** `keys` are distinct project keys in order; `folder` absent = the top-level manual order. */
+  | { moveToFolder: { keys: string[]; folder?: string } };
+
+/** One row of `GET /api/agents/tags`: a distinct tag and the number of listed sessions carrying it. */
+export interface AgentTagCount {
+  tag: string;
+  count: number;
+}
+
 export interface AgentSession {
   id: string;
   account: string;
@@ -29,19 +75,24 @@ export interface AgentSession {
   tokens?: AgentTokens;
   /** Context window used, 0-100: from the statusLine usage file, else the last assistant turn vs the model's window; absent when unknown. */
   contextPercent?: number;
-  /** Pinned to the top of its project. */
+  /** Held at the top or bottom of its project. */
+  pin?: AgentPin;
+  /** Derived: `pin === 'top'`. */
   pinned?: boolean;
   /** App-side name overriding the title. */
   name?: string;
   /** Hidden under the collapsed Archived section. */
   archived?: boolean;
+  /** Normalised tags (the field is absent when empty). */
+  tags?: string[];
 }
 
 /** Stored pin / rename / archive state of one session (`PATCH /api/agents/session-state`). */
 export interface AgentSessionState {
-  pinned?: boolean;
+  pin?: AgentPin;
   name?: string;
   archived?: boolean;
+  tags?: string[];
 }
 
 /** Notes of a project (`GET /api/agents/notes?project=`). */

@@ -2,7 +2,7 @@ import { afterEach, expect, test } from 'bun:test';
 import { appendFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createSessionScanner, matchProject } from './discovery';
+import { capPerProject, createSessionScanner, matchProject } from './discovery';
 
 let dir = '';
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
@@ -99,4 +99,16 @@ test('omits tokens and context when the transcript has no usage', () => {
   const [a] = createSessionScanner().scan([{ id: 'acc', dir }]);
   expect(a.tokens).toBeUndefined();
   expect(a.contextPercent).toBeUndefined();
+});
+
+test('capPerProject keeps live first, then newest, in original order', () => {
+  const items = [
+    { id: 'a', project: 'p', updatedAt: 5 },
+    { id: 'b', project: 'p', updatedAt: 9 },
+    { id: 'c', project: 'p', updatedAt: 1, live: true },
+    { id: 'd', project: 'q', updatedAt: 1 },
+    { id: 'e', project: 'p', updatedAt: 7 },
+  ];
+  expect(capPerProject(items, 2).map((x) => x.id)).toEqual(['b', 'c', 'd']);
+  expect(capPerProject(items, 1).map((x) => x.id)).toEqual(['c', 'd']);
 });

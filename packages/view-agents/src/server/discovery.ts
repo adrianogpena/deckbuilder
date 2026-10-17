@@ -280,3 +280,24 @@ export function matchProject<P extends ProjectRef>(
   }
   return best;
 }
+
+/** At most `cap` sessions per project: live ones first (always kept), then newest by `updatedAt`. Original order is kept; archived ones use slots. */
+export function capPerProject<T extends { project?: string; live?: boolean; updatedAt: number }>(items: T[], cap: number): T[] {
+  const keep = new Set<T>();
+  const by = new Map<string, T[]>();
+  for (const x of items) {
+    if (x.project === undefined || x.live) {
+      keep.add(x);
+      continue;
+    }
+    const l = by.get(x.project);
+    if (l) l.push(x);
+    else by.set(x.project, [x]);
+  }
+  for (const [project, rest] of by) {
+    const used = items.filter((x) => x.project === project && x.live).length;
+    rest.sort((a, b) => b.updatedAt - a.updatedAt);
+    for (const x of rest.slice(0, Math.max(0, cap - used))) keep.add(x);
+  }
+  return items.filter((x) => keep.has(x));
+}

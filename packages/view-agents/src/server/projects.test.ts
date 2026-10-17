@@ -17,3 +17,16 @@ test('add, dedupe, persist and remove', () => {
   expect(s.remove(a.id)).toBe(false);
   expect(createProjectsStore(file).list()).toEqual([]);
 });
+
+test('remove hides, add un-hides, hidden persists', () => {
+  const file = join(mkdtempSync(join(tmpdir(), 'agents-proj-')), 'agents', 'projects.json');
+  const s = createProjectsStore(file);
+  const a = s.add({ path: 'C:/code/app' })!;
+  expect(s.remove(a.id)).toBe(true);
+  expect(s.list()).toEqual([]);
+  expect(s.hidden()).toEqual(['c:/code/app']);
+  expect(createProjectsStore(file).list()).toEqual([]);
+  expect(s.add({ path: 'c:/code/APP' })).toEqual(a);
+  expect(s.list()).toEqual([a]);
+  expect(s.hidden()).toEqual([]);
+});

@@ -19,16 +19,18 @@ import { createTailer, type Tailer } from './server/tail.ts';
 import { lastResponse } from './server/last-response.ts';
 import { CHAT_MCP_PATH } from './server/chat/permission-mcp.ts';
 import type { SpawnFn } from './server/chat/process.ts';
-import { createSessionScanner, matchProject } from './server/discovery.ts';
+import { capPerProject, createSessionScanner, matchProject } from './server/discovery.ts';
 import { createLifecycle, cwdProblem, planRestart, stopOutcome, type TermInfo } from './server/lifecycle.ts';
 import { detectScreenError } from './server/screen-errors.ts';
-import { createProjectsStore, type ProjectsStore } from './server/projects.ts';
+import { createProjectsStore, projectKey, type ProjectsStore } from './server/projects.ts';
 import { createRunningStore, type RunningRecord, type RunningStore } from './server/running.ts';
 import { createNotesStore } from './server/notes.ts';
-import { createSessionStateStore, type SessionStateStore } from './server/session-state.ts';
+import { createSessionStateStore, tagCounts, type SessionStateStore } from './server/session-state.ts';
+import { createTreeStore } from './server/tree.ts';
 import { searchSessions } from './server/search.ts';
 import { createStatuslineInstaller } from './server/statusline-install.ts';
 import { type AgentStatus, createStatusTracker, externalIds, readPidFiles } from './server/status.ts';
+import type { AgentTreePatch } from './protocol.ts';
 import { createUsageReader, usageContextPercent } from './server/usage.ts';
 
 /** The part of the server settings the Agents view owns; the app's `Settings` extends it. */
@@ -40,7 +42,7 @@ export interface AgentsServerSettings {
 /** A copy of `raw` when it is a well-formed Agents settings group, else null. */
 const AGENTS_MODES: AgentsMode[] = ['terminal', 'chat'];
 
-const AGENTS_SPEC = { mode: AGENTS_MODES, softCap: [1, 100], notifyNeedsYou: 'boolean', notifyDone: 'boolean', notifyError: 'boolean', autoSettle: 'boolean', resumeOnSelect: 'boolean', claudeCommand: 'string', 'hooks.onRunning': 'string', 'hooks.onWaiting': 'string', 'hooks.onDone': 'string', 'hooks.onError': 'string' } as const;
+const AGENTS_SPEC = { mode: AGENTS_MODES, softCap: [1, 100], notifyNeedsYou: 'boolean', notifyDone: 'boolean', notifyError: 'boolean', autoSettle: 'boolean', resumeOnSelect: 'boolean', maxSessionsPerProject: [1, 10000], claudeCommand: 'string', 'hooks.onRunning': 'string', 'hooks.onWaiting': 'string', 'hooks.onDone': 'string', 'hooks.onError': 'string' } as const;
 
 /** Validates the group; a valid one is the saved one, so the cached `claude` resolution is refilled from it. */
 export const validAgents = (raw: unknown): AgentsSettings | null => {
@@ -255,6 +257,9 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
       .map((x) => ({ ...x, lifecycle: lc.exited.has(x.id) ? ('exited' as const) : lc.starting.has(x.id) ? ('starting' as const) : undefined, exitCode: lc.exited.get(x.id), contextPercent: usageContextPercent(usage.bySession.get(x.id)) ?? x.contextPercent, status: statusOf(x.id), live: statuses.has(x.id) || undefined, external: external.has(x.id) || undefined, project: matchProject(x.cwd, refs)?.id, seenAt: s[x.id] }))
       .filter((x) => x.project !== undefined)
       .sort((a, b) => b.updatedAt - a.updatedAt);
+    const cap = (await loadSettings()).agents?.maxSessionsPerProject;
+    const shown = capPerProject(views, typeof cap === 'number' && cap >= 1 ? Math.floor(cap) : 10);
+    views.splice(0, views.length, ...shown);
     if ((await loadSettings()).agents?.autoSettle !== false) sessionState?.settle(views);
     // A pty whose session has no transcript yet (new, or after `/clear`): listed with the empty title until the first message.
     const scanned = new Set(views.map((x) => x.id));
@@ -266,7 +271,10 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
       const lifecycle = lc.exited.has(term.sessionId) ? ('exited' as const) : lc.starting.has(term.sessionId) ? ('starting' as const) : undefined;
       views.push({ id: term.sessionId, account: term.account, cwd: term.cwd, title: '', firstPrompt: '', updatedAt: Date.now(), status: statusOf(term.sessionId), live: statuses.has(term.sessionId) || undefined, project, lifecycle, exitCode: lc.exited.get(term.sessionId), seenAt: s[term.sessionId] });
     }
-    const sessions = views.map((x) => ({ ...x, ...sessionState?.get(x.id) }));
+    const sessions = views.map((x) => {
+      const st = sessionState?.get(x.id);
+      return { ...x, ...st, pinned: st?.pin === 'top' || undefined };
+    });
     const status: Record<string, AgentStatus> = {};
     for (const x of sessions) status[x.id] = x.status;
     void hooks.observe(sessions);
@@ -350,6 +358,7 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
       projects = store;
       const states = createSessionStateStore(join(ctx.dataDir, 'agents', 'session-state.json'));
       sessionState = states;
+      const tree = createTreeStore(join(ctx.dataDir, 'agents', 'tree.json'));
       const notes = createNotesStore(join(ctx.dataDir, 'agents', 'notes'));
       loadSettings = () => ctx.settings.load();
       void loadSettings().then((s) => claudeCommand.configure(s.agents), () => {});
@@ -386,14 +395,41 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
         'GET /api/agents/alerts': () => alerts.list(),
         'GET /api/agents/sessions': async () => (await compute()).sessions,
         'GET /api/agents/projects': () => store.list(),
+        // Explorer projects (the app's `projects` record store) not added yet.
+        'GET /api/agents/projects/suggestions': async () => {
+          const rs = ctx.stores.projects as { list(): Promise<Array<{ name: string; path: string }>> } | undefined;
+          const have = new Set(store.list().map((p) => projectKey(p.path)));
+          return ((await rs?.list()) ?? []).filter((p) => typeof p.path === 'string' && !have.has(projectKey(p.path))).map((p) => ({ name: p.name, path: p.path }));
+        },
         // Pin / rename / archive one session (no path params in the router, so the id is in the body); '' or null clears the name.
         'PATCH /api/agents/session-state': async ({ json }) => {
-          const b = await json<{ id?: unknown; pinned?: unknown; name?: unknown; archived?: unknown }>();
+          const b = await json<{ id?: unknown; pin?: unknown; pinned?: unknown; name?: unknown; archived?: unknown; tags?: unknown }>();
           if (typeof b.id !== 'string' || !b.id) return { ok: false };
           states.set(b.id, b);
           await refresh(true);
           return { ok: true };
         },
+        // Tag counts over the listed sessions (hidden projects are not listed).
+        'GET /api/agents/tags': async () => tagCounts((await compute()).sessions),
+        // Appends tags to each listed session id; never replaces.
+        'POST /api/agents/tags/add': async ({ json }) => {
+          const b = await json<{ ids?: unknown; tags?: unknown }>();
+          if (!Array.isArray(b.ids)) return { ok: false };
+          states.addTags(b.ids.filter((x): x is string => typeof x === 'string'), b.tags);
+          await refresh(true);
+          return { ok: true };
+        },
+        // Removes one exact tag from every loaded session carrying it (archived included).
+        'POST /api/agents/tags/remove': async ({ json }) => {
+          const b = await json<{ tag?: unknown }>();
+          if (typeof b.tag !== 'string' || !b.tag) return { ok: false, count: 0 };
+          const count = states.removeTag(b.tag, (await compute()).sessions.map((s) => s.id));
+          if (count) await refresh(true);
+          return { ok: true, count };
+        },
+        // Sidebar tree (folders, manual orders, collapse, sort, view); PATCH takes one AgentTreePatch and replies {ok, error?, tree}.
+        'GET /api/agents/tree': () => tree.read(),
+        'PATCH /api/agents/tree': async ({ json }) => tree.patch(await json<AgentTreePatch>()),
         // Per-project markdown notes (the id is in the query / body: no path params).
         'GET /api/agents/notes': ({ query }) => ({ text: notes.read(query.get('project') ?? '') }),
         'PUT /api/agents/notes': async ({ json }) => {
