@@ -1,16 +1,30 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ErrorBanner, SettingItem, Spinner, useAsync, type SettingsCardProps } from '@deckbuilderkit/ui';
 import { agentsSettingDefs, type AgentsViewSettings } from '../settings';
 import { t, type AgentsMessageKey } from '../i18n';
+import { UsageView, usageSample, usageSettingsOf } from './UsageView';
 import { installStatusline, listStatusline, uninstallStatusline, type AgentStatuslineStatus } from './api';
 
 const IDS = agentsSettingDefs.map((d) => d.id);
+const USAGE_IDS = IDS.filter((id) => id.startsWith('agents.usage.'));
+const OTHER_IDS = IDS.filter((id) => !id.startsWith('agents.usage.'));
 
 /** The Agents settings page: the schema rows, then the usage status line install per account. */
-export function AgentsSettingsCard({ rows }: SettingsCardProps<AgentsViewSettings>) {
+export function AgentsSettingsCard({ settings, rows }: SettingsCardProps<AgentsViewSettings>) {
+  const usage = usageSettingsOf(settings.agents);
+  const now = useMemo(() => Date.now(), []);
+  const sample = useMemo(() => usageSample(now), [now]);
   return (
     <>
-      {rows(IDS)}
+      {rows(OTHER_IDS)}
+      <div className="settings-format">
+        <aside className="settings-format-preview">
+          <h4 className="mono-label">{t('settings.agents.usage.preview')}</h4>
+          <span className="muted">{t('settings.agents.usage.preview.hint')}</span>
+          <UsageView {...sample} items={usage.items} compact={usage.compact} use24h={usage.use24h} now={now} />
+        </aside>
+        <div className="settings-format-options">{rows(USAGE_IDS)}</div>
+      </div>
       <StatuslineSection />
     </>
   );
