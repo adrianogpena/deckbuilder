@@ -1,9 +1,10 @@
 import { bool, groupField, num, oneOf, str, type SettingDef } from '@deckbuilderkit/ui';
-import type { AgentsMode, AgentsSettings } from './settings-types';
+import type { AgentsMode, AgentsSettings, AgentsUsagePosition } from './settings-types';
 
-export type { AgentsMode, AgentsSettings };
+export type { AgentsMode, AgentsSettings, AgentsUsagePosition };
 
 const AGENTS_MODES: readonly AgentsMode[] = ['terminal', 'chat'];
+export const USAGE_POSITIONS: readonly AgentsUsagePosition[] = ['float', 'top', 'bottom'];
 
 /** The part of the app settings the Agents view reads; the app's `Settings` extends it. */
 export interface AgentsViewSettings {
@@ -39,6 +40,16 @@ export const agentsSettingDefs: SettingDef<AgentsViewSettings>[] = [
   groupField<AgentsViewSettings, 'agents'>('agents', 'trashRetentionDays', 18, num(30, 1, 3650)),
   groupField<AgentsViewSettings, 'agents'>('agents', 'autoSettle', 25, bool(true)),
   groupField<AgentsViewSettings, 'agents'>('agents', 'gitStatus', 27, bool(true)),
+  groupField<AgentsViewSettings, 'agents'>('agents', 'usage.show', 28, bool(false)),
+  groupField<AgentsViewSettings, 'agents'>('agents', 'usage.position', 28.1, oneOf('float', USAGE_POSITIONS)),
+  groupField<AgentsViewSettings, 'agents'>('agents', 'usage.compact', 28.2, bool(false)),
+  groupField<AgentsViewSettings, 'agents'>('agents', 'usage.use24HourClock', 28.3, bool(false)),
+  groupField<AgentsViewSettings, 'agents'>('agents', 'usage.showAccount', 28.4, bool(true)),
+  groupField<AgentsViewSettings, 'agents'>('agents', 'usage.showModel', 28.5, bool(true)),
+  groupField<AgentsViewSettings, 'agents'>('agents', 'usage.showCache', 28.6, bool(true)),
+  groupField<AgentsViewSettings, 'agents'>('agents', 'usage.showContext', 28.7, bool(true)),
+  groupField<AgentsViewSettings, 'agents'>('agents', 'usage.showFiveHour', 28.8, bool(true)),
+  groupField<AgentsViewSettings, 'agents'>('agents', 'usage.showSevenDay', 28.9, bool(true)),
   groupField<AgentsViewSettings, 'agents'>('agents', 'notifyNeedsYou', 30, bool(true)),
   groupField<AgentsViewSettings, 'agents'>('agents', 'notifyDone', 40, bool(true)),
   groupField<AgentsViewSettings, 'agents'>('agents', 'notifyError', 50, bool(true)),

@@ -1,3 +1,4 @@
+import { type UsageSettings, usageViewData } from './UsageView';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { errorOf, setTitleBadge, useCommand, useKeybindings } from '@deckbuilderkit/ui';
 import { TerminalPane, terminalAppKeys, type TerminalPaneHandle } from '@deckbuilderkit/terminal';
@@ -7,6 +8,7 @@ import { t } from '../i18n';
 import { lastResponse, type AgentProject, type AgentRunning, type AgentSessionView, dismissRecovery, listAgentProjects, listRecovery, markSeen, removeAgentProject, reportShown, restartSession, startInBackground, startSession, stopChat, stopSession, terminalOf } from './api';
 import { AddProject } from './AddProject';
 import { AlertsPanel } from './AlertsPanel';
+import { UsageTab } from './UsageTab';
 import { displayName, needsYouCount, nextWaiting } from './attention';
 import { ChatPane } from './chat/ChatPane';
 import { ExternalPane } from './ExternalPane';
@@ -75,7 +77,7 @@ function GitLine({ g }: { g: GitStatus }) {
 const linkedSession = () => /^#\/?agents\/([\w.-]+)\/?$/.exec(window.location.hash)?.[1];
 
 /** Agents screen: the sessions sidebar and the selected session's terminal. */
-export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false }: { mode?: 'terminal' | 'chat'; resumeOnSelect?: boolean }) {
+export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false, usageSettings }: { mode?: 'terminal' | 'chat'; resumeOnSelect?: boolean; usageSettings?: UsageSettings }) {
   const { sessions, usage, git } = useAgentsFeed();
   const keys = useKeybindings();
   const [hidden, setHidden] = useState(readHidden);
@@ -110,6 +112,7 @@ export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false }: { mo
   const [projects, setProjects] = useState<AgentProject[]>([]);
   const [adding, setAdding] = useState(false);
   const [alertsOpen, setAlertsOpen] = useState(false);
+  const [usageOpen, setUsageOpen] = useState(false);
   const [chats, setChats] = useState<ChatEntry[]>([]);
   const [switching, setSwitching] = useState(false);
   const [viewing, setViewing] = useState<string>();
@@ -214,6 +217,7 @@ export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false }: { mo
   }, [sessions, select]);
   useCommand(agentsCommands()[2]!, jumpWaiting);
   useCommand(agentsCommands()[3]!, () => setAlertsOpen(true));
+  useCommand(agentsCommands()[20]!, () => setUsageOpen(true));
 
   const resume = useCallback(
     async (items: AgentRunning[]) => {
@@ -447,6 +451,8 @@ export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false }: { mo
           projects={projects}
           sessions={sessions}
           usage={usage}
+          usageSettings={usageSettings}
+          onOpenUsage={() => setUsageOpen(true)}
           git={git}
           selectedId={selectedId}
           onSelect={(id) => void select(id)}
@@ -464,6 +470,7 @@ export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false }: { mo
         />
       }
       {alertsOpen && <AlertsPanel projects={projects} onClose={() => setAlertsOpen(false)} />}
+      {usageOpen && <UsageTab usage={usage} activeAccount={usageViewData(sessions.find((s) => s.id === selectedId), usage, []).usage?.account} use24h={usageSettings?.use24h} onClose={() => setUsageOpen(false)} />}
       {adding && <AddProject added={projects} onAdded={(p) => setProjects((l) => [...l, p])} onClose={() => setAdding(false)} />}
       <section className="agents-main">
         <header className="agents-main-head">

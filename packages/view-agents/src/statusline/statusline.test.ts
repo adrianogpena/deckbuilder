@@ -67,3 +67,28 @@ test('launcher runs the script with the given runtime', () => {
   expect(statuslineWrapper('C:\\app\\deckbuilder.exe', 'win32')).toBe('@echo off\r\nset BUN_BE_BUN=1\r\n"C:\\app\\deckbuilder.exe" "%~dp0statusline.mjs" %*\r\n');
   expect(statuslineWrapper('/opt/db', 'linux')).toContain('BUN_BE_BUN=1 exec "/opt/db"');
 });
+
+test('merges records: 1-decimal context, startup context kept, model/effort latest, rate limits never erased', () => {
+  setup(null);
+  const file = join(dir, 'usage', '.claude-work', 'm1.json');
+  run(JSON.stringify({ session_id: 'm1', model: { display_name: 'Opus' }, effort: 'high', context_window: { used_percentage: 0 }, rate_limits: { five_hour: { used_percentage: 5, resets_at: 9 } } }));
+  run(JSON.stringify({ session_id: 'm1', model: { display_name: 'Sonnet' }, effort: { level: 'low' }, context_window: { used_percentage: 0.94 } }));
+  const mid = JSON.parse(readFileSync(file, 'utf8'));
+  expect(mid.startupContextPercent).toBe(0.9);
+  expect(mid.context_window.used_percentage).toBe(0.9);
+  expect(mid.model.display_name).toBe('Sonnet');
+  expect(mid.effort).toBe('low');
+  expect(mid.rate_limits.five_hour).toEqual({ used_percentage: 5, resets_at: 9 });
+  run(JSON.stringify({ session_id: 'm1', context_window: { used_percentage: 33.33 } }));
+  const last = JSON.parse(readFileSync(file, 'utf8'));
+  expect(last.startupContextPercent).toBe(0.9);
+  expect(last.context_window.used_percentage).toBe(33.3);
+  expect(last.model.display_name).toBe('Sonnet');
+});
+
+test('prints the cwd and context when there is no previous command', () => {
+  setup(null);
+  expect(run(JSON.stringify({ session_id: 'p1', cwd: '/w/app', context_window: { used_percentage: 41.6 } })).stdout.toString()).toBe('/w/app · ctx 42%');
+  expect(run(JSON.stringify({ session_id: 'p2', cwd: '/w/app' })).stdout.toString()).toBe('/w/app');
+  expect(run(JSON.stringify({ session_id: 'p3' })).stdout.toString()).toBe('');
+});

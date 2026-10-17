@@ -6,7 +6,7 @@ import { defineServerView, ndjson, socketTickets, validGroup, type SocketData, t
 import type { ServerWebSocket } from 'bun';
 import { CHAT_SOCKET_PATH, type ChatClientFrame, type ChatServerFrame } from './chat-protocol.ts';
 import type { AgentAccountUsage, AgentLaunch, AgentRunning, AgentSessionView, AgentsCapWarn, AgentsFrame, AgentStopResult } from './protocol.ts';
-import type { AgentsMode, AgentsSettings } from './settings-types.ts';
+import type { AgentsMode, AgentsSettings, AgentsUsagePosition } from './settings-types.ts';
 import { type AgentAccount, detectAccounts } from './server/accounts.ts';
 import { createAlerts } from './server/alerts.ts';
 import { createGitPoller } from './server/git-status.ts';
@@ -33,7 +33,9 @@ import { createStatuslineInstaller } from './server/statusline-install.ts';
 import { type AgentStatus, createStatusTracker, externalIds, readPidFiles } from './server/status.ts';
 import type { AgentDeleteResult, AgentRestoreResult, AgentTreePatch, AgentTrashEntry } from './protocol.ts';
 import { createTrashStore, isSafeId } from './server/trash.ts';
-import { createUsageReader, usageContextPercent } from './server/usage.ts';
+import { createUsageReader, pruneUsage, usageContextPercent } from './server/usage.ts';
+import { createSevenDayHistory } from './server/usage-history.ts';
+import type { AgentSevenDayHistory } from './protocol.ts';
 
 /** The part of the server settings the Agents view owns; the app's `Settings` extends it. */
 export interface AgentsServerSettings {
@@ -43,8 +45,9 @@ export interface AgentsServerSettings {
 
 /** A copy of `raw` when it is a well-formed Agents settings group, else null. */
 const AGENTS_MODES: AgentsMode[] = ['terminal', 'chat'];
+const USAGE_POSITIONS: AgentsUsagePosition[] = ['float', 'top', 'bottom'];
 
-const AGENTS_SPEC = { mode: AGENTS_MODES, softCap: [1, 100], notifyNeedsYou: 'boolean', notifyDone: 'boolean', notifyError: 'boolean', autoSettle: 'boolean', gitStatus: 'boolean', resumeOnSelect: 'boolean', maxSessionsPerProject: [1, 10000], trashRetentionDays: [1, 3650], claudeCommand: 'string', 'hooks.onRunning': 'string', 'hooks.onWaiting': 'string', 'hooks.onDone': 'string', 'hooks.onError': 'string' } as const;
+const AGENTS_SPEC = { mode: AGENTS_MODES, softCap: [1, 100], notifyNeedsYou: 'boolean', notifyDone: 'boolean', notifyError: 'boolean', autoSettle: 'boolean', gitStatus: 'boolean', resumeOnSelect: 'boolean', 'usage.show': 'boolean', 'usage.position': USAGE_POSITIONS, 'usage.compact': 'boolean', 'usage.use24HourClock': 'boolean', 'usage.showAccount': 'boolean', 'usage.showModel': 'boolean', 'usage.showCache': 'boolean', 'usage.showContext': 'boolean', 'usage.showFiveHour': 'boolean', 'usage.showSevenDay': 'boolean', maxSessionsPerProject: [1, 10000], trashRetentionDays: [1, 3650], claudeCommand: 'string', 'hooks.onRunning': 'string', 'hooks.onWaiting': 'string', 'hooks.onDone': 'string', 'hooks.onError': 'string' } as const;
 
 /** Told on every valid Agents config edit (the running view's git poller). */
 let agentsConfigListener: ((group: AgentsSettings) => void) | undefined;
@@ -65,6 +68,8 @@ export const AGENTS_SOCKET_PATH = '/api/agents/socket';
 const RESCAN_MS = 10_000;
 const LIFECYCLE_MS = 1_000;
 const DEBOUNCE_MS = 300;
+const USAGE_WATCHED_MS = 30_000;
+const USAGE_POLL_MS = 3_000;
 const RUNNING_SYNC_MS = 5_000;
 const DEFAULT_SOFT_CAP = 12;
 
@@ -119,10 +124,13 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
   let timer: ReturnType<typeof setInterval> | undefined;
   let debounce: ReturnType<typeof setTimeout> | undefined;
   let lifeTimer: ReturnType<typeof setInterval> | undefined;
+  let usageTimer: ReturnType<typeof setInterval> | undefined;
   let lastLife = '';
   let seenFile = '';
   let usageDir: string | undefined;
   const usageReader = createUsageReader(() => usageDir);
+  let historyFile: string | undefined;
+  const sevenDayHistory = createSevenDayHistory(() => historyFile);
   let seen: Record<string, number> | undefined;
   let projects: ProjectsStore | undefined;
   let sessionState: SessionStateStore | undefined;
@@ -264,9 +272,10 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
     const statusOf = (id: string): AgentStatus => statuses.get(id) ?? tracker.offline(id, s);
     const external = externalIds(pids, [...liveTerminalIds(), ...(chat?.live().ids ?? [])]);
     const usage = usageReader.read(accs);
+    sevenDayHistory.observe(usage.accounts);
     const views: AgentSessionView[] = scanner
       .scan(accs.map((a) => ({ id: a.id, dir: a.dir })))
-      .map((x) => ({ ...x, lifecycle: lc.exited.has(x.id) ? ('exited' as const) : lc.starting.has(x.id) ? ('starting' as const) : undefined, exitCode: lc.exited.get(x.id), contextPercent: usageContextPercent(usage.bySession.get(x.id)) ?? x.contextPercent, status: statusOf(x.id), live: statuses.has(x.id) || undefined, external: external.has(x.id) || undefined, project: matchProject(x.cwd, refs)?.id, seenAt: s[x.id] }))
+      .map((x) => ({ ...x, lifecycle: lc.exited.has(x.id) ? ('exited' as const) : lc.starting.has(x.id) ? ('starting' as const) : undefined, exitCode: lc.exited.get(x.id), contextPercent: usageContextPercent(usage.bySession.get(x.id)) ?? x.contextPercent, startupContextPercent: usage.bySession.get(x.id)?.startupContextPercent, modelName: usage.bySession.get(x.id)?.model?.display_name, effort: usage.bySession.get(x.id)?.effort, status: statusOf(x.id), live: statuses.has(x.id) || undefined, external: external.has(x.id) || undefined, project: matchProject(x.cwd, refs)?.id, seenAt: s[x.id] }))
       .filter((x) => x.project !== undefined)
       .sort((a, b) => b.updatedAt - a.updatedAt);
     const cap = (await loadSettings()).agents?.maxSessionsPerProject;
@@ -336,6 +345,18 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
         }
       }
     }
+    // Usage: a statusLine write refreshes at once; the timer catches resets passing (30 s), or polls (3 s) when the dir can't be watched.
+    let usageWatched = false;
+    if (usageDir) {
+      try {
+        mkdirSync(usageDir, { recursive: true });
+        watchers.push(watch(usageDir, { recursive: true }, schedule));
+        usageWatched = true;
+      } catch {
+        /* unwatchable: poll faster */
+      }
+    }
+    usageTimer = setInterval(() => void refresh(), usageWatched ? USAGE_WATCHED_MS : USAGE_POLL_MS);
     timer = setInterval(() => void refresh(), opts.rescanMs ?? RESCAN_MS);
     if (opts.terminals) lifeTimer = setInterval(tick, LIFECYCLE_MS);
     git.start();
@@ -354,6 +375,8 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
     for (const w of watchers) w.close();
     watchers = [];
     clearInterval(timer);
+    clearInterval(usageTimer);
+    usageTimer = undefined;
     clearTimeout(debounce);
     clearInterval(lifeTimer);
     git.stop();
@@ -368,6 +391,9 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
       seenFile = join(ctx.dataDir, 'agents', 'seen.json');
       alertsDir = join(ctx.dataDir, 'agents', 'alerts');
       usageDir = join(ctx.dataDir, 'agents', 'usage');
+      pruneUsage(usageDir);
+      // Next to the usage folder, not inside it: the recursive usage watcher would refresh on each history write.
+      historyFile = join(ctx.dataDir, 'agents', 'seven-day-history.json');
       chat = createChatManager({ ...opts.chat, dir: join(ctx.dataDir, 'agents', 'chat'), accounts, baseUrl: () => baseUrl });
       const store = createProjectsStore(join(ctx.dataDir, 'agents', 'projects.json'));
       projects = store;
@@ -596,6 +622,7 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
           }
           return out;
         },
+        'GET /api/agents/usage/history': (): AgentSevenDayHistory => sevenDayHistory.get(),
         'GET /api/agents/trash': (): Promise<AgentTrashEntry[]> => trash.list(),
         'POST /api/agents/trash/restore': async ({ json }): Promise<AgentRestoreResult> => {
           const b = await json<{ id?: unknown }>();

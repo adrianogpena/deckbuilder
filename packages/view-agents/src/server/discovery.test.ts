@@ -1,8 +1,8 @@
 import { afterEach, expect, test } from 'bun:test';
-import { appendFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { capPerProject, createSessionScanner, matchProject } from './discovery';
+import { cacheStateOf, capPerProject, createSessionScanner, matchProject } from './discovery';
 
 let dir = '';
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
@@ -111,4 +111,26 @@ test('capPerProject keeps live first, then newest, in original order', () => {
   ];
   expect(capPerProject(items, 2).map((x) => x.id)).toEqual(['b', 'c', 'd']);
   expect(capPerProject(items, 1).map((x) => x.id)).toEqual(['c', 'd']);
+});
+
+test('cache state: newest reply time, TTL from the newest cache write', () => {
+  dir = mkdtempSync(join(tmpdir(), 'cache-'));
+  const f = join(dir, 't.jsonl');
+  const reply = (ts: string, cache_creation?: object) => ({ type: 'assistant', timestamp: ts, message: { usage: { input_tokens: 1, ...(cache_creation ? { cache_creation } : {}) } } });
+  writeFileSync(
+    f,
+    jl(
+      reply('2026-01-01T10:00:00.000Z', { ephemeral_1h_input_tokens: 500, ephemeral_5m_input_tokens: 0 }),
+      reply('2026-01-01T10:05:00.000Z', { ephemeral_1h_input_tokens: 0, ephemeral_5m_input_tokens: 0 }),
+      { type: 'user', timestamp: '2026-01-01T10:06:00.000Z' },
+    ),
+  );
+  const size = statSync(f).size;
+  expect(cacheStateOf(f, size)).toEqual({ lastRequestAt: Date.parse('2026-01-01T10:05:00.000Z'), ttlMs: 3_600_000 });
+  writeFileSync(f, jl(reply('2026-01-01T10:00:00.000Z', { ephemeral_5m_input_tokens: 9 })));
+  expect(cacheStateOf(f, statSync(f).size)).toEqual({ lastRequestAt: Date.parse('2026-01-01T10:00:00.000Z'), ttlMs: 300_000 });
+  writeFileSync(f, jl(reply('2026-01-01T10:00:00.000Z')));
+  expect(cacheStateOf(f, statSync(f).size)?.ttlMs).toBe(300_000);
+  writeFileSync(f, jl({ type: 'user', timestamp: '2026-01-01T10:00:00.000Z' }));
+  expect(cacheStateOf(f, statSync(f).size)).toBeUndefined();
 });

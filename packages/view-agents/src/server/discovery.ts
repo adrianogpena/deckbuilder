@@ -1,7 +1,7 @@
 import { closeSync, openSync, readSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-import type { AgentSession, AgentTokens } from '../protocol.ts';
+import type { AgentCacheState, AgentSession, AgentTokens } from '../protocol.ts';
 
 export type { AgentSession };
 
@@ -188,6 +188,41 @@ export function contextPercentOf(model: string | undefined, used: number | undef
   return Math.min(100, Math.round((used / window) * 100));
 }
 
+const CACHE_TAIL = 512 * 1024;
+const TTL_5M = 5 * 60_000;
+const TTL_1H = 60 * 60_000;
+
+/**
+ * Prompt-cache state from the last 512 KB of a transcript: the newest assistant message with usage gives the last-request time;
+ * the TTL is 1 h if the newest cache-writing message wrote 1-hour tokens, else 5 min (also when nothing wrote cache).
+ */
+export function cacheStateOf(file: string, size: number): AgentCacheState | undefined {
+  const start = Math.max(0, size - CACHE_TAIL);
+  const entries = parseLines(readRange(file, start, size - start), start > 0, false);
+  let lastAt: number | undefined;
+  let ttlMs: number | undefined;
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const e = entries[i]!;
+    const u = e.type === 'assistant' ? e.message?.usage : undefined;
+    if (!u || typeof u !== 'object') continue;
+    if (lastAt === undefined) {
+      const at = typeof e.timestamp === 'string' ? Date.parse(e.timestamp) : NaN;
+      if (!Number.isFinite(at)) continue;
+      lastAt = at;
+    }
+    const c = u.cache_creation;
+    if (c && Number(c.ephemeral_1h_input_tokens) > 0) {
+      ttlMs = TTL_1H;
+      break;
+    }
+    if ((c && Number(c.ephemeral_5m_input_tokens) > 0) || Number(u.cache_creation_input_tokens) > 0) {
+      ttlMs = TTL_5M;
+      break;
+    }
+  }
+  return lastAt === undefined ? undefined : { lastRequestAt: lastAt, ttlMs: ttlMs ?? TTL_5M };
+}
+
 interface CacheEntry {
   mtime: number;
   size: number;
@@ -247,6 +282,12 @@ export function createSessionScanner() {
                 if (tk.input + tk.output + tk.cacheCreation + tk.cacheRead > 0) session.tokens = { ...tk };
                 const pct = contextPercentOf(session.model, tally.lastContext);
                 if (pct !== undefined) session.contextPercent = pct;
+                try {
+                  const cache = cacheStateOf(file, st.size);
+                  if (cache) session.cache = cache;
+                } catch {
+                  /* no cache state */
+                }
               }
               c = { mtime: st.mtimeMs, size: st.size, session, tally };
               cache.set(file, c);

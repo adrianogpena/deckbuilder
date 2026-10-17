@@ -75,6 +75,14 @@ export interface AgentSession {
   tokens?: AgentTokens;
   /** Context window used, 0-100: from the statusLine usage file, else the last assistant turn vs the model's window; absent when unknown. */
   contextPercent?: number;
+  /** Context % at the first statusLine reading above 0 (what every request carries: system prompt, tools, CLAUDE.md). */
+  startupContextPercent?: number;
+  /** Model display name from the statusLine usage file. */
+  modelName?: string;
+  /** Effort level from the statusLine usage file (only when Claude sends it). */
+  effort?: string;
+  /** Prompt-cache state from the transcript tail: time of the last request and the cache TTL. */
+  cache?: AgentCacheState;
   /** Held at the top or bottom of its project. */
   pin?: AgentPin;
   /** Derived: `pin === 'top'`. */
@@ -112,6 +120,12 @@ export interface AgentSearchHit {
   snippet: string;
 }
 
+/** Prompt cache of a session: the newest reply's time (ms epoch) and the TTL its cache write used (1 h or 5 min). */
+export interface AgentCacheState {
+  lastRequestAt: number;
+  ttlMs: number;
+}
+
 export interface AgentTokens {
   input: number;
   output: number;
@@ -123,16 +137,23 @@ export interface AgentTokens {
 export interface AgentRateLimit {
   percent: number;
   resetsAt?: number;
+  /** When the record this reading came from was written (ms epoch); older than 15 min = stale. */
+  updatedAt?: number;
 }
 
-/** Plan usage of an account, from its newest statusLine usage file that carries `rate_limits`. */
+/** Plan usage of an account: per window, the freshest statusLine usage record with a value (same-email or untagged). */
 export interface AgentAccountUsage {
   account: string;
   label: string;
   updatedAt: number;
+  /** Signed-in account email, when the statusLine script found it. */
+  email?: string;
   fiveHour?: AgentRateLimit;
   sevenDay?: AgentRateLimit;
 }
+
+/** `GET /api/agents/usage/history`: per account email (or 'unknown'), the 7d quota percent spent per local day ('YYYY-MM-DD'). */
+export type AgentSevenDayHistory = Record<string, Record<string, number>>;
 
 /** A session as the UI gets it: its status and the project its cwd belongs to. */
 export interface AgentSessionView extends AgentSession {
@@ -229,6 +250,9 @@ export interface AgentUsage {
   updatedAt: number;
   sessionId: string;
   model?: { id?: string; display_name?: string };
+  effort?: string;
+  startupContextPercent?: number;
+  email?: string;
   context_window?: { used_percentage?: number | null; context_window_size?: number; total_input_tokens?: number; total_output_tokens?: number; [k: string]: unknown };
   rate_limits?: {
     five_hour?: { used_percentage?: number; resets_at?: number };

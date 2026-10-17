@@ -3,7 +3,7 @@ import { ContextMenu, type ContextMenuItem, fuzzyScore, highlightRuns, useComman
 import { agentsCommands } from '../commands';
 import { t } from '../i18n';
 import type { AgentCategory } from '../protocol.ts';
-import { type AgentAccountUsage, type AgentProject, type AgentRateLimit, type AgentSessionView, type AgentStatus, type AgentTreePatch, addTags, deleteSession, deleteSessions, markUnread, patchSessionState, trashMessage, undoDelete, removeTagEverywhere, searchSessions, stopSession, type TreePatchResult } from './api';
+import { type AgentAccountUsage, type AgentProject, type AgentSessionView, type AgentStatus, type AgentTreePatch, addTags, deleteSession, deleteSessions, markUnread, patchSessionState, trashMessage, undoDelete, removeTagEverywhere, searchSessions, stopSession, type TreePatchResult } from './api';
 import { compareSessions, displayName, statusCounts } from './attention';
 import { type BatchAction, BatchBar } from './BatchBar';
 import { archiveOutcome, batchOrder, distinctKeys, isWorking, liveHere, partitionArchive, stopOutcome, toggleChecked } from './batch';
@@ -14,6 +14,8 @@ import { TrashPanel } from './TrashPanel';
 import { type GitStatusMap, projectGitBadge } from './git';
 import { buildRows, folderName, folderNodeKey, nextPin, parseTags, projectKey, projectNodeKey, tagCounts, type TreeRow } from './tree';
 import { useAgentTree } from './useAgentSessions';
+import { type UsageSettings, UsageView, usageViewData } from './UsageView';
+import { severity } from './usage-format';
 
 const depthStyle = (depth: number) => ({ '--agents-depth': depth }) as CSSProperties;
 
@@ -28,6 +30,10 @@ export interface SidebarProps {
   sessions: AgentSessionView[];
   /** Plan usage per account; accounts without known rate limits are absent. */
   usage?: AgentAccountUsage[];
+  /** `agents.usage.*` settings: the usage section and the context % of live rows show only when `show`. */
+  usageSettings?: UsageSettings;
+  /** A click on the usage section. */
+  onOpenUsage?(): void;
   /** Git status per session cwd (latest `git` frame); project rows show a worst-case badge. */
   git?: GitStatusMap;
   selectedId?: string;
@@ -98,21 +104,6 @@ function sessionUsage(s: AgentSessionView): { line: string; title: string } | un
   return { line: `${s.contextPercent}%`, title: lines.join('\n') };
 }
 
-function UsageBar({ label, limit }: { label: string; limit?: AgentRateLimit }) {
-  if (!limit) return null;
-  const pct = Math.round(limit.percent);
-  const reset = limit.resetsAt ? ` · ${t('agents.usage.resets')} ${new Date(limit.resetsAt).toLocaleString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit' })}` : '';
-  return (
-    <div className="agents-usage-bar" title={`${label}: ${pct}%${reset}`}>
-      <span>{label}</span>
-      <span className="agents-usage-track" role="meter" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
-        <span className={`agents-usage-fill${pct >= 100 ? ' full' : pct >= 80 ? ' high' : ''}`} style={{ width: `${Math.min(100, pct)}%` }} />
-      </span>
-      <span className="agents-usage-pct">{pct}%</span>
-    </div>
-  );
-}
-
 /** Pill glyph and status class (colour) per category; the done-unseen pill sits after waiting. */
 function timeLabel(mode: TimeMode): string {
   switch (mode) {
@@ -146,8 +137,13 @@ interface RowMatch {
 }
 
 /** Projects with their Claude sessions, a status dot and label per session; search, filter pills, pin, rename and archive. */
-export function Sidebar({ projects, sessions, usage = [], git = {}, selectedId, onSelect, selectedProjectId, onSelectProject, selectedFolderId, onSelectFolder, onVisibleChange, onNewSession, onAddProject, onRemoveProject, onStop, onRestart, onStartBackground, expandCollapsedOnActiveJump = false }: SidebarProps) {
+export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenUsage, git = {}, selectedId, onSelect, selectedProjectId, onSelectProject, selectedFolderId, onSelectFolder, onVisibleChange, onNewSession, onAddProject, onRemoveProject, onStop, onRestart, onStartBackground, expandCollapsedOnActiveJump = false }: SidebarProps) {
   const ref = useRef<HTMLDivElement>(null);
+  const usageBlock = usageSettings?.show && (() => {
+    const selected = sessions.find((x) => x.id === selectedId);
+    const data = usageViewData(selected, usage, sessions.map((x) => x.account));
+    return <UsageView {...data} items={usageSettings.items} compact={usageSettings.compact} use24h={usageSettings.use24h} onOpen={onOpenUsage} className={`pin-${usageSettings.position}`} />;
+  })();
   useRovingList(ref, '.agents-session, .agents-node');
   const toast = useToast();
   const { tree, patch } = useAgentTree();
@@ -740,7 +736,7 @@ export function Sidebar({ projects, sessions, usage = [], git = {}, selectedId, 
         </div>
       );
     }
-    const use = sessionUsage(s);
+    const use = usageSettings?.show && s.live ? sessionUsage(s) : undefined;
     const pin = s.pin ?? (s.pinned ? 'top' : undefined);
     const pinLabel = t(pin === 'top' ? 'agents.pinned' : 'agents.pinnedBottom');
     const tone = s.status === 'running' || s.status === 'needs-you' ? ' strong' : s.status === 'error' ? ' failed' : '';
@@ -786,13 +782,15 @@ export function Sidebar({ projects, sessions, usage = [], git = {}, selectedId, 
         <span className={`agents-glyph ${s.status}`} role="img" title={label} aria-label={label}>{STATUS_GLYPH[s.status]}</span>
         {pin && <span className="agents-mark" role="img" title={pinLabel} aria-label={pinLabel}>{pin === 'top' ? '↑' : '↓'}</span>}
         {s.external && <span className="agents-mark" role="img" title={t('agents.external.note')} aria-label={t('agents.external')}>↗</span>}
+        <span className="agents-session-main">
         <span className="agents-session-text">
           <span className="agents-session-title" title={name}>
             {m.positions ? highlightRuns(name, m.positions).map((r, i) => (r.hit ? <mark key={i}>{r.text}</mark> : r.text)) : name}
           </span>
           {m.snippet && <span className="agents-session-snippet" title={m.snippet}>{m.snippet}</span>}
         </span>
-        {use && <span className="agents-ctx" title={use.title}>{use.line}</span>}
+        {use && <span className={`agents-ctx sev-${severity('context', s.contextPercent ?? 0)}`} title={use.title}>{use.line}</span>}
+        </span>
       </button>
     );
   };
@@ -901,17 +899,7 @@ export function Sidebar({ projects, sessions, usage = [], git = {}, selectedId, 
           </button>
         )}
       </div>
-      {usage.length > 0 && (
-        <section className="agents-usage" aria-label={t('agents.usage')}>
-          {usage.map((u) => (
-            <div key={u.account} className="agents-usage-account">
-              <span className="agents-usage-name" title={t('agents.usage')}>{u.label}</span>
-              <UsageBar label={t('agents.usage.fiveHour')} limit={u.fiveHour} />
-              <UsageBar label={t('agents.usage.sevenDay')} limit={u.sevenDay} />
-            </div>
-          ))}
-        </section>
-      )}
+      {usageSettings?.position === 'top' && usageBlock}
       {sessions.length > 0 && (
         <div className="agents-find">
           <div className="agents-search">
@@ -1002,6 +990,7 @@ export function Sidebar({ projects, sessions, usage = [], git = {}, selectedId, 
           {archivedShown && archived.map((x) => row(x))}
         </section>
       )}
+      {usageSettings?.position !== 'top' && usageBlock}
       {checking && <BatchBar count={checked.size} actions={batchActions} onClear={() => clearBatch(true)} />}
       {menu && <ContextMenu at={menu.at} items={menu.items} onClose={() => setMenu(undefined)} />}
       {trashOpen && <TrashPanel onRestored={restored} onRefused={(message) => toast({ message, kind: 'error' })} onClose={() => setTrashOpen(false)} />}

@@ -120,16 +120,36 @@
 .agents-project header:hover .agents-remove, .agents-remove:focus-visible { visibility: visible; }
 .agents-remove:hover { color: var(--err); }
 .agents-session-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
-.agents-usage { display: flex; flex-direction: column; gap: 4px; padding: 0 4px; }
-.agents-usage-account { display: flex; flex-direction: column; gap: 2px; font-size: var(--fs-xs); color: var(--ink-muted); }
-.agents-usage-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-transform: uppercase; }
-.agents-usage-bar { display: flex; align-items: center; gap: 6px; }
-.agents-usage-bar > span:first-child { width: 2em; }
-.agents-usage-pct { min-width: 3em; text-align: right; font-variant-numeric: tabular-nums; }
-.agents-usage-track { flex: 1; height: 4px; border-radius: 2px; background: var(--border-soft); overflow: hidden; }
-.agents-usage-fill { height: 100%; background: var(--ink-muted); }
-.agents-usage-fill.high { background: var(--warn); }
-.agents-usage-fill.full { background: var(--err); }
+/* Usage section (web/UsageView.tsx): label column + Geist Mono values; severity via --ok/--warn/--err, stale and no data via --text-3. */
+.agents-usage-view { display: block; width: 100%; padding: var(--space-6); border: 0; border-top: 1px solid var(--border-soft); background: var(--bg-sunken); color: var(--text-2); font: inherit; text-align: left; }
+.agents-usage-view.clickable { cursor: pointer; border-radius: var(--radius-md); }
+.agents-usage-view.clickable:hover { background: var(--hover); }
+.agents-usage-view.clickable:focus-visible { outline: none; box-shadow: inset 0 0 0 1px var(--accent); }
+.agents-usage-view.pin-top { position: sticky; top: calc(-1 * var(--space-8)); z-index: 1; border-top: 0; border-bottom: 1px solid var(--border-soft); }
+.agents-usage-view.pin-bottom { position: sticky; bottom: calc(-1 * var(--space-8)); z-index: 1; margin-top: auto; }
+.agents-sidebar.checking .agents-usage-view.pin-bottom { position: static; }
+.agents-usage-rows { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: baseline; column-gap: var(--space-6); row-gap: var(--space-2); }
+.agents-usage-row { display: contents; }
+.agents-usage-label { white-space: nowrap; }
+.agents-usage-value { display: flex; align-items: baseline; min-width: 0; font-family: var(--font-mono); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
+.agents-usage-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agents-usage-split.cold, .agents-usage-none, .agents-usage-extra, .agents-usage-sep { color: var(--text-3); }
+/* Value pieces wrap to a second line rather than clip; ellipsis only once one piece alone is too wide. */
+.agents-usage-meter, .agents-usage-split { display: flex; flex-wrap: wrap; align-items: center; column-gap: var(--space-4); min-width: 0; }
+.agents-usage-split > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agents-usage-cells { display: inline-flex; flex: none; gap: var(--space-2); }
+.agents-usage-cells > span { flex: none; width: var(--space-4); height: var(--space-8); border-radius: var(--radius-2xs); background: var(--border-soft); }
+.agents-usage-cells > span.on { background: currentColor; }
+.agents-usage-pct { flex: none; min-width: 4ch; text-align: right; }
+.agents-usage-extra { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agents-usage-compact { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
+.agents-usage-view .sev-ok, .agents-ctx.sev-ok { color: var(--ok); }
+.agents-usage-view .sev-warn, .agents-ctx.sev-warn { color: var(--warn); }
+.agents-usage-view .sev-err, .agents-ctx.sev-err { color: var(--err); }
+.agents-usage-view .stale { color: var(--text-3); }
+/* Row context %: dropped when it would leave the title under 10 columns. */
+.agents-session-main { display: flex; align-items: center; gap: var(--space-6); flex: 1; min-width: 0; container: agents-row / inline-size; }
+@container agents-row (width < 16ch) { .agents-ctx { display: none; } }
 .agents-alerts { min-width: 420px; max-height: 60vh; overflow: auto; }
 .agents-alerts-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .agents-alert { display: flex; align-items: center; gap: 8px; padding: 6px 4px; border-bottom: 1px solid var(--border-soft); }
@@ -286,3 +306,19 @@
 .agents-add-item span.agents-add-item-path { font-family: var(--font-mono, monospace); font-size: var(--fs-xs); color: var(--text-3); }
 .agents-add-loading { display: flex; justify-content: center; padding: var(--space-8); }
 .agents-add-empty { margin: 0; font-size: var(--fs-sm); color: var(--text-3); }
+
+/* Usage tab (UsageTab.tsx): one block per account, 24-cell bars, last 5 days of 7d spend. */
+.agents-usage-tab { display: flex; flex-direction: column; gap: var(--space-10); }
+.agents-usage-tab-account { display: flex; flex-direction: column; gap: var(--space-6); padding-bottom: var(--space-10); border-bottom: 1px solid var(--border-soft); }
+.agents-usage-tab-account:last-child { padding-bottom: 0; border-bottom: none; }
+.agents-usage-tab-head { display: flex; align-items: baseline; gap: var(--space-6); min-width: 0; font-weight: 600; }
+.agents-usage-tab-active { flex: none; color: var(--text-3); font-weight: 400; font-family: var(--font-mono); font-size: var(--fs-sm); }
+.agents-usage-tab-row, .agents-usage-tab-day { display: flex; align-items: center; gap: var(--space-8); min-width: 0; font-family: var(--font-mono); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
+.agents-usage-tab-row > .mono-label, .agents-usage-tab-day > .mono-label { flex: none; min-width: 3ch; }
+.agents-usage-tab-row .agents-usage-cells > span { width: var(--space-4); }
+.agents-usage-tab-caption { margin-top: var(--space-4); }
+.agents-usage-tab-days { display: flex; flex-direction: column; gap: var(--space-2); }
+.agents-usage-tab .sev-ok { color: var(--ok); }
+.agents-usage-tab .sev-warn { color: var(--warn); }
+.agents-usage-tab .sev-err { color: var(--err); }
+.agents-usage-tab .stale .agents-usage-cells > span.on, .agents-usage-tab .stale .agents-usage-pct { color: var(--text-3); }
