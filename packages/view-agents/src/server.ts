@@ -5,9 +5,9 @@ import { createToaster } from '@deckbuilderkit/platform';
 import { defineServerView, ndjson, socketTickets, validGroup, type SocketData, type SocketRoutes } from '@deckbuilderkit/server-core';
 import type { ServerWebSocket } from 'bun';
 import { CHAT_SOCKET_PATH, type ChatClientFrame, type ChatServerFrame } from './chat-protocol.ts';
-import type { AgentAccountUsage, AgentLaunch, AgentRunning, AgentSessionView, AgentsCapWarn, AgentsFrame, AgentStopResult } from './protocol.ts';
+import type { AgentAccountUsage, AgentActiveAccountResult, AgentActiveAccountSet, AgentLaunch, AgentRunning, AgentSessionView, AgentsCapWarn, AgentsFrame, AgentStopResult } from './protocol.ts';
 import type { AgentsMode, AgentsSettings, AgentsUsagePosition } from './settings-types.ts';
-import { type AgentAccount, detectAccounts } from './server/accounts.ts';
+import { type AgentAccount, accountByDir, createAccountRegistry, detectAccounts, resolveActiveAccount } from './server/accounts.ts';
 import { createAlerts } from './server/alerts.ts';
 import { createGitPoller } from './server/git-status.ts';
 import { createHooks } from './server/hooks.ts';
@@ -27,9 +27,12 @@ import { createProjectsStore, projectKey, type ProjectsStore } from './server/pr
 import { createRunningStore, type RunningRecord, type RunningStore } from './server/running.ts';
 import { createNotesStore } from './server/notes.ts';
 import { createSessionStateStore, tagCounts, type SessionStateStore } from './server/session-state.ts';
-import { createTreeStore } from './server/tree.ts';
+import { applyAccountView, createTreeStore } from './server/tree.ts';
 import { searchSessions } from './server/search.ts';
 import { createStatuslineInstaller } from './server/statusline-install.ts';
+import { addAccount, applyShared, deleteAccount, readShared, shareList } from './server/account-admin.ts';
+import { forgetPendingAccount, markPendingAccount } from './server/accounts.ts';
+import type { AgentAccountAddResult, AgentAccountApplyResult, AgentAccountDeleteResult, AgentAccountSharedResult } from './protocol.ts';
 import { type AgentStatus, createStatusTracker, externalIds, readPidFiles } from './server/status.ts';
 import type { AgentDeleteResult, AgentRestoreResult, AgentTreePatch, AgentTrashEntry } from './protocol.ts';
 import { createTrashStore, isSafeId } from './server/trash.ts';
@@ -47,7 +50,7 @@ export interface AgentsServerSettings {
 const AGENTS_MODES: AgentsMode[] = ['terminal', 'chat'];
 const USAGE_POSITIONS: AgentsUsagePosition[] = ['float', 'top', 'bottom'];
 
-const AGENTS_SPEC = { mode: AGENTS_MODES, softCap: [1, 100], notifyNeedsYou: 'boolean', notifyDone: 'boolean', notifyError: 'boolean', autoSettle: 'boolean', gitStatus: 'boolean', resumeOnSelect: 'boolean', 'usage.show': 'boolean', 'usage.position': USAGE_POSITIONS, 'usage.compact': 'boolean', 'usage.use24HourClock': 'boolean', 'usage.showAccount': 'boolean', 'usage.showModel': 'boolean', 'usage.showCache': 'boolean', 'usage.showContext': 'boolean', 'usage.showFiveHour': 'boolean', 'usage.showSevenDay': 'boolean', maxSessionsPerProject: [1, 10000], trashRetentionDays: [1, 3650], claudeCommand: 'string', 'hooks.onRunning': 'string', 'hooks.onWaiting': 'string', 'hooks.onDone': 'string', 'hooks.onError': 'string' } as const;
+const AGENTS_SPEC = { mode: AGENTS_MODES, softCap: [1, 100], notifyNeedsYou: 'boolean', notifyDone: 'boolean', notifyError: 'boolean', autoSettle: 'boolean', gitStatus: 'boolean', resumeOnSelect: 'boolean', 'accounts.activeAccount': 'string', 'accounts.showAllSessions': 'boolean', 'accounts.shareProjects': 'boolean', 'accounts.showOwner': 'boolean', 'usage.show': 'boolean', 'usage.position': USAGE_POSITIONS, 'usage.compact': 'boolean', 'usage.use24HourClock': 'boolean', 'usage.showAccount': 'boolean', 'usage.showModel': 'boolean', 'usage.showCache': 'boolean', 'usage.showContext': 'boolean', 'usage.showFiveHour': 'boolean', 'usage.showSevenDay': 'boolean', maxSessionsPerProject: [1, 10000], trashRetentionDays: [1, 3650], claudeCommand: 'string', 'hooks.onRunning': 'string', 'hooks.onWaiting': 'string', 'hooks.onDone': 'string', 'hooks.onError': 'string' } as const;
 
 /** Told on every valid Agents config edit (the running view's git poller). */
 let agentsConfigListener: ((group: AgentsSettings) => void) | undefined;
@@ -255,10 +258,16 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
     saveSeen();
   };
 
-  const accounts = (): AgentAccount[] => detectAccounts(home);
+  const registry = createAccountRegistry(home);
+  const accounts = (): AgentAccount[] => registry.list();
+  const activeOf = (accs: AgentAccount[], g: AgentsSettings | undefined) => resolveActiveAccount(accs, g?.['accounts.activeAccount']);
 
   const compute = async () => {
     const accs = accounts();
+    const agentsSettings = (await loadSettings().catch(() => ({}) as AgentsServerSettings)).agents;
+    const ownerView = { active: activeOf(accs, agentsSettings), showAllSessions: agentsSettings?.['accounts.showAllSessions'] !== false, shareProjects: agentsSettings?.['accounts.shareProjects'] !== false, showOwner: agentsSettings?.['accounts.showOwner'] === true };
+    // Built with every owner's sessions (notifications cover hidden ones); `ownerView` filters the listed feed at the end.
+    const allView = { ...ownerView, showAllSessions: true };
     const refs = projects?.list() ?? [];
     const screenErrors = new Map<string, string>();
     for (const [id, lines] of opts.terminalScreens?.() ?? []) {
@@ -273,33 +282,35 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
     const external = externalIds(pids, [...liveTerminalIds(), ...(chat?.live().ids ?? [])]);
     const usage = usageReader.read(accs);
     sevenDayHistory.observe(usage.accounts);
-    const views: AgentSessionView[] = scanner
+    const views: AgentSessionView[] = applyAccountView(scanner
       .scan(accs.map((a) => ({ id: a.id, dir: a.dir })))
       .map((x) => ({ ...x, lifecycle: lc.exited.has(x.id) ? ('exited' as const) : lc.starting.has(x.id) ? ('starting' as const) : undefined, exitCode: lc.exited.get(x.id), contextPercent: usageContextPercent(usage.bySession.get(x.id)) ?? x.contextPercent, startupContextPercent: usage.bySession.get(x.id)?.startupContextPercent, modelName: usage.bySession.get(x.id)?.model?.display_name, effort: usage.bySession.get(x.id)?.effort, status: statusOf(x.id), live: statuses.has(x.id) || undefined, external: external.has(x.id) || undefined, project: matchProject(x.cwd, refs)?.id, seenAt: s[x.id] }))
       .filter((x) => x.project !== undefined)
-      .sort((a, b) => b.updatedAt - a.updatedAt);
-    const cap = (await loadSettings()).agents?.maxSessionsPerProject;
-    const shown = capPerProject(views, typeof cap === 'number' && cap >= 1 ? Math.floor(cap) : 10);
-    views.splice(0, views.length, ...shown);
-    if ((await loadSettings()).agents?.autoSettle !== false) sessionState?.settle(views);
+      .sort((a, b) => b.updatedAt - a.updatedAt), accs, allView);
+    if (agentsSettings?.autoSettle !== false) sessionState?.settle(views);
     // A pty whose session has no transcript yet (new, or after `/clear`): listed with the empty title until the first message.
-    const scanned = new Set(views.map((x) => x.id));
+    const scannedIds: ReadonlySet<string> = new Set(views.map((x) => x.id));
+    const scanned = new Set(scannedIds);
     for (const term of claudeTerms()) {
       if (scanned.has(term.sessionId) || !term.account) continue;
       scanned.add(term.sessionId);
       const project = matchProject(term.cwd, refs)?.id;
       if (project === undefined) continue;
       const lifecycle = lc.exited.has(term.sessionId) ? ('exited' as const) : lc.starting.has(term.sessionId) ? ('starting' as const) : undefined;
-      views.push({ id: term.sessionId, account: term.account, cwd: term.cwd, title: '', firstPrompt: '', updatedAt: Date.now(), status: statusOf(term.sessionId), live: statuses.has(term.sessionId) || undefined, project, lifecycle, exitCode: lc.exited.get(term.sessionId), seenAt: s[term.sessionId] });
+      views.push(...applyAccountView([{ id: term.sessionId, account: term.account, cwd: term.cwd, title: '', firstPrompt: '', updatedAt: Date.now(), status: statusOf(term.sessionId), live: statuses.has(term.sessionId) || undefined, project, lifecycle, exitCode: lc.exited.get(term.sessionId), seenAt: s[term.sessionId] }], accs, allView));
     }
-    const sessions = views.map((x) => {
+    const everyOwner = views.map((x) => {
       const st = sessionState?.get(x.id);
       return { ...x, ...st, pinned: st?.pin === 'top' || undefined };
     });
+    // The per-project cap counts only listed sessions (the account-filtered feed); new ptys without a transcript are never capped.
+    const cap = agentsSettings?.maxSessionsPerProject;
+    const listed = ownerView.showAllSessions ? everyOwner : applyAccountView(everyOwner, accs, ownerView);
+    const sessions = capPerProject(listed, typeof cap === 'number' && cap >= 1 ? Math.floor(cap) : 10, (x) => (scannedIds.has(x.id) ? (x.node ?? x.project) : undefined));
     const status: Record<string, AgentStatus> = {};
     for (const x of sessions) status[x.id] = x.status;
     void hooks.observe(sessions);
-    void notifier.observe(sessions);
+    void notifier.observe(everyOwner);
     alerts.observe(sessions);
     gitCwds = sessions.map((x) => x.cwd);
     return { sessions, status, usage: usage.accounts as AgentAccountUsage[] };
@@ -446,7 +457,57 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
       const statusline = createStatuslineInstaller({ agentsDir: join(ctx.dataDir, 'agents'), ...opts.statusline });
       statusline.refresh();
       return {
-        'GET /api/agents/accounts': () => accounts(),
+        // Rediscovers the accounts; `active` marks the one new sessions launch as.
+        'GET /api/agents/accounts': async () => {
+          const accs = accounts();
+          const active = activeOf(accs, (await loadSettings().catch(() => ({}) as AgentsServerSettings)).agents);
+          return accs.map((a) => ({ ...a, active: a === active || undefined }));
+        },
+        // Sets the active account (the default's config dir is stored as ""), saves it now and rebuilds the tree; the reply label feeds the flash.
+        'POST /api/agents/accounts/active': async ({ json }): Promise<AgentActiveAccountResult> => {
+          const b = (await json()) as Partial<AgentActiveAccountSet>;
+          const acc = typeof b.dir === 'string' ? accountByDir(accounts(), b.dir) : undefined;
+          if (!acc) return { ok: false, error: 'unknownAccount' };
+          const cur = (await loadSettings().catch(() => ({}) as AgentsServerSettings)).agents ?? {};
+          await ctx.settings.save?.({ agents: { ...cur, 'accounts.activeAccount': acc.isDefault ? '' : acc.dir } });
+          void refresh(true);
+          return { ok: true, label: acc.label, account: { ...acc, active: true } };
+        },
+        // Add account: make `<home>/.claude-<name>`, link the checked entries, list it right away; with usage on, add the usage statusLine.
+        'POST /api/agents/accounts/add': async ({ json }): Promise<AgentAccountAddResult> => {
+          const b = await json<{ name?: unknown; share?: unknown }>();
+          const r = addAccount(home, typeof b.name === 'string' ? b.name : '', shareList(b.share));
+          if (!r.ok) return r;
+          markPendingAccount(r.dir);
+          const acc = accountByDir(accounts(), r.dir);
+          if (!acc) return { ok: false, error: 'failed' };
+          const agents = (await loadSettings().catch(() => ({}) as AgentsServerSettings)).agents;
+          if (agents?.['usage.show'] === true) statusline.install(acc);
+          void refresh(true);
+          return { ok: true, folder: r.folder, account: acc, linked: r.linked, unlinked: r.unlinked, skipped: r.skipped, skippedDevMode: r.skippedDevMode };
+        },
+        // Edit shared entries: which entries are links now; apply links missing ones and unlinks unwanted ones.
+        'POST /api/agents/accounts/shared': async ({ json }): Promise<AgentAccountSharedResult> => {
+          const b = await json<{ folder?: unknown }>();
+          return readShared(home, typeof b.folder === 'string' ? b.folder : '');
+        },
+        'POST /api/agents/accounts/shared/apply': async ({ json }): Promise<AgentAccountApplyResult> => {
+          const b = await json<{ folder?: unknown; share?: unknown }>();
+          return applyShared(home, typeof b.folder === 'string' ? b.folder : '', shareList(b.share));
+        },
+        // Delete account (`<home>/.claude-<name>` only, never `.claude`); clears the active choice when it was active.
+        'POST /api/agents/accounts/delete': async ({ json }): Promise<AgentAccountDeleteResult> => {
+          const b = await json<{ folder?: unknown }>();
+          const r = deleteAccount(home, typeof b.folder === 'string' ? b.folder : '');
+          if (!r.ok) return r;
+          forgetPendingAccount(r.dir);
+          const cur = (await loadSettings().catch(() => ({}) as AgentsServerSettings)).agents ?? {};
+          const active = cur['accounts.activeAccount'];
+          const wasActive = typeof active === 'string' && active !== '' && accountByDir([{ id: r.folder, dir: r.dir, label: r.folder, isDefault: false }], active) !== undefined;
+          if (wasActive) await ctx.settings.save?.({ agents: { ...cur, 'accounts.activeAccount': '' } });
+          void refresh(true);
+          return { ok: true, folder: r.folder, wasActive };
+        },
         // Usage statusLine per account (Settings): install state, install (backup + chain the previous), uninstall (restore it).
         'GET /api/agents/statusline': () => statusline.statuses(accounts()),
         'POST /api/agents/statusline/install': async ({ json }) => {

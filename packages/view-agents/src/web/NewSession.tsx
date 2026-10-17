@@ -13,7 +13,7 @@ export interface NewSessionProps {
   projects: NewSessionProject[];
   /** Preselected project. */
   projectId?: string;
-  /** Account id last used in the project; the default account is used when absent. */
+  /** Account id last used in the project; used when no account is marked active, then the default account. */
   lastAccount?: (projectId: string) => string | undefined;
   /** Called with the Claude session id, the terminal session id and its socket ticket. */
   onStarted(r: { sessionId: string; terminal: string; ticket: string; account: string; projectId: string }): void;
@@ -37,7 +37,7 @@ export function NewSession({ projects, projectId, lastAccount, mode, onChat, onS
   }, []);
   useEffect(() => {
     const preferred = lastAccount?.(project);
-    const pick = accounts.find((a) => a.id === preferred) ?? accounts.find((a) => a.isDefault) ?? accounts[0];
+    const pick = accounts.find((a) => a.active) ?? accounts.find((a) => a.id === preferred) ?? accounts.find((a) => a.isDefault) ?? accounts[0];
     setAccount(pick?.id ?? '');
   }, [accounts, project, lastAccount]);
 

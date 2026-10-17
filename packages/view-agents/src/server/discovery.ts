@@ -326,21 +326,25 @@ export function matchProject<P extends ProjectRef>(
   return best;
 }
 
-/** At most `cap` sessions per project: live ones first (always kept), then newest by `updatedAt`. Original order is kept; archived ones use slots. */
-export function capPerProject<T extends { project?: string; live?: boolean; updatedAt: number }>(items: T[], cap: number): T[] {
+/**
+ * At most `cap` sessions per project: live ones first (always kept), then newest by `updatedAt`. Original order is kept; archived ones use slots.
+ * `group` names the counted bucket (default the project; a split project node when `shareProjects` is off).
+ */
+export function capPerProject<T extends { project?: string; node?: string; live?: boolean; updatedAt: number }>(items: T[], cap: number, group: (x: T) => string | undefined = (x) => x.node ?? x.project): T[] {
   const keep = new Set<T>();
   const by = new Map<string, T[]>();
   for (const x of items) {
-    if (x.project === undefined || x.live) {
+    const g = group(x);
+    if (x.project === undefined || g === undefined || x.live) {
       keep.add(x);
       continue;
     }
-    const l = by.get(x.project);
+    const l = by.get(g);
     if (l) l.push(x);
-    else by.set(x.project, [x]);
+    else by.set(g, [x]);
   }
   for (const [project, rest] of by) {
-    const used = items.filter((x) => x.project === project && x.live).length;
+    const used = items.filter((x) => group(x) === project && x.live).length;
     rest.sort((a, b) => b.updatedAt - a.updatedAt);
     for (const x of rest.slice(0, Math.max(0, cap - used))) keep.add(x);
   }

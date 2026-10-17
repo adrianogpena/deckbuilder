@@ -44,6 +44,14 @@ export interface AgentsSettings {
   'usage.showContext'?: boolean;
   'usage.showFiveHour'?: boolean;
   'usage.showSevenDay'?: boolean;
+  /** Config dir of the account new sessions launch as; blank or omitted = the default account. */
+  'accounts.activeAccount'?: string;
+  /** Show sessions of every account; on when omitted, off hides other accounts' Claude sessions. */
+  'accounts.showAllSessions'?: boolean;
+  /** One project node per project; on when omitted, off = one node per (project, account). */
+  'accounts.shareProjects'?: boolean;
+  /** With several accounts, show the owner (email before `@`) of sessions not owned by the active account; off when omitted. */
+  'accounts.showOwner'?: boolean;
   /** Claude executable; blank or omitted = detect (`claude.exe`, the npm shim's native binary, the shim). */
   claudeCommand?: string;
   /** Extra arguments appended after the ones the view passes to `claude`. */

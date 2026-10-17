@@ -7,6 +7,16 @@ import type { AgentDeleteResult, AgentRestoreResult, AgentTrashEntry, AgentTrash
 export type { AgentAccount, AgentAccountUsage, AgentProject, AgentRateLimit, AgentRunning, AgentSearchHit, AgentSessionView, AgentsCapWarn, AgentStatus, AgentStatuslineError, AgentStatuslineStatus, AgentTagCount, AgentTree, AgentTreePatch };
 
 export const listAccounts = () => request<AgentAccount[]>('GET', '/api/agents/accounts');
+/** Sets the account new sessions launch as (`dir` "" = the default); the server saves it and rebuilds the tree. */
+export const setActiveAccount = (dir: string) => request<import('../protocol.ts').AgentActiveAccountResult>('POST', '/api/agents/accounts/active', {}, { dir });
+/** Creates `~/.claude-<name>` with links to the checked default-account entries; listed right away. */
+export const addAccount = (name: string, share: AgentShareEntry[]) => request<import('../protocol.ts').AgentAccountAddResult>('POST', '/api/agents/accounts/add', {}, { name, share });
+/** The entries of an account folder that are links now. */
+export const readSharedEntries = (folder: string) => request<import('../protocol.ts').AgentAccountSharedResult>('POST', '/api/agents/accounts/shared', {}, { folder });
+export const applySharedEntries = (folder: string, share: AgentShareEntry[]) => request<import('../protocol.ts').AgentAccountApplyResult>('POST', '/api/agents/accounts/shared/apply', {}, { folder, share });
+/** Deletes `~/.claude-<name>` (links first); clears the active choice when it was active. */
+export const deleteAccount = (folder: string) => request<import('../protocol.ts').AgentAccountDeleteResult>('POST', '/api/agents/accounts/delete', {}, { folder });
+type AgentShareEntry = import('../protocol.ts').AgentShareEntry;
 
 /** Thrown by `startSession` when `confirmCap` declined the soft-cap warning. */
 export class CapDeclined extends Error {}

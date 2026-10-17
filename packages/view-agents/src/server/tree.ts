@@ -60,6 +60,74 @@ export function arrangeContainers(tree: AgentTree, present: string[], label: (ke
   return { folders, top: [...top, ...rest] };
 }
 
+const NODE_SEP = '\u0000';
+
+/** Tree node key of a project: the project key, or (account split, `shareProjects` off) `<project key>\0<account id>`. */
+export const nodeKeyOf = (project: string, account?: string): string => (account === undefined ? project : `${project}${NODE_SEP}${account}`);
+
+/** The project key (the shared preferences entry) of a node key. */
+export const projectKeyOf = (node: string): string => node.split(NODE_SEP)[0]!;
+
+export interface OwnerAccount {
+  id: string;
+  isDefault: boolean;
+  email?: string;
+}
+
+export interface OwnerView {
+  /** Config dir of the active account (the default's, when "" or unknown), resolved by the caller. */
+  active: OwnerAccount | undefined;
+  showAllSessions: boolean;
+  shareProjects: boolean;
+  showOwner: boolean;
+}
+
+const nodeSuffixOf = (a: OwnerAccount | undefined, id: string): string => a?.email ?? (a?.isDefault ? 'default' : id);
+
+/**
+ * Applies the account view to project sessions: hides those owned by other accounts when `showAllSessions` is off, gives each the
+ * node key (split per owner when `shareProjects` is off), and marks `foreign` / `owner` when several accounts exist.
+ */
+export function applyAccountView<T extends { account: string; project?: string }>(
+  sessions: T[],
+  accounts: OwnerAccount[],
+  view: OwnerView,
+): Array<T & { node?: string; nodeSuffix?: string; foreign?: true; owner?: string }> {
+  const byId = new Map(accounts.map((a) => [a.id, a]));
+  const many = accounts.length > 1;
+  const out: Array<T & { node?: string; nodeSuffix?: string; foreign?: true; owner?: string }> = [];
+  for (const s of sessions) {
+    const mine = !view.active || s.account === view.active.id;
+    if (!mine && !view.showAllSessions) continue;
+    const owner = byId.get(s.account);
+    const x: T & { node?: string; nodeSuffix?: string; foreign?: true; owner?: string } = { ...s };
+    if (s.project !== undefined) {
+      x.node = nodeKeyOf(s.project, view.shareProjects ? undefined : s.account);
+      if (!view.shareProjects) x.nodeSuffix = nodeSuffixOf(owner, s.account);
+    }
+    if (many && !mine) {
+      x.foreign = true;
+      if (view.showOwner) x.owner = owner?.email ? owner.email.split('@')[0]! : s.account;
+    }
+    out.push(x);
+  }
+  return out;
+}
+
+/** Expands ordered project keys into nodes: a split project's nodes sit together, sorted by account label (unsplit = one node). */
+export function projectNodes(order: string[], sessions: Array<{ project?: string; node?: string; account: string; nodeSuffix?: string }>): Array<{ node: string; project: string; account?: string; suffix?: string }> {
+  const out: Array<{ node: string; project: string; account?: string; suffix?: string }> = [];
+  for (const project of order) {
+    const split = new Map<string, { node: string; project: string; account: string; suffix: string }>();
+    for (const s of sessions) {
+      if (s.project === project && s.node !== undefined && s.node !== project && !split.has(s.node)) split.set(s.node, { node: s.node, project, account: s.account, suffix: s.nodeSuffix ?? s.account });
+    }
+    if (!split.size) out.push({ node: project, project });
+    else out.push(...[...split.values()].sort((a, b) => a.suffix.toLowerCase().localeCompare(b.suffix.toLowerCase()) || a.node.localeCompare(b.node)));
+  }
+  return out;
+}
+
 export interface OrderableSession {
   id: string;
   status: AgentStatus;
@@ -228,16 +296,19 @@ export function applyTreePatch(tree: AgentTree, patch: AgentTreePatch): TreeChan
   if (p.view !== undefined) return p.view === 'normal' || p.view === 'active' ? { ok: true, tree: { ...tree, view: p.view } } : fail('invalid');
   if (p.freeze && typeof p.freeze === 'object') {
     const shown: Record<string, string[]> = {};
-    for (const [k, v] of Object.entries(p.freeze)) shown[k] = strings(v);
+    for (const [k, v] of Object.entries(p.freeze)) {
+      const key = projectKeyOf(k);
+      shown[key] = strings([...(shown[key] ?? []), ...strings(v)]);
+    }
     return { ok: true, tree: freezeOrders(tree, shown) };
   }
   if (p.newSession) {
     const { project, id } = p.newSession;
-    return typeof project === 'string' && typeof id === 'string' && id ? { ok: true, tree: putSessionFirst(tree, project, id) } : fail('invalid');
+    return typeof project === 'string' && typeof id === 'string' && id ? { ok: true, tree: putSessionFirst(tree, projectKeyOf(project), id) } : fail('invalid');
   }
   if (p.clearedId) {
     const { project, oldId, newId } = p.clearedId;
-    return [project, oldId, newId].every((x) => typeof x === 'string') ? { ok: true, tree: replaceClearedId(tree, project, oldId, newId) } : fail('invalid');
+    return [project, oldId, newId].every((x) => typeof x === 'string') ? { ok: true, tree: replaceClearedId(tree, projectKeyOf(project), oldId, newId) } : fail('invalid');
   }
   const folderOp = (next: AgentTree | null): TreeChangeResult => (next ? { ok: true, tree: next } : fail('noop'));
   if (p.folderCreate) return typeof p.folderCreate.name === 'string' ? folderOp(createFolder(tree, p.folderCreate.name)) : fail('invalid');
@@ -246,7 +317,7 @@ export function applyTreePatch(tree: AgentTree, patch: AgentTreePatch): TreeChan
   if (p.moveToFolder) {
     const { keys, folder } = p.moveToFolder;
     if (!Array.isArray(keys) || (folder !== undefined && typeof folder !== 'string')) return fail('invalid');
-    return folderOp(moveToFolder(tree, keys.filter((k: unknown): k is string => typeof k === 'string'), folder));
+    return folderOp(moveToFolder(tree, keys.filter((k: unknown): k is string => typeof k === 'string').map(projectKeyOf), folder));
   }
   const m = p.move;
   if (m && typeof m === 'object') {
@@ -254,8 +325,8 @@ export function applyTreePatch(tree: AgentTree, patch: AgentTreePatch): TreeChan
     if (m.dir !== -1 && m.dir !== 1) return fail('invalid');
     const next =
       m.kind === 'folder' ? moveFolder(tree, String(m.id), m.dir)
-      : m.kind === 'project' ? moveProject(tree, String(m.key), m.dir, strings(m.displayed), typeof m.folder === 'string' ? m.folder : undefined)
-      : m.kind === 'session' ? moveSession(tree, String(m.project), String(m.id), m.dir, strings(m.displayed))
+      : m.kind === 'project' ? moveProject(tree, projectKeyOf(String(m.key)), m.dir, strings(strings(m.displayed).map(projectKeyOf)), typeof m.folder === 'string' ? m.folder : undefined)
+      : m.kind === 'session' ? moveSession(tree, projectKeyOf(String(m.project)), String(m.id), m.dir, strings(m.displayed))
       : undefined;
     if (next === undefined) return fail('invalid');
     return next ? { ok: true, tree: next } : fail('noop');

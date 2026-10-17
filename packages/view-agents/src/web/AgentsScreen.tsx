@@ -13,6 +13,8 @@ import { displayName, needsYouCount, nextWaiting } from './attention';
 import { ChatPane } from './chat/ChatPane';
 import { ExternalPane } from './ExternalPane';
 import { NewSession } from './NewSession';
+import { activeDirOf } from './AccountPicker';
+import { listAccounts, setActiveAccount } from './api';
 import { RecoveryBanner } from './RecoveryBanner';
 import { ChangesTab } from './ChangesTab';
 import { NotesTab } from './NotesTab';
@@ -74,7 +76,11 @@ function GitLine({ g }: { g: GitStatus }) {
   );
 }
 
-const linkedSession = () => /^#\/?agents\/([\w.-]+)\/?$/.exec(window.location.hash)?.[1];
+/** The session id (and owner account id, if given) of an `#agents/<id>[/<account id>]` app link. */
+const linkedSession = (): { id: string; owner?: string } | undefined => {
+  const m = /^#\/?agents\/([\w.-]+)(?:\/([\w.-]+))?\/?$/.exec(window.location.hash);
+  return m ? { id: m[1]!, owner: m[2] } : undefined;
+};
 
 /** Agents screen: the sessions sidebar and the selected session's terminal. */
 export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false, usageSettings }: { mode?: 'terminal' | 'chat'; resumeOnSelect?: boolean; usageSettings?: UsageSettings }) {
@@ -396,11 +402,24 @@ export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false, usageS
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
+  const switchedFor = useRef<string | undefined>(undefined);
   useEffect(() => {
-    if (!linked || !sessions.some((x) => x.id === linked)) return;
-    setLinked(undefined);
-    window.history.replaceState(null, '', '#/agents');
-    void select(linked);
+    if (!linked) return;
+    if (sessions.some((x) => x.id === linked.id)) {
+      setLinked(undefined);
+      window.history.replaceState(null, '', '#/agents');
+      void select(linked.id);
+      return;
+    }
+    // Hidden (showAllSessions off, another owner): make its owner the active account; the feed then lists it and the branch above selects it.
+    if (!linked.owner || switchedFor.current === linked.id) return;
+    switchedFor.current = linked.id;
+    void listAccounts()
+      .then((accs) => {
+        const owner = accs.find((a) => a.id === linked.owner);
+        return owner && !owner.active ? setActiveAccount(activeDirOf(owner)) : undefined;
+      })
+      .catch(() => undefined);
   }, [linked, sessions, select]);
 
   // Per session id: how to insert text into its terminal or chat composer (the Notes tab's Send to session).

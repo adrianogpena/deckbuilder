@@ -59,7 +59,7 @@ export const isActive = (s: AgentSessionView) => s.status === 'running' || s.sta
 
 export type TreeRow =
   | { kind: 'folder'; id: string; name: string; depth: number; collapsed: boolean; sessions: AgentSessionView[]; projectIds: string[]; displayed: string[] }
-  | { kind: 'project'; project: AgentProject; key: string; depth: number; collapsed: boolean; folder?: string; sessions: AgentSessionView[]; displayed: string[] }
+  | { kind: 'project'; project: AgentProject; key: string; /** Collapse node: `key`, or `<key>\u0000<account id>` when split. */ node: string; /** Account part of a split node's label. */ suffix?: string; depth: number; collapsed: boolean; folder?: string; sessions: AgentSessionView[]; displayed: string[] }
   | { kind: 'session'; session: AgentSessionView; projectKey: string; depth: number; last: boolean; displayed: string[] }
   | { kind: 'divider' };
 
@@ -72,6 +72,33 @@ export interface BuildInput {
   filtering: boolean;
   /** `ui.recentProjectsFirst`: newest activity first instead of alphabetical. */
   recentFirst?: boolean;
+}
+
+const NODE_SEP = '\u0000';
+
+/**
+ * A project's nodes over its ordered sessions: one per session `node` (split per owner account when `shareProjects` is off),
+ * the unsplit one first, the split ones adjacent and sorted by account label; a project without sessions keeps one node.
+ */
+/** The collapse node a session sits under: `key`, or `<key>\u0000<account id>` when its project is split. */
+export const sessionNodeKey = (key: string, projectId: string, s: Pick<AgentSessionView, 'node'>): string => {
+  const cut = s.node && s.node !== projectId ? s.node.indexOf(NODE_SEP) : -1;
+  return cut < 0 ? key : `${key}${NODE_SEP}${s.node!.slice(cut + 1)}`;
+};
+
+export function projectNodes(key: string, projectId: string, list: AgentSessionView[]): Array<{ node: string; suffix?: string; list: AgentSessionView[] }> {
+  const nodes = new Map<string, { node: string; suffix?: string; list: AgentSessionView[] }>();
+  for (const s of list) {
+    const cut = s.node && s.node !== projectId ? s.node.indexOf(NODE_SEP) : -1;
+    const account = cut < 0 ? undefined : s.node!.slice(cut + 1);
+    const node = account === undefined ? key : `${key}${NODE_SEP}${account}`;
+    const at = nodes.get(node);
+    if (at) at.list.push(s);
+    else nodes.set(node, { node, suffix: account === undefined ? undefined : (s.nodeSuffix ?? account), list: [s] });
+  }
+  if (nodes.size === 0) return [{ node: key, list }];
+  const label = byLabel((n) => nodes.get(n)!.suffix ?? '');
+  return [...nodes.keys()].sort((a, b) => (a === key ? -1 : b === key ? 1 : label(a, b))).map((n) => nodes.get(n)!);
 }
 
 /** The sidebar rows: folders → projects → sessions, per the tree store (collapse, manual orders, pins, view). */
@@ -106,12 +133,14 @@ export function buildRows({ tree, projects, sessions, filtering, recentFirst }: 
   const projectRows = (keys: string[], depth: number, folder?: string): TreeRow[] => {
     const out: TreeRow[] = [];
     for (const key of keys) {
-      const list = ordered.get(key) ?? [];
-      const shut = collapsed.has(projectNodeKey(key));
-      out.push({ kind: 'project', project: byKey.get(key)!, key, depth, collapsed: shut, folder, sessions: list, displayed: keys });
-      if (shut) continue;
-      const ids = list.map((s) => s.id);
-      list.forEach((s, i) => out.push({ kind: 'session', session: s, projectKey: key, depth: depth + 1, last: i === list.length - 1, displayed: ids }));
+      const project = byKey.get(key)!;
+      for (const n of projectNodes(key, project.id, ordered.get(key) ?? [])) {
+        const shut = collapsed.has(projectNodeKey(n.node));
+        out.push({ kind: 'project', project, key, node: n.node, suffix: n.suffix, depth, collapsed: shut, folder, sessions: n.list, displayed: keys });
+        if (shut) continue;
+        const ids = n.list.map((s) => s.id);
+        n.list.forEach((s, i) => out.push({ kind: 'session', session: s, projectKey: key, depth: depth + 1, last: i === n.list.length - 1, displayed: ids }));
+      }
     }
     return out;
   };

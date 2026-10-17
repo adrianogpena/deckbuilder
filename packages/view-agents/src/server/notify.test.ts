@@ -19,10 +19,10 @@ function setup(cfg?: AgentsSettings, shown?: string) {
 
 test('baseline poll is silent, transitions toast with the session link', async () => {
   const { n, toasts } = setup();
-  await n.observe([sess('a', 'running'), sess('b', 'idle', true)]);
-  await n.observe([sess('a', 'needs-you'), sess('b', 'error', true)]);
-  await n.observe([sess('a', 'needs-you'), sess('b', 'error', true)]);
-  expect(toasts.map((x) => x.launch)).toEqual(['app://open/agents/a', 'app://open/agents/b']);
+  await n.observe([{ ...sess('a', 'running'), account: '.claude-work' }, sess('b', 'idle', true)]);
+  await n.observe([{ ...sess('a', 'needs-you'), account: '.claude-work' }, sess('b', 'error', true)]);
+  await n.observe([{ ...sess('a', 'needs-you'), account: '.claude-work' }, sess('b', 'error', true)]);
+  expect(toasts.map((x) => x.launch)).toEqual(['app://open/agents/a/.claude-work', 'app://open/agents/b']);
 });
 
 test('shown session, disabled states and new sessions are skipped', async () => {

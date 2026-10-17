@@ -1,11 +1,67 @@
 /** Agents wire types shared by the server and the web UI (no server imports). */
 
 export interface AgentAccount {
+  /** The config folder name (`.claude`, `.claude-work`). */
   id: string;
+  /** The config directory. */
   dir: string;
+  /** OAuth account email; absent when unknown. */
   email?: string;
+  /** Its email, or its folder path if unknown. */
   label: string;
   isDefault: boolean;
+  /** Set by `GET /api/agents/accounts`: this is the account new sessions launch as. */
+  active?: boolean;
+}
+
+/** Body of `POST /api/agents/accounts/active`: `dir` is the config dir of a listed account (the default's is stored as ""). */
+export interface AgentActiveAccountSet {
+  dir: string;
+}
+
+/** Reply of `POST /api/agents/accounts/active`; `label` feeds "New sessions will launch as <label>". */
+export type AgentActiveAccountResult = { ok: true; label: string; account: AgentAccount } | { ok: false; error: 'unknownAccount' };
+
+/** Entries of the default account a new account can link to (Add account checklist, Edit shared entries). */
+export const AGENT_SHARE_ENTRIES = ['skills', 'agents', 'commands', 'CLAUDE.md', 'settings.json', 'plugins', 'projects'] as const;
+export type AgentShareEntry = (typeof AGENT_SHARE_ENTRIES)[number];
+/** Checked by default in the Add account checklist. */
+export const AGENT_SHARE_DEFAULT: readonly AgentShareEntry[] = ['skills', 'agents', 'commands', 'CLAUDE.md'];
+
+/** Refusals of the account admin routes: not a plain folder name, already an account, the default account, gone, or a file system error. */
+export type AgentAccountAdminError = 'invalidName' | 'exists' | 'default' | 'notFound' | 'failed';
+
+/** Link counts of an add / apply: `skippedDevMode` = file links Windows refused (needs developer mode). */
+export interface AgentShareReport {
+  linked: number;
+  unlinked: number;
+  skipped: number;
+  skippedDevMode: number;
+}
+
+/** Body of `POST /api/agents/accounts/add`. */
+export interface AgentAccountAdd {
+  name: string;
+  share: AgentShareEntry[];
+}
+/** Reply of `POST /api/agents/accounts/add`: the new account is listed right away (without an email until `/login`). */
+export type AgentAccountAddResult = ({ ok: true; folder: string; account: AgentAccount } & AgentShareReport) | { ok: false; error: AgentAccountAdminError };
+/** Reply of `POST /api/agents/accounts/shared` `{folder}`: entries that are links now. */
+export type AgentAccountSharedResult = { ok: true; shared: AgentShareEntry[] } | { ok: false; error: AgentAccountAdminError };
+/** Reply of `POST /api/agents/accounts/shared/apply` `{folder, share}`. */
+export type AgentAccountApplyResult = ({ ok: true; folder: string } & AgentShareReport) | { ok: false; error: AgentAccountAdminError };
+/** Reply of `POST /api/agents/accounts/delete` `{folder}`; `wasActive` = the active choice was cleared. */
+export type AgentAccountDeleteResult = { ok: true; folder: string; wasActive: boolean } | { ok: false; error: AgentAccountAdminError };
+
+/** One project node of the sidebar: with `shareProjects` off a project has one per account, adjacent and sorted by `suffix`. */
+export interface AgentProjectNode {
+  /** Node key: the project id, or `<project id>\u0000<account id>` when split. Collapse state is per node; folders / order use `project`. */
+  node: string;
+  project: string;
+  /** Owner account id of a split node. */
+  account?: string;
+  /** Account part of a split node's label: email, folder name or "default". */
+  suffix?: string;
 }
 
 /** UI status: Running, Waiting (`needs-you`), Done (unseen), Idle, Starting, Error (shown on screen), Exited, Stopped. */
@@ -160,6 +216,14 @@ export interface AgentSessionView extends AgentSession {
   status: AgentStatus;
   /** Id of the added project the cwd belongs to. */
   project?: string;
+  /** Project node key (`AgentProjectNode.node`): equals `project`, or is split per owner account when `shareProjects` is off. */
+  node?: string;
+  /** Account part of a split node's label (email, folder name or "default"); only on split nodes. */
+  nodeSuffix?: string;
+  /** Set (with more than one account) when another account than the active one owns the session: dim the title. */
+  foreign?: boolean;
+  /** Email part before `@` (or folder name) of the owner; set with `foreign` when `showOwner` is on. */
+  owner?: string;
   seenAt?: number;
   /** A process runs it now (pid record, starting or exited pty); false for an offline session showing Done / Exited from an unseen mark. */
   live?: boolean;

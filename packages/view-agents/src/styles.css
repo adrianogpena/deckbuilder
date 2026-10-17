@@ -294,9 +294,32 @@
 .agents-pick { min-height: var(--control-h-xs); padding: 0 var(--space-8); border: 0; border-radius: var(--radius-md); background: none; color: var(--text-2); font: inherit; font-size: var(--fs-md); text-align: left; cursor: pointer; outline: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .agents-pick:hover { background: var(--hover); color: var(--text); }
 .agents-pick.current { font-weight: 600; color: var(--text); }
+.agents-pick-mark { display: inline-block; width: 1.2em; color: var(--accent); }
+.agents-pick-note { padding: 0 var(--space-8); color: var(--text-3); font-size: var(--fs-md); }
+.agents-owner { flex: none; margin-left: var(--space-2); color: var(--text-3); font-size: 0.85em; white-space: nowrap; }
+.agents-session.selected .agents-owner { color: inherit; opacity: 0.8; }
+.agents-account { max-width: 14em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .agents-trash-row { display: flex; align-items: center; gap: var(--space-8); flex-shrink: 0; }
 .agents-trash-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
 .agents-trash-age { flex-shrink: 0; font-family: var(--font-mono); font-size: var(--fs-sm); color: var(--text-3); }
+.agents-acct-list { display: flex; flex-direction: column; gap: var(--space-2); max-height: 50vh; overflow-y: auto; min-width: 460px; }
+.agents-acct-row { display: flex; align-items: center; gap: var(--space-8); min-height: var(--control-h-sm, 28px); padding: var(--space-2) var(--space-8); border-radius: var(--radius-md); }
+.agents-acct-row:hover { background: var(--hover); }
+.agents-acct-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-md); color: var(--text-3); }
+.agents-acct-folder { font-family: var(--font-mono); color: var(--text); }
+.agents-acct-email { color: var(--text-2); }
+.agents-acct-email.muted { color: var(--text-3); font-style: italic; }
+.agents-acct-note { flex-shrink: 0; font-size: var(--fs-sm); color: var(--text-3); }
+.agents-acct-actions { flex-shrink: 0; display: flex; gap: var(--space-4); }
+.agents-acct-form { display: flex; flex-direction: column; gap: var(--space-8); min-width: 360px; }
+.agents-acct-field { display: flex; flex-direction: column; gap: var(--space-4); font-size: var(--fs-md); color: var(--text-2); }
+.agents-acct-input { height: var(--control-h-sm, 28px); padding: 0 var(--space-8); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg); color: var(--text); font-family: var(--font-mono); font-size: var(--fs-md); outline: none; }
+.agents-acct-input:focus { border-color: var(--accent); }
+.agents-acct-label, .agents-acct-hint { font-size: var(--fs-md); color: var(--text-2); }
+.agents-acct-hint { color: var(--text-3); }
+.agents-acct-share { display: flex; flex-direction: column; gap: var(--space-2); margin: 0; padding: 0; list-style: none; font-size: var(--fs-md); color: var(--text); }
+.agents-acct-share label { display: flex; align-items: center; gap: var(--space-8); cursor: pointer; }
+.agents-acct-error { color: var(--err); font-size: var(--fs-md); }
 .agents-add-list { gap: var(--space-2); }
 .agents-add-item { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; padding: var(--space-4) var(--space-8); border-radius: var(--radius-md); color: var(--text); font: inherit; outline: none; }
 .agents-add-item:hover { background: var(--hover); }

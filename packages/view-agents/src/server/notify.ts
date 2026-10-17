@@ -55,7 +55,7 @@ export function createNotifier(opts: NotifierOptions, transitions: Transitions =
         if (cfg?.[SETTING_KEY[status]] === false) continue;
         const { title, body } = opts.text(status, s);
         const link = opts.link();
-        opts.show({ title, body, launch: link ? link(`agents/${s.id}`) : '' });
+        opts.show({ title, body, launch: link ? link(`agents/${s.id}${s.account ? `/${s.account}` : ''}`) : '' });
       }
     },
   };
