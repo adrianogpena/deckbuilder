@@ -41,6 +41,25 @@ export function showError(title: string, text: string): void {
   }
 }
 
+/** Native Yes/No box, No is the default button. Returns true on Yes; true without a box off Windows or when it can't open. */
+export function confirmNo(title: string, text: string): boolean {
+  if (process.platform !== 'win32') return true;
+  try {
+    const { dlopen, FFIType } = require('bun:ffi') as typeof import('bun:ffi');
+    const user32 = dlopen('user32.dll', {
+      MessageBoxW: { args: [FFIType.ptr, FFIType.ptr, FFIType.ptr, FFIType.u32], returns: FFIType.i32 },
+    });
+    const wide = (s: string) => Buffer.from(`${s}\0`, 'utf16le');
+    const MB_YESNO_WARN_DEFNO = 0x4 | 0x30 | 0x100;
+    const IDYES = 6;
+    const r = user32.symbols.MessageBoxW(null, wide(text), wide(title), MB_YESNO_WARN_DEFNO);
+    user32.close();
+    return r === IDYES;
+  } catch {
+    return true;
+  }
+}
+
 /**
  * Shows a native window (an HWND) on Windows; elsewhere a no-op. A process started hidden
  * (`bun run` passes SW_HIDE in its STARTUPINFO) gets that value instead of its first ShowWindow

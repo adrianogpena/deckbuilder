@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { appHome, createAutostart, pickFolder } from '@deckbuilderkit/platform';
+import { appHome, confirmNo, createAutostart, pickFolder } from '@deckbuilderkit/platform';
 import { applyViewSettings, type FieldSpec, mountViews, updatePublicKey, validGroup } from '@deckbuilderkit/server-core';
 import {
   backupRoutes,
@@ -16,6 +16,7 @@ import {
   type BaseSettings,
 } from '@deckbuilderkit/server-mods';
 import { runApp } from '@deckbuilderkit/shell';
+import { runCtl } from '@deckbuilderkit/view-agents/ctl';
 import type { ExplorerServerSettings } from '@deckbuilderkit/view-explorer/server';
 import type { GitServerSettings } from '@deckbuilderkit/view-git/server';
 import type { AgentsServerSettings } from '@deckbuilderkit/view-agents/server';
@@ -173,6 +174,9 @@ const mounted = mountViews(serverViews, { dataDir, settings, stores });
 
 await runApp({
   app: APP,
+  subcommands: {
+    ctl: (args) => runCtl(args, { dir: join(dataDir, 'agents'), enabled: async () => (await settings.load()).agents?.ctl !== false }),
+  },
   routes: (ctx) => ({
     ...infoRoutes({ app: APP, version: pkg.version, dataDir }),
     ...settingsRoutes(settings),
@@ -192,6 +196,10 @@ await runApp({
   sockets: mounted.sockets,
   unauthenticated: mounted.unauthenticated,
   onQuit: () => mounted.onQuit(),
+  confirmQuit: async () => {
+    const messages = await mounted.quitGuard();
+    return messages.length === 0 || confirmNo(APP.name, messages.join('\n\n'));
+  },
   webDir: join(import.meta.dir, '../dist/web'),
   transformIndex: themeHead(settings),
   urlProtocol: true,

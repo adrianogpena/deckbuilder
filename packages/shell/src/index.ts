@@ -57,6 +57,8 @@ export interface RunOptions {
   unauthenticated?: Routes | ((ctx: StartContext) => Routes);
   /** Awaited first on every exit path (window close, tray Quit, `/api/quit`, idle, signals); errors are logged and ignored. */
   onQuit?: () => void | Promise<void>;
+  /** Asked before a window close or tray Quit ends the app; false keeps it running (a closed window is reopened). */
+  confirmQuit?: () => boolean | Promise<boolean>;
   /** Built UI folder, served when running from source; the exe serves its embedded copy instead. */
   webDir: string;
   /** Rewrites `index.html` before it is served, e.g. `themeHead(settings)` for the saved colours. */
@@ -72,6 +74,11 @@ export interface RunOptions {
    * app then keeps running when its last window closes, and only exits when idle with --idle-exit.
    */
   tray?: boolean | TrayMenu;
+  /**
+   * Command-line subcommands (`<app> ctl ...`): when the first argument names one, it runs with the
+   * rest of the arguments before any flag is read or window opens, and the app exits with its code.
+   */
+  subcommands?: Record<string, (args: string[]) => number | Promise<number>>;
   /** Runs once the server listens; not in a launch that hands off to a running instance. */
   onStart?: (ctx: StartContext) => void | Promise<void>;
 }
@@ -83,7 +90,10 @@ export interface RunOptions {
  */
 export async function runApp(opts: RunOptions): Promise<void> {
   const { app } = opts;
-  const flags = parseFlags(process.argv.slice(2));
+  const argv = process.argv.slice(2);
+  const sub = argv[0] !== undefined ? opts.subcommands?.[argv[0]] : undefined;
+  if (sub) process.exit(await sub(argv.slice(1)));
+  const flags = parseFlags(argv);
   if ('error' in flags) {
     console.error(`${flags.error}\n\n${helpText(app)}`);
     process.exit(1);
@@ -174,11 +184,21 @@ export async function runApp(opts: RunOptions): Promise<void> {
     await Promise.all([server?.stop(true), tray?.close()]);
     process.exit(0);
   };
+  const quitAsking = async (reopen: boolean): Promise<void> => {
+    let ok = true;
+    try {
+      ok = (await opts.confirmQuit?.()) !== false;
+    } catch (err) {
+      console.error(err);
+    }
+    if (ok) return quit();
+    if (reopen && mode !== 'none' && mode !== 'browser') show(mode);
+  };
   // Native windows and app windows both report here; the app ends once neither kind is open,
   // unless it has a tray icon. While the icon starts, it waits to see whether it shows.
   const onAllClosed = () => {
     if (openWindows() > 0 || appWindowsOpen()) return;
-    if (!tray) void quit();
+    if (!tray) void quitAsking(true);
     else if (!trayShown) closedWhileTrayStarts = true;
   };
   // WebView2 keeps its profile in %APPDATA%\<exe name>\: the webview library passes that
@@ -270,7 +290,7 @@ export async function runApp(opts: RunOptions): Promise<void> {
       name: app.name,
       menu: trayMenu,
       open: () => void show(mode === 'none' ? 'window' : mode),
-      quit: () => void quit(),
+      quit: () => void quitAsking(false),
       onShown: () => {
         trayShown = true;
         if (idleMinutes === undefined) disableIdleExit();

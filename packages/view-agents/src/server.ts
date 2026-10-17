@@ -1,3 +1,4 @@
+import { t } from '@deckbuilderkit/ui/i18n';
 import { type FSWatcher, mkdirSync, readdirSync, readFileSync, rmSync, watch, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -9,6 +10,8 @@ import type { AgentLocal, AgentSkill, AgentAccountUsage, AgentActiveAccountResul
 import type { AgentsMode, AgentsSettings, AgentsUsagePosition } from './settings-types.ts';
 import { type AgentAccount, accountByDir, createAccountRegistry, detectAccounts, resolveActiveAccount } from './server/accounts.ts';
 import { createAlerts } from './server/alerts.ts';
+import { CTL_STATUS, type CtlServer, startCtlServer } from './server/ctl-server.ts';
+import pkg from '../package.json';
 import { createGitPoller } from './server/git-status.ts';
 import { createHooks } from './server/hooks.ts';
 import { createNotifier, createTransitions, NOTIFY_LABEL } from './server/notify.ts';
@@ -52,7 +55,7 @@ export interface AgentsServerSettings {
 const AGENTS_MODES: AgentsMode[] = ['terminal', 'chat'];
 const USAGE_POSITIONS: AgentsUsagePosition[] = ['float', 'top', 'bottom'];
 
-const AGENTS_SPEC = { mode: AGENTS_MODES, softCap: [1, 100], notifyNeedsYou: 'boolean', notifyDone: 'boolean', notifyError: 'boolean', autoSettle: 'boolean', gitStatus: 'boolean', resumeOnSelect: 'boolean', 'accounts.activeAccount': 'string', 'accounts.showAllSessions': 'boolean', 'accounts.shareProjects': 'boolean', 'accounts.showOwner': 'boolean', 'usage.show': 'boolean', 'usage.position': USAGE_POSITIONS, 'usage.compact': 'boolean', 'usage.use24HourClock': 'boolean', 'usage.showAccount': 'boolean', 'usage.showModel': 'boolean', 'usage.showCache': 'boolean', 'usage.showContext': 'boolean', 'usage.showFiveHour': 'boolean', 'usage.showSevenDay': 'boolean', maxSessionsPerProject: [1, 10000], trashRetentionDays: [1, 3650], claudeCommand: 'string', 'hooks.onRunning': 'string', 'hooks.onWaiting': 'string', 'hooks.onDone': 'string', 'hooks.onError': 'string' } as const;
+const AGENTS_SPEC = { mode: AGENTS_MODES, restoreSessions: ['ask', 'always', 'never'] as const, softCap: [1, 100], notifyNeedsYou: 'boolean', notifyDone: 'boolean', notifyError: 'boolean', autoSettle: 'boolean', gitStatus: 'boolean', ctl: 'boolean', resumeOnSelect: 'boolean', 'accounts.activeAccount': 'string', 'accounts.showAllSessions': 'boolean', 'accounts.shareProjects': 'boolean', 'accounts.showOwner': 'boolean', 'usage.show': 'boolean', 'usage.position': USAGE_POSITIONS, 'usage.compact': 'boolean', 'usage.use24HourClock': 'boolean', 'usage.showAccount': 'boolean', 'usage.showModel': 'boolean', 'usage.showCache': 'boolean', 'usage.showContext': 'boolean', 'usage.showFiveHour': 'boolean', 'usage.showSevenDay': 'boolean', maxSessionsPerProject: [1, 10000], trashRetentionDays: [1, 3650], claudeCommand: 'string', 'hooks.onRunning': 'string', 'hooks.onWaiting': 'string', 'hooks.onDone': 'string', 'hooks.onError': 'string' } as const;
 
 /** Told on every valid Agents config edit (the running view's git poller). */
 let agentsConfigListener: ((group: AgentsSettings) => void) | undefined;
@@ -225,7 +228,21 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
     for (const id of chat?.live().ids ?? []) add(id, 'chat');
     return out;
   };
-  const syncRunning = () => liveRecords().then((l) => running?.sync(l), () => undefined);
+  /** The restore check (until decided; policy from the settings), then the write of the live set. */
+  const syncRunning = async () => {
+    try {
+      if (!running) return;
+      const l = await liveRecords();
+      const { sessions } = await compute();
+      const listed = new Set(sessions.map((x) => `${x.id}|${x.account}`));
+      const policy = (await loadSettings().catch(() => ({}) as AgentsServerSettings)).agents?.restoreSessions ?? 'ask';
+      const liveIds = [...liveTerminalIds(), ...(chat?.live().ids ?? [])];
+      running.decide(policy, liveIds, (r) => listed.has(`${r.id}|${r.account}`));
+      running.sync(l);
+    } catch {
+      /* next tick */
+    }
+  };
 
   /** Set when live ptys + chat processes reached the soft cap; the start is never blocked. */
   const capWarn = async (): Promise<AgentsCapWarn | undefined> => {
@@ -384,6 +401,30 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
     void refresh(true);
   };
 
+  let ctlServer: CtlServer | undefined;
+  const startCtl = (dir: string) => {
+    if (ctlServer) return;
+    try {
+      ctlServer = startCtlServer({
+        dir,
+        deps: {
+          version: pkg.version,
+          pid: process.pid,
+          list: async () => {
+            const names = new Map((projects?.list() ?? []).map((p) => [p.id, p.name]));
+            return (await compute()).sessions.map((x) => ({ id: x.id, agent: 'claude', title: x.title || x.firstPrompt, project: (x.project && names.get(x.project)) || '', status: CTL_STATUS[x.status], live: x.live === true, cwd: x.cwd, updatedAt: new Date(x.updatedAt).toISOString() }));
+          },
+          screenLines: (id) => {
+            for (const [sid, lines] of opts.terminalScreens?.() ?? []) if (sid === id) return lines;
+            return undefined;
+          },
+        },
+      });
+    } catch (e) {
+      console.error(`sdeck ctl is off: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
+
   const stop = () => {
     for (const w of watchers) w.close();
     watchers = [];
@@ -418,6 +459,7 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
       void loadSettings().then((s) => {
         claudeCommand.configure(s.agents);
         git.setEnabled(s.agents?.gitStatus !== false);
+        if (s.agents?.ctl !== false) startCtl(join(ctx.dataDir, 'agents'));
       }, () => {});
       running = createRunningStore(join(ctx.dataDir, 'agents', 'running.json'));
       clearInterval(runningTimer);
@@ -612,12 +654,14 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
           return { steps: [] };
         },
         'GET /api/agents/recovery': async () => {
+          await syncRunning();
+          const auto = ((await loadSettings().catch(() => ({}) as AgentsServerSettings)).agents?.restoreSessions ?? 'ask') === 'always';
           const { sessions } = await compute();
           const byId = new Map(sessions.map((x) => [x.id, x]));
           const live = [...liveTerminalIds(), ...(chat?.live().ids ?? [])];
           return (running?.recovery(live) ?? []).flatMap((r): AgentRunning[] => {
             const x = byId.get(r.id);
-            return x ? [{ ...r, project: x.project, title: x.title, cwd: x.cwd }] : [];
+            return x ? [{ ...r, project: x.project, title: x.title, cwd: x.cwd, ...(auto ? { auto: true } : {}) }] : [];
           });
         },
         'GET /api/agents/cap': async () => ({ warn: await capWarn() }),
@@ -839,10 +883,19 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
         },
       },
     }),
+    quitGuard() {
+      const live = new Set([...liveTerminalIds(), ...(chat?.live().ids ?? [])]);
+      const count = tracker.busy().filter((id) => live.has(id)).length;
+      return count > 0 ? t('agents.quit.confirm', { count }) : undefined;
+    },
     onQuit() {
+      running?.setQuitting();
+      ctlServer?.stop();
+      ctlServer = undefined;
       stop();
       clearInterval(runningTimer);
       clearInterval(lifeTimer);
+      for (const x of claudeTerms()) opts.terminals?.close(x.id);
       chat?.closeAll();
     },
   });

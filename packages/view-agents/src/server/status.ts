@@ -125,6 +125,10 @@ export function createStatusTracker(now: () => number = Date.now) {
       }
       return out;
     },
+    /** Ids whose last polled status is running or needs-you (Idle, Starting, Done don't count). */
+    busy(): string[] {
+      return [...prev].filter(([, s]) => s === 'running' || s === 'needs-you').map(([id]) => id);
+    },
     /** Status of a session running nowhere: unseen done -> done, unseen error -> exited, else stopped. */
     offline(sessionId: string, seen?: Record<string, number>): AgentStatus {
       const d = doneAt.get(sessionId);

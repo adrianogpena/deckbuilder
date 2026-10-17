@@ -47,6 +47,8 @@ export interface ServerViewDef<S = any> {
    */
   shared?: ReadonlyArray<{ id: string; routes(ctx: ServerViewContext<S>): Routes }>;
   onQuit?(): void | Promise<void>;
+  /** Asked before a user-initiated quit: a message to confirm (default No) when quitting would stop running work, else undefined. */
+  quitGuard?(): string | undefined | Promise<string | undefined>;
   settings?: {
     /** Group key -> validator returning the clean value, or null when invalid. */
     validate: Record<string, (raw: unknown) => unknown | null>;
@@ -75,7 +77,7 @@ export function applyViewSettings(defs: readonly ServerViewDef[], patch: Record<
 export function mountViews<S>(
   defs: readonly ServerViewDef<S>[],
   ctx: ServerViewContext<S>,
-): { routes: Routes; sockets: SocketRoutes; unauthenticated: Routes; onQuit(): Promise<void> } {
+): { routes: Routes; sockets: SocketRoutes; unauthenticated: Routes; onQuit(): Promise<void>; quitGuard(): Promise<string[]> } {
   const ids = new Set<string>();
   const sharedIds = new Set<string>();
   const routes: Routes = {};
@@ -111,6 +113,14 @@ export function mountViews<S>(
     unauthenticated,
     async onQuit() {
       for (const d of defs) await d.onQuit?.();
+    },
+    async quitGuard() {
+      const out: string[] = [];
+      for (const d of defs) {
+        const m = await d.quitGuard?.();
+        if (m) out.push(m);
+      }
+      return out;
     },
   };
 }

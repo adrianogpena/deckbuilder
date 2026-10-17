@@ -332,6 +332,8 @@ export interface AgentRunning {
   project?: string;
   title: string;
   cwd: string;
+  /** Set when `restoreSessions` is `always`: the client resumes without the banner. */
+  auto?: boolean;
 }
 
 /** Sent with a session start when live sessions reached the soft cap. */

@@ -129,8 +129,12 @@ export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false, usageS
   const [preview, setPreview] = useState<string>();
   const [recovery, setRecovery] = useState<AgentRunning[]>([]);
 
+  const autoResume = useRef<(items: AgentRunning[]) => Promise<void>>();
   useEffect(() => {
-    void listRecovery().then(setRecovery, () => undefined);
+    void listRecovery().then((items) => {
+      if (items.length > 0 && items.every((x) => x.auto)) void autoResume.current?.(items);
+      else setRecovery(items);
+    }, () => undefined);
   }, []);
   const dismissBanner = useCallback(() => {
     setRecovery([]);
@@ -245,7 +249,8 @@ export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false, usageS
     async (items: AgentRunning[]) => {
       dismissBanner();
       setError('');
-      for (const x of items) {
+      for (const [n, x] of items.entries()) {
+        if (n > 0 && x.auto) await new Promise((r) => setTimeout(r, 100));
         if (chats.some((c) => entryId(c) === x.id) || pool.some((p) => p.sessionId === x.id)) continue;
         try {
           if (x.mode === 'chat') {
@@ -263,6 +268,7 @@ export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false, usageS
     },
     [chats, pool, attach, openChat, dismissBanner],
   );
+  autoResume.current = resume;
 
   // `/clear` gives the pty a new Claude session id (the server adopts it into the pty's meta): follow it in the pool and the selection.
   useEffect(() => {

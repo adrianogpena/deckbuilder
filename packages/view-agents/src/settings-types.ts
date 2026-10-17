@@ -1,6 +1,9 @@
 /** How a session runs: in a terminal (pty) or in the chat UI. */
 export type AgentsMode = 'terminal' | 'chat';
 
+/** Session restore after a restart: ask (banner), resume silently, or skip. */
+export type AgentsRestore = 'ask' | 'always' | 'never';
+
 /** Where the sidebar usage section sits. */
 export type AgentsUsagePosition = 'float' | 'top' | 'bottom';
 
@@ -8,6 +11,8 @@ export type AgentsUsagePosition = 'float' | 'top' | 'bottom';
 export interface AgentsSettings {
   /** Mode for new sessions and for opening stopped ones; terminal when omitted. */
   mode?: AgentsMode;
+  /** What to do with the sessions the previous run left live; ask when omitted. */
+  restoreSessions?: AgentsRestore;
   /** Live ptys + chat processes at which starting a session warns; 12 when omitted. */
   softCap?: number;
   /** Selecting a stopped session resumes it; off (default) shows the stopped-session card instead. */
@@ -20,6 +25,8 @@ export interface AgentsSettings {
   autoSettle?: boolean;
   /** Background git status of every listed session's cwd; on when omitted, false = git never runs. */
   gitStatus?: boolean;
+  /** Read-only ctl server for the sdeck command (127.0.0.1, token in ctl.json); on when omitted, read at startup only. */
+  ctl?: boolean;
   /** Toast when a session needs you / finishes / fails and is not on screen; on when omitted. */
   notifyNeedsYou?: boolean;
   notifyDone?: boolean;

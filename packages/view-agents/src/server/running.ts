@@ -1,15 +1,20 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import type { AgentRunning } from '../protocol.ts';
+import type { AgentsRestore } from '../settings-types.ts';
 
 export type RunningRecord = Pick<AgentRunning, 'id' | 'account' | 'mode' | 'project'>;
 
 export interface RunningStore {
-  /** Records the sessions live now (written only when they changed). */
+  /** Records the sessions live now plus those still queued for restore (written only when the set changed; never while quitting or before the restore decision). */
   sync(live: RunningRecord[]): void;
-  /** The sessions the previous run left live and that are not live now; empty after `dismiss`. */
+  /** Runs the restore check once per call until decided; `listed` tells whether a record matches a listed session (id + account). Returns true once decided. */
+  decide(policy: AgentsRestore, liveIds: Iterable<string>, listed: (r: RunningRecord) => boolean): boolean;
+  /** The sessions still to restore (not live now); empty after `dismiss` or when skipped. */
   recovery(liveIds: Iterable<string>): RunningRecord[];
   dismiss(): void;
+  /** Stops all writes (the app is quitting). */
+  setQuitting(): void;
 }
 
 const valid = (r: unknown): r is RunningRecord => {
@@ -17,34 +22,75 @@ const valid = (r: unknown): r is RunningRecord => {
   return !!x && typeof x.id === 'string' && typeof x.account === 'string' && (x.mode === 'terminal' || x.mode === 'chat');
 };
 
-/** The live Agents sessions kept in `file` (`{id, account, mode, project?}[]`); what the file held at creation is the "was running" list. */
-export function createRunningStore(file: string): RunningStore {
+export const pidAlive = (pid: number): boolean => {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    return (e as NodeJS.ErrnoException).code === 'EPERM';
+  }
+};
+
+export interface RunningOptions {
+  pid?: number;
+  alive?: (pid: number) => boolean;
+}
+
+/** `file` holds `{pid, sessions: {id, account, mode, project?}[]}` (a bare array from older versions is read too); what it held at creation is the "was running" list. */
+export function createRunningStore(file: string, opts: RunningOptions = {}): RunningStore {
+  const ownPid = opts.pid ?? process.pid;
+  const alive = opts.alive ?? pidAlive;
   let previous: RunningRecord[] = [];
+  let otherPid: number | undefined;
   try {
     const raw = JSON.parse(readFileSync(file, 'utf8')) as unknown;
-    if (Array.isArray(raw)) previous = raw.filter(valid);
+    const list = Array.isArray(raw) ? raw : (raw as { sessions?: unknown } | null)?.sessions;
+    if (Array.isArray(list)) previous = list.filter(valid);
+    const pid = (raw as { pid?: unknown } | null)?.pid;
+    if (typeof pid === 'number' && pid !== ownPid) otherPid = pid;
   } catch {
     /* no previous run */
   }
   let written = JSON.stringify(previous);
+  let queued: RunningRecord[] = [];
+  let decided = false;
+  let quitting = false;
+  const notLive = (ids: Iterable<string>) => {
+    const now = new Set(ids);
+    return queued.filter((r) => !now.has(r.id));
+  };
   return {
     sync(live) {
-      const text = JSON.stringify(live);
+      if (quitting || !decided) return;
+      const ids = new Set(live.map((r) => r.id));
+      const sessions = [...live, ...queued.filter((r) => !ids.has(r.id))];
+      const text = JSON.stringify({ pid: ownPid, sessions });
       if (text === written) return;
       try {
         mkdirSync(dirname(file), { recursive: true });
-        writeFileSync(file, text);
+        writeFileSync(`${file}.tmp`, text);
+        renameSync(`${file}.tmp`, file);
         written = text;
       } catch {
         /* best effort */
       }
     },
+    decide(policy, liveIds, listed) {
+      if (decided) return true;
+      const live = [...liveIds];
+      decided = true;
+      if (policy === 'never' || previous.length === 0 || (otherPid !== undefined && alive(otherPid)) || live.length > 0) return true;
+      queued = previous.filter(listed);
+      return true;
+    },
     recovery(liveIds) {
-      const now = new Set(liveIds);
-      return previous.filter((r) => !now.has(r.id));
+      return notLive(liveIds);
     },
     dismiss() {
-      previous = [];
+      queued = [];
+    },
+    setQuitting() {
+      quitting = true;
     },
   };
 }
