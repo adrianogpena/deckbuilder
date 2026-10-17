@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { QueuedMessage } from '../../chat-protocol.ts';
 import { t } from '../../i18n';
 
@@ -10,6 +10,8 @@ export interface ComposerProps {
   onInterrupt(): void;
   onEditQueued(id: string, text: string): void;
   onRemoveQueued(id: string): void;
+  /** Gets a function that appends text to the draft (null when unmounted). */
+  insertRef?(insert: ((text: string) => void) | null): void;
 }
 
 function QueuedRow({ item, onEdit, onRemove }: { item: QueuedMessage; onEdit(text: string): void; onRemove(): void }) {
@@ -45,8 +47,16 @@ function QueuedRow({ item, onEdit, onRemove }: { item: QueuedMessage; onEdit(tex
 }
 
 /** Message box: Enter sends (Shift+Enter for a new line). While a turn runs, sends are queued and shown above it. */
-export function Composer({ running, disabled, queue, onSend, onInterrupt, onEditQueued, onRemoveQueued }: ComposerProps) {
+export function Composer({ running, disabled, queue, onSend, onInterrupt, onEditQueued, onRemoveQueued, insertRef }: ComposerProps) {
   const [text, setText] = useState('');
+  const area = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    insertRef?.((add) => {
+      setText((cur) => (cur && !cur.endsWith('\n') ? `${cur}\n${add}` : cur + add));
+      area.current?.focus();
+    });
+    return () => insertRef?.(null);
+  }, [insertRef]);
   const submit = () => {
     if (!text.trim() || disabled) return;
     onSend(text);
@@ -63,6 +73,7 @@ export function Composer({ running, disabled, queue, onSend, onInterrupt, onEdit
       )}
       <div className="chat-input">
         <textarea
+          ref={area}
           value={text}
           rows={3}
           placeholder={running ? t('agents.chat.placeholder.queue') : t('agents.chat.placeholder')}

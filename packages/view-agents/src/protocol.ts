@@ -38,6 +38,17 @@ export interface AgentSessionState {
   archived?: boolean;
 }
 
+/** Notes of a project (`GET /api/agents/notes?project=`). */
+export interface AgentNotes {
+  text: string;
+}
+
+/** Body of `PUT /api/agents/notes`; the reply is `{ ok }`. */
+export interface AgentNotesWrite {
+  project: string;
+  text: string;
+}
+
 /** One line of the streamed `GET /api/agents/search?q=` ndjson (first match per session). */
 export interface AgentSearchHit {
   sessionId: string;

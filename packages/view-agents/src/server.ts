@@ -18,6 +18,7 @@ import { createSessionScanner, matchProject } from './server/discovery.ts';
 import { detectScreenError } from './server/screen-errors.ts';
 import { createProjectsStore, type ProjectsStore } from './server/projects.ts';
 import { createRunningStore, type RunningRecord, type RunningStore } from './server/running.ts';
+import { createNotesStore } from './server/notes.ts';
 import { createSessionStateStore, type SessionStateStore } from './server/session-state.ts';
 import { searchSessions } from './server/search.ts';
 import { createStatuslineInstaller } from './server/statusline-install.ts';
@@ -234,6 +235,7 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
       projects = store;
       const states = createSessionStateStore(join(ctx.dataDir, 'agents', 'session-state.json'));
       sessionState = states;
+      const notes = createNotesStore(join(ctx.dataDir, 'agents', 'notes'));
       loadSettings = () => ctx.settings.load();
       running = createRunningStore(join(ctx.dataDir, 'agents', 'running.json'));
       clearInterval(runningTimer);
@@ -264,6 +266,13 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
           states.set(b.id, b);
           await refresh(true);
           return { ok: true };
+        },
+        // Per-project markdown notes (the id is in the query / body: no path params).
+        'GET /api/agents/notes': ({ query }) => ({ text: notes.read(query.get('project') ?? '') }),
+        'PUT /api/agents/notes': async ({ json }) => {
+          const b = await json<{ project?: unknown; text?: unknown }>();
+          if (typeof b.project !== 'string' || typeof b.text !== 'string') return { ok: false };
+          return { ok: notes.write(b.project, b.text) };
         },
         // Full-text search of prompts and assistant text in the added projects' sessions: ndjson of {sessionId, snippet}.
         'GET /api/agents/search': async ({ req, query }) => {

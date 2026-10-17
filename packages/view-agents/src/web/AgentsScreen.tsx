@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { errorOf, setTitleBadge, useCommand, useKeybindings } from '@deckbuilderkit/ui';
-import { TerminalPane, terminalAppKeys } from '@deckbuilderkit/terminal';
+import { TerminalPane, terminalAppKeys, type TerminalPaneHandle } from '@deckbuilderkit/terminal';
 import { closeSession } from '@deckbuilderkit/terminal/session';
 import { agentsCommands } from '../commands';
 import { t } from '../i18n';
@@ -11,11 +11,15 @@ import { ChatPane } from './chat/ChatPane';
 import { ExternalPane } from './ExternalPane';
 import { NewSession } from './NewSession';
 import { RecoveryBanner } from './RecoveryBanner';
+import { ChangesTab } from './ChangesTab';
+import { NotesTab } from './NotesTab';
+import { SidePanel } from './SidePanel';
 import { Sidebar } from './Sidebar';
 import { useAgentsFeed } from './useAgentSessions';
 import '../styles.css';
 
 const SIDEBAR_KEY = 'deckbuilder.agents.sidebarHidden';
+const PANEL_KEY = 'deckbuilder.agents.panelHidden';
 /** Attached panes kept mounted (hidden) so switching back is instant; older ones detach. */
 const POOL_SIZE = 3;
 
@@ -41,6 +45,15 @@ const readHidden = () => {
   }
 };
 
+/** The side panel is hidden unless the user opened it. */
+const readPanelHidden = () => {
+  try {
+    return localStorage.getItem(PANEL_KEY) !== '0';
+  } catch {
+    return true;
+  }
+};
+
 /** The session id of an `#agents/<id>` app link, if the hash is one. */
 const linkedSession = () => /^#\/?agents\/([\w.-]+)\/?$/.exec(window.location.hash)?.[1];
 
@@ -49,6 +62,7 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
   const { sessions, usage } = useAgentsFeed();
   const keys = useKeybindings();
   const [hidden, setHidden] = useState(readHidden);
+  const [panelHidden, setPanelHidden] = useState(readPanelHidden);
   const [selectedId, setSelectedId] = useState<string>();
   const [newFor, setNewFor] = useState<string>();
   const [pool, setPool] = useState<Attached[]>([]);
@@ -86,6 +100,18 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
     });
   }, []);
   useCommand(agentsCommands()[0]!, toggleSidebar);
+
+  const togglePanel = useCallback(() => {
+    setPanelHidden((h) => {
+      try {
+        localStorage.setItem(PANEL_KEY, h ? '0' : '1');
+      } catch {
+        /* storage unavailable */
+      }
+      return !h;
+    });
+  }, []);
+  useCommand(agentsCommands()[1]!, togglePanel);
 
   const waiting = needsYouCount(sessions);
   useEffect(() => {
@@ -141,7 +167,7 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
     const next = nextWaiting(sessions);
     if (next) void select(next.id);
   }, [sessions, select]);
-  useCommand(agentsCommands()[1]!, jumpWaiting);
+  useCommand(agentsCommands()[2]!, jumpWaiting);
 
   const resume = useCallback(
     async (items: AgentRunning[]) => {
@@ -234,7 +260,13 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
     void select(linked);
   }, [linked, sessions, select]);
 
-  const appKeys = useMemo(() => terminalAppKeys('agents', keys?.defs ?? [], ['agents.toggleSidebar']), [keys?.defs]);
+  // Per session id: how to insert text into its terminal or chat composer (the Notes tab's Send to session).
+  const inserters = useRef(new Map<string, (text: string) => void>());
+  const sendToSession = useCallback((text: string) => {
+    if (selectedId) inserters.current.get(selectedId)?.(text);
+  }, [selectedId]);
+
+  const appKeys = useMemo(() => terminalAppKeys('agents', keys?.defs ?? [], ['agents.toggleSidebar', 'agents.togglePanel']), [keys?.defs]);
 
   return (
     <div className={`view-agents agents-screen${hidden ? ' sidebar-hidden' : ''}`}>
@@ -272,6 +304,16 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
               ))}
             </div>
           )}
+          <button
+            type="button"
+            className="agents-toggle agents-panel-toggle"
+            aria-pressed={!panelHidden}
+            title={t('keys.agents.togglePanel')}
+            aria-label={t('keys.agents.togglePanel')}
+            onClick={togglePanel}
+          >
+            ◫
+          </button>
         </header>
         <RecoveryBanner items={recovery} onResume={(i) => void resume(i)} onDismiss={dismissBanner} />
         {error && <div role="alert" className="agents-error">{error}</div>}
@@ -300,6 +342,10 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
                 session={a.terminal}
                 appKeys={appKeys}
                 focused={a.sessionId === selectedId && newFor === undefined}
+                handle={(h: TerminalPaneHandle | null) => {
+                  if (h) inserters.current.set(a.sessionId, h.insert);
+                  else inserters.current.delete(a.sessionId);
+                }}
                 onExit={() => setPool((p) => p.filter((x) => x.terminal !== a.terminal))}
               />
             </div>
@@ -308,6 +354,10 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
             <div key={c.key} className="agents-pane" hidden={entryId(c) !== selectedId || newFor !== undefined}>
               <ChatPane
                 {...c.target}
+                insertRef={(fn) => {
+                  if (fn) inserters.current.set(entryId(c), fn);
+                  else inserters.current.delete(entryId(c));
+                }}
                 onSession={(id) => {
                   setChats((l) => l.map((x) => (x.key === c.key ? { ...x, id } : x)));
                   setSelectedId((cur) => (cur === c.key ? id : cur));
@@ -328,6 +378,7 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
           {!inTerminal && !inChat && !inExternal && newFor === undefined && <p className="agents-empty agents-placeholder">{t('agents.pick')}</p>}
         </div>
       </section>
+      {!panelHidden && <SidePanel onClose={togglePanel} notes={<NotesTab project={selected?.project} canSend={(inTerminal || inChat) && newFor === undefined} onSend={sendToSession} />} changes={<ChangesTab root={projects.find((p) => p.id === selected?.project)?.path ?? selected?.cwd} status={selected?.status} />} />}
     </div>
   );
 }

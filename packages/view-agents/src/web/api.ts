@@ -79,6 +79,10 @@ export const uninstallStatusline = (account: string) => request<StatuslineResult
 export const patchSessionState = (id: string, state: { pinned?: boolean; name?: string | null; archived?: boolean }) =>
   request<{ ok: boolean }>('PATCH', '/api/agents/session-state', {}, { id, ...state });
 
+export const getNotes = (project: string) => request<{ text: string }>('GET', '/api/agents/notes', { project });
+
+export const putNotes = (project: string, text: string) => request<{ ok: boolean }>('PUT', '/api/agents/notes', {}, { project, text });
+
 /** Server full-text search over prompts and replies; `onHit` per session with its first matching snippet. */
 export const searchSessions = (q: string, onHit: (hit: AgentSearchHit) => void, signal?: AbortSignal) =>
   stream('/api/agents/search', { q }, (item) => onHit(item as AgentSearchHit), signal);

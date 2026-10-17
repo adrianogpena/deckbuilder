@@ -29,6 +29,8 @@ const DEFAULT_FONT = 13;
 /** What the app can make a pane do (tab menus): the pane commands. */
 export interface TerminalPaneHandle {
   run(command: PaneCommand): void;
+  /** Pastes text into the program as typed input, without a trailing Enter. */
+  insert(text: string): void;
 }
 
 let audio: AudioContext | null = null;
@@ -286,7 +288,7 @@ export function TerminalPane(props: TerminalPaneProps) {
           return view.scroll('bottom');
       }
     }
-    if (!preview) latest.current.handle?.({ run: runPane });
+    if (!preview) latest.current.handle?.({ run: runPane, insert: (text) => view.paste(text) });
 
     viewRef.current = view;
     view.onFindResults((index, count) => setFound({ index, count }));

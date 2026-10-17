@@ -7,10 +7,12 @@ import { t } from '../../i18n';
 export interface ChatPaneProps extends ChatTarget {
   /** Called with the Claude session id once known (on `opened`, or the `init` event of a new chat). */
   onSession?(sessionId: string): void;
+  /** Gets a function that inserts text into the composer (null when unmounted). */
+  insertRef?(insert: ((text: string) => void) | null): void;
 }
 
 /** Chat mode for one Claude session: transcript, pending permission cards and the composer. */
-export function ChatPane({ onSession, ...target }: ChatPaneProps) {
+export function ChatPane({ onSession, insertRef, ...target }: ChatPaneProps) {
   const chat = useChat(target, onSession);
   const running = chat.state?.run === 'running';
   const closed = chat.state?.run === 'closed';
@@ -33,6 +35,7 @@ export function ChatPane({ onSession, ...target }: ChatPaneProps) {
         onInterrupt={chat.interrupt}
         onEditQueued={chat.editQueued}
         onRemoveQueued={chat.removeQueued}
+        insertRef={insertRef}
       />
     </div>
   );
