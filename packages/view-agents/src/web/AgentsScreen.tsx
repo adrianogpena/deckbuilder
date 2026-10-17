@@ -71,13 +71,25 @@ export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false }: { mo
   /** Project row whose summary fills the main pane; cleared when a session gets selected. */
   const [summaryFor, setSummaryFor] = useState<string>();
   const [visible, setVisible] = useState<AgentSessionView[]>();
+  /** Folder row whose summary fills the main pane (exclusive with `summaryFor`). */
+  const [folderFor, setFolderFor] = useState<{ id: string; name: string; projectIds: string[] }>();
   useEffect(() => {
-    if (selectedId) setSummaryFor(undefined);
+    if (selectedId) {
+      setSummaryFor(undefined);
+      setFolderFor(undefined);
+    }
   }, [selectedId]);
   const selectProject = useCallback((projectId: string) => {
     setNewFor(undefined);
     setSelectedId(undefined);
+    setFolderFor(undefined);
     setSummaryFor(projectId);
+  }, []);
+  const selectFolder = useCallback((folder: { id: string; name: string; projectIds: string[] }) => {
+    setNewFor(undefined);
+    setSelectedId(undefined);
+    setSummaryFor(undefined);
+    setFolderFor(folder);
   }, []);
   const [pool, setPool] = useState<Attached[]>([]);
   const [error, setError] = useState('');
@@ -425,6 +437,8 @@ export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false }: { mo
           onSelect={(id) => void select(id)}
           selectedProjectId={summaryFor}
           onSelectProject={selectProject}
+          selectedFolderId={folderFor?.id}
+          onSelectFolder={selectFolder}
           onVisibleChange={setVisible}
           onNewSession={(p) => setNewFor(p)}
           onAddProject={() => setAdding(true)}
@@ -564,7 +578,18 @@ export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false }: { mo
               />
             </div>
           )}
-          {!summaryProject && !inTerminal && !inChat && !inExternal && !inPreview && newFor === undefined && <p className="agents-empty agents-placeholder">{t('agents.pick')}</p>}
+          {folderFor && !summaryProject && !selectedId && newFor === undefined && (
+            <div className="agents-pane">
+              <GroupSummary
+                kind="folder"
+                name={folderFor.name}
+                projectCount={folderFor.projectIds.length}
+                sessions={(hidden || !visible ? sessions.filter((s) => !s.archived) : visible).filter((s) => s.project !== undefined && folderFor.projectIds.includes(s.project))}
+                onSelect={(id) => void select(id)}
+              />
+            </div>
+          )}
+          {!summaryProject && !folderFor && !inTerminal && !inChat && !inExternal && !inPreview && newFor === undefined && <p className="agents-empty agents-placeholder">{t('agents.pick')}</p>}
         </div>
       </section>
       {!panelHidden && <SidePanel onClose={togglePanel} notes={<NotesTab project={selected?.project} canSend={(inTerminal || inChat) && newFor === undefined} onSend={sendToSession} />} changes={<ChangesTab root={projects.find((p) => p.id === selected?.project)?.path ?? selected?.cwd} status={selected?.status} />} />}

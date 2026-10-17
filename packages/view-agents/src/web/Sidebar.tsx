@@ -1,8 +1,19 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { ContextMenu, type ContextMenuItem, fuzzyScore, highlightRuns, useRovingList, useToast } from '@deckbuilderkit/ui';
+import { type CSSProperties, type DragEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { ContextMenu, type ContextMenuItem, fuzzyScore, highlightRuns, useDialogs, useRovingList, useToast } from '@deckbuilderkit/ui';
 import { t } from '../i18n';
-import { type AgentAccountUsage, type AgentProject, type AgentRateLimit, type AgentSessionView, type AgentStatus, markUnread, patchSessionState, searchSessions } from './api';
+import { type AgentAccountUsage, type AgentProject, type AgentRateLimit, type AgentSessionView, type AgentStatus, type AgentTreePatch, markUnread, patchSessionState, removeTagEverywhere, searchSessions, type TreePatchResult } from './api';
 import { compareSessions, displayName } from './attention';
+import { type FolderPick, MoveToFolder } from './MoveToFolder';
+import { buildRows, folderName, folderNodeKey, nextPin, parseTags, projectKey, projectNodeKey, tagCounts, type TreeRow } from './tree';
+import { useAgentTree } from './useAgentSessions';
+
+const depthStyle = (depth: number) => ({ '--agents-depth': depth }) as CSSProperties;
+
+/** What a drag carries: a node of one container (folders, a folder's projects, the top level, or a project's sessions). */
+interface DragNode {
+  container: string;
+  id: string;
+}
 
 export interface SidebarProps {
   projects: AgentProject[];
@@ -15,6 +26,10 @@ export interface SidebarProps {
   selectedProjectId?: string;
   /** A click on a project's name; called with the project id. */
   onSelectProject?(projectId: string): void;
+  /** The selected folder row, if any (its summary is on screen). */
+  selectedFolderId?: string;
+  /** A click on a folder's name: its id, name and the ids of its displayed projects. */
+  onSelectFolder?(folder: { id: string; name: string; projectIds: string[] }): void;
   /** The live sessions the groups show after search and filters, on each change. */
   onVisibleChange?(sessions: AgentSessionView[]): void;
   /** Called with the project id. */
@@ -93,23 +108,28 @@ interface RowMatch {
 }
 
 /** Projects with their Claude sessions, a status dot and label per session; search, status chips, pin, rename and archive. */
-export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, selectedProjectId, onSelectProject, onVisibleChange, onNewSession, onAddProject, onRemoveProject, onStop, onRestart, onStartBackground }: SidebarProps) {
+export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, selectedProjectId, onSelectProject, selectedFolderId, onSelectFolder, onVisibleChange, onNewSession, onAddProject, onRemoveProject, onStop, onRestart, onStartBackground }: SidebarProps) {
   const ref = useRef<HTMLDivElement>(null);
-  useRovingList(ref, '.agents-session');
+  useRovingList(ref, '.agents-session, .agents-node');
   const toast = useToast();
+  const { tree, patch } = useAgentTree();
+  const [drag, setDrag] = useState<DragNode>();
   const [query, setQuery] = useState('');
   const [fullToggle, setFullToggle] = useState(false);
   const [filter, setFilter] = useState<ReadonlySet<AgentStatus>>(new Set());
   const [archivedOpen, setArchivedOpen] = useState(false);
-  const [menu, setMenu] = useState<{ at: { x: number; y: number }; session: AgentSessionView }>();
+  const [menu, setMenu] = useState<{ at: { x: number; y: number }; items: Array<ContextMenuItem | 'sep'> }>();
   const [renaming, setRenaming] = useState<string>();
   const renamingRef = useRef<string | undefined>(undefined);
   const [hits, setHits] = useState<ReadonlyMap<string, string>>(new Map());
+  const [tagFilter, setTagFilter] = useState<string>();
+  const [picker, setPicker] = useState<{ key: string; name: string; current?: string }>();
+  const dialogs = useDialogs();
 
   const prefixed = query.startsWith('?');
   const full = fullToggle || prefixed;
   const q = (prefixed ? query.slice(1) : query).trim();
-  const searching = q !== '' || filter.size > 0;
+  const searching = q !== '' || filter.size > 0 || tagFilter !== undefined;
 
   useEffect(() => {
     setHits(new Map());
@@ -130,11 +150,12 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
     };
   }, [full, q, toast]);
 
-  const { groups, archived } = useMemo(() => {
+  const { live, matches, archived } = useMemo(() => {
     const known = new Set(projects.map((p) => p.id));
     const matches = new Map<string, RowMatch>();
     for (const s of sessions) {
       if (filter.size && !filter.has(s.status)) continue;
+      if (tagFilter !== undefined && !s.tags?.includes(tagFilter)) continue;
       if (!q) matches.set(s.id, {});
       else if (full) {
         const snippet = hits.get(s.id);
@@ -145,19 +166,196 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
       }
     }
     const sorted = sessions.filter((s) => matches.has(s.id) && !!s.project && known.has(s.project)).sort(compareSessions);
-    const live = sorted.filter((s) => !s.archived);
     return {
-      groups: [...projects]
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .map((p) => ({ project: p, list: live.filter((s) => s.project === p.id).map((s) => ({ s, m: matches.get(s.id)! })) }))
-        .filter((g) => !searching || g.list.length > 0),
+      live: sorted.filter((s) => !s.archived),
+      matches,
       archived: sorted.filter((s) => s.archived).map((s) => ({ s, m: matches.get(s.id)! })),
     };
-  }, [projects, sessions, filter, q, full, hits, searching]);
+  }, [projects, sessions, filter, tagFilter, q, full, hits]);
+
+  // Counted over every listed session, archived and filtered-out ones included.
+  const tags = useMemo(() => {
+    const known = new Set(projects.map((p) => p.id));
+    return tagCounts(sessions.filter((s) => !!s.project && known.has(s.project)));
+  }, [projects, sessions]);
+
+  const rows = useMemo(
+    () => buildRows({ tree: tree ?? { folders: [], topOrder: [], sessionOrder: {}, collapsed: [], sort: 'manual', view: 'normal' }, projects, sessions: live, filtering: searching }),
+    [tree, projects, live, searching],
+  );
 
   useEffect(() => {
-    onVisibleChange?.(groups.flatMap((g) => g.list.map((x) => x.s)));
-  }, [groups, onVisibleChange]);
+    onVisibleChange?.(live);
+  }, [live, onVisibleChange]);
+
+  /** The reply's tree when the patch applied, else undefined (refusals toasted, `noop` silent). */
+  const sendTree = async (p: AgentTreePatch): Promise<TreePatchResult['tree'] | undefined> => {
+    try {
+      const r = await patch(p);
+      if (r.ok) return r.tree;
+      if (r.error === 'activeView') toast({ message: t('agents.tree.activeView'), kind: 'error' });
+      else if (r.error === 'invalid') toast({ message: t('agents.stateFailed'), kind: 'error' });
+    } catch {
+      toast({ message: t('agents.stateFailed'), kind: 'error' });
+    }
+    return undefined;
+  };
+  const send = async (p: AgentTreePatch): Promise<boolean> => !!(await sendTree(p));
+
+  /** Creates a folder (appended last); undefined when the name is blank or the create failed. */
+  const createFolder = async (): Promise<{ id: string; name: string } | undefined> => {
+    const raw = await dialogs.prompt({ title: t('agents.folder.newTitle'), label: t('agents.folder.name') });
+    const name = raw === null ? '' : folderName(raw);
+    if (!name) return undefined;
+    const next = await sendTree({ folderCreate: { name } });
+    const f = next?.folders[next.folders.length - 1];
+    return f && { id: f.id, name: f.name };
+  };
+
+  const newFolder = async () => {
+    const f = await createFolder();
+    if (!f) return;
+    onSelectFolder?.({ id: f.id, name: f.name, projectIds: [] });
+    toast({ message: t('agents.folder.created', { name: f.name }) });
+  };
+
+  const renameFolder = async (id: string, current: string) => {
+    const raw = await dialogs.prompt({ title: t('agents.folder.renameTitle'), label: t('agents.folder.name'), value: current });
+    const name = raw?.trim();
+    if (!name || name === current) return;
+    void send({ folderRename: { id, name } });
+  };
+
+  const deleteFolder = async (id: string, name: string) => {
+    const ok = await dialogs.confirm({ title: t('agents.folder.deleteOk'), body: t('agents.folder.deleteConfirm', { name }), okLabel: t('agents.folder.deleteOk'), danger: true });
+    if (ok) void send({ folderDelete: { id } });
+  };
+
+  /** Move to folder: the project row, or the session's project; else a hint. */
+  const openMove = (r?: TreeRow) => {
+    const key = r?.kind === 'project' ? r.key : r?.kind === 'session' ? r.projectKey : undefined;
+    const p = key !== undefined ? projects.find((x) => projectKey(x.path) === key) : undefined;
+    if (key === undefined || !p) return void toast({ message: t('agents.folder.moveNoTarget') });
+    setPicker({ key, name: p.name, current: tree?.folders.find((f) => f.projects.includes(key))?.id });
+  };
+
+  const pickFolder = async (key: string, pick: FolderPick) => {
+    setPicker(undefined);
+    if (pick.to === 'top') {
+      if (await send({ moveToFolder: { keys: [key] } })) toast({ message: t('agents.folder.movedTop') });
+      return;
+    }
+    const f = pick.to === 'folder' ? tree?.folders.find((x) => x.id === pick.id) : await createFolder();
+    if (f && (await send({ moveToFolder: { keys: [key], folder: f.id } }))) toast({ message: t('agents.folder.moved', { name: f.name }) });
+  };
+
+  const confirmRemove = async (p: AgentProject) => {
+    const ok = await dialogs.confirm({ title: t('agents.remove'), body: t('agents.remove.confirm', { name: p.name }), okLabel: t('agents.remove.ok'), danger: true });
+    if (ok) onRemoveProject(p.id);
+  };
+
+  const editTags = async (s: AgentSessionView) => {
+    if (!s.id) return void toast({ message: t('agents.tags.needsId') });
+    const raw = await dialogs.prompt({ title: t('agents.tags.editTitle'), label: t('agents.tags.prompt', { title: displayName(s) }), value: (s.tags ?? []).join(', ') });
+    if (raw === null) return;
+    const list = parseTags(raw);
+    patchSessionState(s.id, { tags: list })
+      .then(() => toast({ message: list.length ? t('agents.tags.set', { tags: list.join(', ') }) : t('agents.tags.cleared') }))
+      .catch(() => toast({ message: t('agents.stateFailed'), kind: 'error' }));
+  };
+
+  const removeTag = async (tag: string) => {
+    if (!(await dialogs.confirm({ title: t('agents.tags.removeAll'), body: t('agents.tags.removeConfirm', { tag }), okLabel: t('agents.remove.ok'), danger: true }))) return;
+    try {
+      const r = await removeTagEverywhere(tag);
+      if (tagFilter === tag) setTagFilter(undefined);
+      toast({ message: t('agents.tags.removed', { tag, count: String(r.count) }) });
+    } catch {
+      toast({ message: t('agents.stateFailed'), kind: 'error' });
+    }
+  };
+
+  const setCollapsed = (key: string, collapsed: boolean) => void send({ collapse: { key, collapsed } });
+
+  // Jumping to a hidden session: un-collapse its project and that project's folder; a filtered-out one gets a hint.
+  const jumped = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!selectedId || jumped.current === selectedId || !tree) return;
+    jumped.current = selectedId;
+    const s = sessions.find((x) => x.id === selectedId);
+    const p = s && !s.archived ? projects.find((x) => x.id === s.project) : undefined;
+    if (!s || !p) return;
+    if (!matches.has(s.id)) {
+      toast({ message: t('agents.tree.hiddenByFilter') });
+      return;
+    }
+    const key = projectKey(p.path);
+    const folder = tree.folders.find((f) => f.projects.includes(key));
+    if (tree.collapsed.includes(projectNodeKey(key))) setCollapsed(projectNodeKey(key), false);
+    if (folder && tree.collapsed.includes(folderNodeKey(folder.id))) setCollapsed(folderNodeKey(folder.id), false);
+  }, [selectedId, tree, sessions, projects, matches]);
+
+  /** One neighbour swap per step; `displayed` is updated locally between steps, as the server swaps it. */
+  const moveSteps = async (displayed: string[], id: string, to: number, step: (displayed: string[], dir: -1 | 1) => AgentTreePatch) => {
+    const list = [...displayed];
+    let at = list.indexOf(id);
+    if (at < 0 || to < 0 || to >= list.length) return;
+    while (at !== to) {
+      const dir: -1 | 1 = to > at ? 1 : -1;
+      if (!(await send(step([...list], dir)))) return;
+      [list[at], list[at + dir]] = [list[at + dir]!, list[at]!];
+      at += dir;
+    }
+  };
+
+  const rowMove = (r: TreeRow, to: number) => {
+    if (r.kind === 'folder') return moveSteps(r.displayed, r.id, to, (_, dir) => ({ move: { kind: 'folder', id: r.id, dir } }));
+    if (r.kind === 'project') return moveSteps(r.displayed, r.key, to, (displayed, dir) => ({ move: { kind: 'project', key: r.key, dir, folder: r.folder, displayed } }));
+    if (r.kind === 'session') {
+      if (!r.session.id) return void toast({ message: t('agents.pin.needsId') });
+      return moveSteps(r.displayed, r.session.id, to, (displayed, dir) => ({ move: { kind: 'session', project: r.projectKey, id: r.session.id, dir, displayed } }));
+    }
+  };
+
+  const rowId = (r: TreeRow) => (r.kind === 'folder' ? r.id : r.kind === 'project' ? r.key : r.kind === 'session' ? r.session.id : '');
+  const container = (r: TreeRow) => (r.kind === 'folder' ? 'folders' : r.kind === 'project' ? `projects:${r.folder ?? ''}` : r.kind === 'session' ? `sessions:${r.projectKey}` : '');
+
+  const moveItems = (r: TreeRow): ContextMenuItem[] => {
+    const id = rowId(r);
+    const at = r.kind === 'divider' ? -1 : r.displayed.indexOf(id);
+    if (r.kind === 'divider' || at < 0) return [];
+    const len = r.displayed.length;
+    return [
+      { id: 'moveUp', label: t('agents.tree.moveUp'), disabled: at === 0, run: () => void rowMove(r, at - 1) },
+      { id: 'moveDown', label: t('agents.tree.moveDown'), disabled: at === len - 1, run: () => void rowMove(r, at + 1) },
+    ];
+  };
+
+  /** Drag-and-drop within one container: the same neighbour swaps as Move up/down. */
+  const dragProps = (r: TreeRow) => {
+    const id = rowId(r);
+    const box = container(r);
+    return {
+      draggable: !!id,
+      onDragStart: (e: DragEvent) => {
+        e.dataTransfer.effectAllowed = 'move';
+        setDrag({ container: box, id });
+      },
+      onDragEnd: () => setDrag(undefined),
+      onDragOver: (e: DragEvent) => {
+        if (drag && drag.container === box && drag.id !== id) e.preventDefault();
+      },
+      onDrop: (e: DragEvent) => {
+        if (!drag || drag.container !== box || r.kind === 'divider') return;
+        e.preventDefault();
+        const from = drag.id;
+        setDrag(undefined);
+        const to = r.displayed.indexOf(id);
+        const moved = r.kind === 'folder' ? { ...r, id: from } : r.kind === 'project' ? { ...r, key: from } : { ...r, session: { ...r.session, id: from } };
+        void rowMove(moved, to);
+      },
+    };
+  };
 
   const present = useMemo(() => new Set(sessions.map((s) => s.status)), [sessions]);
   const chips = STATUSES.filter((st) => present.has(st) || filter.has(st));
@@ -197,9 +395,20 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
     return items.length ? [...items, 'sep'] : [];
   };
 
-  const menuItems = (s: AgentSessionView): Array<ContextMenuItem | 'sep'> => [
+  const cyclePin = (s: AgentSessionView) => {
+    if (!s.id) return void toast({ message: t('agents.pin.needsId') });
+    const next = nextPin(s.pin);
+    patchSessionState(s.id, { pin: 'cycle' })
+      .then(() => toast({ message: t(next === 'top' ? 'agents.pin.flashTop' : next === 'bottom' ? 'agents.pin.flashBottom' : 'agents.pin.flashNone') }))
+      .catch(() => toast({ message: t('agents.stateFailed'), kind: 'error' }));
+  };
+
+  const menuItems = (s: AgentSessionView, r?: TreeRow): Array<ContextMenuItem | 'sep'> => [
     ...lifecycleItems(s),
-    { id: 'pin', label: s.pinned ? t('agents.unpin') : t('agents.pin'), run: () => update(s.id, { pinned: !s.pinned }) },
+    { id: 'pin', label: s.pin === 'top' ? t('agents.pin.bottom') : s.pin === 'bottom' ? t('agents.unpin') : t('agents.pin.top'), run: () => cyclePin(s) },
+    ...(r ? moveItems(r) : []),
+    ...(r ? [{ id: 'moveToFolder', label: t('agents.folder.move'), run: () => openMove(r) }] : []),
+    { id: 'tags', label: t('agents.tags.edit'), run: () => void editTags(s) },
     // Deferred so the menu gives the focus back before the rename input takes it.
     { id: 'unread', label: t('agents.markUnread'), run: () => void markUnread(s.id).catch(() => undefined) },
     { id: 'rename', label: t('agents.rename'), hint: 'F2', run: () => setTimeout(() => startRename(s.id), 0) },
@@ -207,12 +416,14 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
     { id: 'archive', label: s.archived ? t('agents.unarchive') : t('agents.archive'), run: () => update(s.id, { archived: !s.archived }) },
   ];
 
-  const row = ({ s, m }: { s: AgentSessionView; m: RowMatch }) => {
+  const row = ({ s, m }: { s: AgentSessionView; m: RowMatch }, r?: Extract<TreeRow, { kind: 'session' }>) => {
     const label = statusLabel(s.status);
     const name = displayName(s);
+    const connector = r && <span className="agents-connector" aria-hidden="true">{r.last ? '└─' : '├─'}</span>;
     if (renaming === s.id) {
       return (
-        <div key={s.id} className="agents-session-edit">
+        <div key={s.id} className="agents-session-edit" style={r && depthStyle(r.depth)}>
+          {connector}
           <span className={`agents-glyph ${s.status}`} role="img" title={label} aria-label={label}>{STATUS_GLYPH[s.status]}</span>
           <input
             className="agents-rename"
@@ -243,12 +454,14 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
       <button
         key={s.id}
         type="button"
-        className={`agents-session${s.id === selectedId ? ' selected' : ''}${pin ? ' pinned' : ''}${tone}`}
+        className={`agents-session${s.id === selectedId ? ' selected' : ''}${pin ? ' pinned' : ''}${tone}${r && drag?.id === s.id ? ' dragging' : ''}`}
+        style={r && depthStyle(r.depth)}
+        {...(r ? dragProps(r) : {})}
         aria-current={s.id === selectedId ? 'true' : undefined}
         onClick={() => onSelect(s.id)}
         onContextMenu={(e) => {
           e.preventDefault();
-          setMenu({ at: { x: e.clientX, y: e.clientY }, session: s });
+          setMenu({ at: { x: e.clientX, y: e.clientY }, items: menuItems(s, r) });
         }}
         onKeyDown={(e) => {
           if (e.key !== 'F2') return;
@@ -257,6 +470,7 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
         }}
       >
         <span className="agents-lead" aria-hidden="true" />
+        {connector}
         <span className={`agents-glyph ${s.status}`} role="img" title={label} aria-label={label}>{STATUS_GLYPH[s.status]}</span>
         {pin && <span className="agents-mark" role="img" title={pinLabel} aria-label={pinLabel}>{pin === 'top' ? '↑' : '↓'}</span>}
         {s.external && <span className="agents-mark" role="img" title={t('agents.external.note')} aria-label={t('agents.external')}>↗</span>}
@@ -271,11 +485,83 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
     );
   };
 
+  const nodeRow = (r: Extract<TreeRow, { kind: 'folder' | 'project' }>, nodeKey: string, name: string, title: string, current: boolean, select: (() => void) | undefined, extra: ReactNode, items: Array<ContextMenuItem | 'sep'>) => {
+    const toggle = () => setCollapsed(nodeKey, !r.collapsed);
+    const expand = r.collapsed ? t('agents.tree.expand') : t('agents.tree.collapse');
+    return (
+      <div
+        key={nodeKey}
+        className={`${r.kind === 'folder' ? 'agents-folder-row' : 'agents-group-row'}${drag?.id === rowId(r) ? ' dragging' : ''}`}
+        style={depthStyle(r.depth)}
+        {...dragProps(r)}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          setMenu({ at: { x: e.clientX, y: e.clientY }, items });
+        }}
+      >
+        <button type="button" className="agents-twisty" tabIndex={-1} aria-expanded={!r.collapsed} title={expand} aria-label={expand} onClick={toggle}>{r.collapsed ? '▸' : '▾'}</button>
+        <button
+          type="button"
+          className={`agents-node ${r.kind}`}
+          title={title}
+          aria-expanded={!r.collapsed}
+          aria-current={current ? 'true' : undefined}
+          onClick={select ?? toggle}
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            toggle();
+          }}
+        >{name}</button>
+        <GroupCounts list={r.sessions} />
+        {extra}
+      </div>
+    );
+  };
+
+  const treeRow = (r: TreeRow, i: number) => {
+    if (r.kind === 'divider') return <div key={`divider-${i}`} className="agents-divider" role="separator">{t('agents.tree.idleDone')}</div>;
+    if (r.kind === 'session') return row({ s: r.session, m: matches.get(r.session.id) ?? {} }, r);
+    if (r.kind === 'folder') {
+      const select = onSelectFolder && (() => onSelectFolder({ id: r.id, name: r.name, projectIds: r.projectIds }));
+      const items: Array<ContextMenuItem | 'sep'> = [
+        ...moveItems(r),
+        'sep',
+        { id: 'newFolder', label: t('agents.folder.new'), run: () => void newFolder() },
+        { id: 'renameFolder', label: t('agents.folder.rename'), run: () => void renameFolder(r.id, r.name) },
+        { id: 'deleteFolder', label: t('agents.folder.delete'), danger: true, run: () => void deleteFolder(r.id, r.name) },
+      ];
+      return nodeRow(r, folderNodeKey(r.id), r.name, r.name, r.id === selectedFolderId, select, null, items);
+    }
+    const p = r.project;
+    const select = onSelectProject && (() => onSelectProject(p.id));
+    const extra = (
+      <span>
+        <button type="button" className="agents-remove" title={t('agents.remove')} aria-label={t('agents.remove')} onClick={() => void confirmRemove(p)}>x</button>
+        <button type="button" className="agents-new" title={t('agents.new.title')} aria-label={t('agents.new.title')} onClick={() => onNewSession(p.id)}>+</button>
+      </span>
+    );
+    const items: Array<ContextMenuItem | 'sep'> = [
+      { id: 'new', label: t('agents.new.title'), run: () => onNewSession(p.id) },
+      ...moveItems(r),
+      { id: 'moveToFolder', label: t('agents.folder.move'), run: () => openMove(r) },
+      { id: 'newFolder', label: t('agents.folder.new'), run: () => void newFolder() },
+      'sep',
+      { id: 'remove', label: t('agents.remove'), danger: true, run: () => void confirmRemove(p) },
+    ];
+    return nodeRow(r, projectNodeKey(r.key), p.name, p.path, p.id === selectedProjectId, select, extra, items);
+  };
+
   const archivedShown = archivedOpen || searching;
   return (
     <nav className="agents-sidebar" aria-label={t('agents.sidebar')} ref={ref}>
       <div className="agents-sidebar-head">
         <button type="button" onClick={onAddProject}>{t('agents.add.button')}</button>
+        {tree && (
+          <button type="button" className="agents-view-toggle" aria-pressed={tree.view === 'active'} title={t('agents.tree.activeOnTop')} onClick={() => void send({ view: tree.view === 'active' ? 'normal' : 'active' })}>
+            {t('agents.tree.activeOnTop')}
+          </button>
+        )}
       </div>
       {usage.length > 0 && (
         <section className="agents-usage" aria-label={t('agents.usage')}>
@@ -335,25 +621,32 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
           {t('agents.empty')}. {t('agents.emptyHint')}
         </p>
       )}
-      {searching && groups.length === 0 && archived.length === 0 && <p className="agents-empty">{t('agents.noMatches')}</p>}
-      {groups.map(({ project, list }) => (
-        <section key={project.id} className="agents-project">
-          <header className="agents-group-row">
-            <h3 title={project.path}>
-              {onSelectProject ? (
-                <button type="button" className="agents-project-name" aria-current={project.id === selectedProjectId ? 'true' : undefined} onClick={() => onSelectProject(project.id)}>{project.name}</button>
-              ) : project.name}
-            </h3>
-            <GroupCounts list={list.map((x) => x.s)} />
-            <span>
-              <button type="button" className="agents-remove" title={t('agents.remove')} aria-label={t('agents.remove')} onClick={() => onRemoveProject(project.id)}>x</button>
-              <button type="button" className="agents-new" title={t('agents.new.title')} aria-label={t('agents.new.title')} onClick={() => onNewSession(project.id)}>+</button>
-            </span>
-          </header>
-          {list.length === 0 && <p className="agents-empty">{t('agents.noSessions')}</p>}
-          {list.map(row)}
-        </section>
-      ))}
+      {searching && rows.length === 0 && archived.length === 0 && <p className="agents-empty">{t('agents.noMatches')}</p>}
+      {rows.length > 0 && <div className="agents-tree">{rows.map(treeRow)}</div>}
+      {tags.length > 0 && (
+        <div className="agents-tags">
+          <div className="agents-divider" role="separator">{t('agents.tags')}</div>
+          {tags.map(({ tag, count }) => {
+            const label = `# ${tag} (${count})`;
+            return (
+              <button
+                key={tag}
+                type="button"
+                className={`agents-tag-row agents-node${tag === tagFilter ? ' active' : ''}`}
+                title={t('agents.tags.filter', { tag })}
+                aria-pressed={tag === tagFilter}
+                onClick={() => setTagFilter((cur) => (cur === tag ? undefined : tag))}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setMenu({ at: { x: e.clientX, y: e.clientY }, items: [{ id: 'removeTag', label: t('agents.tags.removeAll'), danger: true, run: () => void removeTag(tag) }] });
+                }}
+              >
+                <span className="agents-tag-name">{label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
       {archived.length > 0 && (
         <section className="agents-project agents-archived">
           <header className="agents-group-row">
@@ -361,17 +654,19 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
               <span aria-hidden="true">{archivedShown ? '▾' : '▸'}</span> {t('agents.archived')} ({archived.length})
             </button>
           </header>
-          {archivedShown && archived.map(row)}
+          {archivedShown && archived.map((x) => row(x))}
         </section>
       )}
-      {menu && <ContextMenu at={menu.at} items={menuItems(menu.session)} onClose={() => setMenu(undefined)} />}
+      {menu && <ContextMenu at={menu.at} items={menu.items} onClose={() => setMenu(undefined)} />}
+      {picker && tree && <MoveToFolder name={picker.name} folders={tree.folders} current={picker.current} onPick={(pick) => void pickFolder(picker.key, pick)} onClose={() => setPicker(undefined)} />}
+      {dialogs.element}
     </nav>
   );
 }
 
 /** '(count)', then '●R' and '◐W' only when non-zero, after a folder or project name. */
 function GroupCounts({ list }: { list: AgentSessionView[] }) {
-  const running = list.filter((s) => s.status === 'running').length;
+  const running = list.filter((s) => s.status === 'running' || s.status === 'starting').length;
   const waiting = list.filter((s) => s.status === 'needs-you').length;
   return (
     <span className="agents-group-counts">

@@ -223,3 +223,36 @@
 .agents-notes { display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 6px; padding: 8px; }
 .agents-notes-text { flex: 1; min-height: 0; resize: none; padding: 6px 8px; font: inherit; font-family: var(--font-mono, monospace); font-size: var(--fs-sm); color: var(--ink); background: var(--bg); border: 1px solid var(--border-soft); border-radius: 4px; }
 .agents-notes-actions { display: flex; justify-content: flex-end; }
+/* Tree rows (g6): folder purple, project cyan, both bold and truncated; connector and expand marker in mono. */
+.agents-tree { display: flex; flex-direction: column; }
+.agents-node { flex: 0 1 auto; min-width: 0; padding: 0; border: 0; background: none; font: inherit; font-weight: 600; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; outline: none; border-radius: var(--radius-md); }
+.agents-node.folder { color: var(--accent); }
+.agents-node.project { color: var(--info); }
+.agents-node:hover, .agents-node[aria-current='true'] { text-decoration: underline; text-underline-offset: 2px; }
+.agents-node:focus-visible { box-shadow: inset 0 0 0 1px var(--accent); }
+.agents-twisty { flex: none; width: 1.2em; padding: 0; border: 0; background: none; color: var(--text-3); font-family: 'Segoe UI Symbol', var(--font-mono); font-size: var(--fs-sm); cursor: pointer; margin-right: calc(-1 * var(--space-4)); }
+.agents-twisty:hover { color: var(--text); }
+.agents-connector { flex: none; font-family: var(--font-mono); font-size: var(--fs-sm); color: var(--text-3); margin-right: calc(-1 * var(--space-4)); }
+.agents-session.selected .agents-connector { color: inherit; }
+.agents-group-row:hover .agents-remove { visibility: visible; }
+.agents-folder-row:hover, .agents-group-row:hover { background: var(--hover); }
+.dragging { opacity: 0.5; }
+.agents-view-toggle[aria-pressed='true'] { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+/* Tag rows (TAGS section) and the Move to folder picker. */
+.agents-tag-row { width: 100%; border: 0; background: none; font: inherit; font-size: var(--fs-md); text-align: left; cursor: pointer; outline: none; }
+.agents-tag-row:hover { background: var(--hover); color: var(--text); }
+.agents-tag-row:focus-visible, .agents-pick:focus-visible { box-shadow: inset 0 0 0 1px var(--accent); }
+.agents-tag-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agents-pick-list { display: flex; flex-direction: column; gap: var(--space-2); max-height: 50vh; overflow-y: auto; }
+.agents-pick { min-height: var(--control-h-xs); padding: 0 var(--space-8); border: 0; border-radius: var(--radius-md); background: none; color: var(--text-2); font: inherit; font-size: var(--fs-md); text-align: left; cursor: pointer; outline: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agents-pick:hover { background: var(--hover); color: var(--text); }
+.agents-pick.current { font-weight: 600; color: var(--text); }
+.agents-add-list { gap: var(--space-2); }
+.agents-add-item { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; padding: var(--space-4) var(--space-8); border-radius: var(--radius-md); color: var(--text); font: inherit; outline: none; }
+.agents-add-item:hover { background: var(--hover); }
+.agents-add-item:focus-visible { box-shadow: inset 0 0 0 1px var(--accent); }
+.agents-add-item-name, .agents-add-item-path { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agents-add-item-name { font-weight: 600; }
+.agents-add-item span.agents-add-item-path { font-family: var(--font-mono, monospace); font-size: var(--fs-xs); color: var(--text-3); }
+.agents-add-loading { display: flex; justify-content: center; padding: var(--space-8); }
+.agents-add-empty { margin: 0; font-size: var(--fs-sm); color: var(--text-3); }

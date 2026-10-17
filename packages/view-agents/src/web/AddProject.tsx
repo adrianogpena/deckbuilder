@@ -1,23 +1,21 @@
-import { useEffect, useState } from 'react';
-import { dialogs, errorOf, Modal } from '@deckbuilderkit/ui';
+import { useRef, useState } from 'react';
+import { dialogs, ErrorBanner, errorOf, Modal, Spinner, useAsync, useRovingList } from '@deckbuilderkit/ui';
 import { t } from '../i18n';
-import { addAgentProject, type AgentProject, listExplorerProjects } from './api';
+import { addAgentProject, type AgentProject, listProjectSuggestions } from './api';
 
 const baseName = (p: string) => p.replace(/[\\/]+$/, '').split(/[\\/]/).pop() ?? p;
 const norm = (p: string) => p.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
 
 /** Dialog adding a project: the Explorer's projects as quick adds, or any folder through the folder picker. */
 export function AddProject({ added, onAdded, onClose }: { added: AgentProject[]; onAdded(p: AgentProject): void; onClose(): void }) {
-  const [explorer, setExplorer] = useState<Array<{ id: string; name: string; path: string }>>([]);
+  const suggestions = useAsync(listProjectSuggestions, []);
   const [path, setPath] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState('');
+  const list = useRef<HTMLDivElement>(null);
+  useRovingList(list, '.agents-add-item');
 
-  useEffect(() => {
-    void listExplorerProjects().then(setExplorer, () => undefined);
-  }, []);
-
-  const quick = explorer.filter((p) => !added.some((a) => norm(a.path) === norm(p.path)));
+  const quick = (suggestions.data ?? []).filter((p) => !added.some((a) => norm(a.path) === norm(p.path)));
 
   const add = async (input: { name?: string; path: string }) => {
     setError('');
@@ -54,17 +52,22 @@ export function AddProject({ added, onAdded, onClose }: { added: AgentProject[];
       }
     >
       <div className="agents-add">
-        {quick.length > 0 && (
-          <>
-            <h4>{t('agents.add.explorer')}</h4>
-            <div className="agents-add-list">
-              {quick.map((p) => (
-                <button key={p.id} type="button" className="agents-add-item" title={p.path} onClick={() => void add({ name: p.name, path: p.path })}>
-                  <strong>{p.name}</strong> <span>{p.path}</span>
-                </button>
-              ))}
-            </div>
-          </>
+        <h4>{t('agents.add.explorer')}</h4>
+        {suggestions.error ? (
+          <ErrorBanner error={suggestions.error} onRetry={suggestions.reload} compact />
+        ) : suggestions.loading && !suggestions.data ? (
+          <div className="agents-add-loading"><Spinner small /></div>
+        ) : quick.length === 0 ? (
+          <p className="agents-add-empty">{t('agents.add.noSuggestions')}</p>
+        ) : (
+          <div ref={list} className="agents-add-list" role="list" aria-label={t('agents.add.explorer')}>
+            {quick.map((p) => (
+              <button key={p.path} type="button" role="listitem" className="agents-add-item" title={`${p.name}\n${p.path}`} onClick={() => void add({ name: p.name, path: p.path })}>
+                <span className="agents-add-item-name">{p.name}</span>
+                <span className="agents-add-item-path">{p.path}</span>
+              </button>
+            ))}
+          </div>
         )}
         <h4>{t('agents.add.folder')}</h4>
         <div className="agents-add-folder">

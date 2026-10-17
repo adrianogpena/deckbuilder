@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { type AgentAccountUsage, type AgentSessionView, listAgentSessions, openAgentsSocket } from './api';
+import { useCallback, useEffect, useState } from 'react';
+import { type AgentAccountUsage, type AgentSessionView, type AgentTree, type AgentTreePatch, getTree, listAgentSessions, openAgentsSocket, patchTree, type TreePatchResult } from './api';
 
 /** Sessions with live status and per-account plan usage: initial fetch, then socket frames; reconnects after a drop. */
 export function useAgentsFeed(): { sessions: AgentSessionView[]; usage: AgentAccountUsage[] } {
@@ -31,4 +31,23 @@ export function useAgentsFeed(): { sessions: AgentSessionView[]; usage: AgentAcc
 /** Sessions with live status (see `useAgentsFeed`). */
 export function useAgentSessions(): AgentSessionView[] {
   return useAgentsFeed().sessions;
+}
+
+/** The sidebar tree store: fetched once, replaced by each `PATCH` reply. `patch` resolves to the reply (`error` when refused). */
+export function useAgentTree(): { tree: AgentTree | undefined; patch(p: AgentTreePatch): Promise<TreePatchResult> } {
+  const [tree, setTree] = useState<AgentTree>();
+  useEffect(() => {
+    let alive = true;
+    getTree().then((r) => {
+      const t = (r as unknown as { tree?: AgentTree }).tree ?? r;
+      if (alive) setTree(t);
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  const patch = useCallback(async (p: AgentTreePatch) => {
+    const r = await patchTree(p);
+    if (r.tree) setTree(r.tree);
+    return r;
+  }, []);
+  return { tree, patch };
 }

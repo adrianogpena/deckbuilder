@@ -2,9 +2,9 @@ import { request, stream } from '@deckbuilderkit/ui';
 import { listSessions, openSession, type Ticketed } from '@deckbuilderkit/terminal/session';
 import type { ChatEvent } from '../chat-protocol.ts';
 import { t } from '../i18n';
-import type { AgentLaunch, AgentLifecycleError, AgentStopResult, AgentAccount,AgentAccountUsage, AgentProject, AgentRateLimit, AgentRunning, AgentSearchHit, AgentSessionView, AgentsCapWarn, AgentStatus, AgentStatuslineError, AgentStatuslineStatus } from '../protocol.ts';
+import type { AgentLaunch, AgentLifecycleError, AgentStopResult, AgentAccount,AgentAccountUsage, AgentProject, AgentRateLimit, AgentRunning, AgentSearchHit, AgentSessionView, AgentsCapWarn, AgentStatus, AgentStatuslineError, AgentStatuslineStatus, AgentTagCount, AgentTree, AgentTreePatch } from '../protocol.ts';
 
-export type { AgentAccount, AgentAccountUsage, AgentProject, AgentRateLimit, AgentRunning, AgentSearchHit, AgentSessionView, AgentsCapWarn, AgentStatus, AgentStatuslineError, AgentStatuslineStatus };
+export type { AgentAccount, AgentAccountUsage, AgentProject, AgentRateLimit, AgentRunning, AgentSearchHit, AgentSessionView, AgentsCapWarn, AgentStatus, AgentStatuslineError, AgentStatuslineStatus, AgentTagCount, AgentTree, AgentTreePatch };
 
 export const listAccounts = () => request<AgentAccount[]>('GET', '/api/agents/accounts');
 
@@ -100,6 +100,8 @@ export const addAgentProject = (input: { name?: string; path: string }) => reque
 export const removeAgentProject = (id: string) => request<{ ok: boolean }>('DELETE', '/api/agents/projects', { id });
 /** The projects of the Explorer (`/api/projects`), offered as quick adds. */
 export const listExplorerProjects = () => request<Array<{ id: string; name: string; path: string }>>('GET', '/api/projects');
+/** Explorer projects not added yet (hidden ones included: adding one back un-hides it). */
+export const listProjectSuggestions = () => request<Array<{ name: string; path: string }>>('GET', '/api/agents/projects/suggestions');
 
 /** Stops the chat process of a session before it resumes in a terminal; `busy` while a turn is running. */
 export const stopChat = (sessionId: string) => request<{ ok: boolean; busy: boolean }>('POST', '/api/agents/chat/stop', {}, { sessionId });
@@ -118,9 +120,19 @@ export const installStatusline = (account: string) => request<StatuslineResult>(
 
 export const uninstallStatusline = (account: string) => request<StatuslineResult>('POST', '/api/agents/statusline/uninstall', {}, { account });
 
-/** Pins, renames (`name` '' or null clears) or archives a session; a sessions frame follows. */
-export const patchSessionState = (id: string, state: { pinned?: boolean; name?: string | null; archived?: boolean }) =>
+/** Pins (`pin: 'cycle'` steps none > top > bottom > none), renames (`name` '' or null clears) or archives a session; a sessions frame follows. */
+export const patchSessionState = (id: string, state: { pin?: 'top' | 'bottom' | 'none' | null | 'cycle'; name?: string | null; archived?: boolean; tags?: string[] }) =>
   request<{ ok: boolean }>('PATCH', '/api/agents/session-state', {}, { id, ...state });
+
+/** Distinct tags with the number of listed sessions carrying each. */
+export const listTags = () => request<AgentTagCount[]>('GET', '/api/agents/tags');
+/** Removes a tag from every session; `count` = sessions changed. */
+export const removeTagEverywhere = (tag: string) => request<{ ok: boolean; count: number }>('POST', '/api/agents/tags/remove', {}, { tag });
+
+/** The stored sidebar tree (folders, manual orders, collapse, sort, view). */
+export const getTree = () => request<AgentTree>('GET', '/api/agents/tree');
+export type TreePatchResult = { ok: boolean; error?: 'activeView' | 'noop' | 'invalid'; tree: AgentTree };
+export const patchTree = (patch: AgentTreePatch) => request<TreePatchResult>('PATCH', '/api/agents/tree', {}, patch);
 
 export const getNotes = (project: string) => request<{ text: string }>('GET', '/api/agents/notes', { project });
 
