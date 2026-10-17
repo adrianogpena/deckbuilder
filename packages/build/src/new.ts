@@ -109,6 +109,16 @@ export const VIEW_SPECS: Record<string, ViewSpec> = {
     serverOptions: "{ integrationDir: join(appHome(APP.id), 'shell-integration'), resolveCwd: async (root, path) => join(root, path) }",
     serverSettings: 'TerminalServerSettings',
   },
+  agents: {
+    pkg: 'view-agents',
+    web: 'agentsView',
+    webOptions: '',
+    webSettings: 'AgentsViewSettings',
+    server: 'agentsServerView',
+    serverOptions: '',
+    serverSettings: 'AgentsServerSettings',
+    stores: ['app'],
+  },
   workbench: {
     pkg: 'view-workbench',
     web: 'workbenchView',

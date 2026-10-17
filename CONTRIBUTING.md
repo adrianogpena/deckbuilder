@@ -472,7 +472,7 @@ push and pull request.
 ## Using deckbuilder in a new app
 
 ```
-bunx @deckbuilderkit/build new <dir> --views explorer,git,rest,terminal,workbench [--local] [--git] [--name <Name>] [--id <id>]
+bunx @deckbuilderkit/build new <dir> --views agents,explorer,git,rest,terminal,workbench [--local] [--git] [--name <Name>] [--id <id>]
 ```
 
 From this repo: `bun packages/build/src/cli.ts new ...`. `<dir>` is relative to the current directory.

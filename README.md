@@ -9,6 +9,10 @@ Base for local-first desktop apps. A Bun workspace of shared packages plus thin 
 
 ![Home, dark](docs/home-dark.png)
 
+![Agents, dark](docs/agents.png)
+
+The Agents view (`view-agents`): Claude Code sessions per project, with live status, terminal/chat, usage, attention and side panels.
+
 ## Install
 
 Requirements: [Bun](https://bun.sh) 1.3 or newer (not needed for the gallery executable). Window mode needs the OS web view: WebView2 on Windows 10/11, WebKitGTK 6.0 on Linux (`sudo apt install libwebkitgtk-6.0-4` on Debian/Ubuntu).
@@ -44,7 +48,7 @@ bun install
 bun run dev
 ```
 
-The app starts with Home and Settings. `--views` adds view packages (any of `explorer`, `git`, `rest`, `terminal`, `workbench`), `--name` sets the display name, `--id` the data folder `~/.<id>`, and `--git` runs `git init`. Inside the app, `bun run build` builds its executable and `bunx deckbuilder upgrade` moves every `@deckbuilderkit/*` dependency to the latest version. More in [Using deckbuilder in a new app](CONTRIBUTING.md#using-deckbuilder-in-a-new-app).
+The app starts with Home and Settings. `--views` adds view packages (any of `agents`, `explorer`, `git`, `rest`, `terminal`, `workbench`), `--name` sets the display name, `--id` the data folder `~/.<id>`, and `--git` runs `git init`. Inside the app, `bun run build` builds its executable and `bunx deckbuilder upgrade` moves every `@deckbuilderkit/*` dependency to the latest version. More in [Using deckbuilder in a new app](CONTRIBUTING.md#using-deckbuilder-in-a-new-app).
 
 ### 3. Add packages to an existing app
 
@@ -52,7 +56,7 @@ The app starts with Home and Settings. `--views` adds view packages (any of `exp
 bun add @deckbuilderkit/ui @deckbuilderkit/server-core @deckbuilderkit/view-terminal
 ```
 
-Packages: `ui`, `server-core`, `server-mods`, `shell`, `platform`, `build`, and the views `view-explorer`, `view-git`, `view-rest`, `view-terminal`, `view-workbench`, all under `@deckbuilderkit/`.
+Packages: `ui`, `server-core`, `server-mods`, `shell`, `platform`, `build`, and the views `view-agents`, `view-explorer`, `view-git`, `view-rest`, `view-terminal`, `view-workbench`, all under `@deckbuilderkit/`.
 
 ### 4. npm, pnpm or yarn
 
