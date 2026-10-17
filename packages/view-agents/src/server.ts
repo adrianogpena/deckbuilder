@@ -2,7 +2,7 @@ import { type FSWatcher, mkdirSync, readFileSync, watch, writeFileSync } from 'n
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { createToaster } from '@deckbuilderkit/platform';
-import { defineServerView, socketTickets, validGroup, type SocketData, type SocketRoutes } from '@deckbuilderkit/server-core';
+import { defineServerView, ndjson, socketTickets, validGroup, type SocketData, type SocketRoutes } from '@deckbuilderkit/server-core';
 import type { ServerWebSocket } from 'bun';
 import { CHAT_SOCKET_PATH, type ChatClientFrame, type ChatServerFrame } from './chat-protocol.ts';
 import type { AgentAccountUsage, AgentRunning, AgentSessionView, AgentsCapWarn, AgentsFrame } from './protocol.ts';
@@ -18,6 +18,8 @@ import { createSessionScanner, matchProject } from './server/discovery.ts';
 import { detectScreenError } from './server/screen-errors.ts';
 import { createProjectsStore, type ProjectsStore } from './server/projects.ts';
 import { createRunningStore, type RunningRecord, type RunningStore } from './server/running.ts';
+import { createSessionStateStore, type SessionStateStore } from './server/session-state.ts';
+import { searchSessions } from './server/search.ts';
 import { createStatuslineInstaller } from './server/statusline-install.ts';
 import { type AgentStatus, createStatusTracker, externalIds, readPidFiles } from './server/status.ts';
 import { createUsageReader, usageContextPercent } from './server/usage.ts';
@@ -31,7 +33,7 @@ export interface AgentsServerSettings {
 /** A copy of `raw` when it is a well-formed Agents settings group, else null. */
 const AGENTS_MODES: AgentsMode[] = ['terminal', 'chat'];
 
-export const validAgents = (raw: unknown): AgentsSettings | null => validGroup(raw, { mode: AGENTS_MODES, softCap: [1, 100], notifyNeedsYou: 'boolean', notifyDone: 'boolean', notifyError: 'boolean' }) as AgentsSettings | null;
+export const validAgents = (raw: unknown): AgentsSettings | null => validGroup(raw, { mode: AGENTS_MODES, softCap: [1, 100], notifyNeedsYou: 'boolean', notifyDone: 'boolean', notifyError: 'boolean', autoSettle: 'boolean' }) as AgentsSettings | null;
 
 export const AGENTS_SOCKET_PATH = '/api/agents/socket';
 const RESCAN_MS = 10_000;
@@ -84,6 +86,7 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
   const usageReader = createUsageReader(() => usageDir);
   let seen: Record<string, number> | undefined;
   let projects: ProjectsStore | undefined;
+  let sessionState: SessionStateStore | undefined;
   let last = { sessions: '', status: '', usage: '' };
   let running: RunningStore | undefined;
   let runningTimer: ReturnType<typeof setInterval> | undefined;
@@ -156,11 +159,13 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
     const external = externalIds(pids, [...liveTerminalIds(), ...(chat?.live().ids ?? [])]);
     const s = loadSeen();
     const usage = usageReader.read(accs);
-    const sessions: AgentSessionView[] = scanner
+    const views: AgentSessionView[] = scanner
       .scan(accs.map((a) => ({ id: a.id, dir: a.dir })))
       .map((x) => ({ ...x, contextPercent: usageContextPercent(usage.bySession.get(x.id)) ?? x.contextPercent, status: statuses.get(x.id) ?? 'stopped', external: external.has(x.id) || undefined, project: matchProject(x.cwd, refs)?.id, seenAt: s[x.id] }))
       .filter((x) => x.project !== undefined)
       .sort((a, b) => b.updatedAt - a.updatedAt);
+    if ((await loadSettings()).agents?.autoSettle !== false) sessionState?.settle(views);
+    const sessions = views.map((x) => ({ ...x, ...sessionState?.get(x.id) }));
     const status: Record<string, AgentStatus> = {};
     for (const x of sessions) status[x.id] = x.status;
     void notifier.observe(sessions);
@@ -227,6 +232,8 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
       chat = createChatManager({ ...opts.chat, dir: join(ctx.dataDir, 'agents', 'chat'), accounts, baseUrl: () => baseUrl });
       const store = createProjectsStore(join(ctx.dataDir, 'agents', 'projects.json'));
       projects = store;
+      const states = createSessionStateStore(join(ctx.dataDir, 'agents', 'session-state.json'));
+      sessionState = states;
       loadSettings = () => ctx.settings.load();
       running = createRunningStore(join(ctx.dataDir, 'agents', 'running.json'));
       clearInterval(runningTimer);
@@ -250,6 +257,26 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
         },
         'GET /api/agents/sessions': async () => (await compute()).sessions,
         'GET /api/agents/projects': () => store.list(),
+        // Pin / rename / archive one session (no path params in the router, so the id is in the body); '' or null clears the name.
+        'PATCH /api/agents/session-state': async ({ json }) => {
+          const b = await json<{ id?: unknown; pinned?: unknown; name?: unknown; archived?: unknown }>();
+          if (typeof b.id !== 'string' || !b.id) return { ok: false };
+          states.set(b.id, b);
+          await refresh(true);
+          return { ok: true };
+        },
+        // Full-text search of prompts and assistant text in the added projects' sessions: ndjson of {sessionId, snippet}.
+        'GET /api/agents/search': async ({ req, query }) => {
+          const q = query.get('q') ?? '';
+          const accs = accounts();
+          const files: Array<{ id: string; file: string }> = [];
+          for (const x of (await compute()).sessions) {
+            const dir = accs.find((a) => a.id === x.account)?.dir;
+            const file = dir ? findSessionFile(dir, x.id) : undefined;
+            if (file) files.push({ id: x.id, file });
+          }
+          return ndjson(req, (emit, signal) => searchSessions(files, q, emit, signal));
+        },
         // Read-only transcript of a session (external sessions open it instead of a terminal or chat).
         'GET /api/agents/history': ({ url }) => {
           const id = url?.searchParams.get('sessionId') ?? '';

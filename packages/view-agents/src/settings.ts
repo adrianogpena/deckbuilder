@@ -13,6 +13,7 @@ export interface AgentsViewSettings {
 export const agentsSettingDefs: SettingDef<AgentsViewSettings>[] = [
   groupField<AgentsViewSettings, 'agents'>('agents', 'mode', 10, oneOf('terminal', AGENTS_MODES)),
   groupField<AgentsViewSettings, 'agents'>('agents', 'softCap', 20, num(12, 1, 100)),
+  groupField<AgentsViewSettings, 'agents'>('agents', 'autoSettle', 25, bool(true)),
   groupField<AgentsViewSettings, 'agents'>('agents', 'notifyNeedsYou', 30, bool(true)),
   groupField<AgentsViewSettings, 'agents'>('agents', 'notifyDone', 40, bool(true)),
   groupField<AgentsViewSettings, 'agents'>('agents', 'notifyError', 50, bool(true)),

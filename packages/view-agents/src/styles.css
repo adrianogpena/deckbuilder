@@ -9,6 +9,24 @@
 .agents-session.selected { background: var(--accent-soft); }
 .agents-session-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .agents-status { font-size: var(--fs-xs); color: var(--ink-muted); }
+.agents-session-title mark { background: none; color: var(--accent); font-weight: 600; }
+.agents-pin { display: inline-block; width: 6px; height: 6px; margin-right: 6px; vertical-align: middle; border-radius: 1px; background: var(--accent); transform: rotate(45deg); }
+.agents-session-snippet { font-size: var(--fs-xs); color: var(--ink-muted); font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agents-session-edit { display: flex; align-items: center; gap: 8px; padding: 4px 8px; }
+.agents-rename { flex: 1; min-width: 0; font: inherit; padding: 2px 4px; border: 1px solid var(--accent); border-radius: 4px; background: var(--bg); color: inherit; }
+.agents-find { display: flex; flex-direction: column; gap: 6px; }
+.agents-search { display: flex; gap: 4px; }
+.agents-search input { flex: 1; min-width: 0; font: inherit; font-size: var(--fs-sm); padding: 3px 6px; border: 1px solid var(--border-soft); border-radius: 6px; background: var(--bg); color: inherit; }
+.agents-search input:focus { outline: none; border-color: var(--accent); }
+.agents-search-mode { background: none; border: 1px solid var(--border-soft); border-radius: 6px; color: var(--ink-muted); cursor: pointer; padding: 0 8px; font-size: var(--fs-sm); }
+.agents-search-mode[aria-pressed='true'] { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+.agents-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.agents-chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 6px; border: 1px solid var(--border-soft); border-radius: 10px; background: none; color: var(--ink-muted); font-size: var(--fs-xs); cursor: pointer; }
+.agents-chip:hover { background: var(--bg-hover); }
+.agents-chip[aria-pressed='true'] { color: var(--text); border-color: var(--accent); background: var(--accent-soft); }
+.agents-archived { margin-top: auto; }
+.agents-archived-toggle { background: none; border: 0; padding: 0; cursor: pointer; font-size: var(--fs-sm); color: var(--ink-muted); text-transform: uppercase; }
+.agents-archived-toggle:hover { color: var(--accent); }
 .agents-empty { color: var(--ink-muted); font-size: var(--fs-sm); }
 .agents-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--ink-muted); opacity: 0.5; }
 .agents-dot.error { background: var(--err); opacity: 1; }

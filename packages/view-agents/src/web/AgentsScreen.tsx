@@ -6,7 +6,7 @@ import { agentsCommands } from '../commands';
 import { t } from '../i18n';
 import { type AgentProject, type AgentRunning, dismissRecovery, listAgentProjects, listRecovery, markSeen, removeAgentProject, reportShown, startSession, stopChat, terminalOf } from './api';
 import { AddProject } from './AddProject';
-import { needsYouCount, nextWaiting } from './attention';
+import { displayName, needsYouCount, nextWaiting } from './attention';
 import { ChatPane } from './chat/ChatPane';
 import { ExternalPane } from './ExternalPane';
 import { NewSession } from './NewSession';
@@ -262,7 +262,7 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
           >
             ☰
           </button>
-          <h1 className="agents-title">{newFor !== undefined ? t('agents.new.title') : (sessions.find((s) => s.id === selectedId)?.title ?? t('agents.heading'))}</h1>
+          <h1 className="agents-title">{newFor !== undefined ? t('agents.new.title') : (selected ? displayName(selected) : t('agents.heading'))}</h1>
           {newFor === undefined && (inChat || inTerminal) && (
             <div className="agents-mode" role="group" aria-label={t('agents.mode.label')}>
               {(['terminal', 'chat'] as const).map((m) => (

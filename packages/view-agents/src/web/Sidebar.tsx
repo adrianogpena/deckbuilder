@@ -1,8 +1,8 @@
-import { useMemo, useRef } from 'react';
-import { useRovingList } from '@deckbuilderkit/ui';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ContextMenu, type ContextMenuItem, fuzzyScore, highlightRuns, useRovingList, useToast } from '@deckbuilderkit/ui';
 import { t } from '../i18n';
-import type { AgentAccountUsage, AgentProject, AgentRateLimit, AgentSessionView, AgentStatus } from './api';
-import { compareSessions } from './attention';
+import { type AgentAccountUsage, type AgentProject, type AgentRateLimit, type AgentSessionView, type AgentStatus, patchSessionState, searchSessions } from './api';
+import { compareSessions, displayName } from './attention';
 
 export interface SidebarProps {
   projects: AgentProject[];
@@ -72,14 +72,174 @@ function UsageBar({ label, limit }: { label: string; limit?: AgentRateLimit }) {
   );
 }
 
-/** Projects with their Claude sessions, a status dot and label per session. */
+const STATUSES: AgentStatus[] = ['needs-you', 'error', 'running', 'done', 'idle', 'stopped'];
+
+/** How a session matched the search: fuzzy name positions, or a full-text snippet. */
+interface RowMatch {
+  positions?: number[];
+  snippet?: string;
+}
+
+/** Projects with their Claude sessions, a status dot and label per session; search, status chips, pin, rename and archive. */
 export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, onNewSession, onAddProject, onRemoveProject }: SidebarProps) {
   const ref = useRef<HTMLDivElement>(null);
   useRovingList(ref, '.agents-session');
-  const groups = useMemo(() => {
-    const sorted = [...sessions].sort(compareSessions);
-    return [...projects].sort((a, b) => a.name.localeCompare(b.name)).map((p) => ({ project: p, list: sorted.filter((s) => s.project === p.id) }));
-  }, [projects, sessions]);
+  const toast = useToast();
+  const [query, setQuery] = useState('');
+  const [fullToggle, setFullToggle] = useState(false);
+  const [filter, setFilter] = useState<ReadonlySet<AgentStatus>>(new Set());
+  const [archivedOpen, setArchivedOpen] = useState(false);
+  const [menu, setMenu] = useState<{ at: { x: number; y: number }; session: AgentSessionView }>();
+  const [renaming, setRenaming] = useState<string>();
+  const renamingRef = useRef<string | undefined>(undefined);
+  const [hits, setHits] = useState<ReadonlyMap<string, string>>(new Map());
+
+  const prefixed = query.startsWith('?');
+  const full = fullToggle || prefixed;
+  const q = (prefixed ? query.slice(1) : query).trim();
+  const searching = q !== '' || filter.size > 0;
+
+  useEffect(() => {
+    setHits(new Map());
+    if (!full || !q) return;
+    const ac = new AbortController();
+    const found = new Map<string, string>();
+    const timer = setTimeout(() => {
+      searchSessions(q, (h) => {
+        found.set(h.sessionId, h.snippet);
+        setHits(new Map(found));
+      }, ac.signal).catch(() => {
+        if (!ac.signal.aborted) toast({ message: t('agents.search.failed'), kind: 'error' });
+      });
+    }, 200);
+    return () => {
+      clearTimeout(timer);
+      ac.abort();
+    };
+  }, [full, q, toast]);
+
+  const { groups, archived } = useMemo(() => {
+    const known = new Set(projects.map((p) => p.id));
+    const matches = new Map<string, RowMatch>();
+    for (const s of sessions) {
+      if (filter.size && !filter.has(s.status)) continue;
+      if (!q) matches.set(s.id, {});
+      else if (full) {
+        const snippet = hits.get(s.id);
+        if (snippet !== undefined) matches.set(s.id, { snippet });
+      } else {
+        const m = fuzzyScore(q, displayName(s));
+        if (m) matches.set(s.id, { positions: m.positions });
+      }
+    }
+    const sorted = sessions.filter((s) => matches.has(s.id) && !!s.project && known.has(s.project)).sort(compareSessions);
+    const live = sorted.filter((s) => !s.archived);
+    return {
+      groups: [...projects]
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((p) => ({ project: p, list: live.filter((s) => s.project === p.id).map((s) => ({ s, m: matches.get(s.id)! })) }))
+        .filter((g) => !searching || g.list.length > 0),
+      archived: sorted.filter((s) => s.archived).map((s) => ({ s, m: matches.get(s.id)! })),
+    };
+  }, [projects, sessions, filter, q, full, hits, searching]);
+
+  const present = useMemo(() => new Set(sessions.map((s) => s.status)), [sessions]);
+  const chips = STATUSES.filter((st) => present.has(st) || filter.has(st));
+
+  const toggleFilter = (st: AgentStatus) =>
+    setFilter((f) => {
+      const next = new Set(f);
+      if (!next.delete(st)) next.add(st);
+      return next;
+    });
+
+  const update = (id: string, state: Parameters<typeof patchSessionState>[1]) => {
+    patchSessionState(id, state).catch(() => toast({ message: t('agents.stateFailed'), kind: 'error' }));
+  };
+
+  const startRename = (id: string) => {
+    renamingRef.current = id;
+    setRenaming(id);
+  };
+
+  const commitRename = (s: AgentSessionView, value: string) => {
+    if (renamingRef.current !== s.id) return;
+    renamingRef.current = undefined;
+    setRenaming(undefined);
+    const v = value.trim();
+    if (v === (s.name || s.title)) return;
+    update(s.id, { name: v === '' || v === s.title ? null : v });
+  };
+
+  const menuItems = (s: AgentSessionView): Array<ContextMenuItem | 'sep'> => [
+    { id: 'pin', label: s.pinned ? t('agents.unpin') : t('agents.pin'), run: () => update(s.id, { pinned: !s.pinned }) },
+    // Deferred so the menu gives the focus back before the rename input takes it.
+    { id: 'rename', label: t('agents.rename'), hint: 'F2', run: () => setTimeout(() => startRename(s.id), 0) },
+    'sep',
+    { id: 'archive', label: s.archived ? t('agents.unarchive') : t('agents.archive'), run: () => update(s.id, { archived: !s.archived }) },
+  ];
+
+  const row = ({ s, m }: { s: AgentSessionView; m: RowMatch }) => {
+    const label = statusLabel(s.status);
+    const name = displayName(s);
+    if (renaming === s.id) {
+      return (
+        <div key={s.id} className="agents-session-edit">
+          <span className={`agents-dot ${s.status}`} role="img" title={label} aria-label={label} />
+          <input
+            className="agents-rename"
+            autoFocus
+            defaultValue={s.name || s.title}
+            aria-label={t('agents.rename.label')}
+            onFocus={(e) => e.currentTarget.select()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                commitRename(s, e.currentTarget.value);
+              } else if (e.key === 'Escape') {
+                e.preventDefault();
+                renamingRef.current = undefined;
+                setRenaming(undefined);
+              }
+            }}
+            onBlur={(e) => commitRename(s, e.currentTarget.value)}
+          />
+        </div>
+      );
+    }
+    const use = sessionUsage(s);
+    return (
+      <button
+        key={s.id}
+        type="button"
+        className={`agents-session${s.id === selectedId ? ' selected' : ''}${s.pinned ? ' pinned' : ''}`}
+        aria-current={s.id === selectedId ? 'true' : undefined}
+        onClick={() => onSelect(s.id)}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          setMenu({ at: { x: e.clientX, y: e.clientY }, session: s });
+        }}
+        onKeyDown={(e) => {
+          if (e.key !== 'F2') return;
+          e.preventDefault();
+          startRename(s.id);
+        }}
+      >
+        <span className={`agents-dot ${s.status}`} role="img" title={label} aria-label={label} />
+        <span className="agents-session-text">
+          <span className="agents-session-title" title={name}>
+            {s.pinned && <span className="agents-pin" role="img" title={t('agents.pinned')} aria-label={t('agents.pinned')} />}
+            {m.positions ? highlightRuns(name, m.positions).map((r, i) => (r.hit ? <mark key={i}>{r.text}</mark> : r.text)) : name}
+          </span>
+          {m.snippet && <span className="agents-session-snippet" title={m.snippet}>{m.snippet}</span>}
+          {use && <span className="agents-session-usage" title={use.title}>{use.line}</span>}
+        </span>
+        <span className="agents-status">{s.external ? `${label} · ${t('agents.external')}` : label}</span>
+      </button>
+    );
+  };
+
+  const archivedShown = archivedOpen || searching;
   return (
     <nav className="agents-sidebar" aria-label={t('agents.sidebar')} ref={ref}>
       <div className="agents-sidebar-head">
@@ -96,11 +256,54 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
           ))}
         </section>
       )}
-      {groups.length === 0 && (
+      {sessions.length > 0 && (
+        <div className="agents-find">
+          <div className="agents-search">
+            <input
+              type="search"
+              value={query}
+              placeholder={t('agents.search.placeholder')}
+              aria-label={t('agents.search')}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape' && query) {
+                  e.preventDefault();
+                  setQuery('');
+                }
+              }}
+            />
+            <button
+              type="button"
+              className="agents-search-mode"
+              aria-pressed={full}
+              title={t('agents.search.fullText')}
+              aria-label={t('agents.search.fullText')}
+              onClick={() => {
+                if (prefixed) {
+                  setQuery(query.slice(1));
+                  setFullToggle(false);
+                } else setFullToggle((v) => !v);
+              }}
+            >?</button>
+          </div>
+          {chips.length > 1 && (
+            <div className="agents-chips" role="group" aria-label={t('agents.filter')}>
+              {chips.map((st) => (
+                <button key={st} type="button" className="agents-chip" aria-pressed={filter.has(st)} onClick={() => toggleFilter(st)}>
+                  <span className={`agents-dot ${st}`} aria-hidden="true" />
+                  {statusLabel(st)}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {projects.length === 0 && (
         <p className="agents-empty">
           {t('agents.empty')}. {t('agents.emptyHint')}
         </p>
       )}
+      {searching && groups.length === 0 && archived.length === 0 && <p className="agents-empty">{t('agents.noMatches')}</p>}
       {groups.map(({ project, list }) => (
         <section key={project.id} className="agents-project">
           <header>
@@ -111,28 +314,20 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
             </span>
           </header>
           {list.length === 0 && <p className="agents-empty">{t('agents.noSessions')}</p>}
-          {list.map((s) => {
-            const label = statusLabel(s.status);
-            const use = sessionUsage(s);
-            return (
-              <button
-                key={s.id}
-                type="button"
-                className={`agents-session${s.id === selectedId ? ' selected' : ''}`}
-                aria-current={s.id === selectedId ? 'true' : undefined}
-                onClick={() => onSelect(s.id)}
-              >
-                <span className={`agents-dot ${s.status}`} role="img" title={label} aria-label={label} />
-                <span className="agents-session-text">
-                  <span className="agents-session-title">{s.title || s.firstPrompt || s.id.slice(0, 8)}</span>
-                  {use && <span className="agents-session-usage" title={use.title}>{use.line}</span>}
-                </span>
-                <span className="agents-status">{s.external ? `${label} · ${t('agents.external')}` : label}</span>
-              </button>
-            );
-          })}
+          {list.map(row)}
         </section>
       ))}
+      {archived.length > 0 && (
+        <section className="agents-project agents-archived">
+          <header>
+            <button type="button" className="agents-archived-toggle" aria-expanded={archivedShown} onClick={() => setArchivedOpen((v) => !v)}>
+              <span aria-hidden="true">{archivedShown ? '▾' : '▸'}</span> {t('agents.archived')} ({archived.length})
+            </button>
+          </header>
+          {archivedShown && archived.map(row)}
+        </section>
+      )}
+      {menu && <ContextMenu at={menu.at} items={menuItems(menu.session)} onClose={() => setMenu(undefined)} />}
     </nav>
   );
 }

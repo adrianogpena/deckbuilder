@@ -23,6 +23,25 @@ export interface AgentSession {
   tokens?: AgentTokens;
   /** Context window used, 0-100: from the statusLine usage file, else the last assistant turn vs the model's window; absent when unknown. */
   contextPercent?: number;
+  /** Pinned to the top of its project. */
+  pinned?: boolean;
+  /** App-side name overriding the title. */
+  name?: string;
+  /** Hidden under the collapsed Archived section. */
+  archived?: boolean;
+}
+
+/** Stored pin / rename / archive state of one session (`PATCH /api/agents/session-state`). */
+export interface AgentSessionState {
+  pinned?: boolean;
+  name?: string;
+  archived?: boolean;
+}
+
+/** One line of the streamed `GET /api/agents/search?q=` ndjson (first match per session). */
+export interface AgentSearchHit {
+  sessionId: string;
+  snippet: string;
 }
 
 export interface AgentTokens {

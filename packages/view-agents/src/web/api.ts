@@ -1,9 +1,9 @@
-import { request } from '@deckbuilderkit/ui';
+import { request, stream } from '@deckbuilderkit/ui';
 import { listSessions, openSession, type Ticketed } from '@deckbuilderkit/terminal/session';
 import type { ChatEvent } from '../chat-protocol.ts';
-import type { AgentAccount, AgentAccountUsage, AgentProject, AgentRateLimit, AgentRunning, AgentSessionView, AgentsCapWarn, AgentStatus, AgentStatuslineError, AgentStatuslineStatus } from '../protocol.ts';
+import type { AgentAccount, AgentAccountUsage, AgentProject, AgentRateLimit, AgentRunning, AgentSearchHit, AgentSessionView, AgentsCapWarn, AgentStatus, AgentStatuslineError, AgentStatuslineStatus } from '../protocol.ts';
 
-export type { AgentAccount, AgentAccountUsage, AgentProject, AgentRateLimit, AgentRunning, AgentSessionView, AgentsCapWarn, AgentStatus, AgentStatuslineError, AgentStatuslineStatus };
+export type { AgentAccount, AgentAccountUsage, AgentProject, AgentRateLimit, AgentRunning, AgentSearchHit, AgentSessionView, AgentsCapWarn, AgentStatus, AgentStatuslineError, AgentStatuslineStatus };
 
 export const listAccounts = () => request<AgentAccount[]>('GET', '/api/agents/accounts');
 
@@ -74,3 +74,11 @@ export const listStatusline = () => request<AgentStatuslineStatus[]>('GET', '/ap
 export const installStatusline = (account: string) => request<StatuslineResult>('POST', '/api/agents/statusline/install', {}, { account });
 
 export const uninstallStatusline = (account: string) => request<StatuslineResult>('POST', '/api/agents/statusline/uninstall', {}, { account });
+
+/** Pins, renames (`name` '' or null clears) or archives a session; a sessions frame follows. */
+export const patchSessionState = (id: string, state: { pinned?: boolean; name?: string | null; archived?: boolean }) =>
+  request<{ ok: boolean }>('PATCH', '/api/agents/session-state', {}, { id, ...state });
+
+/** Server full-text search over prompts and replies; `onHit` per session with its first matching snippet. */
+export const searchSessions = (q: string, onHit: (hit: AgentSearchHit) => void, signal?: AbortSignal) =>
+  stream('/api/agents/search', { q }, (item) => onHit(item as AgentSearchHit), signal);
