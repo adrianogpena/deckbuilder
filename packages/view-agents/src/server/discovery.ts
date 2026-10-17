@@ -199,6 +199,10 @@ interface CacheEntry {
 export function createSessionScanner() {
   const cache = new Map<string, CacheEntry>();
   return {
+    /** Forgets every cached transcript so the next scan re-reads them. */
+    clear(): void {
+      cache.clear();
+    },
     scan(accounts: Array<{ id: string; dir: string }>): AgentSession[] {
       const seen = new Set<string>();
       const out: AgentSession[] = [];

@@ -1,4 +1,4 @@
-import { type FSWatcher, mkdirSync, readFileSync, watch, writeFileSync } from 'node:fs';
+import { type FSWatcher, mkdirSync, readdirSync, readFileSync, rmSync, watch, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { createToaster } from '@deckbuilderkit/platform';
@@ -30,7 +30,8 @@ import { createTreeStore } from './server/tree.ts';
 import { searchSessions } from './server/search.ts';
 import { createStatuslineInstaller } from './server/statusline-install.ts';
 import { type AgentStatus, createStatusTracker, externalIds, readPidFiles } from './server/status.ts';
-import type { AgentTreePatch } from './protocol.ts';
+import type { AgentDeleteResult, AgentRestoreResult, AgentTreePatch, AgentTrashEntry } from './protocol.ts';
+import { createTrashStore, isSafeId } from './server/trash.ts';
 import { createUsageReader, usageContextPercent } from './server/usage.ts';
 
 /** The part of the server settings the Agents view owns; the app's `Settings` extends it. */
@@ -42,7 +43,7 @@ export interface AgentsServerSettings {
 /** A copy of `raw` when it is a well-formed Agents settings group, else null. */
 const AGENTS_MODES: AgentsMode[] = ['terminal', 'chat'];
 
-const AGENTS_SPEC = { mode: AGENTS_MODES, softCap: [1, 100], notifyNeedsYou: 'boolean', notifyDone: 'boolean', notifyError: 'boolean', autoSettle: 'boolean', resumeOnSelect: 'boolean', maxSessionsPerProject: [1, 10000], claudeCommand: 'string', 'hooks.onRunning': 'string', 'hooks.onWaiting': 'string', 'hooks.onDone': 'string', 'hooks.onError': 'string' } as const;
+const AGENTS_SPEC = { mode: AGENTS_MODES, softCap: [1, 100], notifyNeedsYou: 'boolean', notifyDone: 'boolean', notifyError: 'boolean', autoSettle: 'boolean', resumeOnSelect: 'boolean', maxSessionsPerProject: [1, 10000], trashRetentionDays: [1, 3650], claudeCommand: 'string', 'hooks.onRunning': 'string', 'hooks.onWaiting': 'string', 'hooks.onDone': 'string', 'hooks.onError': 'string' } as const;
 
 /** Validates the group; a valid one is the saved one, so the cached `claude` resolution is refilled from it. */
 export const validAgents = (raw: unknown): AgentsSettings | null => {
@@ -376,6 +377,29 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
         void syncRunning();
         return { ok: true, sessionId: id, launch: { id: CLAUDE_LAUNCHER_ID, args: { account, sessionId: id, resume } }, warn };
       };
+      const trash = createTrashStore(join(ctx.dataDir, 'agents', 'trash'));
+      const undoStack: string[] = [];
+      void loadSettings().then(
+        (s) => trash.purge(s.agents?.trashRetentionDays ?? 30).catch(() => []),
+        () => undefined,
+      );
+      const clearStatusFiles = (id: string) => {
+        try {
+          const root = join(ctx.dataDir, 'agents', 'usage');
+          for (const d of readdirSync(root, { withFileTypes: true })) if (d.isDirectory()) rmSync(join(root, d.name, `${id}.json`), { force: true });
+        } catch {
+          // no status files
+        }
+      };
+      const restoreOne = async (id: string): Promise<AgentRestoreResult> => {
+        const r = await trash.restore(id).catch(() => ({ ok: false as const, error: 'gone' as const }));
+        if (!r.ok) return r;
+        const at = undoStack.lastIndexOf(id);
+        if (at >= 0) undoStack.splice(at, 1);
+        scanner.clear();
+        void refresh(true);
+        return { ok: true, id, title: r.entry.title };
+      };
       const statusline = createStatuslineInstaller({ agentsDir: join(ctx.dataDir, 'agents'), ...opts.statusline });
       statusline.refresh();
       return {
@@ -514,6 +538,57 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
           killTerminals(b.sessionId);
           void refresh(true);
           return { ok: true, ...stopOutcome(hasTranscript(b.sessionId)) };
+        },
+        // Delete: sessions go to the trash (preferences stay for a restore). `id` or `ids`; each id is deleted or skipped with a code.
+        'POST /api/agents/session/delete': async ({ json }): Promise<AgentDeleteResult> => {
+          const b = await json<{ id?: unknown; ids?: unknown }>();
+          const ids = Array.isArray(b.ids) ? b.ids : [b.id];
+          const out: AgentDeleteResult = { deleted: [], skipped: [] };
+          const pids = accounts().flatMap((a) => readPidFiles(a.dir));
+          const views = (await compute()).sessions;
+          for (const raw of new Set(ids)) {
+            const id = typeof raw === 'string' ? raw : '';
+            const runningNow = id !== '' && (liveTerminalIds().includes(id) || (chat?.live().ids ?? []).includes(id) || pids.some((p) => p.sessionId === id));
+            if (runningNow) {
+              out.skipped.push({ id, error: 'running' });
+              continue;
+            }
+            const acc = isSafeId(id) ? accounts().find((a) => findSessionFile(a.dir, id) !== undefined) : undefined;
+            const file = acc ? findSessionFile(acc.dir, id) : undefined;
+            if (!file) {
+              out.skipped.push({ id, error: 'nothing' });
+              continue;
+            }
+            const view = views.find((x) => x.id === id);
+            try {
+              await trash.trash({ id, file, agent: 'claude', title: view?.title || view?.firstPrompt || '' });
+            } catch {
+              out.skipped.push({ id, error: 'nothing' });
+              continue;
+            }
+            clearStatusFiles(id);
+            killTerminals(id);
+            chat?.stop(id);
+            undoStack.push(id);
+            out.deleted.push(id);
+          }
+          if (out.deleted.length) {
+            scanner.clear();
+            void syncRunning();
+            void refresh(true);
+          }
+          return out;
+        },
+        'GET /api/agents/trash': (): Promise<AgentTrashEntry[]> => trash.list(),
+        'POST /api/agents/trash/restore': async ({ json }): Promise<AgentRestoreResult> => {
+          const b = await json<{ id?: unknown }>();
+          return restoreOne(typeof b.id === 'string' ? b.id : '');
+        },
+        // Undo: restores the most recently deleted session (this run only); `empty` when none is left.
+        'POST /api/agents/trash/undo': async (): Promise<AgentRestoreResult> => {
+          const id = undoStack[undoStack.length - 1];
+          if (id === undefined) return { ok: false, error: 'empty' };
+          return restoreOne(id);
         },
         // Restart: ends the old process and returns the launch of a new run (a fresh id when there is no transcript to resume).
         'POST /api/agents/session/restart': async ({ json }): Promise<AgentLaunch> => {

@@ -2,7 +2,7 @@ import { request, stream } from '@deckbuilderkit/ui';
 import { listSessions, openSession, type Ticketed } from '@deckbuilderkit/terminal/session';
 import type { ChatEvent } from '../chat-protocol.ts';
 import { t } from '../i18n';
-import type { AgentLaunch, AgentLifecycleError, AgentStopResult, AgentAccount,AgentAccountUsage, AgentProject, AgentRateLimit, AgentRunning, AgentSearchHit, AgentSessionView, AgentsCapWarn, AgentStatus, AgentStatuslineError, AgentStatuslineStatus, AgentTagCount, AgentTree, AgentTreePatch } from '../protocol.ts';
+import type { AgentDeleteResult, AgentRestoreResult, AgentTrashEntry, AgentTrashError, AgentLaunch, AgentLifecycleError, AgentStopResult, AgentAccount,AgentAccountUsage, AgentProject, AgentRateLimit, AgentRunning, AgentSearchHit, AgentSessionView, AgentsCapWarn, AgentStatus, AgentStatuslineError, AgentStatuslineStatus, AgentTagCount, AgentTree, AgentTreePatch } from '../protocol.ts';
 
 export type { AgentAccount, AgentAccountUsage, AgentProject, AgentRateLimit, AgentRunning, AgentSearchHit, AgentSessionView, AgentsCapWarn, AgentStatus, AgentStatuslineError, AgentStatuslineStatus, AgentTagCount, AgentTree, AgentTreePatch };
 
@@ -143,3 +143,26 @@ export const putNotes = (project: string, text: string) => request<{ ok: boolean
 /** Server full-text search over prompts and replies; `onHit` per session with its first matching snippet. */
 export const searchSessions = (q: string, onHit: (hit: AgentSearchHit) => void, signal?: AbortSignal) =>
   stream('/api/agents/search', { q }, (item) => onHit(item as AgentSearchHit), signal);
+
+const trashMessage = (e: AgentTrashError): string =>
+  e === 'running' ? t('agents.delete.running') : e === 'nothing' ? t('agents.delete.nothing') : e === 'exists' ? t('agents.trash.exists') : e === 'empty' ? t('agents.trash.undoEmpty') : t('agents.trash.gone');
+
+/** User-visible text of a delete / restore refusal code. */
+export { trashMessage };
+
+/** Moves sessions to the trash; per-id outcomes (`skipped[].error` is a code, see `trashMessage`). */
+export const deleteSessions = (ids: string[]) => request<AgentDeleteResult>('POST', '/api/agents/session/delete', {}, { ids });
+
+/** Deletes one session; throws an Error with the refusal text when it was skipped. */
+export async function deleteSession(id: string): Promise<void> {
+  const r = await deleteSessions([id]);
+  const s = r.skipped[0];
+  if (s) throw new Error(trashMessage(s.error));
+}
+
+export const listTrash = () => request<AgentTrashEntry[]>('GET', '/api/agents/trash');
+
+export const restoreTrashed = (id: string) => request<AgentRestoreResult>('POST', '/api/agents/trash/restore', {}, { id });
+
+/** Restores the most recently deleted session of this run; `{ok:false, error:'empty'}` when there is none. */
+export const undoDelete = () => request<AgentRestoreResult>('POST', '/api/agents/trash/undo', {}, {});

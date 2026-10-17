@@ -17,4 +17,9 @@ export const agentsCommands = (): CommandDef[] => [
   { id: 'agents.batchTags', scope: 'agents', label: t('keys.agents.batchTags'), keys: [] },
   { id: 'agents.batchMove', scope: 'agents', label: t('keys.agents.batchMove'), keys: [] },
   { id: 'agents.batchClear', scope: 'agents', label: t('keys.agents.batchClear'), keys: [] },
+  { id: 'agents.archive', scope: 'agents', label: t('keys.agents.archive'), keys: [] },
+  { id: 'agents.toggleArchived', scope: 'agents', label: t('keys.agents.toggleArchived'), keys: [] },
+  { id: 'agents.delete', scope: 'agents', label: t('keys.agents.delete'), keys: [] },
+  { id: 'agents.undoDelete', scope: 'agents', label: t('keys.agents.undoDelete'), keys: [] },
+  { id: 'agents.openTrash', scope: 'agents', label: t('keys.agents.openTrash'), keys: [] },
 ];

@@ -36,6 +36,7 @@ export const agentsSettingDefs: SettingDef<AgentsViewSettings>[] = [
   groupField<AgentsViewSettings, 'agents'>('agents', 'softCap', 20, num(12, 1, 100)),
   groupField<AgentsViewSettings, 'agents'>('agents', 'resumeOnSelect', 15, bool(false)),
   groupField<AgentsViewSettings, 'agents'>('agents', 'maxSessionsPerProject', 17, num(10, 1, 10000)),
+  groupField<AgentsViewSettings, 'agents'>('agents', 'trashRetentionDays', 18, num(30, 1, 3650)),
   groupField<AgentsViewSettings, 'agents'>('agents', 'autoSettle', 25, bool(true)),
   groupField<AgentsViewSettings, 'agents'>('agents', 'notifyNeedsYou', 30, bool(true)),
   groupField<AgentsViewSettings, 'agents'>('agents', 'notifyDone', 40, bool(true)),

@@ -3,13 +3,14 @@ import { ContextMenu, type ContextMenuItem, fuzzyScore, highlightRuns, useComman
 import { agentsCommands } from '../commands';
 import { t } from '../i18n';
 import type { AgentCategory } from '../protocol.ts';
-import { type AgentAccountUsage, type AgentProject, type AgentRateLimit, type AgentSessionView, type AgentStatus, type AgentTreePatch, addTags, markUnread, patchSessionState, removeTagEverywhere, searchSessions, stopSession, type TreePatchResult } from './api';
+import { type AgentAccountUsage, type AgentProject, type AgentRateLimit, type AgentSessionView, type AgentStatus, type AgentTreePatch, addTags, deleteSession, deleteSessions, markUnread, patchSessionState, trashMessage, undoDelete, removeTagEverywhere, searchSessions, stopSession, type TreePatchResult } from './api';
 import { compareSessions, displayName, statusCounts } from './attention';
 import { type BatchAction, BatchBar } from './BatchBar';
-import { batchOrder, distinctKeys, stopOutcome, toggleChecked } from './batch';
+import { archiveOutcome, batchOrder, distinctKeys, isWorking, liveHere, partitionArchive, stopOutcome, toggleChecked } from './batch';
 import { type AgentFilters, CATEGORIES, categoryOf, clearFilters, clearStatus, isFiltering, matchesFilters, NO_FILTERS, nextTime, parseQuery, type TimeMode, type TitleLabels, titleNote, toggleStatus, toggleTag } from './filters';
 import { type FolderPick, MoveToFolder } from './MoveToFolder';
 import { pruneBatch, rowKey, shownOrders, startedCandidates, stepStarted, trackPrevious, reselect, type PreviousState } from './navigation';
+import { TrashPanel } from './TrashPanel';
 import { buildRows, folderName, folderNodeKey, nextPin, parseTags, projectKey, projectNodeKey, tagCounts, type TreeRow } from './tree';
 import { useAgentTree } from './useAgentSessions';
 
@@ -152,6 +153,7 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
   const [fullToggle, setFullToggle] = useState(false);
   const [filters, setFilters] = useState<AgentFilters>(NO_FILTERS);
   const [archivedOpen, setArchivedOpen] = useState(false);
+  const [archivedView, setArchivedView] = useState(false);
   const [menu, setMenu] = useState<{ at: { x: number; y: number }; items: Array<ContextMenuItem | 'sep'> }>();
   const [renaming, setRenaming] = useState<string>();
   const renamingRef = useRef<string | undefined>(undefined);
@@ -207,17 +209,17 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
     }
     const sorted = sessions.filter((s) => matches.has(s.id) && !!s.project && known.has(s.project)).sort(compareSessions);
     return {
-      live: sorted.filter((s) => !s.archived),
+      live: sorted.filter((s) => !!s.archived === archivedView),
       matches,
-      archived: sorted.filter((s) => s.archived).map((s) => ({ s, m: matches.get(s.id)! })),
+      archived: archivedView ? [] : sorted.filter((s) => s.archived).map((s) => ({ s, m: matches.get(s.id)! })),
     };
-  }, [projects, sessions, filters, q, qStatus, full, hits]);
+  }, [projects, sessions, filters, q, qStatus, full, hits, archivedView]);
 
-  // Pill counts: listed live sessions of known projects, ignoring status, time and tag filters.
+  // Pill counts: listed sessions of known projects matching the archived view, ignoring status, time and tag filters.
   const base = useMemo(() => {
     const known = new Set(projects.map((p) => p.id));
-    return sessions.filter((s) => !s.archived && !!s.project && known.has(s.project));
-  }, [projects, sessions]);
+    return sessions.filter((s) => !!s.archived === archivedView && !!s.project && known.has(s.project));
+  }, [projects, sessions, archivedView]);
   const counts = useMemo(() => statusCounts(base), [base]);
 
   // Counted over every listed session, archived and filtered-out ones included.
@@ -418,11 +420,96 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
     setPicker({ keys, name: '', title: t('agents.batch.moveTitle', { n: String(keys.length) }), current: one && tree?.folders.find((f) => f.projects.includes(one))?.id });
   };
 
-  // Batch actions in bar order; g8 appends archive and delete here.
+  const batchArchive = async () => {
+    const list = batchSessions();
+    clearBatch();
+    const un = archivedView;
+    const { ok, working } = partitionArchive(list, un);
+    let failed = false;
+    let done = 0;
+    for (const { s, stop } of ok) {
+      try {
+        if (stop) await stopSession(s.id);
+        await patchSessionState(s.id, { archived: !un });
+        done++;
+      } catch {
+        failed = true;
+      }
+    }
+    const o = archiveOutcome(done, working);
+    const p = un ? 'unarchive' : 'archive';
+    const key = o === 'empty' ? `agents.batch.${p}Empty` : o === 'all' ? `agents.batch.${un ? 'unarchived' : 'archived'}` : o === 'some' ? `agents.batch.${un ? 'unarchived' : 'archived'}Some` : `agents.batch.${un ? 'unarchived' : 'archived'}None`;
+    toast({ message: t(key as 'agents.batch.archived', { n: String(done), k: String(working) }) });
+    if (failed) toast({ message: t('agents.stateFailed'), kind: 'error' });
+  };
+
+  const toggleArchivedView = () => {
+    const next = !archivedView;
+    setArchivedView(next);
+    toast({ message: t(next ? 'agents.view.archived' : 'agents.view.active') });
+  };
+  useCommand(agentsCommands()[16]!, toggleArchivedView);
+  useCommand(agentsCommands()[15]!, () => {
+    const s = sessions.find((x) => x.id === selectedId);
+    if (s) void archiveOne(s);
+  });
+
+  const [trashOpen, setTrashOpen] = useState(false);
+  const restored = (id: string, title: string) => {
+    toast({ message: t('agents.trash.restored', { title }) });
+    onSelect(id);
+  };
+  const deleteOne = async (s: AgentSessionView) => {
+    if (!s.id) return void toast({ message: t('agents.pin.needsId') });
+    try {
+      await deleteSession(s.id);
+      toast({ message: t('agents.delete.flash') });
+    } catch (e) {
+      toast({ message: e instanceof Error && e.message ? e.message : t('agents.stateFailed'), kind: 'error' });
+    }
+  };
+  const batchDelete = async () => {
+    const list = batchSessions();
+    clearBatch();
+    const ids = list.filter((s) => s.id && !isWorking(s)).map((s) => s.id);
+    let skipped = list.length - ids.length;
+    let done = 0;
+    if (ids.length) {
+      try {
+        const r = await deleteSessions(ids);
+        done = r.deleted.length;
+        skipped += r.skipped.length;
+      } catch {
+        return void toast({ message: t('agents.stateFailed'), kind: 'error' });
+      }
+    }
+    const o = archiveOutcome(done, skipped);
+    const key = o === 'empty' ? 'agents.batch.deleteEmpty' : o === 'all' ? 'agents.batch.deleted' : o === 'some' ? 'agents.batch.deletedSome' : 'agents.batch.deletedNone';
+    toast({ message: t(key, { n: String(done), k: String(skipped) }) });
+  };
+  const undo = async () => {
+    try {
+      const r = await undoDelete();
+      if (r.ok) restored(r.id, r.title || r.id);
+      else toast({ message: trashMessage(r.error) });
+    } catch {
+      toast({ message: t('agents.stateFailed'), kind: 'error' });
+    }
+  };
+  useCommand(agentsCommands()[17]!, () => {
+    const s = sessions.find((x) => x.id === selectedId);
+    if (s) void deleteOne(s);
+  });
+  useCommand(agentsCommands()[18]!, () => void undo());
+  useCommand(agentsCommands()[19]!, () => setTrashOpen(true));
+
+  // Batch actions in bar order.
   const batchActions: BatchAction[] = [
     { id: 'stop', label: t('agents.batch.stop'), run: () => void batchStop() },
     { id: 'tags', label: t('agents.batch.tags'), run: () => void batchTags() },
     { id: 'move', label: t('agents.batch.move'), run: batchMove },
+    { id: 'archive', label: archivedView ? t('agents.unarchive') : t('agents.archive'), run: () => void batchArchive() },
+    { id: 'delete', label: t('agents.delete'), run: () => void batchDelete(), danger: true },
   ];
   const ifBatch = (run: () => void) => () => (checked.size ? run() : undefined);
   useCommand(agentsCommands()[11]!, ifBatch(() => void batchStop()));
@@ -575,6 +662,19 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
     update(s.id, { name: v === '' || v === s.title ? null : v });
   };
 
+  const archiveOne = async (s: AgentSessionView) => {
+    if (!s.id) return void toast({ message: t('agents.pin.needsId') });
+    const un = !!s.archived;
+    if (!un && isWorking(s)) return void toast({ message: t('agents.archive.refuse') });
+    try {
+      if (!un && liveHere(s)) await stopSession(s.id);
+      await patchSessionState(s.id, { archived: !un });
+      toast({ message: t(un ? 'agents.unarchive.flash' : 'agents.archive.flash') });
+    } catch {
+      toast({ message: t('agents.stateFailed'), kind: 'error' });
+    }
+  };
+
   const lifecycleItems = (s: AgentSessionView): Array<ContextMenuItem | 'sep'> => {
     if (s.external) return [];
     const live = !!s.live || s.lifecycle !== undefined;
@@ -603,7 +703,8 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
     { id: 'unread', label: t('agents.markUnread'), run: () => void markUnread(s.id).catch(() => undefined) },
     { id: 'rename', label: t('agents.rename'), hint: 'F2', run: () => setTimeout(() => startRename(s.id), 0) },
     'sep',
-    { id: 'archive', label: s.archived ? t('agents.unarchive') : t('agents.archive'), run: () => update(s.id, { archived: !s.archived }) },
+    { id: 'archive', label: s.archived ? t('agents.unarchive') : t('agents.archive'), run: () => void archiveOne(s) },
+    { id: 'delete', label: t('agents.delete'), danger: true, run: () => void deleteOne(s) },
   ];
 
   const row = ({ s, m }: { s: AgentSessionView; m: RowMatch }, r?: Extract<TreeRow, { kind: 'session' }>) => {
@@ -776,8 +877,7 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
       <h2 className="agents-panel-title">
         {t('agents.sidebar')}
         {(() => {
-          // 'archived' slot is g8's.
-          const note = titleNote({ selected: checked.size, filtered, actionable: tree?.sort === 'actionable', activeOnTop: tree?.view === 'active' }, TITLE_LABELS);
+          const note = titleNote({ selected: checked.size, archived: archivedView, filtered, actionable: tree?.sort === 'actionable', activeOnTop: tree?.view === 'active' }, TITLE_LABELS);
           return note && <span className="agents-panel-note"> {note}</span>;
         })()}
       </h2>
@@ -788,6 +888,9 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
             {sortLabel(tree.sort)}
           </button>
         )}
+        <button type="button" className="agents-view-toggle" aria-pressed={archivedView} title={t('agents.archived')} onClick={toggleArchivedView}>
+          {t('agents.archived')}
+        </button>
         {tree && (
           <button type="button" className="agents-view-toggle" aria-pressed={tree.view === 'active'} title={t('agents.tree.activeOnTop')} onClick={() => void send({ view: tree.view === 'active' ? 'normal' : 'active' })}>
             {t('agents.tree.activeOnTop')}
@@ -897,6 +1000,7 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
       )}
       {checking && <BatchBar count={checked.size} actions={batchActions} onClear={() => clearBatch(true)} />}
       {menu && <ContextMenu at={menu.at} items={menu.items} onClose={() => setMenu(undefined)} />}
+      {trashOpen && <TrashPanel onRestored={restored} onRefused={(message) => toast({ message, kind: 'error' })} onClose={() => setTrashOpen(false)} />}
       {picker && tree && <MoveToFolder name={picker.name} title={picker.title} folders={tree.folders} current={picker.current} onPick={(pick) => {
         if (picker.title) clearBatch();
         void pickFolder(picker.keys, pick);

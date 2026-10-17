@@ -158,6 +158,26 @@ export type AgentLaunch =
   | { ok: true; sessionId: string; launch: { id: string; args: unknown }; cwd?: string; warn?: AgentsCapWarn }
   | { ok: false; error: AgentLifecycleError; cwd?: string };
 
+/** Why a delete or restore was refused (`empty`: nothing to undo). */
+export type AgentTrashError = 'running' | 'nothing' | 'gone' | 'exists' | 'empty';
+
+/** Reply of `POST /api/agents/session/delete` (body `{id}` or `{ids}`): per-id outcomes. */
+export interface AgentDeleteResult {
+  deleted: string[];
+  skipped: Array<{ id: string; error: AgentTrashError }>;
+}
+
+export interface AgentTrashEntry {
+  id: string;
+  agent: string;
+  title: string;
+  originalPath: string;
+  trashedAt: number;
+}
+
+/** Reply of `POST /api/agents/trash/restore` and `/undo`: the restored session, or a refusal. */
+export type AgentRestoreResult = { ok: true; id: string; title: string } | { ok: false; error: AgentTrashError };
+
 /** Reply of `POST /api/agents/session/stop`: `removed` when nothing was sent, so the session no longer exists. */
 export interface AgentStopResult {
   ok: boolean;

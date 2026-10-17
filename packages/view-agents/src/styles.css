@@ -267,6 +267,9 @@
 .agents-pick { min-height: var(--control-h-xs); padding: 0 var(--space-8); border: 0; border-radius: var(--radius-md); background: none; color: var(--text-2); font: inherit; font-size: var(--fs-md); text-align: left; cursor: pointer; outline: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .agents-pick:hover { background: var(--hover); color: var(--text); }
 .agents-pick.current { font-weight: 600; color: var(--text); }
+.agents-trash-row { display: flex; align-items: center; gap: var(--space-8); flex-shrink: 0; }
+.agents-trash-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.agents-trash-age { flex-shrink: 0; font-family: var(--font-mono); font-size: var(--fs-sm); color: var(--text-3); }
 .agents-add-list { gap: var(--space-2); }
 .agents-add-item { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; padding: var(--space-4) var(--space-8); border-radius: var(--radius-md); color: var(--text); font: inherit; outline: none; }
 .agents-add-item:hover { background: var(--hover); }
