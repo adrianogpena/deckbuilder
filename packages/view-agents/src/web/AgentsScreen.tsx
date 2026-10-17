@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { errorOf, setTitleBadge, useCommand, useKeybindings } from '@deckbuilderkit/ui';
 import { TerminalPane, terminalAppKeys, type TerminalPaneHandle } from '@deckbuilderkit/terminal';
-import { closeSession } from '@deckbuilderkit/terminal/session';
+import { closeSession, listSessions } from '@deckbuilderkit/terminal/session';
 import { agentsCommands } from '../commands';
 import { t } from '../i18n';
-import { type AgentProject, type AgentRunning, dismissRecovery, listAgentProjects, listRecovery, markSeen, removeAgentProject, reportShown, startSession, stopChat, terminalOf } from './api';
+import { type AgentProject, type AgentRunning, type AgentSessionView, dismissRecovery, listAgentProjects, listRecovery, markSeen, removeAgentProject, reportShown, restartSession, startInBackground, startSession, stopChat, stopSession, terminalOf } from './api';
 import { AddProject } from './AddProject';
 import { displayName, needsYouCount, nextWaiting } from './attention';
 import { ChatPane } from './chat/ChatPane';
@@ -14,6 +14,7 @@ import { RecoveryBanner } from './RecoveryBanner';
 import { ChangesTab } from './ChangesTab';
 import { NotesTab } from './NotesTab';
 import { SidePanel } from './SidePanel';
+import { StoppedPane } from './StoppedPane';
 import { Sidebar } from './Sidebar';
 import { useAgentsFeed } from './useAgentSessions';
 import '../styles.css';
@@ -72,6 +73,7 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
   const [chats, setChats] = useState<ChatEntry[]>([]);
   const [switching, setSwitching] = useState(false);
   const [viewing, setViewing] = useState<string>();
+  const [preview, setPreview] = useState<string>();
   const [recovery, setRecovery] = useState<AgentRunning[]>([]);
 
   useEffect(() => {
@@ -139,6 +141,7 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
       void markSeen(sessionId).catch(() => undefined);
       const ext = sessions.find((x) => x.id === sessionId)?.external === true;
       setViewing(ext ? sessionId : undefined);
+      setPreview(undefined);
       if (ext) return;
       if (chats.some((c) => entryId(c) === sessionId)) return;
       if (pool.some((x) => x.sessionId === sessionId)) {
@@ -154,8 +157,7 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
           openChat({ sessionId });
           return;
         }
-        const r = await startSession({ account: s.account, dir: s.cwd, sessionId });
-        attach({ sessionId, terminal: r.session });
+        setPreview(sessionId);
       } catch (e) {
         setError(errorOf(e).message);
       }
@@ -192,7 +194,71 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
     [chats, pool, attach, openChat, dismissBanner],
   );
 
-  // A pane whose session went away (exited) leaves the pool on exit; keep the selection valid.
+  // `/clear` gives the pty a new Claude session id (the server adopts it into the pty's meta): follow it in the pool and the selection.
+  useEffect(() => {
+    if (pool.length === 0) return;
+    let alive = true;
+    void listSessions().then(
+      (all) => {
+        const now = new Map(all.map((x) => [x.id, x.meta?.agentSession]));
+        const moves = pool.flatMap((a): Array<[string, string]> => {
+          const to = now.get(a.terminal);
+          return typeof to === 'string' && to !== a.sessionId ? [[a.sessionId, to]] : [];
+        });
+        if (!alive || moves.length === 0) return;
+        setPool((p) => p.map((a) => ({ ...a, sessionId: moves.find((m) => m[0] === a.sessionId)?.[1] ?? a.sessionId })));
+        setSelectedId((cur) => moves.find((m) => m[0] === cur)?.[1] ?? cur);
+      },
+      () => undefined,
+    );
+    return () => {
+      alive = false;
+    };
+  }, [sessions, pool]);
+
+  const stop = useCallback(async (s: AgentSessionView) => {
+    setError('');
+    try {
+      const r = await stopSession(s.id);
+      setPool((p) => p.filter((x) => x.sessionId !== s.id));
+      setChats((c) => c.filter((x) => entryId(x) !== s.id));
+      if (r.removed) setSelectedId((cur) => (cur === s.id ? undefined : cur));
+    } catch (e) {
+      setError(errorOf(e).message);
+    }
+  }, []);
+
+  const restart = useCallback(
+    async (s: AgentSessionView) => {
+      setNewFor(undefined);
+      setError('');
+      try {
+        if (chats.some((c) => entryId(c) === s.id)) {
+          await stopSession(s.id);
+          setChats((c) => c.filter((x) => entryId(x) !== s.id));
+          openChat({ sessionId: s.id });
+          return;
+        }
+        const r = await restartSession(s.id);
+        setPool((p) => [{ sessionId: r.sessionId, terminal: r.session }, ...p.filter((x) => x.sessionId !== s.id && x.sessionId !== r.sessionId)].slice(0, POOL_SIZE));
+        setSelectedId(r.sessionId);
+      } catch (e) {
+        setError(errorOf(e).message);
+      }
+    },
+    [chats, openChat],
+  );
+
+  const startBackground = useCallback(async (s: AgentSessionView) => {
+    setError('');
+    try {
+      await startInBackground({ account: s.account, dir: s.cwd, sessionId: s.id });
+    } catch (e) {
+      setError(errorOf(e).message);
+    }
+  }, []);
+
+  // An exited pane stays (screen kept, Exited overlay) until the session is started again; keep the selection valid.
   useEffect(() => {
     if (selectedId && !sessions.some((s) => s.id === selectedId) && !pool.some((x) => x.sessionId === selectedId) && !chats.some((c) => entryId(c) === selectedId)) setSelectedId(undefined);
   }, [sessions, selectedId, pool, chats]);
@@ -201,9 +267,23 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
   const inExternal = selectedId !== undefined && viewing === selectedId && selected !== undefined;
   const inChat = selectedId !== undefined && chats.some((c) => entryId(c) === selectedId);
   const inTerminal = selectedId !== undefined && pool.some((x) => x.sessionId === selectedId);
+  const inPreview = selectedId !== undefined && preview === selectedId && !inTerminal && !inChat && !inExternal;
+
+  const startPreview = async () => {
+    const s = sessions.find((x) => x.id === selectedId);
+    if (!s) return;
+    setError('');
+    try {
+      const r = await startSession({ account: s.account, dir: s.cwd, sessionId: s.id });
+      setPreview(undefined);
+      attach({ sessionId: s.id, terminal: r.session });
+    } catch (e) {
+      setError(errorOf(e).message);
+    }
+  };
 
   const switchMode = async (to: 'terminal' | 'chat') => {
-    if (!selectedId || switching || (to === 'chat' ? inChat : inTerminal)) return;
+    if (!selectedId || switching || (to === 'chat' ? inChat : !inChat)) return;
     setSwitching(true);
     setError('');
     try {
@@ -214,15 +294,13 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
           for (let i = 0; i < 30 && (await terminalOf(selectedId)); i++) await new Promise((res) => setTimeout(res, 100));
         }
         setPool((p) => p.filter((x) => x.sessionId !== selectedId));
+        setPreview(undefined);
         openChat({ sessionId: selectedId });
       } else {
         const r = await stopChat(selectedId);
         if (r.busy) return setError(t('agents.mode.busy'));
-        const s = sessions.find((x) => x.id === selectedId);
-        if (!s) return;
-        const started = await startSession({ account: s.account, dir: s.cwd, sessionId: selectedId });
         setChats((c) => c.filter((x) => entryId(x) !== selectedId));
-        attach({ sessionId: selectedId, terminal: started.session });
+        setPreview(selectedId);
       }
     } catch (e) {
       setError(errorOf(e).message);
@@ -279,6 +357,9 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
           onNewSession={(p) => setNewFor(p)}
           onAddProject={() => setAdding(true)}
           onRemoveProject={removeProject}
+          onStop={(s) => void stop(s)}
+          onRestart={(s) => void restart(s)}
+          onStartBackground={(s) => void startBackground(s)}
         />
       }
       {adding && <AddProject added={projects} onAdded={(p) => setProjects((l) => [...l, p])} onClose={() => setAdding(false)} />}
@@ -295,7 +376,7 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
             ☰
           </button>
           <h1 className="agents-title">{newFor !== undefined ? t('agents.new.title') : (selected ? displayName(selected) : t('agents.heading'))}</h1>
-          {newFor === undefined && (inChat || inTerminal) && (
+          {newFor === undefined && (inChat || inTerminal || inPreview) && (
             <div className="agents-mode" role="group" aria-label={t('agents.mode.label')}>
               {(['terminal', 'chat'] as const).map((m) => (
                 <button key={m} type="button" aria-pressed={(m === 'chat') === inChat} disabled={switching} onClick={() => void switchMode(m)}>
@@ -346,7 +427,6 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
                   if (h) inserters.current.set(a.sessionId, h.insert);
                   else inserters.current.delete(a.sessionId);
                 }}
-                onExit={() => setPool((p) => p.filter((x) => x.terminal !== a.terminal))}
               />
             </div>
           ))}
@@ -375,7 +455,12 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
               />
             </div>
           )}
-          {!inTerminal && !inChat && !inExternal && newFor === undefined && <p className="agents-empty agents-placeholder">{t('agents.pick')}</p>}
+          {inPreview && newFor === undefined && selected && (
+            <div className="agents-pane">
+              <StoppedPane sessionId={selected.id} updatedAt={selected.updatedAt} onStart={() => void startPreview()} />
+            </div>
+          )}
+          {!inTerminal && !inChat && !inExternal && !inPreview && newFor === undefined && <p className="agents-empty agents-placeholder">{t('agents.pick')}</p>}
         </div>
       </section>
       {!panelHidden && <SidePanel onClose={togglePanel} notes={<NotesTab project={selected?.project} canSend={(inTerminal || inChat) && newFor === undefined} onSend={sendToSession} />} changes={<ChangesTab root={projects.find((p) => p.id === selected?.project)?.path ?? selected?.cwd} status={selected?.status} />} />}

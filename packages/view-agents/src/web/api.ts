@@ -1,29 +1,53 @@
 import { request, stream } from '@deckbuilderkit/ui';
 import { listSessions, openSession, type Ticketed } from '@deckbuilderkit/terminal/session';
 import type { ChatEvent } from '../chat-protocol.ts';
-import type { AgentAccount, AgentAccountUsage, AgentProject, AgentRateLimit, AgentRunning, AgentSearchHit, AgentSessionView, AgentsCapWarn, AgentStatus, AgentStatuslineError, AgentStatuslineStatus } from '../protocol.ts';
+import { t } from '../i18n';
+import type { AgentLaunch, AgentLifecycleError, AgentStopResult, AgentAccount,AgentAccountUsage, AgentProject, AgentRateLimit, AgentRunning, AgentSearchHit, AgentSessionView, AgentsCapWarn, AgentStatus, AgentStatuslineError, AgentStatuslineStatus } from '../protocol.ts';
 
 export type { AgentAccount, AgentAccountUsage, AgentProject, AgentRateLimit, AgentRunning, AgentSearchHit, AgentSessionView, AgentsCapWarn, AgentStatus, AgentStatuslineError, AgentStatuslineStatus };
 
 export const listAccounts = () => request<AgentAccount[]>('GET', '/api/agents/accounts');
 
-interface Prepared {
-  ok: boolean;
-  sessionId: string;
-  launch: { id: string; args: unknown };
-  warn?: AgentsCapWarn;
-}
-
 /** Thrown by `startSession` when `confirmCap` declined the soft-cap warning. */
 export class CapDeclined extends Error {}
 
-/** Starts `claude` in a terminal (new session, or resumes `sessionId`) and returns its Claude session id and terminal ticket. */
-export async function startSession(opts: { account: string; dir: string; sessionId?: string; cols?: number; rows?: number; confirmCap?: (w: AgentsCapWarn) => Promise<boolean> }): Promise<Ticketed & { sessionId: string }> {
-  const p = await request<Prepared>('POST', '/api/agents/terminal/prepare', {}, { account: opts.account, sessionId: opts.sessionId });
-  if (!p.ok) throw new Error('Unknown account');
+/** The message of a refused start / restart / stop. */
+export function lifecycleMessage(r: { error?: AgentLifecycleError; cwd?: string }): string {
+  if (r.error === 'cwdMissing') return t('agents.cwdMissing', { cwd: r.cwd ?? '' });
+  if (r.error === 'external') return t('agents.openElsewhere');
+  if (r.error === 'busy') return t('agents.mode.busy');
+  return t('agents.startFailed');
+}
+
+const launchOf = async (
+  p: AgentLaunch,
+  opts: { dir: string; cols?: number; rows?: number; confirmCap?: (w: AgentsCapWarn) => Promise<boolean> },
+): Promise<Ticketed & { sessionId: string }> => {
+  if (!p.ok) throw new Error(lifecycleMessage(p));
   if (p.warn && opts.confirmCap && !(await opts.confirmCap(p.warn))) throw new CapDeclined();
-  const t = await openSession({ cols: opts.cols ?? 120, rows: opts.rows ?? 30, launch: p.launch, dir: opts.dir });
-  return { ...t, sessionId: p.sessionId };
+  const ticket = await openSession({ cols: opts.cols ?? 120, rows: opts.rows ?? 30, launch: p.launch, dir: opts.dir });
+  return { ...ticket, sessionId: p.sessionId };
+};
+
+/** Starts `claude` in a terminal (new session, or resumes `sessionId`) and returns its Claude session id and terminal ticket. The folder is checked first. */
+export async function startSession(opts: { account: string; dir: string; sessionId?: string; cols?: number; rows?: number; confirmCap?: (w: AgentsCapWarn) => Promise<boolean> }): Promise<Ticketed & { sessionId: string }> {
+  return launchOf(await request<AgentLaunch>('POST', '/api/agents/terminal/prepare', {}, { account: opts.account, sessionId: opts.sessionId, dir: opts.dir }), opts);
+}
+
+/** Starts (resumes) a session without attaching a pane: the terminal keeps running and is found by `terminalOf` later. */
+export const startInBackground = startSession;
+
+/** Stops a session: done/error acknowledged, agent killed; `removed` when nothing was sent so it no longer exists. */
+export async function stopSession(sessionId: string): Promise<{ removed: boolean }> {
+  const r = await request<AgentStopResult>('POST', '/api/agents/session/stop', {}, { sessionId });
+  if (!r.ok) throw new Error(lifecycleMessage(r));
+  return { removed: r.removed === true };
+}
+
+/** Restarts a session: the old process ends and a new run starts (fresh conversation when there is no transcript to resume). */
+export async function restartSession(sessionId: string, opts: { cols?: number; rows?: number } = {}): Promise<Ticketed & { sessionId: string }> {
+  const p = await request<AgentLaunch>('POST', '/api/agents/session/restart', {}, { sessionId });
+  return launchOf(p, { dir: p.ok ? (p.cwd ?? '') : '', ...opts });
 }
 
 /** The live terminal session id running Claude session `sessionId`, if any (from the pty `meta.agentSession`). */

@@ -85,6 +85,25 @@ export interface AgentSessionView extends AgentSession {
   seenAt?: number;
   /** Claude is running this session in another terminal (live pid file that is not ours). */
   external?: boolean;
+  /** `starting`: our terminal runs it but Claude's pid file has not appeared yet; `exited`: the process ended and its terminal is still listed. */
+  lifecycle?: 'starting' | 'exited';
+  /** Exit code when `lifecycle` is `exited` (null = no code). */
+  exitCode?: number | null;
+}
+
+/** Why a session start / restart / stop was refused. */
+export type AgentLifecycleError = 'cwdMissing' | 'external' | 'unknownSession' | 'unknownAccount' | 'busy';
+
+/** Reply of `POST /api/agents/session/restart` and (with `dir`) `POST /api/agents/terminal/prepare`: the launcher args for `POST /api/terminal/open`. */
+export type AgentLaunch =
+  | { ok: true; sessionId: string; launch: { id: string; args: unknown }; cwd?: string; warn?: AgentsCapWarn }
+  | { ok: false; error: AgentLifecycleError; cwd?: string };
+
+/** Reply of `POST /api/agents/session/stop`: `removed` when nothing was sent, so the session no longer exists. */
+export interface AgentStopResult {
+  ok: boolean;
+  removed?: boolean;
+  error?: AgentLifecycleError;
 }
 
 /** Socket text frames: the full session list when it changes, else only the status map (session id -> status); `usage` when plan usage changes. */

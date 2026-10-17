@@ -1,6 +1,7 @@
 import { isUuid, type Launcher } from '@deckbuilderkit/terminal/server';
 import type { AgentAccount } from './accounts.ts';
 import { claudeEnv } from './chat/process.ts';
+import { claudeCommand } from './claude-command.ts';
 
 export const CLAUDE_LAUNCHER_ID = 'claude';
 
@@ -15,7 +16,7 @@ export interface ClaudeLauncherOptions {
   accounts(): AgentAccount[];
   /** Base environment of the pty; defaults to the server's. */
   env?: Record<string, string | undefined>;
-  /** Executable; defaults to `claude.cmd` on Windows, else `claude`. */
+  /** Executable (tests); defaults to the resolved `claudeCommand` (settings, then detection). */
   cmd?: string;
 }
 
@@ -31,7 +32,7 @@ export function claudeLauncher(opts: ClaudeLauncherOptions): Launcher<ClaudeLaun
       if (a.resume !== undefined && typeof a.resume !== 'boolean') return null;
       return { account: a.account, sessionId: a.sessionId, resume: a.resume === true };
     },
-    command: (a) => [opts.cmd ?? (process.platform === 'win32' ? 'claude.cmd' : 'claude'), a.resume ? '--resume' : '--session-id', a.sessionId],
+    command: (a) => [...(opts.cmd ? [opts.cmd] : claudeCommand.argv()), a.resume ? '--resume' : '--session-id', a.sessionId, ...claudeCommand.extraArgs()],
     env: (a) => claudeEnv(find(a.account)!, opts.env ?? process.env),
     meta: (a) => ({ agentSession: a.sessionId, account: a.account }),
   };

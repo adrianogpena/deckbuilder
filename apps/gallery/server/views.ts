@@ -33,9 +33,10 @@ export const serverViews: ServerViewDef[] = [
   agentsServerView({
     home: agentsHome,
     link: () => appLink,
+    terminals: terminalStore,
     terminalScreens: () =>
       terminalStore
         .list()
-        .flatMap((s) => (!s.exited && typeof s.meta?.agentSession === 'string' ? [[s.meta.agentSession, terminalStore.screenLines(s.id, 25)] as [string, string[]]] : [])),
+        .flatMap((s) => (s.exited === undefined && typeof s.meta?.agentSession === 'string' ? [[s.meta.agentSession, terminalStore.screenLines(s.id, 25)] as [string, string[]]] : [])),
   }),
 ];

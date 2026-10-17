@@ -13,4 +13,8 @@ export interface AgentsSettings {
   notifyNeedsYou?: boolean;
   notifyDone?: boolean;
   notifyError?: boolean;
+  /** Claude executable; blank or omitted = detect (`claude.exe`, the npm shim's native binary, the shim). */
+  claudeCommand?: string;
+  /** Extra arguments appended after the ones the view passes to `claude`. */
+  claudeArgs?: string[];
 }

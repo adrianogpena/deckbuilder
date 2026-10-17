@@ -5,16 +5,18 @@ import { createToaster } from '@deckbuilderkit/platform';
 import { defineServerView, ndjson, socketTickets, validGroup, type SocketData, type SocketRoutes } from '@deckbuilderkit/server-core';
 import type { ServerWebSocket } from 'bun';
 import { CHAT_SOCKET_PATH, type ChatClientFrame, type ChatServerFrame } from './chat-protocol.ts';
-import type { AgentAccountUsage, AgentRunning, AgentSessionView, AgentsCapWarn, AgentsFrame } from './protocol.ts';
+import type { AgentAccountUsage, AgentLaunch, AgentRunning, AgentSessionView, AgentsCapWarn, AgentsFrame, AgentStopResult } from './protocol.ts';
 import type { AgentsMode, AgentsSettings } from './settings-types.ts';
 import { type AgentAccount, detectAccounts } from './server/accounts.ts';
 import { createNotifier, NOTIFY_LABEL } from './server/notify.ts';
 import { CLAUDE_LAUNCHER_ID, claudeLauncher } from './server/launcher.ts';
+import { claudeCommand } from './server/claude-command.ts';
 import { type ChatManager, type ChatSession, type ChatSubscriber, createChatManager } from './server/chat/manager.ts';
 import { findSessionFile, loadHistory } from './server/chat/normalize.ts';
 import { CHAT_MCP_PATH } from './server/chat/permission-mcp.ts';
 import type { SpawnFn } from './server/chat/process.ts';
 import { createSessionScanner, matchProject } from './server/discovery.ts';
+import { createLifecycle, cwdProblem, planRestart, stopOutcome, type TermInfo } from './server/lifecycle.ts';
 import { detectScreenError } from './server/screen-errors.ts';
 import { createProjectsStore, type ProjectsStore } from './server/projects.ts';
 import { createRunningStore, type RunningRecord, type RunningStore } from './server/running.ts';
@@ -34,17 +36,38 @@ export interface AgentsServerSettings {
 /** A copy of `raw` when it is a well-formed Agents settings group, else null. */
 const AGENTS_MODES: AgentsMode[] = ['terminal', 'chat'];
 
-export const validAgents = (raw: unknown): AgentsSettings | null => validGroup(raw, { mode: AGENTS_MODES, softCap: [1, 100], notifyNeedsYou: 'boolean', notifyDone: 'boolean', notifyError: 'boolean', autoSettle: 'boolean' }) as AgentsSettings | null;
+const AGENTS_SPEC = { mode: AGENTS_MODES, softCap: [1, 100], notifyNeedsYou: 'boolean', notifyDone: 'boolean', notifyError: 'boolean', autoSettle: 'boolean', claudeCommand: 'string' } as const;
+
+/** Validates the group; a valid one is the saved one, so the cached `claude` resolution is refilled from it. */
+export const validAgents = (raw: unknown): AgentsSettings | null => {
+  const { claudeArgs, ...rest } = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>;
+  const args = claudeArgs === undefined ? undefined : Array.isArray(claudeArgs) && claudeArgs.length <= 50 && claudeArgs.every((a) => typeof a === 'string' && a.length <= 300) ? (claudeArgs as string[]) : null;
+  const group = typeof raw === 'object' && raw !== null && !Array.isArray(raw) && args !== null ? (validGroup(rest, AGENTS_SPEC) as AgentsSettings | null) : null;
+  if (!group) return null;
+  if (args) group.claudeArgs = args;
+  claudeCommand.configure(group);
+  return group;
+};
 
 export const AGENTS_SOCKET_PATH = '/api/agents/socket';
 const RESCAN_MS = 10_000;
+const LIFECYCLE_MS = 1_000;
 const DEBOUNCE_MS = 300;
 const RUNNING_SYNC_MS = 5_000;
 const DEFAULT_SOFT_CAP = 12;
 
 export type { AgentSessionView };
 
+/** The part of the terminal sessions store the view drives: list ptys, relink one to another Claude session id, kill one. */
+export interface AgentTerminals {
+  list(): Array<{ id: string; cwd: string; meta?: Record<string, unknown>; exited: number | null | undefined }>;
+  setMeta(id: string, meta: Record<string, unknown> | undefined): void;
+  close(id: string): void;
+}
+
 export interface AgentsServerViewOptions {
+  /** Terminal sessions store: enables Starting/Exited, `/clear` id adoption, stop and restart. */
+  terminals?: AgentTerminals;
   /** Home holding the `.claude*` account dirs; defaults to the user's home. */
   home?: string;
   rescanMs?: number;
@@ -73,6 +96,7 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
   const home = opts.home ?? homedir();
   const scanner = createSessionScanner();
   const tracker = createStatusTracker();
+  const life = createLifecycle();
   const tickets = socketTickets<true>();
   const chatTickets = socketTickets<true>();
   const chatBindings = new WeakMap<ServerWebSocket<SocketData>, { session?: ChatSession; sub: ChatSubscriber }>();
@@ -82,6 +106,8 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
   let watchers: FSWatcher[] = [];
   let timer: ReturnType<typeof setInterval> | undefined;
   let debounce: ReturnType<typeof setTimeout> | undefined;
+  let lifeTimer: ReturnType<typeof setInterval> | undefined;
+  let lastLife = '';
   let seenFile = '';
   let usageDir: string | undefined;
   const usageReader = createUsageReader(() => usageDir);
@@ -104,6 +130,24 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
   });
 
   const liveTerminalIds = () => [...(opts.terminalScreens?.() ?? [])].map(([id]) => id);
+
+  /** The Claude ptys of the terminal store (live and exited). */
+  const claudeTerms = (): TermInfo[] =>
+    (opts.terminals?.list() ?? []).flatMap((s) =>
+      typeof s.meta?.agentSession === 'string' ? [{ id: s.id, sessionId: s.meta.agentSession, account: typeof s.meta.account === 'string' ? s.meta.account : undefined, cwd: s.cwd, exited: s.exited }] : [],
+    );
+
+  /** One lifecycle step: finds the Starting / Exited sessions and applies `/clear` id changes to the ptys' meta. */
+  const lifecycleStep = (pids: ReturnType<typeof readPidFiles>) => {
+    const r = life.poll(claudeTerms(), pids);
+    for (const a of r.adopt) {
+      const cur = opts.terminals?.list().find((x) => x.id === a.terminal);
+      if (cur) opts.terminals?.setMeta(a.terminal, { ...cur.meta, agentSession: a.to });
+    }
+    return r;
+  };
+
+  const hasTranscript = (id: string) => accounts().some((a) => findSessionFile(a.dir, id) !== undefined);
 
   /** The live sessions (terminal ptys and chat processes) with the account and project the scan knows. */
   const liveRecords = async (): Promise<RunningRecord[]> => {
@@ -156,16 +200,27 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
       if (err) screenErrors.set(id, err.message);
     }
     const pids = accs.flatMap((a) => readPidFiles(a.dir));
+    const lc = lifecycleStep(pids);
     const statuses = tracker.update(pids, screenErrors);
     const external = externalIds(pids, [...liveTerminalIds(), ...(chat?.live().ids ?? [])]);
     const s = loadSeen();
     const usage = usageReader.read(accs);
     const views: AgentSessionView[] = scanner
       .scan(accs.map((a) => ({ id: a.id, dir: a.dir })))
-      .map((x) => ({ ...x, contextPercent: usageContextPercent(usage.bySession.get(x.id)) ?? x.contextPercent, status: statuses.get(x.id) ?? 'stopped', external: external.has(x.id) || undefined, project: matchProject(x.cwd, refs)?.id, seenAt: s[x.id] }))
+      .map((x) => ({ ...x, lifecycle: lc.exited.has(x.id) ? ('exited' as const) : lc.starting.has(x.id) ? ('starting' as const) : undefined, exitCode: lc.exited.get(x.id), contextPercent: usageContextPercent(usage.bySession.get(x.id)) ?? x.contextPercent, status: statuses.get(x.id) ?? 'stopped', external: external.has(x.id) || undefined, project: matchProject(x.cwd, refs)?.id, seenAt: s[x.id] }))
       .filter((x) => x.project !== undefined)
       .sort((a, b) => b.updatedAt - a.updatedAt);
     if ((await loadSettings()).agents?.autoSettle !== false) sessionState?.settle(views);
+    // A pty whose session has no transcript yet (new, or after `/clear`): listed with the empty title until the first message.
+    const scanned = new Set(views.map((x) => x.id));
+    for (const term of claudeTerms()) {
+      if (scanned.has(term.sessionId) || !term.account) continue;
+      scanned.add(term.sessionId);
+      const project = matchProject(term.cwd, refs)?.id;
+      if (project === undefined) continue;
+      const lifecycle = lc.exited.has(term.sessionId) ? ('exited' as const) : lc.starting.has(term.sessionId) ? ('starting' as const) : undefined;
+      views.push({ id: term.sessionId, account: term.account, cwd: term.cwd, title: '', firstPrompt: '', updatedAt: Date.now(), status: statuses.get(term.sessionId) ?? 'stopped', project, lifecycle, exitCode: lc.exited.get(term.sessionId), seenAt: s[term.sessionId] });
+    }
     const sessions = views.map((x) => ({ ...x, ...sessionState?.get(x.id) }));
     const status: Record<string, AgentStatus> = {};
     for (const x of sessions) status[x.id] = x.status;
@@ -214,6 +269,16 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
       }
     }
     timer = setInterval(() => void refresh(), opts.rescanMs ?? RESCAN_MS);
+    if (opts.terminals) lifeTimer = setInterval(tick, LIFECYCLE_MS);
+  };
+
+  /** Every second: follows `/clear` (id adoption) and Starting / Exited; a change pushes a sessions frame. */
+  const tick = () => {
+    const r = lifecycleStep(accounts().flatMap((a) => readPidFiles(a.dir)));
+    const key = JSON.stringify([[...r.starting], [...r.exited], claudeTerms().map((x) => x.sessionId)]);
+    if (r.adopt.length === 0 && key === lastLife) return;
+    lastLife = key;
+    void refresh(true);
   };
 
   const stop = () => {
@@ -221,6 +286,8 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
     watchers = [];
     clearInterval(timer);
     clearTimeout(debounce);
+    clearInterval(lifeTimer);
+    lifeTimer = undefined;
     timer = undefined;
   };
 
@@ -237,10 +304,21 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
       sessionState = states;
       const notes = createNotesStore(join(ctx.dataDir, 'agents', 'notes'));
       loadSettings = () => ctx.settings.load();
+      void loadSettings().then((s) => claudeCommand.configure(s.agents), () => {});
       running = createRunningStore(join(ctx.dataDir, 'agents', 'running.json'));
       clearInterval(runningTimer);
       runningTimer = setInterval(() => void syncRunning(), RUNNING_SYNC_MS);
       runningTimer.unref?.();
+      const killTerminals = (sessionId: string) => {
+        for (const x of claudeTerms()) if (x.sessionId === sessionId) opts.terminals?.close(x.id);
+      };
+      const launchOf = async (account: string, sessionId: string | undefined): Promise<AgentLaunch> => {
+        const resume = sessionId !== undefined;
+        const id = sessionId ?? crypto.randomUUID();
+        const warn = await capWarn();
+        void syncRunning();
+        return { ok: true, sessionId: id, launch: { id: CLAUDE_LAUNCHER_ID, args: { account, sessionId: id, resume } }, warn };
+      };
       const statusline = createStatuslineInstaller({ agentsDir: join(ctx.dataDir, 'agents'), ...opts.statusline });
       statusline.refresh();
       return {
@@ -321,15 +399,39 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
         },
         // Terminal mode: returns the launcher args for `POST /api/terminal/open`. A new session gets its id here
         // (`--session-id`), so the pty is linked to it from the start through `meta.agentSession`.
-        'POST /api/agents/terminal/prepare': async ({ json }) => {
-          const b = await json<{ account?: unknown; sessionId?: unknown }>();
+        // `dir` (the cwd the pty will start in) is checked: a missing folder starts nothing.
+        'POST /api/agents/terminal/prepare': async ({ json }): Promise<AgentLaunch> => {
+          const b = await json<{ account?: unknown; sessionId?: unknown; dir?: unknown }>();
+          if (typeof b.dir === 'string' && b.dir) {
+            const bad = cwdProblem(b.dir);
+            if (bad) return { ok: false, ...bad };
+          }
           const acc = accounts().find((a) => a.id === b.account);
-          if (!acc) return { ok: false };
-          const resume = typeof b.sessionId === 'string' && b.sessionId !== '';
-          const sessionId = resume ? (b.sessionId as string) : crypto.randomUUID();
-          const warn = await capWarn();
-          void syncRunning();
-          return { ok: true, sessionId, launch: { id: CLAUDE_LAUNCHER_ID, args: { account: acc.id, sessionId, resume } }, warn };
+          if (!acc) return { ok: false, error: 'unknownAccount' };
+          return launchOf(acc.id, typeof b.sessionId === 'string' && b.sessionId !== '' ? b.sessionId : undefined);
+        },
+        // Stop: acknowledges done / error, kills the agent; `removed` when nothing was ever sent (no transcript).
+        'POST /api/agents/session/stop': async ({ json }): Promise<AgentStopResult> => {
+          const b = await json<{ sessionId?: unknown }>();
+          if (typeof b.sessionId !== 'string' || !b.sessionId) return { ok: false, error: 'unknownSession' };
+          tracker.markSeen(b.sessionId);
+          const r = chat?.stop(b.sessionId) ?? 'none';
+          if (r === 'busy') return { ok: false, error: 'busy' };
+          killTerminals(b.sessionId);
+          void refresh(true);
+          return { ok: true, ...stopOutcome(hasTranscript(b.sessionId)) };
+        },
+        // Restart: ends the old process and returns the launch of a new run (a fresh id when there is no transcript to resume).
+        'POST /api/agents/session/restart': async ({ json }): Promise<AgentLaunch> => {
+          const b = await json<{ sessionId?: unknown }>();
+          const id = typeof b.sessionId === 'string' ? b.sessionId : '';
+          const found = (await compute()).sessions.find((x) => x.id === id);
+          const plan = planRestart({ known: !!found, external: found?.external === true, sessionId: id, hasTranscript: hasTranscript(id) });
+          if (!plan.ok || !found) return { ok: false, error: plan.ok ? 'unknownSession' : plan.error };
+          const bad = cwdProblem(found.cwd);
+          if (bad) return { ok: false, ...bad };
+          killTerminals(id);
+          return { ...(await launchOf(found.account, plan.resume ? plan.sessionId : undefined)), cwd: found.cwd };
         },
         // Mode switch to Terminal: stops the session's chat process; `busy` while a turn is running.
         'POST /api/agents/chat/stop': async ({ json }) => {
@@ -426,6 +528,7 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
     onQuit() {
       stop();
       clearInterval(runningTimer);
+      clearInterval(lifeTimer);
       chat?.closeAll();
     },
   });

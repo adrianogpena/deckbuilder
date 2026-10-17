@@ -15,6 +15,10 @@ export interface SidebarProps {
   onNewSession(projectId: string): void;
   onAddProject(): void;
   onRemoveProject(projectId: string): void;
+  /** Context menu actions on a session (plain items, no keybindings). */
+  onStop?(session: AgentSessionView): void;
+  onRestart?(session: AgentSessionView): void;
+  onStartBackground?(session: AgentSessionView): void;
 }
 
 export function statusLabel(s: AgentStatus): string {
@@ -81,7 +85,7 @@ interface RowMatch {
 }
 
 /** Projects with their Claude sessions, a status dot and label per session; search, status chips, pin, rename and archive. */
-export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, onNewSession, onAddProject, onRemoveProject }: SidebarProps) {
+export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, onNewSession, onAddProject, onRemoveProject, onStop, onRestart, onStartBackground }: SidebarProps) {
   const ref = useRef<HTMLDivElement>(null);
   useRovingList(ref, '.agents-session');
   const toast = useToast();
@@ -171,7 +175,18 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
     update(s.id, { name: v === '' || v === s.title ? null : v });
   };
 
+  const lifecycleItems = (s: AgentSessionView): Array<ContextMenuItem | 'sep'> => {
+    if (s.external) return [];
+    const live = s.status !== 'stopped' || s.lifecycle !== undefined;
+    const items: ContextMenuItem[] = [];
+    if (!live && onStartBackground) items.push({ id: 'startBackground', label: t('agents.startBackground'), run: () => onStartBackground(s) });
+    if (live && onStop) items.push({ id: 'stop', label: t('agents.stop'), run: () => onStop(s) });
+    if (onRestart) items.push({ id: 'restart', label: t('agents.restart'), run: () => onRestart(s) });
+    return items.length ? [...items, 'sep'] : [];
+  };
+
   const menuItems = (s: AgentSessionView): Array<ContextMenuItem | 'sep'> => [
+    ...lifecycleItems(s),
     { id: 'pin', label: s.pinned ? t('agents.unpin') : t('agents.pin'), run: () => update(s.id, { pinned: !s.pinned }) },
     // Deferred so the menu gives the focus back before the rename input takes it.
     { id: 'rename', label: t('agents.rename'), hint: 'F2', run: () => setTimeout(() => startRename(s.id), 0) },
