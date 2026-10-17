@@ -18,6 +18,7 @@ import { SidePanel } from './SidePanel';
 import { StoppedPane } from './StoppedPane';
 import { GroupSummary } from './GroupSummary';
 import { Sidebar } from './Sidebar';
+import type { GitStatus } from '../protocol.ts';
 import { useAgentsFeed } from './useAgentSessions';
 import '../styles.css';
 
@@ -58,11 +59,24 @@ const readPanelHidden = () => {
 };
 
 /** The session id of an `#agents/<id>` app link, if the hash is one. */
+/** Session header git line: '⎇branch' ('(detached)' without one), '⇡a ⇣b' when either is non-zero, '✱n' when dirty. */
+function GitLine({ g }: { g: GitStatus }) {
+  const branch = g.branch ?? t('agents.git.detached');
+  const moved = g.ahead > 0 || g.behind > 0;
+  return (
+    <span className="agents-git-line">
+      <span className="branch" title={`${t('agents.git.branch')}: ${branch}`}>⎇{branch}</span>
+      {moved && <span className="behind" title={`${t('agents.git.ahead', { n: g.ahead })} · ${t('agents.git.behind', { n: g.behind })}`}>⇡{g.ahead} ⇣{g.behind}</span>}
+      {g.dirty > 0 && <span className="dirty" title={t('agents.git.dirty', { n: g.dirty })}>✱{g.dirty}</span>}
+    </span>
+  );
+}
+
 const linkedSession = () => /^#\/?agents\/([\w.-]+)\/?$/.exec(window.location.hash)?.[1];
 
 /** Agents screen: the sessions sidebar and the selected session's terminal. */
 export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false }: { mode?: 'terminal' | 'chat'; resumeOnSelect?: boolean }) {
-  const { sessions, usage } = useAgentsFeed();
+  const { sessions, usage, git } = useAgentsFeed();
   const keys = useKeybindings();
   const [hidden, setHidden] = useState(readHidden);
   const [panelHidden, setPanelHidden] = useState(readPanelHidden);
@@ -433,6 +447,7 @@ export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false }: { mo
           projects={projects}
           sessions={sessions}
           usage={usage}
+          git={git}
           selectedId={selectedId}
           onSelect={(id) => void select(id)}
           selectedProjectId={summaryFor}
@@ -463,6 +478,7 @@ export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false }: { mo
             ☰
           </button>
           <h1 className="agents-title">{newFor !== undefined ? t('agents.new.title') : (selected ? displayName(selected) : t('agents.heading'))}</h1>
+          {newFor === undefined && selected && git[selected.cwd] && <GitLine g={git[selected.cwd]} />}
           {newFor === undefined && (inChat || inTerminal || inPreview) && (
             <div className="agents-mode" role="group" aria-label={t('agents.mode.label')}>
               {(['terminal', 'chat'] as const).map((m) => (

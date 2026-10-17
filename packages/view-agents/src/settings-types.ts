@@ -15,6 +15,8 @@ export interface AgentsSettings {
   trashRetentionDays?: number;
   /** Archive stopped sessions idle for 7+ days automatically; on when omitted. */
   autoSettle?: boolean;
+  /** Background git status of every listed session's cwd; on when omitted, false = git never runs. */
+  gitStatus?: boolean;
   /** Toast when a session needs you / finishes / fails and is not on screen; on when omitted. */
   notifyNeedsYou?: boolean;
   notifyDone?: boolean;

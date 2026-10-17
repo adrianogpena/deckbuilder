@@ -185,11 +185,20 @@ export interface AgentStopResult {
   error?: AgentLifecycleError;
 }
 
-/** Socket text frames: the full session list when it changes, else only the status map (session id -> status); `usage` when plan usage changes. */
+/** Git state of a session cwd (`git status --porcelain=v2 --branch`); branch is null when detached. */
+export interface GitStatus {
+  branch: string | null;
+  ahead: number;
+  behind: number;
+  dirty: number;
+}
+
+/** Socket text frames: the full session list when it changes, else only the status map (session id -> status); `usage` when plan usage changes; `git` (cwd -> status) after each git poll. */
 export type AgentsFrame =
   | { type: 'sessions'; sessions: AgentSessionView[] }
   | { type: 'status'; status: Record<string, AgentStatus> }
   | { type: 'usage'; accounts: AgentAccountUsage[] }
+  | { type: 'git'; status: Record<string, GitStatus> }
   | { type: 'tail'; sessionId: string; turns: Array<{ role: 'user' | 'assistant'; text: string }> };
 
 /** A project added to the Agents view. */

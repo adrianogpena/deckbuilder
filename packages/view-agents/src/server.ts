@@ -9,6 +9,7 @@ import type { AgentAccountUsage, AgentLaunch, AgentRunning, AgentSessionView, Ag
 import type { AgentsMode, AgentsSettings } from './settings-types.ts';
 import { type AgentAccount, detectAccounts } from './server/accounts.ts';
 import { createAlerts } from './server/alerts.ts';
+import { createGitPoller } from './server/git-status.ts';
 import { createHooks } from './server/hooks.ts';
 import { createNotifier, createTransitions, NOTIFY_LABEL } from './server/notify.ts';
 import { CLAUDE_LAUNCHER_ID, claudeLauncher } from './server/launcher.ts';
@@ -43,7 +44,10 @@ export interface AgentsServerSettings {
 /** A copy of `raw` when it is a well-formed Agents settings group, else null. */
 const AGENTS_MODES: AgentsMode[] = ['terminal', 'chat'];
 
-const AGENTS_SPEC = { mode: AGENTS_MODES, softCap: [1, 100], notifyNeedsYou: 'boolean', notifyDone: 'boolean', notifyError: 'boolean', autoSettle: 'boolean', resumeOnSelect: 'boolean', maxSessionsPerProject: [1, 10000], trashRetentionDays: [1, 3650], claudeCommand: 'string', 'hooks.onRunning': 'string', 'hooks.onWaiting': 'string', 'hooks.onDone': 'string', 'hooks.onError': 'string' } as const;
+const AGENTS_SPEC = { mode: AGENTS_MODES, softCap: [1, 100], notifyNeedsYou: 'boolean', notifyDone: 'boolean', notifyError: 'boolean', autoSettle: 'boolean', gitStatus: 'boolean', resumeOnSelect: 'boolean', maxSessionsPerProject: [1, 10000], trashRetentionDays: [1, 3650], claudeCommand: 'string', 'hooks.onRunning': 'string', 'hooks.onWaiting': 'string', 'hooks.onDone': 'string', 'hooks.onError': 'string' } as const;
+
+/** Told on every valid Agents config edit (the running view's git poller). */
+let agentsConfigListener: ((group: AgentsSettings) => void) | undefined;
 
 /** Validates the group; a valid one is the saved one, so the cached `claude` resolution is refilled from it. */
 export const validAgents = (raw: unknown): AgentsSettings | null => {
@@ -53,6 +57,7 @@ export const validAgents = (raw: unknown): AgentsSettings | null => {
   if (!group) return null;
   if (args) group.claudeArgs = args;
   claudeCommand.configure(group);
+  agentsConfigListener?.(group);
   return group;
 };
 
@@ -125,6 +130,12 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
   let running: RunningStore | undefined;
   let runningTimer: ReturnType<typeof setInterval> | undefined;
   let loadSettings: () => Promise<AgentsServerSettings> = async () => ({});
+  let gitCwds: string[] = [];
+  const git = createGitPoller({ cwds: () => gitCwds, onUpdate: (status) => broadcast({ type: 'git', status }) });
+  agentsConfigListener = (group) => {
+    git.setEnabled(group.gitStatus !== false);
+    if (clients.size > 0) void git.pollNow();
+  };
   /** Session the web reports as on screen (Agents view open and focused); no toast for it. */
   let shownId: string | undefined;
   const toaster = opts.toast ? undefined : createToaster();
@@ -281,6 +292,7 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
     void hooks.observe(sessions);
     void notifier.observe(sessions);
     alerts.observe(sessions);
+    gitCwds = sessions.map((x) => x.cwd);
     return { sessions, status, usage: usage.accounts as AgentAccountUsage[] };
   };
 
@@ -326,6 +338,7 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
     }
     timer = setInterval(() => void refresh(), opts.rescanMs ?? RESCAN_MS);
     if (opts.terminals) lifeTimer = setInterval(tick, LIFECYCLE_MS);
+    git.start();
   };
 
   /** Every second: follows `/clear` (id adoption) and Starting / Exited; a change pushes a sessions frame. */
@@ -343,6 +356,7 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
     clearInterval(timer);
     clearTimeout(debounce);
     clearInterval(lifeTimer);
+    git.stop();
     lifeTimer = undefined;
     timer = undefined;
   };
@@ -362,7 +376,10 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
       const tree = createTreeStore(join(ctx.dataDir, 'agents', 'tree.json'));
       const notes = createNotesStore(join(ctx.dataDir, 'agents', 'notes'));
       loadSettings = () => ctx.settings.load();
-      void loadSettings().then((s) => claudeCommand.configure(s.agents), () => {});
+      void loadSettings().then((s) => {
+        claudeCommand.configure(s.agents);
+        git.setEnabled(s.agents?.gitStatus !== false);
+      }, () => {});
       running = createRunningStore(join(ctx.dataDir, 'agents', 'running.json'));
       clearInterval(runningTimer);
       runningTimer = setInterval(() => void syncRunning(), RUNNING_SYNC_MS);
@@ -667,6 +684,8 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
           void compute().then(({ sessions, usage }) => {
             ws.send(JSON.stringify({ type: 'sessions', sessions } satisfies AgentsFrame));
             ws.send(JSON.stringify({ type: 'usage', accounts: usage } satisfies AgentsFrame));
+            ws.send(JSON.stringify({ type: 'git', status: git.get() } satisfies AgentsFrame));
+            void git.pollNow();
           });
           if (tail) ws.send(JSON.stringify({ type: 'tail', sessionId: tail.sessionId, turns: tail.tailer.turns() } satisfies AgentsFrame));
         },
