@@ -126,6 +126,8 @@ export const patchSessionState = (id: string, state: { pin?: 'top' | 'bottom' | 
 
 /** Distinct tags with the number of listed sessions carrying each. */
 export const listTags = () => request<AgentTagCount[]>('GET', '/api/agents/tags');
+/** Appends tags (input order) to each session id, keeping the existing ones; never replaces. */
+export const addTags = (ids: string[], tags: string[]) => request<{ ok: boolean }>('POST', '/api/agents/tags/add', {}, { ids, tags });
 /** Removes a tag from every session; `count` = sessions changed. */
 export const removeTagEverywhere = (tag: string) => request<{ ok: boolean; count: number }>('POST', '/api/agents/tags/remove', {}, { tag });
 

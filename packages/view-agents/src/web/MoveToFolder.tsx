@@ -8,6 +8,8 @@ export type FolderPick = { to: 'top' } | { to: 'folder'; id: string } | { to: 'n
 export interface MoveToFolderProps {
   /** The project being moved (in the title). */
   name: string;
+  /** Replaces the default 'Move "name" to' title (batch moves). */
+  title?: string;
   folders: Array<{ id: string; name: string }>;
   /** The project's current folder; the cursor starts on it (else on Top level). */
   current?: string;
@@ -16,7 +18,7 @@ export interface MoveToFolderProps {
 }
 
 /** Move to folder picker: Top level, each folder in order, then + New folder…. */
-export function MoveToFolder({ name, folders, current, onPick, onClose }: MoveToFolderProps) {
+export function MoveToFolder({ name, title, folders, current, onPick, onClose }: MoveToFolderProps) {
   const ref = useRef<HTMLDivElement>(null);
   useRovingList(ref, '.agents-pick');
   const item = (key: string, label: string, pick: FolderPick, on: boolean) => (
@@ -25,7 +27,7 @@ export function MoveToFolder({ name, folders, current, onPick, onClose }: MoveTo
     </button>
   );
   return (
-    <Modal title={t('agents.folder.moveTitle', { name })} onClose={onClose}>
+    <Modal title={title ?? t('agents.folder.moveTitle', { name })} onClose={onClose}>
       <div className="agents-pick-list" ref={ref} role="group" aria-label={t('agents.folder.move')}>
         {item('top', t('agents.folder.topLevel'), { to: 'top' }, current === undefined)}
         {folders.map((f) => item(f.id, f.name, { to: 'folder', id: f.id }, f.id === current))}

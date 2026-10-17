@@ -1,9 +1,15 @@
-import { type CSSProperties, type DragEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { ContextMenu, type ContextMenuItem, fuzzyScore, highlightRuns, useDialogs, useRovingList, useToast } from '@deckbuilderkit/ui';
+import { type CSSProperties, type DragEvent, type MouseEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { ContextMenu, type ContextMenuItem, fuzzyScore, highlightRuns, useCommand, useDialogs, useRovingList, useToast } from '@deckbuilderkit/ui';
+import { agentsCommands } from '../commands';
 import { t } from '../i18n';
-import { type AgentAccountUsage, type AgentProject, type AgentRateLimit, type AgentSessionView, type AgentStatus, type AgentTreePatch, markUnread, patchSessionState, removeTagEverywhere, searchSessions, type TreePatchResult } from './api';
-import { compareSessions, displayName } from './attention';
+import type { AgentCategory } from '../protocol.ts';
+import { type AgentAccountUsage, type AgentProject, type AgentRateLimit, type AgentSessionView, type AgentStatus, type AgentTreePatch, addTags, markUnread, patchSessionState, removeTagEverywhere, searchSessions, stopSession, type TreePatchResult } from './api';
+import { compareSessions, displayName, statusCounts } from './attention';
+import { type BatchAction, BatchBar } from './BatchBar';
+import { batchOrder, distinctKeys, stopOutcome, toggleChecked } from './batch';
+import { type AgentFilters, CATEGORIES, categoryOf, clearFilters, clearStatus, isFiltering, matchesFilters, NO_FILTERS, nextTime, parseQuery, type TimeMode, type TitleLabels, titleNote, toggleStatus, toggleTag } from './filters';
 import { type FolderPick, MoveToFolder } from './MoveToFolder';
+import { pruneBatch, rowKey, shownOrders, startedCandidates, stepStarted, trackPrevious, reselect, type PreviousState } from './navigation';
 import { buildRows, folderName, folderNodeKey, nextPin, parseTags, projectKey, projectNodeKey, tagCounts, type TreeRow } from './tree';
 import { useAgentTree } from './useAgentSessions';
 
@@ -40,7 +46,11 @@ export interface SidebarProps {
   onStop?(session: AgentSessionView): void;
   onRestart?(session: AgentSessionView): void;
   onStartBackground?(session: AgentSessionView): void;
+  /** `ui.expandCollapsedOnActiveJump` (not in Settings yet; off by default): `[` / `]` also land on rows inside collapsed nodes. */
+  expandCollapsedOnActiveJump?: boolean;
 }
+
+const SORTS = ['manual', 'recent', 'actionable'] as const;
 
 export function statusLabel(s: AgentStatus): string {
   switch (s) {
@@ -99,7 +109,31 @@ function UsageBar({ label, limit }: { label: string; limit?: AgentRateLimit }) {
   );
 }
 
-const STATUSES: AgentStatus[] = ['needs-you', 'error', 'exited', 'running', 'starting', 'done', 'idle', 'stopped'];
+/** Pill glyph and status class (colour) per category; the done-unseen pill sits after waiting. */
+function timeLabel(mode: TimeMode): string {
+  switch (mode) {
+    case 'today': return t('agents.time.today');
+    case '3d': return t('agents.time.3d');
+    case '7d': return t('agents.time.7d');
+    default: return t('agents.time.all');
+  }
+}
+
+const TITLE_LABELS: TitleLabels = {
+  selected: (count) => t('agents.note.selected', { count: String(count) }),
+  get archived() { return t('agents.note.archived'); },
+  get filtered() { return t('agents.note.filtered'); },
+  get actionable() { return t('agents.note.actionable'); },
+  get activeOnTop() { return t('agents.note.activeOnTop'); },
+};
+
+const CATEGORY_PILL: Record<AgentCategory, { glyph: string; status: AgentStatus }> = {
+  running: { glyph: '●', status: 'running' },
+  waiting: { glyph: '◐', status: 'needs-you' },
+  idle: { glyph: '○', status: 'idle' },
+  error: { glyph: '✕', status: 'error' },
+  stopped: { glyph: '■', status: 'stopped' },
+};
 
 /** How a session matched the search: fuzzy name positions, or a full-text snippet. */
 interface RowMatch {
@@ -107,8 +141,8 @@ interface RowMatch {
   snippet?: string;
 }
 
-/** Projects with their Claude sessions, a status dot and label per session; search, status chips, pin, rename and archive. */
-export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, selectedProjectId, onSelectProject, selectedFolderId, onSelectFolder, onVisibleChange, onNewSession, onAddProject, onRemoveProject, onStop, onRestart, onStartBackground }: SidebarProps) {
+/** Projects with their Claude sessions, a status dot and label per session; search, filter pills, pin, rename and archive. */
+export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, selectedProjectId, onSelectProject, selectedFolderId, onSelectFolder, onVisibleChange, onNewSession, onAddProject, onRemoveProject, onStop, onRestart, onStartBackground, expandCollapsedOnActiveJump = false }: SidebarProps) {
   const ref = useRef<HTMLDivElement>(null);
   useRovingList(ref, '.agents-session, .agents-node');
   const toast = useToast();
@@ -116,20 +150,25 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
   const [drag, setDrag] = useState<DragNode>();
   const [query, setQuery] = useState('');
   const [fullToggle, setFullToggle] = useState(false);
-  const [filter, setFilter] = useState<ReadonlySet<AgentStatus>>(new Set());
+  const [filters, setFilters] = useState<AgentFilters>(NO_FILTERS);
   const [archivedOpen, setArchivedOpen] = useState(false);
   const [menu, setMenu] = useState<{ at: { x: number; y: number }; items: Array<ContextMenuItem | 'sep'> }>();
   const [renaming, setRenaming] = useState<string>();
   const renamingRef = useRef<string | undefined>(undefined);
   const [hits, setHits] = useState<ReadonlyMap<string, string>>(new Map());
-  const [tagFilter, setTagFilter] = useState<string>();
-  const [picker, setPicker] = useState<{ key: string; name: string; current?: string }>();
+  const [picker, setPicker] = useState<{ keys: string[]; name: string; title?: string; current?: string }>();
+  const [checked, setChecked] = useState<ReadonlySet<string>>(new Set());
   const dialogs = useDialogs();
 
-  const prefixed = query.startsWith('?');
+  const parsed = useMemo(() => parseQuery(query), [query]);
+  const prefixed = parsed.full;
   const full = fullToggle || prefixed;
-  const q = (prefixed ? query.slice(1) : query).trim();
-  const searching = q !== '' || filter.size > 0 || tagFilter !== undefined;
+  const q = parsed.needle;
+  const qStatus = parsed.status;
+  const filtered = isFiltering(filters);
+  const searching = q !== '' || qStatus !== undefined || filtered;
+  const tagFilter = filters.tag;
+  useCommand(agentsCommands()[6]!, () => setFilters(clearFilters()));
 
   useEffect(() => {
     setHits(new Map());
@@ -153,9 +192,10 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
   const { live, matches, archived } = useMemo(() => {
     const known = new Set(projects.map((p) => p.id));
     const matches = new Map<string, RowMatch>();
+    const now = Date.now();
     for (const s of sessions) {
-      if (filter.size && !filter.has(s.status)) continue;
-      if (tagFilter !== undefined && !s.tags?.includes(tagFilter)) continue;
+      if (!matchesFilters(s, filters, now)) continue;
+      if (qStatus && categoryOf(s) !== qStatus) continue;
       if (!q) matches.set(s.id, {});
       else if (full) {
         const snippet = hits.get(s.id);
@@ -171,7 +211,14 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
       matches,
       archived: sorted.filter((s) => s.archived).map((s) => ({ s, m: matches.get(s.id)! })),
     };
-  }, [projects, sessions, filter, tagFilter, q, full, hits]);
+  }, [projects, sessions, filters, q, qStatus, full, hits]);
+
+  // Pill counts: listed live sessions of known projects, ignoring status, time and tag filters.
+  const base = useMemo(() => {
+    const known = new Set(projects.map((p) => p.id));
+    return sessions.filter((s) => !s.archived && !!s.project && known.has(s.project));
+  }, [projects, sessions]);
+  const counts = useMemo(() => statusCounts(base), [base]);
 
   // Counted over every listed session, archived and filtered-out ones included.
   const tags = useMemo(() => {
@@ -187,6 +234,69 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
   useEffect(() => {
     onVisibleChange?.(live);
   }, [live, onVisibleChange]);
+
+  // Manual mode freezes positions: record what each expanded project shows (the server appends only missing ids).
+  useEffect(() => {
+    if (!tree || tree.sort !== 'manual' || searching) return;
+    const shown = shownOrders(rows);
+    const stale = Object.entries(shown).some(([k, ids]) => ids.some((id) => !tree.sessionOrder[k]?.includes(id)));
+    if (stale) patch({ freeze: shown }).catch(() => undefined);
+  }, [rows, tree, searching]);
+
+  // Selection across rebuilds: a vanished row moves the selection to its nearest surviving neighbour.
+  const prevRows = useRef<TreeRow[]>([]);
+  const started = useRef(false);
+  useEffect(() => {
+    const old = prevRows.current;
+    prevRows.current = rows;
+    const next = rows.map(rowKey);
+    const apply = (key: string | undefined) => {
+      const r = rows.find((x) => rowKey(x) === key);
+      if (r?.kind === 'session') onSelect(r.session.id);
+      else if (r?.kind === 'project') onSelectProject?.(r.project.id);
+      else if (r?.kind === 'folder') onSelectFolder?.({ id: r.id, name: r.name, projectIds: r.projectIds });
+    };
+    if (!selectedId && !selectedProjectId && !selectedFolderId) {
+      if (started.current) return;
+      const first = rows.find((x) => x.kind === 'session');
+      if (first) {
+        started.current = true;
+        apply(rowKey(first));
+      }
+      return;
+    }
+    started.current = true;
+    const was = old.find((x) => (selectedId ? x.kind === 'session' && x.session.id === selectedId : selectedProjectId ? x.kind === 'project' && x.project.id === selectedProjectId : x.kind === 'folder' && x.id === selectedFolderId));
+    const key = was && rowKey(was);
+    if (!key || next.includes(key)) return;
+    if (selectedId && live.some((s) => s.id === selectedId)) return;
+    apply(reselect(old.map(rowKey), key, next));
+  }, [rows]);
+
+  // Previous session: the remembered one becomes "previous" whenever the selected session changes.
+  const remembered = useRef<PreviousState>({});
+  useEffect(() => {
+    remembered.current = trackPrevious(remembered.current, selectedId || undefined);
+  }, [selectedId]);
+  useCommand(agentsCommands()[8]!, () => {
+    const p = remembered.current.previous;
+    if (p && sessions.some((s) => s.id === p)) onSelect(p);
+    else toast({ message: t('agents.nav.noPrevious') });
+  });
+
+  const jumpStarted = (dir: 1 | -1) => {
+    const list = expandCollapsedOnActiveJump && tree ? buildRows({ tree: { ...tree, collapsed: [] }, projects, sessions: live, filtering: searching }) : rows;
+    const id = stepStarted(startedCandidates(list), selectedId, dir);
+    if (id) onSelect(id);
+    else toast({ message: t('agents.nav.noStarted') });
+  };
+  useCommand(agentsCommands()[9]!, () => jumpStarted(-1));
+  useCommand(agentsCommands()[10]!, () => jumpStarted(1));
+  const sortLabel = (m: (typeof SORTS)[number]) => t(`agents.sort.${m}`);
+  const cycleSort = () => {
+    if (tree) void send({ sort: SORTS[(SORTS.indexOf(tree.sort) + 1) % SORTS.length]! });
+  };
+  useCommand(agentsCommands()[7]!, cycleSort);
 
   /** The reply's tree when the patch applied, else undefined (refusals toasted, `noop` silent). */
   const sendTree = async (p: AgentTreePatch): Promise<TreePatchResult['tree'] | undefined> => {
@@ -236,17 +346,95 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
     const key = r?.kind === 'project' ? r.key : r?.kind === 'session' ? r.projectKey : undefined;
     const p = key !== undefined ? projects.find((x) => projectKey(x.path) === key) : undefined;
     if (key === undefined || !p) return void toast({ message: t('agents.folder.moveNoTarget') });
-    setPicker({ key, name: p.name, current: tree?.folders.find((f) => f.projects.includes(key))?.id });
+    setPicker({ keys: [key], name: p.name, current: tree?.folders.find((f) => f.projects.includes(key))?.id });
   };
 
-  const pickFolder = async (key: string, pick: FolderPick) => {
+  const pickFolder = async (keys: string[], pick: FolderPick) => {
     setPicker(undefined);
     if (pick.to === 'top') {
-      if (await send({ moveToFolder: { keys: [key] } })) toast({ message: t('agents.folder.movedTop') });
+      if (await send({ moveToFolder: { keys } })) toast({ message: t('agents.folder.movedTop') });
       return;
     }
     const f = pick.to === 'folder' ? tree?.folders.find((x) => x.id === pick.id) : await createFolder();
-    if (f && (await send({ moveToFolder: { keys: [key], folder: f.id } }))) toast({ message: t('agents.folder.moved', { name: f.name }) });
+    if (f && (await send({ moveToFolder: { keys, folder: f.id } }))) toast({ message: t('agents.folder.moved', { name: f.name }) });
+  };
+
+  // ---- Checked batch: pruned to sessions that still exist (not to visible ones) on each rebuild.
+  useEffect(() => {
+    setChecked((c) => pruneBatch(c, sessions.map((s) => s.id)));
+  }, [sessions]);
+
+  const clearBatch = (note = false) => {
+    setChecked(new Set());
+    if (note) toast({ message: t('agents.batch.cleared') });
+  };
+  const checking = checked.size > 0;
+  const toggleCheck = (id: string) => setChecked((c) => toggleChecked(c, id));
+
+  /** The checked sessions in session-list order: tree rows, then archived, then any hidden by search or filters. */
+  const batchSessions = () => batchOrder([...rows.flatMap((r) => (r.kind === 'session' ? [r.session] : [])), ...archived.map((x) => x.s), ...sessions], checked);
+
+  const batchStop = async () => {
+    const list = batchSessions();
+    clearBatch();
+    const tally = { stopped: 0, notRunning: 0 };
+    let failed = false;
+    for (const s of list) {
+      if (s.external || !(s.live || s.lifecycle !== undefined) || !s.id) {
+        tally.notRunning++;
+        continue;
+      }
+      try {
+        await stopSession(s.id);
+        tally.stopped++;
+      } catch {
+        failed = true;
+      }
+    }
+    const o = stopOutcome(tally);
+    toast({ message: o === 'none' ? t('agents.batch.noneRunning') : o === 'all' ? t('agents.batch.stopped', { n: String(tally.stopped) }) : t('agents.batch.stoppedSome', { n: String(tally.stopped), k: String(tally.notRunning) }) });
+    if (failed) toast({ message: t('agents.stateFailed'), kind: 'error' });
+  };
+
+  const batchTags = async () => {
+    const ids = batchSessions().map((s) => s.id).filter((id) => !!id);
+    const raw = ids.length ? await dialogs.prompt({ title: t('agents.batch.tags'), label: t('agents.batch.tagsPrompt', { n: String(ids.length) }) }) : null;
+    const list = raw === null ? [] : parseTags(raw);
+    clearBatch(list.length === 0);
+    if (!list.length) return;
+    addTags(ids, list)
+      .then(() => toast({ message: t('agents.batch.tagsAdded', { tags: list.join(', '), n: String(ids.length) }) }))
+      .catch(() => toast({ message: t('agents.stateFailed'), kind: 'error' }));
+  };
+
+  const batchMove = () => {
+    const pathOf = new Map(projects.map((p) => [p.id, p.path]));
+    const keys = distinctKeys(batchSessions().map((s) => (s.project && pathOf.has(s.project) ? projectKey(pathOf.get(s.project)!) : undefined)));
+    if (!keys.length) {
+      clearBatch();
+      return void toast({ message: t('agents.folder.moveNoTarget') });
+    }
+    const one = keys.length === 1 ? keys[0]! : undefined;
+    setPicker({ keys, name: '', title: t('agents.batch.moveTitle', { n: String(keys.length) }), current: one && tree?.folders.find((f) => f.projects.includes(one))?.id });
+  };
+
+  // Batch actions in bar order; g8 appends archive and delete here.
+  const batchActions: BatchAction[] = [
+    { id: 'stop', label: t('agents.batch.stop'), run: () => void batchStop() },
+    { id: 'tags', label: t('agents.batch.tags'), run: () => void batchTags() },
+    { id: 'move', label: t('agents.batch.move'), run: batchMove },
+  ];
+  const ifBatch = (run: () => void) => () => (checked.size ? run() : undefined);
+  useCommand(agentsCommands()[11]!, ifBatch(() => void batchStop()));
+  useCommand(agentsCommands()[12]!, ifBatch(() => void batchTags()));
+  useCommand(agentsCommands()[13]!, ifBatch(batchMove));
+  useCommand(agentsCommands()[14]!, ifBatch(() => clearBatch(true)));
+
+  /** Space on a session row: toggle its check, then focus the next selectable row. */
+  const spaceCheck = (el: HTMLElement, id: string) => {
+    toggleCheck(id);
+    const all = [...(ref.current?.querySelectorAll<HTMLElement>('.agents-session, .agents-node') ?? [])];
+    all[all.indexOf(el) + 1]?.focus();
   };
 
   const confirmRemove = async (p: AgentProject) => {
@@ -268,7 +456,7 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
     if (!(await dialogs.confirm({ title: t('agents.tags.removeAll'), body: t('agents.tags.removeConfirm', { tag }), okLabel: t('agents.remove.ok'), danger: true }))) return;
     try {
       const r = await removeTagEverywhere(tag);
-      if (tagFilter === tag) setTagFilter(undefined);
+      setFilters((f) => (f.tag === tag ? { ...f, tag: undefined } : f));
       toast({ message: t('agents.tags.removed', { tag, count: String(r.count) }) });
     } catch {
       toast({ message: t('agents.stateFailed'), kind: 'error' });
@@ -357,15 +545,17 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
     };
   };
 
-  const present = useMemo(() => new Set(sessions.map((s) => s.status)), [sessions]);
-  const chips = STATUSES.filter((st) => present.has(st) || filter.has(st));
-
-  const toggleFilter = (st: AgentStatus) =>
-    setFilter((f) => {
-      const next = new Set(f);
-      if (!next.delete(st)) next.add(st);
-      return next;
-    });
+  const pill = (key: string, active: boolean, label: ReactNode, aria: string, onClick: () => void, status?: AgentStatus) => (
+    <button key={key} type="button" className={`agents-pill${status ? ` ${status}` : ''}`} aria-pressed={active} title={aria} aria-label={aria} onClick={onClick}>
+      {label}
+    </button>
+  );
+  const categoryPill = (c: AgentCategory, glyph: string, status: AgentStatus, count: number, name: string, done = false) =>
+    pill(`c-${done ? 'done' : c}`, filters.status.has(c), <><span className="agents-pill-glyph">{glyph}</span>{count}</>, `${name} (${count})`, () => setFilters((f) => toggleStatus(f, c)), status);
+  const pillsMenu = (e: MouseEvent) => {
+    e.preventDefault();
+    setMenu({ at: { x: e.clientX, y: e.clientY }, items: [{ id: 'clearFilters', label: t('agents.filter.clear'), disabled: !filtered, run: () => setFilters(clearFilters()) }] });
+  };
 
   const update = (id: string, state: Parameters<typeof patchSessionState>[1]) => {
     patchSessionState(id, state).catch(() => toast({ message: t('agents.stateFailed'), kind: 'error' }));
@@ -458,18 +648,36 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
         style={r && depthStyle(r.depth)}
         {...(r ? dragProps(r) : {})}
         aria-current={s.id === selectedId ? 'true' : undefined}
-        onClick={() => onSelect(s.id)}
+        onClick={(e) => (e.ctrlKey || e.metaKey ? toggleCheck(s.id) : onSelect(s.id))}
         onContextMenu={(e) => {
           e.preventDefault();
           setMenu({ at: { x: e.clientX, y: e.clientY }, items: menuItems(s, r) });
         }}
         onKeyDown={(e) => {
-          if (e.key !== 'F2') return;
-          e.preventDefault();
-          startRename(s.id);
+          if (e.key === ' ' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+            e.preventDefault();
+            spaceCheck(e.currentTarget, s.id);
+          } else if (e.key === 'F2') {
+            e.preventDefault();
+            startRename(s.id);
+          }
         }}
       >
-        <span className="agents-lead" aria-hidden="true" />
+        <span className="agents-lead">
+          {checking && (
+            <span
+              className={`agents-check${checked.has(s.id) ? ' on' : ''}`}
+              role="checkbox"
+              aria-checked={checked.has(s.id)}
+              aria-label={t('agents.batch.check')}
+              title={t('agents.batch.check')}
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleCheck(s.id);
+              }}
+            >{checked.has(s.id) ? '✓' : ''}</span>
+          )}
+        </span>
         {connector}
         <span className={`agents-glyph ${s.status}`} role="img" title={label} aria-label={label}>{STATUS_GLYPH[s.status]}</span>
         {pin && <span className="agents-mark" role="img" title={pinLabel} aria-label={pinLabel}>{pin === 'top' ? '↑' : '↓'}</span>}
@@ -554,9 +762,32 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
 
   const archivedShown = archivedOpen || searching;
   return (
-    <nav className="agents-sidebar" aria-label={t('agents.sidebar')} ref={ref}>
+    <nav
+      className={`agents-sidebar${checking ? ' checking' : ''}`}
+      aria-label={t('agents.sidebar')}
+      ref={ref}
+      onKeyDown={(e) => {
+        if (e.key !== 'Escape' || e.defaultPrevented || !checking) return;
+        e.preventDefault();
+        e.stopPropagation();
+        clearBatch(true);
+      }}
+    >
+      <h2 className="agents-panel-title">
+        {t('agents.sidebar')}
+        {(() => {
+          // 'archived' slot is g8's.
+          const note = titleNote({ selected: checked.size, filtered, actionable: tree?.sort === 'actionable', activeOnTop: tree?.view === 'active' }, TITLE_LABELS);
+          return note && <span className="agents-panel-note"> {note}</span>;
+        })()}
+      </h2>
       <div className="agents-sidebar-head">
         <button type="button" onClick={onAddProject}>{t('agents.add.button')}</button>
+        {tree && (
+          <button type="button" className="agents-view-toggle" title={t('agents.sort.title', { mode: sortLabel(tree.sort) })} aria-label={t('agents.sort.title', { mode: sortLabel(tree.sort) })} onClick={cycleSort}>
+            {sortLabel(tree.sort)}
+          </button>
+        )}
         {tree && (
           <button type="button" className="agents-view-toggle" aria-pressed={tree.view === 'active'} title={t('agents.tree.activeOnTop')} onClick={() => void send({ view: tree.view === 'active' ? 'normal' : 'active' })}>
             {t('agents.tree.activeOnTop')}
@@ -598,22 +829,28 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
               aria-label={t('agents.search.fullText')}
               onClick={() => {
                 if (prefixed) {
-                  setQuery(query.slice(1));
+                  setQuery(query.replace('?', ''));
                   setFullToggle(false);
                 } else setFullToggle((v) => !v);
               }}
             >?</button>
           </div>
-          {chips.length > 1 && (
-            <div className="agents-chips" role="group" aria-label={t('agents.filter')}>
-              {chips.map((st) => (
-                <button key={st} type="button" className="agents-chip" aria-pressed={filter.has(st)} onClick={() => toggleFilter(st)}>
-                  <span className={`agents-dot ${st}`} aria-hidden="true" />
-                  {statusLabel(st)}
-                </button>
-              ))}
-            </div>
-          )}
+          <div className="agents-pills" role="group" aria-label={t('agents.filter')} onContextMenu={pillsMenu}>
+            {pill('all', filters.status.size === 0, `${t('agents.filter.all')} ${base.length}`, `${t('agents.filter.all')} (${base.length})`, () => setFilters(clearStatus))}
+            {CATEGORIES.flatMap((c) => {
+              const p = CATEGORY_PILL[c];
+              const one = categoryPill(c, p.glyph, p.status, counts[c], statusLabel(p.status));
+              return c === 'waiting' ? [one, categoryPill('waiting', '✓', 'done', counts.done, t('agents.filter.done'), true)] : [one];
+            })}
+            <span className="agents-pill-sep" aria-hidden="true">│</span>
+            {pill('time', filters.time !== 'all', timeLabel(filters.time), t('agents.time.title', { mode: timeLabel(filters.time) }), () => setFilters(nextTime))}
+            {tagFilter !== undefined && (
+              <>
+                <span className="agents-pill-sep" aria-hidden="true">│</span>
+                {pill('tag', true, `# ${tagFilter}`, t('agents.filter.tagClear'), () => setFilters((f) => ({ ...f, tag: undefined })))}
+              </>
+            )}
+          </div>
         </div>
       )}
       {projects.length === 0 && (
@@ -621,7 +858,8 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
           {t('agents.empty')}. {t('agents.emptyHint')}
         </p>
       )}
-      {searching && rows.length === 0 && archived.length === 0 && <p className="agents-empty">{t('agents.noMatches')}</p>}
+      {projects.length > 0 && sessions.length === 0 && <p className="agents-empty">{t('agents.filter.noSessions')}</p>}
+      {sessions.length > 0 && rows.length === 0 && archived.length === 0 && <p className="agents-empty">{t('agents.filter.noMatch')}</p>}
       {rows.length > 0 && <div className="agents-tree">{rows.map(treeRow)}</div>}
       {tags.length > 0 && (
         <div className="agents-tags">
@@ -635,7 +873,7 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
                 className={`agents-tag-row agents-node${tag === tagFilter ? ' active' : ''}`}
                 title={t('agents.tags.filter', { tag })}
                 aria-pressed={tag === tagFilter}
-                onClick={() => setTagFilter((cur) => (cur === tag ? undefined : tag))}
+                onClick={() => setFilters((f) => toggleTag(f, tag))}
                 onContextMenu={(e) => {
                   e.preventDefault();
                   setMenu({ at: { x: e.clientX, y: e.clientY }, items: [{ id: 'removeTag', label: t('agents.tags.removeAll'), danger: true, run: () => void removeTag(tag) }] });
@@ -657,8 +895,12 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
           {archivedShown && archived.map((x) => row(x))}
         </section>
       )}
+      {checking && <BatchBar count={checked.size} actions={batchActions} onClear={() => clearBatch(true)} />}
       {menu && <ContextMenu at={menu.at} items={menu.items} onClose={() => setMenu(undefined)} />}
-      {picker && tree && <MoveToFolder name={picker.name} folders={tree.folders} current={picker.current} onPick={(pick) => void pickFolder(picker.key, pick)} onClose={() => setPicker(undefined)} />}
+      {picker && tree && <MoveToFolder name={picker.name} title={picker.title} folders={tree.folders} current={picker.current} onPick={(pick) => {
+        if (picker.title) clearBatch();
+        void pickFolder(picker.keys, pick);
+      }} onClose={() => setPicker(undefined)} />}
       {dialogs.element}
     </nav>
   );
