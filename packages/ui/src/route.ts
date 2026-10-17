@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 // Hash routing (#/home, #/settings): works with the file-less SPA fallback and survives reloads.
 
 function parse<Id extends string>(hash: string, ids: readonly Id[], fallback: Id): Id {
-  const id = hash.replace(/^#\/?/, '');
+  const id = hash.replace(/^#\/?/, '').split('/')[0] ?? '';
   return (ids as readonly string[]).includes(id) ? (id as Id) : fallback;
 }
 

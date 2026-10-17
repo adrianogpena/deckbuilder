@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { errorOf, useCommand, useKeybindings } from '@deckbuilderkit/ui';
+import { errorOf, setTitleBadge, useCommand, useKeybindings } from '@deckbuilderkit/ui';
 import { TerminalPane, terminalAppKeys } from '@deckbuilderkit/terminal';
 import { closeSession } from '@deckbuilderkit/terminal/session';
 import { agentsCommands } from '../commands';
 import { t } from '../i18n';
-import { type AgentProject, type AgentRunning, dismissRecovery, listAgentProjects, listRecovery, markSeen, removeAgentProject, startSession, stopChat, terminalOf } from './api';
+import { type AgentProject, type AgentRunning, dismissRecovery, listAgentProjects, listRecovery, markSeen, removeAgentProject, reportShown, startSession, stopChat, terminalOf } from './api';
 import { AddProject } from './AddProject';
+import { needsYouCount, nextWaiting } from './attention';
 import { ChatPane } from './chat/ChatPane';
 import { ExternalPane } from './ExternalPane';
 import { NewSession } from './NewSession';
@@ -39,6 +40,9 @@ const readHidden = () => {
     return false;
   }
 };
+
+/** The session id of an `#agents/<id>` app link, if the hash is one. */
+const linkedSession = () => /^#\/?agents\/([\w.-]+)\/?$/.exec(window.location.hash)?.[1];
 
 /** Agents screen: the sessions sidebar and the selected session's terminal. */
 export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat' }) {
@@ -83,6 +87,12 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
   }, []);
   useCommand(agentsCommands()[0]!, toggleSidebar);
 
+  const waiting = needsYouCount(sessions);
+  useEffect(() => {
+    setTitleBadge(waiting);
+  }, [waiting]);
+  useEffect(() => () => setTitleBadge(0), []);
+
   const lastAccount = useCallback((projectId: string) => sessions.find((s) => s.project === projectId)?.account, [sessions]);
 
   const attach = useCallback((a: Attached) => {
@@ -126,6 +136,12 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
     },
     [pool, chats, sessions, attach, mode, openChat],
   );
+
+  const jumpWaiting = useCallback(() => {
+    const next = nextWaiting(sessions);
+    if (next) void select(next.id);
+  }, [sessions, select]);
+  useCommand(agentsCommands()[1]!, jumpWaiting);
 
   const resume = useCallback(
     async (items: AgentRunning[]) => {
@@ -188,6 +204,35 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
       setSwitching(false);
     }
   };
+
+  // Tells the server which session is on screen (none while the window is unfocused), so it does not toast for it.
+  useEffect(() => {
+    const report = () => void reportShown(selectedId && document.hasFocus() && !document.hidden ? selectedId : null).catch(() => undefined);
+    report();
+    window.addEventListener('focus', report);
+    window.addEventListener('blur', report);
+    document.addEventListener('visibilitychange', report);
+    return () => {
+      window.removeEventListener('focus', report);
+      window.removeEventListener('blur', report);
+      document.removeEventListener('visibilitychange', report);
+      void reportShown(null).catch(() => undefined);
+    };
+  }, [selectedId]);
+
+  // A toast click opens `#agents/<session id>`: select that session once the list has it.
+  const [linked, setLinked] = useState(linkedSession);
+  useEffect(() => {
+    const onHash = () => setLinked(linkedSession());
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+  useEffect(() => {
+    if (!linked || !sessions.some((x) => x.id === linked)) return;
+    setLinked(undefined);
+    window.history.replaceState(null, '', '#/agents');
+    void select(linked);
+  }, [linked, sessions, select]);
 
   const appKeys = useMemo(() => terminalAppKeys('agents', keys?.defs ?? [], ['agents.toggleSidebar']), [keys?.defs]);
 

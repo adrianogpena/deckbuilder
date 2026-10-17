@@ -7,4 +7,8 @@ export interface AgentsSettings {
   mode?: AgentsMode;
   /** Live ptys + chat processes at which starting a session warns; 12 when omitted. */
   softCap?: number;
+  /** Toast when a session needs you / finishes / fails and is not on screen; on when omitted. */
+  notifyNeedsYou?: boolean;
+  notifyDone?: boolean;
+  notifyError?: boolean;
 }

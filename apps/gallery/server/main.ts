@@ -31,7 +31,7 @@ import { APP } from '../app.ts';
 import pkg from '../package.json';
 import { routes } from './routes.ts';
 import { stores } from './stores.ts';
-import { serverViews } from './views.ts';
+import { serverViews, setAppLink } from './views.ts';
 
 export interface Settings extends BaseSettings, TerminalServerSettings, WorkbenchServerSettings, RestServerSettings, GitServerSettings, ExplorerServerSettings, AgentsServerSettings {
   /** Start at Windows login (exe only). */
@@ -186,7 +186,7 @@ await runApp({
     ...updateRoutes(updater, ctx.quit),
     // Machine-specific: autostart writes the Run key, updateFolder is a local or share path.
     ...backupRoutes({ app: { id: APP.id, version: pkg.version }, settings, stores: { projects: stores.projects, dbConnections: stores.dbConnections, requests: stores.requests, environments: stores.environments }, excludeSettings: ['autostart', 'updateFolder'] }),
-    ...routes(ctx),
+    ...(setAppLink(ctx.link), routes(ctx)),
     ...mounted.routes,
   }),
   sockets: mounted.sockets,

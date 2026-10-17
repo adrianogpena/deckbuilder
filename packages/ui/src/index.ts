@@ -43,6 +43,7 @@ export * from './fuzzy';
 export * from './quick-open';
 export * from './palette';
 export * from './route';
+export * from './title-badge';
 export * from './split';
 export * from './stream';
 export * from './table';

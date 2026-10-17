@@ -9,6 +9,12 @@ export const en = {
   'settings.agents.mode.chat': 'Chat',
   'settings.agents.softCap': 'Session soft cap',
   'settings.agents.softCap.hint': 'Warn before starting a session when this many terminals and chats are already live.',
+  'settings.agents.notifyNeedsYou': 'Notify when a session needs you',
+  'settings.agents.notifyNeedsYou.hint': 'Windows notification when a session you are not looking at waits for you.',
+  'settings.agents.notifyDone': 'Notify when a session is done',
+  'settings.agents.notifyDone.hint': 'Windows notification when a session you are not looking at finishes.',
+  'settings.agents.notifyError': 'Notify on errors',
+  'settings.agents.notifyError.hint': 'Windows notification when a session you are not looking at hits an error.',
   'agents.heading': 'Agents',
   'agents.new.project': 'Project',
   'agents.new.account': 'Account',
@@ -92,6 +98,7 @@ export const en = {
   'agents.chat.error.notOpen': 'The chat is not open.',
   'agents.chat.error.alreadyOpen': 'The chat is already open.',
   'keys.agents.toggleSidebar': 'Toggle sessions sidebar',
+  'keys.agents.nextWaiting': 'Jump to next waiting session',
 };
 
 export const ptBR: Messages<typeof en> = {
@@ -103,6 +110,12 @@ export const ptBR: Messages<typeof en> = {
   'settings.agents.mode.chat': 'Chat',
   'settings.agents.softCap': 'Limite flex�vel de sess�es',
   'settings.agents.softCap.hint': 'Avisa antes de iniciar uma sess�o quando j� houver tantos terminais e chats ativos.',
+  'settings.agents.notifyNeedsYou': 'Avisar quando uma sessao precisa de voce',
+  'settings.agents.notifyNeedsYou.hint': 'Notificacao do Windows quando uma sessao que voce nao esta vendo aguarda por voce.',
+  'settings.agents.notifyDone': 'Avisar quando uma sessao terminar',
+  'settings.agents.notifyDone.hint': 'Notificacao do Windows quando uma sessao que voce nao esta vendo terminar.',
+  'settings.agents.notifyError': 'Avisar em caso de erro',
+  'settings.agents.notifyError.hint': 'Notificacao do Windows quando uma sessao que voce nao esta vendo der erro.',
   'agents.heading': 'Agents',
   'agents.new.project': 'Projeto',
   'agents.new.account': 'Conta',
@@ -186,6 +199,7 @@ export const ptBR: Messages<typeof en> = {
   'agents.chat.error.notOpen': 'O chat não está aberto.',
   'agents.chat.error.alreadyOpen': 'O chat já está aberto.',
   'keys.agents.toggleSidebar': 'Mostrar/ocultar barra de sessões',
+  'keys.agents.nextWaiting': 'Ir para a próxima sessão em espera',
 };
 
 export type AgentsMessageKey = keyof typeof en;

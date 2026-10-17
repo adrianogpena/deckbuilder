@@ -39,6 +39,7 @@ export const listAgentSessions = () => request<AgentSessionView[]>('GET', '/api/
 export const sessionHistory = (sessionId: string) => request<{ events: ChatEvent[] }>('GET', '/api/agents/history', { sessionId });
 
 export const markSeen = (sessionId: string) => request<{ ok: boolean }>('POST', '/api/agents/seen', {}, { sessionId });
+export const reportShown = (sessionId: string | null) => request<{ ok: boolean }>('POST', '/api/agents/shown', {}, { sessionId });
 
 /** Opens the live socket; `onFrame` gets `{type:'sessions'|'status'}` frames. Returns a close function. */
 export async function openAgentsSocket(onFrame: (f: { type: string; [k: string]: any }) => void): Promise<() => void> {

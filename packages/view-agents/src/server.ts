@@ -1,12 +1,14 @@
 import { type FSWatcher, mkdirSync, readFileSync, watch, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { createToaster } from '@deckbuilderkit/platform';
 import { defineServerView, socketTickets, validGroup, type SocketData, type SocketRoutes } from '@deckbuilderkit/server-core';
 import type { ServerWebSocket } from 'bun';
 import { CHAT_SOCKET_PATH, type ChatClientFrame, type ChatServerFrame } from './chat-protocol.ts';
 import type { AgentRunning, AgentSessionView, AgentsCapWarn, AgentsFrame } from './protocol.ts';
 import type { AgentsMode, AgentsSettings } from './settings-types.ts';
 import { type AgentAccount, detectAccounts } from './server/accounts.ts';
+import { createNotifier, NOTIFY_LABEL } from './server/notify.ts';
 import { CLAUDE_LAUNCHER_ID, claudeLauncher } from './server/launcher.ts';
 import { type ChatManager, type ChatSession, type ChatSubscriber, createChatManager } from './server/chat/manager.ts';
 import { findSessionFile, loadHistory } from './server/chat/normalize.ts';
@@ -27,7 +29,7 @@ export interface AgentsServerSettings {
 /** A copy of `raw` when it is a well-formed Agents settings group, else null. */
 const AGENTS_MODES: AgentsMode[] = ['terminal', 'chat'];
 
-export const validAgents = (raw: unknown): AgentsSettings | null => validGroup(raw, { mode: AGENTS_MODES, softCap: [1, 100] }) as AgentsSettings | null;
+export const validAgents = (raw: unknown): AgentsSettings | null => validGroup(raw, { mode: AGENTS_MODES, softCap: [1, 100], notifyNeedsYou: 'boolean', notifyDone: 'boolean', notifyError: 'boolean' }) as AgentsSettings | null;
 
 export const AGENTS_SOCKET_PATH = '/api/agents/socket';
 const RESCAN_MS = 10_000;
@@ -43,6 +45,10 @@ export interface AgentsServerViewOptions {
   rescanMs?: number;
   /** Last screen lines of the live terminal sessions, by Claude session id (pty `meta.agentSession`); drives the error status. */
   terminalScreens?: () => Iterable<[string, string[]]>;
+  /** App link for a path (`StartContext.link`), read when a toast is shown; set by the host once the app started. */
+  link?: () => ((path: string) => string) | undefined;
+  /** Toast sink (tests); defaults to the Windows toaster. */
+  toast?: (toast: { title: string; body: string; launch: string }) => void;
   /** Chat engine overrides (tests): how the `claude` process is spawned, its command and base environment. */
   chat?: { spawn?: SpawnFn; claudeCmd?: string; env?: Record<string, string | undefined>; idleMs?: number };
 }
@@ -76,6 +82,16 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
   let running: RunningStore | undefined;
   let runningTimer: ReturnType<typeof setInterval> | undefined;
   let loadSettings: () => Promise<AgentsServerSettings> = async () => ({});
+  /** Session the web reports as on screen (Agents view open and focused); no toast for it. */
+  let shownId: string | undefined;
+  const toaster = opts.toast ? undefined : createToaster();
+  const notifier = createNotifier({
+    show: opts.toast ?? ((x) => toaster?.show(x)),
+    link: () => opts.link?.(),
+    settings: async () => (await loadSettings()).agents,
+    shown: () => shownId,
+    text: (status, s) => ({ title: `${NOTIFY_LABEL[status]}: ${s.title || s.firstPrompt || s.id}`, body: s.cwd }),
+  });
 
   const liveTerminalIds = () => [...(opts.terminalScreens?.() ?? [])].map(([id]) => id);
 
@@ -140,6 +156,7 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
       .sort((a, b) => b.updatedAt - a.updatedAt);
     const status: Record<string, AgentStatus> = {};
     for (const x of sessions) status[x.id] = x.status;
+    void notifier.observe(sessions);
     return { sessions, status };
   };
 
@@ -267,6 +284,12 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
           void refresh(true);
           return { ok: true };
         },
+        // The web reports which session is on screen (null when the Agents view is hidden or the window unfocused).
+        'POST /api/agents/shown': async ({ json }) => {
+          const b = await json<{ sessionId?: unknown }>();
+          shownId = typeof b.sessionId === 'string' && b.sessionId ? b.sessionId : undefined;
+          return { ok: true };
+        },
         'POST /api/agents/socket-ticket': () => ({ ticket: tickets.issue(true) }),
         'POST /api/agents/chat/socket-ticket': async ({ url }) => {
           if (url) baseUrl = url.origin;
@@ -293,7 +316,10 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
         message() {},
         close(ws) {
           clients.delete(ws);
-          if (clients.size === 0) stop();
+          if (clients.size === 0) {
+            shownId = undefined;
+            stop();
+          }
         },
       },
       [CHAT_SOCKET_PATH]: {

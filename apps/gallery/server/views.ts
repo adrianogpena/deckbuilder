@@ -18,6 +18,12 @@ const explorer = explorerServerView({ multiDelete: MULTI_DELETE_ENABLED });
 const agentsHome = homedir();
 const terminalStore = terminalSessions();
 
+let appLink: ((path: string) => string) | undefined;
+/** Called with `StartContext.link` once the app starts; toasts from the Agents view use it as their click target. */
+export const setAppLink = (link: (path: string) => string) => {
+  appLink = link;
+};
+
 export const serverViews: ServerViewDef[] = [
   explorer,
   terminalServerView({ integrationDir: join(appHome(APP.id), 'shell-integration'), resolveCwd: explorer.resolveCwd, launchers: launchers({ claude: agentsLauncher({ home: agentsHome }) }), sessions: terminalStore }),
@@ -26,6 +32,7 @@ export const serverViews: ServerViewDef[] = [
   gitServerView(),
   agentsServerView({
     home: agentsHome,
+    link: () => appLink,
     terminalScreens: () =>
       terminalStore
         .list()

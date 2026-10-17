@@ -194,6 +194,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@deckbuilderkit/editor": "workspace:*",
+        "@deckbuilderkit/platform": "workspace:*",
         "@deckbuilderkit/server-core": "workspace:*",
         "@deckbuilderkit/terminal": "workspace:*",
         "@deckbuilderkit/ui": "workspace:*",

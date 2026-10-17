@@ -2,6 +2,7 @@ import { useMemo, useRef } from 'react';
 import { useRovingList } from '@deckbuilderkit/ui';
 import { t } from '../i18n';
 import type { AgentProject, AgentSessionView, AgentStatus } from './api';
+import { compareSessions } from './attention';
 
 export interface SidebarProps {
   projects: AgentProject[];
@@ -30,7 +31,7 @@ export function Sidebar({ projects, sessions, selectedId, onSelect, onNewSession
   const ref = useRef<HTMLDivElement>(null);
   useRovingList(ref, '.agents-session');
   const groups = useMemo(() => {
-    const sorted = [...sessions].sort((a, b) => b.updatedAt - a.updatedAt);
+    const sorted = [...sessions].sort(compareSessions);
     return [...projects].sort((a, b) => a.name.localeCompare(b.name)).map((p) => ({ project: p, list: sorted.filter((s) => s.project === p.id) }));
   }, [projects, sessions]);
   return (
