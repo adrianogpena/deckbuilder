@@ -4,7 +4,7 @@ import { TerminalPane, terminalAppKeys, type TerminalPaneHandle } from '@deckbui
 import { closeSession, listSessions } from '@deckbuilderkit/terminal/session';
 import { agentsCommands } from '../commands';
 import { t } from '../i18n';
-import { type AgentProject, type AgentRunning, type AgentSessionView, dismissRecovery, listAgentProjects, listRecovery, markSeen, removeAgentProject, reportShown, restartSession, startInBackground, startSession, stopChat, stopSession, terminalOf } from './api';
+import { lastResponse, type AgentProject, type AgentRunning, type AgentSessionView, dismissRecovery, listAgentProjects, listRecovery, markSeen, removeAgentProject, reportShown, restartSession, startInBackground, startSession, stopChat, stopSession, terminalOf } from './api';
 import { AddProject } from './AddProject';
 import { AlertsPanel } from './AlertsPanel';
 import { displayName, needsYouCount, nextWaiting } from './attention';
@@ -16,6 +16,7 @@ import { ChangesTab } from './ChangesTab';
 import { NotesTab } from './NotesTab';
 import { SidePanel } from './SidePanel';
 import { StoppedPane } from './StoppedPane';
+import { GroupSummary } from './GroupSummary';
 import { Sidebar } from './Sidebar';
 import { useAgentsFeed } from './useAgentSessions';
 import '../styles.css';
@@ -60,13 +61,24 @@ const readPanelHidden = () => {
 const linkedSession = () => /^#\/?agents\/([\w.-]+)\/?$/.exec(window.location.hash)?.[1];
 
 /** Agents screen: the sessions sidebar and the selected session's terminal. */
-export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat' }) {
+export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false }: { mode?: 'terminal' | 'chat'; resumeOnSelect?: boolean }) {
   const { sessions, usage } = useAgentsFeed();
   const keys = useKeybindings();
   const [hidden, setHidden] = useState(readHidden);
   const [panelHidden, setPanelHidden] = useState(readPanelHidden);
   const [selectedId, setSelectedId] = useState<string>();
   const [newFor, setNewFor] = useState<string>();
+  /** Project row whose summary fills the main pane; cleared when a session gets selected. */
+  const [summaryFor, setSummaryFor] = useState<string>();
+  const [visible, setVisible] = useState<AgentSessionView[]>();
+  useEffect(() => {
+    if (selectedId) setSummaryFor(undefined);
+  }, [selectedId]);
+  const selectProject = useCallback((projectId: string) => {
+    setNewFor(undefined);
+    setSelectedId(undefined);
+    setSummaryFor(projectId);
+  }, []);
   const [pool, setPool] = useState<Attached[]>([]);
   const [error, setError] = useState('');
   const [projects, setProjects] = useState<AgentProject[]>([]);
@@ -155,16 +167,19 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
         const live = await terminalOf(sessionId);
         if (live) return attach({ sessionId, terminal: live });
         if (!s) return;
+        // Off: show the stopped-session card, nothing is started until Enter / s.
+        if (!resumeOnSelect) return setPreview(sessionId);
         if (mode === 'chat') {
           openChat({ sessionId });
           return;
         }
-        setPreview(sessionId);
+        const r = await startSession({ account: s.account, dir: s.cwd, sessionId: s.id });
+        attach({ sessionId: s.id, terminal: r.session });
       } catch (e) {
         setError(errorOf(e).message);
       }
     },
-    [pool, chats, sessions, attach, mode, openChat],
+    [pool, chats, sessions, attach, mode, openChat, resumeOnSelect],
   );
 
   const jumpWaiting = useCallback(() => {
@@ -267,6 +282,7 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
   }, [sessions, selectedId, pool, chats]);
 
   const selected = sessions.find((s) => s.id === selectedId);
+  const summaryProject = summaryFor !== undefined && !selectedId ? projects.find((p) => p.id === summaryFor) : undefined;
   const inExternal = selectedId !== undefined && viewing === selectedId && selected !== undefined;
   const inChat = selectedId !== undefined && chats.some((c) => entryId(c) === selectedId);
   const inTerminal = selectedId !== undefined && pool.some((x) => x.sessionId === selectedId);
@@ -277,9 +293,25 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
     if (!s) return;
     setError('');
     try {
+      if (mode === 'chat') {
+        setPreview(undefined);
+        openChat({ sessionId: s.id });
+        return;
+      }
       const r = await startSession({ account: s.account, dir: s.cwd, sessionId: s.id });
       setPreview(undefined);
       attach({ sessionId: s.id, terminal: r.session });
+    } catch (e) {
+      setError(errorOf(e).message);
+    }
+  };
+
+  /** Clears an exited session: closes its ended terminal so it reads as stopped. */
+  const clearExited = async (sessionId: string) => {
+    setError('');
+    try {
+      const all = await listSessions();
+      for (const x of all) if (x.exited && x.meta?.agentSession === sessionId) await closeSession(x.id);
     } catch (e) {
       setError(errorOf(e).message);
     }
@@ -343,9 +375,43 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
 
   // Per session id: how to insert text into its terminal or chat composer (the Notes tab's Send to session).
   const inserters = useRef(new Map<string, (text: string) => void>());
+  const submitters = useRef(new Map<string, (text: string) => void>());
   const sendToSession = useCallback((text: string) => {
     if (selectedId) inserters.current.get(selectedId)?.(text);
   }, [selectedId]);
+
+  const [notice, setNotice] = useState('');
+  useEffect(() => {
+    if (!notice) return;
+    const id = setTimeout(() => setNotice(''), 3000);
+    return () => clearTimeout(id);
+  }, [notice]);
+
+  const copyResponse = useCallback(async () => {
+    if (!selectedId) return setNotice(t('agents.copy.none'));
+    try {
+      const { text } = await lastResponse(selectedId);
+      if (!text) return setNotice(t('agents.copy.none'));
+      await navigator.clipboard.writeText(text);
+      setNotice(t('agents.copy.done', { n: text.length }));
+    } catch (e) {
+      setError(errorOf(e).message);
+    }
+  }, [selectedId]);
+  useCommand(agentsCommands()[4]!, () => void copyResponse());
+
+  const clearContext = useCallback(() => {
+    const s = sessions.find((x) => x.id === selectedId);
+    if (!selectedId || !s) return setNotice(t('agents.clear.noSelection'));
+    if (s.external) return setNotice(t('agents.clear.elsewhere'));
+    if (!s.live) return setNotice(t('agents.clear.notRunning'));
+    if (s.status !== 'idle' && s.status !== 'done' && s.status !== 'error') return setNotice(t('agents.clear.busy'));
+    const submit = submitters.current.get(selectedId);
+    if (!submit) return setNotice(t('agents.clear.notRunning'));
+    submit('/clear');
+    setNotice(t('agents.clear.done'));
+  }, [sessions, selectedId]);
+  useCommand(agentsCommands()[5]!, clearContext);
 
   const appKeys = useMemo(() => terminalAppKeys('agents', keys?.defs ?? [], ['agents.toggleSidebar', 'agents.togglePanel']), [keys?.defs]);
 
@@ -357,6 +423,9 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
           usage={usage}
           selectedId={selectedId}
           onSelect={(id) => void select(id)}
+          selectedProjectId={summaryFor}
+          onSelectProject={selectProject}
+          onVisibleChange={setVisible}
           onNewSession={(p) => setNewFor(p)}
           onAddProject={() => setAdding(true)}
           onRemoveProject={removeProject}
@@ -405,6 +474,7 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
         </header>
         <RecoveryBanner items={recovery} onResume={(i) => void resume(i)} onDismiss={dismissBanner} />
         {error && <div role="alert" className="agents-error">{error}</div>}
+        {notice && <div role="status" className="agents-notice">{notice}</div>}
         {newFor !== undefined && (
           <NewSession
             projects={projects}
@@ -431,8 +501,13 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
                 appKeys={appKeys}
                 focused={a.sessionId === selectedId && newFor === undefined}
                 handle={(h: TerminalPaneHandle | null) => {
-                  if (h) inserters.current.set(a.sessionId, h.insert);
-                  else inserters.current.delete(a.sessionId);
+                  if (h) {
+                    inserters.current.set(a.sessionId, h.insert);
+                    submitters.current.set(a.sessionId, h.submit);
+                  } else {
+                    inserters.current.delete(a.sessionId);
+                    submitters.current.delete(a.sessionId);
+                  }
                 }}
               />
             </div>
@@ -444,6 +519,10 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
                 insertRef={(fn) => {
                   if (fn) inserters.current.set(entryId(c), fn);
                   else inserters.current.delete(entryId(c));
+                }}
+                submitRef={(fn) => {
+                  if (fn) submitters.current.set(entryId(c), fn);
+                  else submitters.current.delete(entryId(c));
                 }}
                 onSession={(id) => {
                   setChats((l) => l.map((x) => (x.key === c.key ? { ...x, id } : x)));
@@ -464,10 +543,28 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
           )}
           {inPreview && newFor === undefined && selected && (
             <div className="agents-pane">
-              <StoppedPane sessionId={selected.id} updatedAt={selected.updatedAt} onStart={() => void startPreview()} />
+              <StoppedPane
+                session={selected}
+                onStart={() => void startPreview()}
+                onBackground={() => void startBackground(selected)}
+                onRestart={() => void restart(selected)}
+                onClear={() => void clearExited(selected.id)}
+              />
             </div>
           )}
-          {!inTerminal && !inChat && !inExternal && !inPreview && newFor === undefined && <p className="agents-empty agents-placeholder">{t('agents.pick')}</p>}
+          {summaryProject && !selectedId && newFor === undefined && (
+            <div className="agents-pane">
+              <GroupSummary
+                kind="project"
+                name={summaryProject.name}
+                path={summaryProject.path}
+                sessions={(hidden || !visible ? sessions.filter((s) => !s.archived) : visible).filter((s) => s.project === summaryProject.id)}
+                onSelect={(id) => void select(id)}
+                onNewSession={() => setNewFor(summaryProject.id)}
+              />
+            </div>
+          )}
+          {!summaryProject && !inTerminal && !inChat && !inExternal && !inPreview && newFor === undefined && <p className="agents-empty agents-placeholder">{t('agents.pick')}</p>}
         </div>
       </section>
       {!panelHidden && <SidePanel onClose={togglePanel} notes={<NotesTab project={selected?.project} canSend={(inTerminal || inChat) && newFor === undefined} onSend={sendToSession} />} changes={<ChangesTab root={projects.find((p) => p.id === selected?.project)?.path ?? selected?.cwd} status={selected?.status} />} />}

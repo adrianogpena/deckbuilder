@@ -7,6 +7,8 @@ export interface AgentsSettings {
   mode?: AgentsMode;
   /** Live ptys + chat processes at which starting a session warns; 12 when omitted. */
   softCap?: number;
+  /** Selecting a stopped session resumes it; off (default) shows the stopped-session card instead. */
+  resumeOnSelect?: boolean;
   /** Archive stopped sessions idle for 7+ days automatically; on when omitted. */
   autoSettle?: boolean;
   /** Toast when a session needs you / finishes / fails and is not on screen; on when omitted. */

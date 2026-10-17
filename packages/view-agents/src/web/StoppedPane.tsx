@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import type { ChatEvent } from '../chat-protocol.ts';
-import { t } from '../i18n';
 import { Transcript } from './chat/Transcript';
 import { sessionHistory } from './api';
+import { StoppedCard, type StoppedCardProps } from './StoppedCard';
 
-/** Read-only transcript of a session that is not running, with a Start button that resumes it in a terminal. */
-export function StoppedPane({ sessionId, updatedAt, onStart }: { sessionId: string; updatedAt: number; onStart(): void }) {
+/** A session that is not attached: the stopped-session card, then its read-only transcript. */
+export function StoppedPane(props: StoppedCardProps) {
+  const { id: sessionId, updatedAt } = props.session;
   const [events, setEvents] = useState<ChatEvent[]>([]);
   useEffect(() => {
     let live = true;
@@ -16,12 +17,7 @@ export function StoppedPane({ sessionId, updatedAt, onStart }: { sessionId: stri
   }, [sessionId, updatedAt]);
   return (
     <div className="agents-external">
-      <div className="agents-external-bar">
-        <span>{t('agents.stopped.note')}</span>
-        <button type="button" onClick={onStart}>
-          {t('agents.stopped.start')}
-        </button>
-      </div>
+      <StoppedCard {...props} />
       <Transcript events={events} />
     </div>
   );

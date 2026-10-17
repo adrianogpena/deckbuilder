@@ -17,7 +17,7 @@ export function agentsView({ group, order }: AgentsViewOptions) {
   return defineView<'agents', AgentsViewSettings, 'nav.agents'>({
     id: 'agents',
     nav: { group, icon: 'home', label: 'nav.agents', order },
-    render: ({ settings }) => <AgentsScreen mode={settings.agents?.mode} />,
+    render: ({ settings }) => <AgentsScreen mode={settings.agents?.mode} resumeOnSelect={settings.agents?.resumeOnSelect === true} />,
     commands: agentsCommands,
     settings: { defs: agentsSettingDefs },
     settingsCards: { sections: [{ path: ['agents'], order: 90, label: 'settings.section.agents' }], cards: { agents: AgentsSettingsCard } },

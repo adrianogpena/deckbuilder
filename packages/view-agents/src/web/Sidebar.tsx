@@ -11,6 +11,12 @@ export interface SidebarProps {
   usage?: AgentAccountUsage[];
   selectedId?: string;
   onSelect(sessionId: string): void;
+  /** The selected project row, if any (its summary is on screen). */
+  selectedProjectId?: string;
+  /** A click on a project's name; called with the project id. */
+  onSelectProject?(projectId: string): void;
+  /** The live sessions the groups show after search and filters, on each change. */
+  onVisibleChange?(sessions: AgentSessionView[]): void;
   /** Called with the project id. */
   onNewSession(projectId: string): void;
   onAddProject(): void;
@@ -87,7 +93,7 @@ interface RowMatch {
 }
 
 /** Projects with their Claude sessions, a status dot and label per session; search, status chips, pin, rename and archive. */
-export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, onNewSession, onAddProject, onRemoveProject, onStop, onRestart, onStartBackground }: SidebarProps) {
+export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, selectedProjectId, onSelectProject, onVisibleChange, onNewSession, onAddProject, onRemoveProject, onStop, onRestart, onStartBackground }: SidebarProps) {
   const ref = useRef<HTMLDivElement>(null);
   useRovingList(ref, '.agents-session');
   const toast = useToast();
@@ -148,6 +154,10 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
       archived: sorted.filter((s) => s.archived).map((s) => ({ s, m: matches.get(s.id)! })),
     };
   }, [projects, sessions, filter, q, full, hits, searching]);
+
+  useEffect(() => {
+    onVisibleChange?.(groups.flatMap((g) => g.list.map((x) => x.s)));
+  }, [groups, onVisibleChange]);
 
   const present = useMemo(() => new Set(sessions.map((s) => s.status)), [sessions]);
   const chips = STATUSES.filter((st) => present.has(st) || filter.has(st));
@@ -325,7 +335,11 @@ export function Sidebar({ projects, sessions, usage = [], selectedId, onSelect, 
       {groups.map(({ project, list }) => (
         <section key={project.id} className="agents-project">
           <header>
-            <h3 title={project.path}>{project.name}</h3>
+            <h3 title={project.path}>
+              {onSelectProject ? (
+                <button type="button" className="agents-project-name" aria-current={project.id === selectedProjectId ? 'true' : undefined} onClick={() => onSelectProject(project.id)}>{project.name}</button>
+              ) : project.name}
+            </h3>
             <span>
               <button type="button" className="agents-remove" title={t('agents.remove')} aria-label={t('agents.remove')} onClick={() => onRemoveProject(project.id)}>x</button>
               <button type="button" className="agents-new" title={t('agents.new.title')} aria-label={t('agents.new.title')} onClick={() => onNewSession(project.id)}>+</button>

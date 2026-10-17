@@ -60,6 +60,7 @@ export async function terminalOf(sessionId: string): Promise<string | undefined>
 export const listAgentSessions = () => request<AgentSessionView[]>('GET', '/api/agents/sessions');
 
 /** Marks a session as seen (clears its `done` state). */
+export const lastResponse = (sessionId: string) => request<{ text: string | null }>('GET', '/api/agents/last-response', { sessionId });
 export const sessionHistory = (sessionId: string) => request<{ events: ChatEvent[] }>('GET', '/api/agents/history', { sessionId });
 
 /** Mark unread: done / error become unseen again; a session with no status gets a fresh done. */
@@ -67,13 +68,27 @@ export const markUnread = (sessionId: string) => request<{ ok: boolean }>('POST'
 export const markSeen = (sessionId: string) => request<{ ok: boolean }>('POST', '/api/agents/seen', {}, { sessionId });
 export const reportShown = (sessionId: string | null) => request<{ ok: boolean }>('POST', '/api/agents/shown', {}, { sessionId });
 
+export interface TailTurn { role: 'user' | 'assistant'; text: string }
+const tailListeners = new Set<(sessionId: string, turns: TailTurn[]) => void>();
+/** Subscribes to `tail` frames of the agents socket; returns the unsubscribe. */
+export function onTail(fn: (sessionId: string, turns: TailTurn[]) => void): () => void {
+  tailListeners.add(fn);
+  return () => void tailListeners.delete(fn);
+}
+/** Tells the server which external session's transcript is previewed (null: none). */
+export const reportPreview = (sessionId: string | null) => request<{ ok: boolean }>('POST', '/api/agents/preview', {}, { sessionId });
+
 /** Opens the live socket; `onFrame` gets `{type:'sessions'|'status'|'usage'}` frames. Returns a close function. */
 export async function openAgentsSocket(onFrame: (f: { type: string; [k: string]: any }) => void): Promise<() => void> {
   const { ticket } = await request<{ ticket: string }>('POST', '/api/agents/socket-ticket');
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const ws = new WebSocket(`${proto}//${location.host}/api/agents/socket?t=${encodeURIComponent(ticket)}`);
   ws.onmessage = (e) => {
-    try { onFrame(JSON.parse(String(e.data))); } catch { /* ignore malformed frames */ }
+    try {
+      const f = JSON.parse(String(e.data));
+      if (f.type === 'tail') for (const l of tailListeners) l(f.sessionId, f.turns);
+      onFrame(f);
+    } catch { /* ignore malformed frames */ }
   };
   return () => ws.close();
 }

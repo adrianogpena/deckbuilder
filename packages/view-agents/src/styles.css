@@ -57,6 +57,7 @@
 .agents-panel-tabs button[aria-selected='true'] { color: var(--accent); background: var(--bg-hover); }
 .agents-panel-body { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow-y: auto; padding: 8px; }
 .agents-error { padding: 6px 12px; color: var(--err); }
+.agents-notice { padding: 6px 12px; color: var(--muted, inherit); }
 .agents-new-session { padding: 16px; }
 .agents-sidebar-head { display: flex; padding: 0 4px 8px; }
 .agents-sidebar-head button { flex: 1; }
@@ -151,6 +152,27 @@
 }
 
 .agents-external { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.agents-card { display: flex; flex-direction: column; gap: var(--space-4); padding: 12px 16px; border-bottom: 1px solid var(--border-soft); outline: none; max-height: 50%; overflow-y: auto; flex-shrink: 0; }
+.agents-card:focus-visible { box-shadow: inset 2px 0 0 var(--accent); }
+.agents-card-name { font-size: var(--fs-md); color: var(--ink); font-weight: 600; }
+.agents-card-meta { font-size: var(--fs-xs); color: var(--ink-muted); }
+.agents-card-meta.is-error { color: var(--err); }
+/* room for the g9 git branch bits after the meta line */
+.agents-card-action { font-size: var(--fs-sm); color: var(--accent); margin-top: var(--space-4); }
+.agents-card-action.is-exited { color: var(--err); }
+.agents-card-id { font-family: var(--font-mono, monospace); font-size: var(--fs-xs); color: var(--ink-muted); }
+.agents-card-label { margin-top: var(--space-4); }
+.agents-card-reply { font-size: var(--fs-sm); color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; }
+.agents-summary { max-height: none; flex: 1; border-bottom: 0; }
+.agents-summary-name.project { color: var(--info); }
+.agents-summary-name.folder { color: var(--accent-2); }
+.agents-summary-list { list-style: none; margin: var(--space-4) 0 0; padding: 0; }
+.agents-summary-row { display: flex; align-items: center; gap: 8px; width: 100%; padding: 3px 4px; border: 0; border-radius: 4px; background: none; color: var(--ink); font: inherit; font-size: var(--fs-sm); text-align: left; cursor: pointer; }
+.agents-summary-row:hover, .agents-summary-row:focus-visible { background: var(--bg-hover); outline: none; }
+.agents-summary-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agents-summary-time { font-size: var(--fs-xs); color: var(--ink-muted); }
+.agents-project-name { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-transform: inherit; cursor: pointer; }
+.agents-project-name:hover, .agents-project-name[aria-current='true'] { color: var(--accent); }
 .agents-external-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 12px; font-size: var(--fs-xs); color: var(--ink-muted); }
 
 .agents-statusline { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--space-16); row-gap: var(--space-4); align-items: center; }

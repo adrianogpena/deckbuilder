@@ -1,19 +1,22 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ChatEvent } from '../chat-protocol.ts';
 import { t } from '../i18n';
 import { Transcript } from './chat/Transcript';
-import { sessionHistory } from './api';
+import { onTail, reportPreview, type TailTurn } from './api';
 
-/** Read-only transcript of a session Claude is running in another terminal; "Take over" waits until that process ends. */
-export function ExternalPane({ sessionId, updatedAt, external, onTakeOver }: { sessionId: string; updatedAt: number; external: boolean; onTakeOver(): void }) {
-  const [events, setEvents] = useState<ChatEvent[]>([]);
+/** Read-only transcript of a session Claude is running in another terminal, followed live; "Take over" waits until that process ends. */
+export function ExternalPane({ sessionId, external, onTakeOver }: { sessionId: string; updatedAt?: number; external: boolean; onTakeOver(): void }) {
+  const [turns, setTurns] = useState<TailTurn[]>([]);
   useEffect(() => {
-    let live = true;
-    void sessionHistory(sessionId).then((r) => live && setEvents(r.events), () => undefined);
+    setTurns([]);
+    const off = onTail((id, next) => id === sessionId && setTurns(next));
+    void reportPreview(sessionId).catch(() => undefined);
     return () => {
-      live = false;
+      off();
+      void reportPreview(null).catch(() => undefined);
     };
-  }, [sessionId, updatedAt]);
+  }, [sessionId]);
+  const events = useMemo<ChatEvent[]>(() => turns.map((x) => (x.role === 'user' ? { type: 'user', text: x.text } : { type: 'text', text: x.text })), [turns]);
   return (
     <div className="agents-external">
       <div className="agents-external-bar">

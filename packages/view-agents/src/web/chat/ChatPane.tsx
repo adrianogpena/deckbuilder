@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Composer } from './Composer';
 import { PermissionCard } from './PermissionCard';
 import { Transcript } from './Transcript';
@@ -9,11 +10,18 @@ export interface ChatPaneProps extends ChatTarget {
   onSession?(sessionId: string): void;
   /** Gets a function that inserts text into the composer (null when unmounted). */
   insertRef?(insert: ((text: string) => void) | null): void;
+  /** Gets a function that sends a message right away (null when unmounted). */
+  submitRef?(submit: ((text: string) => void) | null): void;
 }
 
 /** Chat mode for one Claude session: transcript, pending permission cards and the composer. */
-export function ChatPane({ onSession, insertRef, ...target }: ChatPaneProps) {
+export function ChatPane({ onSession, insertRef, submitRef, ...target }: ChatPaneProps) {
   const chat = useChat(target, onSession);
+  const sendText = chat.sendText;
+  useEffect(() => {
+    submitRef?.(sendText);
+    return () => submitRef?.(null);
+  }, [submitRef, sendText]);
   const running = chat.state?.run === 'running';
   const closed = chat.state?.run === 'closed';
   return (

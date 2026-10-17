@@ -118,7 +118,8 @@ export interface AgentStopResult {
 export type AgentsFrame =
   | { type: 'sessions'; sessions: AgentSessionView[] }
   | { type: 'status'; status: Record<string, AgentStatus> }
-  | { type: 'usage'; accounts: AgentAccountUsage[] };
+  | { type: 'usage'; accounts: AgentAccountUsage[] }
+  | { type: 'tail'; sessionId: string; turns: Array<{ role: 'user' | 'assistant'; text: string }> };
 
 /** A project added to the Agents view. */
 export interface AgentProject {

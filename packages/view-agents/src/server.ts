@@ -15,6 +15,8 @@ import { CLAUDE_LAUNCHER_ID, claudeLauncher } from './server/launcher.ts';
 import { claudeCommand } from './server/claude-command.ts';
 import { type ChatManager, type ChatSession, type ChatSubscriber, createChatManager } from './server/chat/manager.ts';
 import { findSessionFile, loadHistory } from './server/chat/normalize.ts';
+import { createTailer, type Tailer } from './server/tail.ts';
+import { lastResponse } from './server/last-response.ts';
 import { CHAT_MCP_PATH } from './server/chat/permission-mcp.ts';
 import type { SpawnFn } from './server/chat/process.ts';
 import { createSessionScanner, matchProject } from './server/discovery.ts';
@@ -38,7 +40,7 @@ export interface AgentsServerSettings {
 /** A copy of `raw` when it is a well-formed Agents settings group, else null. */
 const AGENTS_MODES: AgentsMode[] = ['terminal', 'chat'];
 
-const AGENTS_SPEC = { mode: AGENTS_MODES, softCap: [1, 100], notifyNeedsYou: 'boolean', notifyDone: 'boolean', notifyError: 'boolean', autoSettle: 'boolean', claudeCommand: 'string', 'hooks.onRunning': 'string', 'hooks.onWaiting': 'string', 'hooks.onDone': 'string', 'hooks.onError': 'string' } as const;
+const AGENTS_SPEC = { mode: AGENTS_MODES, softCap: [1, 100], notifyNeedsYou: 'boolean', notifyDone: 'boolean', notifyError: 'boolean', autoSettle: 'boolean', resumeOnSelect: 'boolean', claudeCommand: 'string', 'hooks.onRunning': 'string', 'hooks.onWaiting': 'string', 'hooks.onDone': 'string', 'hooks.onError': 'string' } as const;
 
 /** Validates the group; a valid one is the saved one, so the cached `claude` resolution is refilled from it. */
 export const validAgents = (raw: unknown): AgentsSettings | null => {
@@ -154,6 +156,34 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
   };
 
   const hasTranscript = (id: string) => accounts().some((a) => findSessionFile(a.dir, id) !== undefined);
+
+  /** The one tailer, for the previewed external session; same path again is a no-op. */
+  let tail: { sessionId: string; path: string; tailer: Tailer } | undefined;
+  let previewSeq = 0;
+  const stopTail = () => {
+    tail?.tailer.stop();
+    tail = undefined;
+  };
+  const syncTail = async (sessionId: string | undefined) => {
+    const seq = ++previewSeq;
+    let path: string | undefined;
+    if (sessionId && clients.size > 0) {
+      const isExternal = (await compute()).sessions.some((s) => s.id === sessionId && s.external);
+      if (isExternal) for (const a of accounts()) (path ??= findSessionFile(a.dir, sessionId));
+    }
+    if (seq !== previewSeq) return;
+    if (!sessionId || !path) return stopTail();
+    if (tail?.path === path) return;
+    stopTail();
+    const id = sessionId;
+    tail = {
+      sessionId: id,
+      path,
+      tailer: createTailer(path, (turns) => {
+        if (tail?.sessionId === id) broadcast({ type: 'tail', sessionId: id, turns });
+      }),
+    };
+  };
 
   /** The live sessions (terminal ptys and chat processes) with the account and project the scan knows. */
   const liveRecords = async (): Promise<RunningRecord[]> => {
@@ -392,6 +422,15 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
           }
           return { events: [] };
         },
+        // The last assistant message with text (read on demand, not cached).
+        'GET /api/agents/last-response': ({ url }) => {
+          const id = url?.searchParams.get('sessionId') ?? '';
+          for (const a of accounts()) {
+            const file = findSessionFile(a.dir, id);
+            if (file) return { text: lastResponse(file) };
+          }
+          return { text: null };
+        },
         'GET /api/agents/recovery': async () => {
           const { sessions } = await compute();
           const byId = new Map(sessions.map((x) => [x.id, x]));
@@ -487,6 +526,12 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
           shownId = typeof b.sessionId === 'string' && b.sessionId ? b.sessionId : undefined;
           return { ok: true };
         },
+        // The web reports the session whose external transcript is previewed (null when none); one tailer follows it.
+        'POST /api/agents/preview': async ({ json }) => {
+          const b = await json<{ sessionId?: unknown }>();
+          await syncTail(typeof b.sessionId === 'string' && b.sessionId ? b.sessionId : undefined);
+          return { ok: true };
+        },
         'POST /api/agents/socket-ticket': () => ({ ticket: tickets.issue(true) }),
         'POST /api/agents/chat/socket-ticket': async ({ url }) => {
           if (url) baseUrl = url.origin;
@@ -512,12 +557,15 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
             ws.send(JSON.stringify({ type: 'sessions', sessions } satisfies AgentsFrame));
             ws.send(JSON.stringify({ type: 'usage', accounts: usage } satisfies AgentsFrame));
           });
+          if (tail) ws.send(JSON.stringify({ type: 'tail', sessionId: tail.sessionId, turns: tail.tailer.turns() } satisfies AgentsFrame));
         },
         message() {},
         close(ws) {
           clients.delete(ws);
           if (clients.size === 0) {
             shownId = undefined;
+            previewSeq++;
+            stopTail();
             stop();
           }
         },

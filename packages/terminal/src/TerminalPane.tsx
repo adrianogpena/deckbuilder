@@ -31,6 +31,8 @@ export interface TerminalPaneHandle {
   run(command: PaneCommand): void;
   /** Pastes text into the program as typed input, without a trailing Enter. */
   insert(text: string): void;
+  /** Types text and presses Enter. */
+  submit(text: string): void;
 }
 
 let audio: AudioContext | null = null;
@@ -288,14 +290,13 @@ export function TerminalPane(props: TerminalPaneProps) {
           return view.scroll('bottom');
       }
     }
-    if (!preview) latest.current.handle?.({ run: runPane, insert: (text) => view.paste(text) });
-
     viewRef.current = view;
     view.onFindResults((index, count) => setFound({ index, count }));
     const send = (data: string | Uint8Array) => {
       if (ws?.readyState === WebSocket.OPEN) ws.send(data);
     };
     view.onInput((data) => send(encoder.encode(data)));
+    if (!preview) latest.current.handle?.({ run: runPane, insert: (text) => view.paste(text), submit: (text) => send(encoder.encode(text + String.fromCharCode(13))) });
     view.onResize((cols, rows) => {
       if (!preview) send(encodeControl({ type: 'resize', cols, rows }));
     });
