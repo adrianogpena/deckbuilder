@@ -367,6 +367,15 @@ export function createChatManager(cfg: ChatManagerOptions) {
       return handleMcpHttp(body, s.ask);
     },
 
+    /** Stops the chat process of a session (mode switch). `busy` while a turn runs; `none` when no chat is live. */
+    stop(sessionId: string): 'ok' | 'busy' | 'none' {
+      const s = bySession.get(sessionId);
+      if (!s) return 'none';
+      if (s.run === 'running') return 'busy';
+      s.close();
+      return 'ok';
+    },
+
     closeAll() {
       for (const s of [...byToken.values()]) s.close();
     },

@@ -17,11 +17,14 @@ export interface NewSessionProps {
   lastAccount?: (projectId: string) => string | undefined;
   /** Called with the Claude session id, the terminal session id and its socket ticket. */
   onStarted(r: { sessionId: string; terminal: string; ticket: string; account: string; projectId: string }): void;
+  /** Mode for the new session; `chat` calls `onChat` instead of starting a terminal. */
+  mode?: 'terminal' | 'chat';
+  onChat?(r: { account: string; projectId: string; cwd: string }): void;
   onCancel?(): void;
 }
 
 /** Picks project and account, then starts a new `claude` session in a terminal. */
-export function NewSession({ projects, projectId, lastAccount, onStarted, onCancel }: NewSessionProps) {
+export function NewSession({ projects, projectId, lastAccount, mode, onChat, onStarted, onCancel }: NewSessionProps) {
   const [accounts, setAccounts] = useState<AgentAccount[]>([]);
   const [project, setProject] = useState(projectId ?? projects[0]?.id ?? '');
   const [account, setAccount] = useState('');
@@ -40,6 +43,7 @@ export function NewSession({ projects, projectId, lastAccount, onStarted, onCanc
   const dir = projects.find((p) => p.id === project)?.path;
   const start = async () => {
     if (!dir || !account) return;
+    if (mode === 'chat' && onChat) return onChat({ account, projectId: project, cwd: dir });
     setBusy(true);
     setError('');
     try {

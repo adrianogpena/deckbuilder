@@ -48,3 +48,6 @@ export const addAgentProject = (input: { name?: string; path: string }) => reque
 export const removeAgentProject = (id: string) => request<{ ok: boolean }>('DELETE', '/api/agents/projects', { id });
 /** The projects of the Explorer (`/api/projects`), offered as quick adds. */
 export const listExplorerProjects = () => request<Array<{ id: string; name: string; path: string }>>('GET', '/api/projects');
+
+/** Stops the chat process of a session before it resumes in a terminal; `busy` while a turn is running. */
+export const stopChat = (sessionId: string) => request<{ ok: boolean; busy: boolean }>('POST', '/api/agents/chat/stop', {}, { sessionId });

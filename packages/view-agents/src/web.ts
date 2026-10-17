@@ -7,4 +7,5 @@ export { Sidebar, statusLabel, type SidebarProps } from './web/Sidebar';
 export { useAgentSessions } from './web/useAgentSessions';
 export { listAgentSessions, markSeen, type AgentSessionView, type AgentStatus } from './web/api';
 export { AgentsScreen } from './web/AgentsScreen';
+export { ChatPane, type ChatPaneProps } from './web/chat/ChatPane';
 export { agentsCommands } from './commands';

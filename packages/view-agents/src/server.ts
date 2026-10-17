@@ -180,6 +180,13 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
           const sessionId = resume ? (b.sessionId as string) : crypto.randomUUID();
           return { ok: true, sessionId, launch: { id: CLAUDE_LAUNCHER_ID, args: { account: acc.id, sessionId, resume } } };
         },
+        // Mode switch to Terminal: stops the session's chat process; `busy` while a turn is running.
+        'POST /api/agents/chat/stop': async ({ json }) => {
+          const b = await json<{ sessionId?: unknown }>();
+          if (typeof b.sessionId !== 'string' || !b.sessionId) return { ok: false, busy: false };
+          const r = chat?.stop(b.sessionId) ?? 'none';
+          return { ok: r !== 'busy', busy: r === 'busy' };
+        },
         'POST /api/agents/seen': async ({ json }) => {
           const b = await json<{ sessionId?: unknown }>();
           if (typeof b.sessionId !== 'string' || !b.sessionId) return { ok: false };

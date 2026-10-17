@@ -9,6 +9,7 @@
     "./styles.css": "./src/styles.css"
   },
   "dependencies": {
+    "@deckbuilderkit/editor": "workspace:*",
     "@deckbuilderkit/server-core": "workspace:*",
     "@deckbuilderkit/terminal": "workspace:*",
     "@deckbuilderkit/ui": "workspace:*"
