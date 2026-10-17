@@ -27,6 +27,8 @@ export interface AgentSessionView extends AgentSession {
   /** Id of the added project the cwd belongs to. */
   project?: string;
   seenAt?: number;
+  /** Claude is running this session in another terminal (live pid file that is not ours). */
+  external?: boolean;
 }
 
 /** Socket text frames: the full session list when it changes, else only the status map (session id -> status). */
@@ -39,4 +41,20 @@ export interface AgentProject {
   id: string;
   name: string;
   path: string;
+}
+
+/** A session the previous run left live (`GET /api/agents/recovery`), with what the banner and resume need. */
+export interface AgentRunning {
+  id: string;
+  account: string;
+  mode: 'terminal' | 'chat';
+  project?: string;
+  title: string;
+  cwd: string;
+}
+
+/** Sent with a session start when live sessions reached the soft cap. */
+export interface AgentsCapWarn {
+  live: number;
+  cap: number;
 }

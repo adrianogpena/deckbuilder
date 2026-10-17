@@ -4,16 +4,19 @@ import { join } from 'node:path';
 import { defineServerView, socketTickets, validGroup, type SocketData, type SocketRoutes } from '@deckbuilderkit/server-core';
 import type { ServerWebSocket } from 'bun';
 import { CHAT_SOCKET_PATH, type ChatClientFrame, type ChatServerFrame } from './chat-protocol.ts';
-import type { AgentSessionView, AgentsFrame } from './protocol.ts';
+import type { AgentRunning, AgentSessionView, AgentsCapWarn, AgentsFrame } from './protocol.ts';
 import type { AgentsMode, AgentsSettings } from './settings-types.ts';
 import { type AgentAccount, detectAccounts } from './server/accounts.ts';
 import { CLAUDE_LAUNCHER_ID, claudeLauncher } from './server/launcher.ts';
 import { type ChatManager, type ChatSession, type ChatSubscriber, createChatManager } from './server/chat/manager.ts';
+import { findSessionFile, loadHistory } from './server/chat/normalize.ts';
 import { CHAT_MCP_PATH } from './server/chat/permission-mcp.ts';
 import type { SpawnFn } from './server/chat/process.ts';
 import { createSessionScanner, matchProject } from './server/discovery.ts';
+import { detectScreenError } from './server/screen-errors.ts';
 import { createProjectsStore, type ProjectsStore } from './server/projects.ts';
-import { type AgentStatus, createStatusTracker, readPidFiles } from './server/status.ts';
+import { createRunningStore, type RunningRecord, type RunningStore } from './server/running.ts';
+import { type AgentStatus, createStatusTracker, externalIds, readPidFiles } from './server/status.ts';
 
 /** The part of the server settings the Agents view owns; the app's `Settings` extends it. */
 export interface AgentsServerSettings {
@@ -24,11 +27,13 @@ export interface AgentsServerSettings {
 /** A copy of `raw` when it is a well-formed Agents settings group, else null. */
 const AGENTS_MODES: AgentsMode[] = ['terminal', 'chat'];
 
-export const validAgents = (raw: unknown): AgentsSettings | null => validGroup(raw, { mode: AGENTS_MODES }) as AgentsSettings | null;
+export const validAgents = (raw: unknown): AgentsSettings | null => validGroup(raw, { mode: AGENTS_MODES, softCap: [1, 100] }) as AgentsSettings | null;
 
 export const AGENTS_SOCKET_PATH = '/api/agents/socket';
 const RESCAN_MS = 10_000;
 const DEBOUNCE_MS = 300;
+const RUNNING_SYNC_MS = 5_000;
+const DEFAULT_SOFT_CAP = 12;
 
 export type { AgentSessionView };
 
@@ -36,6 +41,8 @@ export interface AgentsServerViewOptions {
   /** Home holding the `.claude*` account dirs; defaults to the user's home. */
   home?: string;
   rescanMs?: number;
+  /** Last screen lines of the live terminal sessions, by Claude session id (pty `meta.agentSession`); drives the error status. */
+  terminalScreens?: () => Iterable<[string, string[]]>;
   /** Chat engine overrides (tests): how the `claude` process is spawned, its command and base environment. */
   chat?: { spawn?: SpawnFn; claudeCmd?: string; env?: Record<string, string | undefined>; idleMs?: number };
 }
@@ -66,6 +73,33 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
   let seen: Record<string, number> | undefined;
   let projects: ProjectsStore | undefined;
   let last = { sessions: '', status: '' };
+  let running: RunningStore | undefined;
+  let runningTimer: ReturnType<typeof setInterval> | undefined;
+  let loadSettings: () => Promise<AgentsServerSettings> = async () => ({});
+
+  const liveTerminalIds = () => [...(opts.terminalScreens?.() ?? [])].map(([id]) => id);
+
+  /** The live sessions (terminal ptys and chat processes) with the account and project the scan knows. */
+  const liveRecords = async (): Promise<RunningRecord[]> => {
+    const { sessions } = await compute();
+    const byId = new Map(sessions.map((x) => [x.id, x]));
+    const out: RunningRecord[] = [];
+    const add = (id: string, mode: RunningRecord['mode']) => {
+      const x = byId.get(id);
+      if (x && !out.some((r) => r.id === id)) out.push({ id, account: x.account, mode, project: x.project });
+    };
+    for (const id of liveTerminalIds()) add(id, 'terminal');
+    for (const id of chat?.live().ids ?? []) add(id, 'chat');
+    return out;
+  };
+  const syncRunning = () => liveRecords().then((l) => running?.sync(l), () => undefined);
+
+  /** Set when live ptys + chat processes reached the soft cap; the start is never blocked. */
+  const capWarn = async (): Promise<AgentsCapWarn | undefined> => {
+    const cap = (await loadSettings().catch(() => ({}) as AgentsServerSettings)).agents?.softCap ?? DEFAULT_SOFT_CAP;
+    const live = liveTerminalIds().length + (chat?.live().count ?? 0);
+    return live >= cap ? { live, cap } : undefined;
+  };
 
   const loadSeen = () => {
     if (seen) return seen;
@@ -90,11 +124,18 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
   const compute = async () => {
     const accs = accounts();
     const refs = projects?.list() ?? [];
-    const statuses = tracker.update(accs.flatMap((a) => readPidFiles(a.dir)));
+    const screenErrors = new Map<string, string>();
+    for (const [id, lines] of opts.terminalScreens?.() ?? []) {
+      const err = detectScreenError(lines);
+      if (err) screenErrors.set(id, err.message);
+    }
+    const pids = accs.flatMap((a) => readPidFiles(a.dir));
+    const statuses = tracker.update(pids, screenErrors);
+    const external = externalIds(pids, [...liveTerminalIds(), ...(chat?.live().ids ?? [])]);
     const s = loadSeen();
     const sessions: AgentSessionView[] = scanner
       .scan(accs.map((a) => ({ id: a.id, dir: a.dir })))
-      .map((x) => ({ ...x, status: statuses.get(x.id) ?? 'stopped', project: matchProject(x.cwd, refs)?.id, seenAt: s[x.id] }))
+      .map((x) => ({ ...x, status: statuses.get(x.id) ?? 'stopped', external: external.has(x.id) || undefined, project: matchProject(x.cwd, refs)?.id, seenAt: s[x.id] }))
       .filter((x) => x.project !== undefined)
       .sort((a, b) => b.updatedAt - a.updatedAt);
     const status: Record<string, AgentStatus> = {};
@@ -156,10 +197,38 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
       chat = createChatManager({ ...opts.chat, dir: join(ctx.dataDir, 'agents', 'chat'), accounts, baseUrl: () => baseUrl });
       const store = createProjectsStore(join(ctx.dataDir, 'agents', 'projects.json'));
       projects = store;
+      loadSettings = () => ctx.settings.load();
+      running = createRunningStore(join(ctx.dataDir, 'agents', 'running.json'));
+      clearInterval(runningTimer);
+      runningTimer = setInterval(() => void syncRunning(), RUNNING_SYNC_MS);
+      runningTimer.unref?.();
       return {
         'GET /api/agents/accounts': () => accounts(),
         'GET /api/agents/sessions': async () => (await compute()).sessions,
         'GET /api/agents/projects': () => store.list(),
+        // Read-only transcript of a session (external sessions open it instead of a terminal or chat).
+        'GET /api/agents/history': ({ url }) => {
+          const id = url?.searchParams.get('sessionId') ?? '';
+          for (const a of accounts()) {
+            const file = findSessionFile(a.dir, id);
+            if (file) return { events: loadHistory(file) };
+          }
+          return { events: [] };
+        },
+        'GET /api/agents/recovery': async () => {
+          const { sessions } = await compute();
+          const byId = new Map(sessions.map((x) => [x.id, x]));
+          const live = [...liveTerminalIds(), ...(chat?.live().ids ?? [])];
+          return (running?.recovery(live) ?? []).flatMap((r): AgentRunning[] => {
+            const x = byId.get(r.id);
+            return x ? [{ ...r, project: x.project, title: x.title, cwd: x.cwd }] : [];
+          });
+        },
+        'GET /api/agents/cap': async () => ({ warn: await capWarn() }),
+        'POST /api/agents/recovery/dismiss': () => {
+          running?.dismiss();
+          return { ok: true };
+        },
         'POST /api/agents/projects': async ({ json }) => {
           const p = store.add(await json<{ name?: unknown; path?: unknown }>());
           if (p) void refresh(true);
@@ -178,7 +247,9 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
           if (!acc) return { ok: false };
           const resume = typeof b.sessionId === 'string' && b.sessionId !== '';
           const sessionId = resume ? (b.sessionId as string) : crypto.randomUUID();
-          return { ok: true, sessionId, launch: { id: CLAUDE_LAUNCHER_ID, args: { account: acc.id, sessionId, resume } } };
+          const warn = await capWarn();
+          void syncRunning();
+          return { ok: true, sessionId, launch: { id: CLAUDE_LAUNCHER_ID, args: { account: acc.id, sessionId, resume } }, warn };
         },
         // Mode switch to Terminal: stops the session's chat process; `busy` while a turn is running.
         'POST /api/agents/chat/stop': async ({ json }) => {
@@ -197,9 +268,9 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
           return { ok: true };
         },
         'POST /api/agents/socket-ticket': () => ({ ticket: tickets.issue(true) }),
-        'POST /api/agents/chat/socket-ticket': ({ url }) => {
+        'POST /api/agents/chat/socket-ticket': async ({ url }) => {
           if (url) baseUrl = url.origin;
-          return { ticket: chatTickets.issue(true) };
+          return { ticket: chatTickets.issue(true), warn: await capWarn() };
         },
       };
     },
@@ -262,6 +333,7 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
     }),
     onQuit() {
       stop();
+      clearInterval(runningTimer);
       chat?.closeAll();
     },
   });

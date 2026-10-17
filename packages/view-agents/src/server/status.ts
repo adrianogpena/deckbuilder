@@ -70,18 +70,30 @@ export function pickStatus(candidates: AgentStatus[]): AgentStatus {
 export function createStatusTracker() {
   const prev = new Map<string, 'running' | 'needs-you' | 'idle'>();
   const done = new Set<string>();
+  const errored = new Set<string>();
+  const dismissed = new Map<string, string>();
   return {
-    /** Feed the live pid entries of one poll (all accounts); returns session id -> status (absent = stopped). */
-    update(entries: PidEntry[]): Map<string, AgentStatus> {
+    /**
+     * Feed the live pid entries of one poll (all accounts); returns session id -> status (absent = stopped).
+     * `screenErrors` (session id -> message) holds the errors found on terminal screens; an error shows until the session runs again.
+     */
+    update(entries: PidEntry[], screenErrors?: Map<string, string>): Map<string, AgentStatus> {
       const out = new Map<string, AgentStatus>();
       const live = new Set<string>();
       for (const e of entries) {
         live.add(e.sessionId);
         const cur = mapStatus(e.status);
+        const msg = screenErrors?.get(e.sessionId);
+        if (msg === undefined) dismissed.delete(e.sessionId);
+        if (cur === 'running') {
+          errored.delete(e.sessionId);
+          if (msg !== undefined) dismissed.set(e.sessionId, msg);
+        } else if (msg !== undefined && dismissed.get(e.sessionId) !== msg) errored.add(e.sessionId);
         if (prev.get(e.sessionId) === 'running' && cur === 'idle') done.add(e.sessionId);
         else if (cur !== 'idle') done.delete(e.sessionId);
         prev.set(e.sessionId, cur);
-        const shown: AgentStatus = cur === 'idle' && done.has(e.sessionId) ? 'done' : cur;
+        const base: AgentStatus = cur === 'idle' && done.has(e.sessionId) ? 'done' : cur;
+        const shown: AgentStatus = errored.has(e.sessionId) ? 'error' : base;
         const prior = out.get(e.sessionId);
         out.set(e.sessionId, pickStatus(prior ? [shown, prior] : [shown]));
       }
@@ -89,6 +101,8 @@ export function createStatusTracker() {
         if (!live.has(id)) {
           prev.delete(id);
           done.delete(id);
+          errored.delete(id);
+          dismissed.delete(id);
         }
       }
       return out;
@@ -98,4 +112,10 @@ export function createStatusTracker() {
       done.delete(sessionId);
     },
   };
+}
+
+/** Session ids with a live pid file that none of our terminals or chat processes runs: Claude in another terminal. */
+export function externalIds(entries: PidEntry[], ours: Iterable<string>): Set<string> {
+  const mine = new Set(ours);
+  return new Set(entries.filter((e) => !mine.has(e.sessionId)).map((e) => e.sessionId));
 }

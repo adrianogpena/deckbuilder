@@ -5,6 +5,7 @@ import {
   type Launchers,
   terminalRoutes,
   terminalSessions,
+  type TerminalSessions,
   validAppearance,
   validSchemes,
   type ColorScheme,
@@ -118,12 +119,13 @@ export interface TerminalServerViewOptions {
   resolveCwd(root: string, path: string): Promise<string>;
   /** Extra programs the client may start by id (see `launchers`), e.g. the Agents view's `claude`. */
   launchers?: Launchers;
+  /** The session store; pass one to read the sessions elsewhere (the Agents view reads their screens). */
+  sessions?: TerminalSessions;
 }
 
 /** Server half of the Terminal view: routes, sockets, session cleanup and the `terminal` settings groups. */
-export function terminalServerView({ integrationDir, resolveCwd, launchers }: TerminalServerViewOptions) {
+export function terminalServerView({ integrationDir, resolveCwd, launchers, sessions = terminalSessions() }: TerminalServerViewOptions) {
   /** Shells of every Terminal tab; they outlive the window's sockets and end at app quit. */
-  const sessions = terminalSessions();
   let mounted: ReturnType<typeof terminalRoutes> | undefined;
   const mount = (ctx: { settings: { load(): Promise<TerminalServerSettings> } }) => {
     const setting = async (key: string) => (await ctx.settings.load()).terminal?.[key];

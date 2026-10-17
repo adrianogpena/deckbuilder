@@ -5,4 +5,6 @@ export type AgentsMode = 'terminal' | 'chat';
 export interface AgentsSettings {
   /** Mode for new sessions and for opening stopped ones; terminal when omitted. */
   mode?: AgentsMode;
+  /** Live ptys + chat processes at which starting a session warns; 12 when omitted. */
+  softCap?: number;
 }

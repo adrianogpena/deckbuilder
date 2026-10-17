@@ -4,10 +4,12 @@ import { TerminalPane, terminalAppKeys } from '@deckbuilderkit/terminal';
 import { closeSession } from '@deckbuilderkit/terminal/session';
 import { agentsCommands } from '../commands';
 import { t } from '../i18n';
-import { type AgentProject, listAgentProjects, markSeen, removeAgentProject, startSession, stopChat, terminalOf } from './api';
+import { type AgentProject, type AgentRunning, dismissRecovery, listAgentProjects, listRecovery, markSeen, removeAgentProject, startSession, stopChat, terminalOf } from './api';
 import { AddProject } from './AddProject';
 import { ChatPane } from './chat/ChatPane';
+import { ExternalPane } from './ExternalPane';
 import { NewSession } from './NewSession';
+import { RecoveryBanner } from './RecoveryBanner';
 import { Sidebar } from './Sidebar';
 import { useAgentSessions } from './useAgentSessions';
 import '../styles.css';
@@ -51,6 +53,16 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
   const [adding, setAdding] = useState(false);
   const [chats, setChats] = useState<ChatEntry[]>([]);
   const [switching, setSwitching] = useState(false);
+  const [viewing, setViewing] = useState<string>();
+  const [recovery, setRecovery] = useState<AgentRunning[]>([]);
+
+  useEffect(() => {
+    void listRecovery().then(setRecovery, () => undefined);
+  }, []);
+  const dismissBanner = useCallback(() => {
+    setRecovery([]);
+    void dismissRecovery().catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     void listAgentProjects().then(setProjects, (e) => setError(errorOf(e).message));
@@ -89,6 +101,9 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
       setSelectedId(sessionId);
       setError('');
       void markSeen(sessionId).catch(() => undefined);
+      const ext = sessions.find((x) => x.id === sessionId)?.external === true;
+      setViewing(ext ? sessionId : undefined);
+      if (ext) return;
       if (chats.some((c) => entryId(c) === sessionId)) return;
       if (pool.some((x) => x.sessionId === sessionId)) {
         setPool((p) => [p.find((x) => x.sessionId === sessionId)!, ...p.filter((x) => x.sessionId !== sessionId)]);
@@ -112,11 +127,36 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
     [pool, chats, sessions, attach, mode, openChat],
   );
 
+  const resume = useCallback(
+    async (items: AgentRunning[]) => {
+      dismissBanner();
+      setError('');
+      for (const x of items) {
+        if (chats.some((c) => entryId(c) === x.id) || pool.some((p) => p.sessionId === x.id)) continue;
+        try {
+          if (x.mode === 'chat') {
+            openChat({ sessionId: x.id });
+            continue;
+          }
+          const live = await terminalOf(x.id);
+          if (live) attach({ sessionId: x.id, terminal: live });
+          else attach({ sessionId: x.id, terminal: (await startSession({ account: x.account, dir: x.cwd, sessionId: x.id })).session });
+        } catch (e) {
+          setError(errorOf(e).message);
+        }
+      }
+      setSelectedId(items[0]?.id);
+    },
+    [chats, pool, attach, openChat, dismissBanner],
+  );
+
   // A pane whose session went away (exited) leaves the pool on exit; keep the selection valid.
   useEffect(() => {
     if (selectedId && !sessions.some((s) => s.id === selectedId) && !pool.some((x) => x.sessionId === selectedId) && !chats.some((c) => entryId(c) === selectedId)) setSelectedId(undefined);
   }, [sessions, selectedId, pool, chats]);
 
+  const selected = sessions.find((s) => s.id === selectedId);
+  const inExternal = selectedId !== undefined && viewing === selectedId && selected !== undefined;
   const inChat = selectedId !== undefined && chats.some((c) => entryId(c) === selectedId);
   const inTerminal = selectedId !== undefined && pool.some((x) => x.sessionId === selectedId);
 
@@ -127,7 +167,10 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
     try {
       if (to === 'chat') {
         const a = pool.find((x) => x.sessionId === selectedId);
-        if (a) await closeSession(a.terminal);
+        if (a) {
+          await closeSession(a.terminal);
+          for (let i = 0; i < 30 && (await terminalOf(selectedId)); i++) await new Promise((res) => setTimeout(res, 100));
+        }
         setPool((p) => p.filter((x) => x.sessionId !== selectedId));
         openChat({ sessionId: selectedId });
       } else {
@@ -184,6 +227,7 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
             </div>
           )}
         </header>
+        <RecoveryBanner items={recovery} onResume={(i) => void resume(i)} onDismiss={dismissBanner} />
         {error && <div role="alert" className="agents-error">{error}</div>}
         {newFor !== undefined && (
           <NewSession
@@ -225,7 +269,17 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
               />
             </div>
           ))}
-          {!inTerminal && !inChat && newFor === undefined && <p className="agents-empty agents-placeholder">{t('agents.pick')}</p>}
+          {inExternal && newFor === undefined && selected && (
+            <div className="agents-pane">
+              <ExternalPane
+                sessionId={selected.id}
+                updatedAt={selected.updatedAt}
+                external={selected.external === true}
+                onTakeOver={() => void select(selected.id)}
+              />
+            </div>
+          )}
+          {!inTerminal && !inChat && !inExternal && newFor === undefined && <p className="agents-empty agents-placeholder">{t('agents.pick')}</p>}
         </div>
       </section>
     </div>

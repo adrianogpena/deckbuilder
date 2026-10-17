@@ -1,8 +1,9 @@
 import { request } from '@deckbuilderkit/ui';
 import { listSessions, openSession, type Ticketed } from '@deckbuilderkit/terminal/session';
-import type { AgentAccount, AgentProject, AgentSessionView, AgentStatus } from '../protocol.ts';
+import type { ChatEvent } from '../chat-protocol.ts';
+import type { AgentAccount, AgentProject, AgentRunning, AgentSessionView, AgentsCapWarn, AgentStatus } from '../protocol.ts';
 
-export type { AgentAccount, AgentProject, AgentSessionView, AgentStatus };
+export type { AgentAccount, AgentProject, AgentRunning, AgentSessionView, AgentsCapWarn, AgentStatus };
 
 export const listAccounts = () => request<AgentAccount[]>('GET', '/api/agents/accounts');
 
@@ -10,12 +11,17 @@ interface Prepared {
   ok: boolean;
   sessionId: string;
   launch: { id: string; args: unknown };
+  warn?: AgentsCapWarn;
 }
 
+/** Thrown by `startSession` when `confirmCap` declined the soft-cap warning. */
+export class CapDeclined extends Error {}
+
 /** Starts `claude` in a terminal (new session, or resumes `sessionId`) and returns its Claude session id and terminal ticket. */
-export async function startSession(opts: { account: string; dir: string; sessionId?: string; cols?: number; rows?: number }): Promise<Ticketed & { sessionId: string }> {
+export async function startSession(opts: { account: string; dir: string; sessionId?: string; cols?: number; rows?: number; confirmCap?: (w: AgentsCapWarn) => Promise<boolean> }): Promise<Ticketed & { sessionId: string }> {
   const p = await request<Prepared>('POST', '/api/agents/terminal/prepare', {}, { account: opts.account, sessionId: opts.sessionId });
   if (!p.ok) throw new Error('Unknown account');
+  if (p.warn && opts.confirmCap && !(await opts.confirmCap(p.warn))) throw new CapDeclined();
   const t = await openSession({ cols: opts.cols ?? 120, rows: opts.rows ?? 30, launch: p.launch, dir: opts.dir });
   return { ...t, sessionId: p.sessionId };
 }
@@ -30,6 +36,8 @@ export async function terminalOf(sessionId: string): Promise<string | undefined>
 export const listAgentSessions = () => request<AgentSessionView[]>('GET', '/api/agents/sessions');
 
 /** Marks a session as seen (clears its `done` state). */
+export const sessionHistory = (sessionId: string) => request<{ events: ChatEvent[] }>('GET', '/api/agents/history', { sessionId });
+
 export const markSeen = (sessionId: string) => request<{ ok: boolean }>('POST', '/api/agents/seen', {}, { sessionId });
 
 /** Opens the live socket; `onFrame` gets `{type:'sessions'|'status'}` frames. Returns a close function. */
@@ -51,3 +59,9 @@ export const listExplorerProjects = () => request<Array<{ id: string; name: stri
 
 /** Stops the chat process of a session before it resumes in a terminal; `busy` while a turn is running. */
 export const stopChat = (sessionId: string) => request<{ ok: boolean; busy: boolean }>('POST', '/api/agents/chat/stop', {}, { sessionId });
+
+/** Sessions the previous run left live and that are not live now. */
+export const listRecovery = () => request<AgentRunning[]>('GET', '/api/agents/recovery');
+export const dismissRecovery = () => request<{ ok: boolean }>('POST', '/api/agents/recovery/dismiss');
+/** The soft-cap warning when live terminals + chats reached the cap. */
+export const capWarning = async () => (await request<{ warn?: AgentsCapWarn }>('GET', '/api/agents/cap')).warn;

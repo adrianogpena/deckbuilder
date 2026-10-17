@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { errorOf } from '@deckbuilderkit/ui';
 import { t } from '../i18n';
-import { type AgentAccount, listAccounts, startSession } from './api';
+import { type AgentAccount, type AgentsCapWarn, CapDeclined, capWarning, listAccounts, startSession } from './api';
 
 export interface NewSessionProject {
   id: string;
@@ -30,6 +30,7 @@ export function NewSession({ projects, projectId, lastAccount, mode, onChat, onS
   const [account, setAccount] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [ask, setAsk] = useState<{ warn: AgentsCapWarn; answer(ok: boolean): void }>();
 
   useEffect(() => {
     void listAccounts().then(setAccounts, (e) => setError(errorOf(e).message));
@@ -43,14 +44,19 @@ export function NewSession({ projects, projectId, lastAccount, mode, onChat, onS
   const dir = projects.find((p) => p.id === project)?.path;
   const start = async () => {
     if (!dir || !account) return;
-    if (mode === 'chat' && onChat) return onChat({ account, projectId: project, cwd: dir });
+    const confirmCap = (warn: AgentsCapWarn) => new Promise<boolean>((answer) => setAsk({ warn, answer: (ok) => { setAsk(undefined); answer(ok); } }));
+    if (mode === 'chat' && onChat) {
+      const warn = await capWarning().catch(() => undefined);
+      if (warn && !(await confirmCap(warn))) return;
+      return onChat({ account, projectId: project, cwd: dir });
+    }
     setBusy(true);
     setError('');
     try {
-      const r = await startSession({ account, dir });
+      const r = await startSession({ account, dir, confirmCap });
       onStarted({ sessionId: r.sessionId, terminal: r.session, ticket: r.ticket, account, projectId: project });
     } catch (e) {
-      setError(errorOf(e).message);
+      if (!(e instanceof CapDeclined)) setError(errorOf(e).message);
     } finally {
       setBusy(false);
     }
@@ -75,9 +81,16 @@ export function NewSession({ projects, projectId, lastAccount, mode, onChat, onS
         </select>
       </label>
       {error && <div role="alert">{error}</div>}
+      {ask && (
+        <div role="alert" className="agents-cap-warn">
+          {t('agents.cap.warn', { live: ask.warn.live, cap: ask.warn.cap })}
+          <button type="button" onClick={() => ask.answer(false)}>{t('agents.new.cancel')}</button>
+          <button type="button" onClick={() => ask.answer(true)}>{t('agents.cap.confirm')}</button>
+        </div>
+      )}
       <div className="agents-new-session-actions">
         {onCancel && <button type="button" onClick={onCancel}>{t('agents.new.cancel')}</button>}
-        <button type="button" disabled={busy || !dir || !account} onClick={() => void start()}>{t('agents.new.start')}</button>
+        <button type="button" disabled={busy || !!ask || !dir || !account} onClick={() => void start()}>{t('agents.new.start')}</button>
       </div>
     </div>
   );

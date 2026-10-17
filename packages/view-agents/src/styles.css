@@ -84,3 +84,27 @@
 .chat-input { display: flex; flex-direction: column; gap: 6px; }
 .chat-input textarea { width: 100%; box-sizing: border-box; resize: vertical; min-height: 60px; font: inherit; }
 .chat-actions { display: flex; justify-content: flex-end; gap: 6px; }
+
+.agents-recovery,
+.agents-cap-warn {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border, #8884);
+}
+.agents-recovery-list {
+  flex-basis: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.agents-recovery-actions {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.agents-external { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.agents-external-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 12px; font-size: var(--fs-xs); color: var(--ink-muted); }

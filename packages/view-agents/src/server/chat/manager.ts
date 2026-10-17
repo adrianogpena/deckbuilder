@@ -376,6 +376,11 @@ export function createChatManager(cfg: ChatManagerOptions) {
       return 'ok';
     },
 
+    /** Session ids of the live chats (known ids only) and how many chats are live. */
+    live(): { ids: string[]; count: number } {
+      return { ids: [...bySession.keys()], count: byToken.size };
+    },
+
     closeAll() {
       for (const s of [...byToken.values()]) s.close();
     },

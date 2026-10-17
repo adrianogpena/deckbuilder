@@ -63,6 +63,8 @@ export interface TerminalSessions {
   closeAll(): void;
   setLabel(id: string, label: string): void;
   setMeta(id: string, meta: Record<string, unknown> | undefined): void;
+  /** The last `n` lines of the headless screen (read-only). */
+  screenLines(id: string, n: number): string[];
 }
 
 export interface TerminalSessionsOptions {
@@ -309,6 +311,12 @@ export function terminalSessions({ spawn = spawnPty, max = 20, now = Date.now }:
     },
     setLabel(id, label) {
       must(id).label = label.slice(0, MAX_LABEL);
+    },
+    screenLines(id, n) {
+      const buf = must(id).term.buffer.active;
+      const out: string[] = [];
+      for (let y = Math.max(0, buf.length - n); y < buf.length; y++) out.push(buf.getLine(y)?.translateToString(true) ?? '');
+      return out;
     },
     setMeta(id, meta) {
       checkMeta(meta);

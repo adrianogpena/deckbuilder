@@ -7,7 +7,7 @@ import { gitServerView } from '@deckbuilderkit/view-git/server';
 import { restServerView } from '@deckbuilderkit/view-rest/server';
 import { terminalServerView } from '@deckbuilderkit/view-terminal/server';
 import { workbenchServerView } from '@deckbuilderkit/view-workbench/server';
-import { launchers } from '@deckbuilderkit/terminal/server';
+import { launchers, terminalSessions } from '@deckbuilderkit/terminal/server';
 import { agentsLauncher, agentsServerView } from '@deckbuilderkit/view-agents/server';
 import { APP } from '../app.ts';
 import { MULTI_DELETE_ENABLED } from '../app.ts';
@@ -16,12 +16,19 @@ import { MULTI_DELETE_ENABLED } from '../app.ts';
 const explorer = explorerServerView({ multiDelete: MULTI_DELETE_ENABLED });
 /** Claude config home of the Agents view; the `claude` terminal launcher uses the same one. */
 const agentsHome = homedir();
+const terminalStore = terminalSessions();
 
 export const serverViews: ServerViewDef[] = [
   explorer,
-  terminalServerView({ integrationDir: join(appHome(APP.id), 'shell-integration'), resolveCwd: explorer.resolveCwd, launchers: launchers({ claude: agentsLauncher({ home: agentsHome }) }) }),
+  terminalServerView({ integrationDir: join(appHome(APP.id), 'shell-integration'), resolveCwd: explorer.resolveCwd, launchers: launchers({ claude: agentsLauncher({ home: agentsHome }) }), sessions: terminalStore }),
   workbenchServerView(),
   restServerView(),
   gitServerView(),
-  agentsServerView({ home: agentsHome }),
+  agentsServerView({
+    home: agentsHome,
+    terminalScreens: () =>
+      terminalStore
+        .list()
+        .flatMap((s) => (!s.exited && typeof s.meta?.agentSession === 'string' ? [[s.meta.agentSession, terminalStore.screenLines(s.id, 25)] as [string, string[]]] : [])),
+  }),
 ];

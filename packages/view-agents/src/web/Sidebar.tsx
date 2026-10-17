@@ -65,7 +65,7 @@ export function Sidebar({ projects, sessions, selectedId, onSelect, onNewSession
               >
                 <span className={`agents-dot ${s.status}`} role="img" title={label} aria-label={label} />
                 <span className="agents-session-title">{s.title || s.firstPrompt || s.id.slice(0, 8)}</span>
-                <span className="agents-status">{label}</span>
+                <span className="agents-status">{s.external ? `${label} · ${t('agents.external')}` : label}</span>
               </button>
             );
           })}

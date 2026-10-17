@@ -2,7 +2,7 @@ import { afterEach, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createStatusTracker, pickStatus, readPidFiles } from './status';
+import { createStatusTracker, externalIds, pickStatus, readPidFiles } from './status';
 
 let dir = '';
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
@@ -40,4 +40,25 @@ test('precedence', () => {
   expect(pickStatus(['idle', 'done', 'running'])).toBe('running');
   expect(pickStatus(['idle', 'needs-you', 'error'])).toBe('error');
   expect(pickStatus([])).toBe('stopped');
+});
+
+test('screen error latches until the session runs again, then clears', () => {
+  const t = createStatusTracker();
+  const e = (status: string) => [{ pid: 1, sessionId: 'a', status }];
+  const err = new Map([['a', 'Please run /login']]);
+  expect(t.update(e('idle'), err).get('a')).toBe('error');
+  expect(t.update(e('idle')).get('a')).toBe('error');
+  expect(t.update(e('busy'), err).get('a')).toBe('running');
+  expect(t.update(e('idle'), err).get('a')).not.toBe('error');
+  expect(t.update(e('idle')).get('a')).not.toBe('error');
+});
+
+test('live pid sessions that are not ours are external', () => {
+  const entries = [
+    { pid: 1, sessionId: 'a' },
+    { pid: 2, sessionId: 'b' },
+    { pid: 3, sessionId: 'c' },
+  ];
+  expect([...externalIds(entries, ['a'])].sort()).toEqual(['b', 'c']);
+  expect(externalIds(entries, ['a', 'b', 'c']).size).toBe(0);
 });
