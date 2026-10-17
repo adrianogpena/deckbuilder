@@ -1,9 +1,9 @@
 import { request } from '@deckbuilderkit/ui';
 import { listSessions, openSession, type Ticketed } from '@deckbuilderkit/terminal/session';
 import type { ChatEvent } from '../chat-protocol.ts';
-import type { AgentAccount, AgentProject, AgentRunning, AgentSessionView, AgentsCapWarn, AgentStatus } from '../protocol.ts';
+import type { AgentAccount, AgentAccountUsage, AgentProject, AgentRateLimit, AgentRunning, AgentSessionView, AgentsCapWarn, AgentStatus, AgentStatuslineError, AgentStatuslineStatus } from '../protocol.ts';
 
-export type { AgentAccount, AgentProject, AgentRunning, AgentSessionView, AgentsCapWarn, AgentStatus };
+export type { AgentAccount, AgentAccountUsage, AgentProject, AgentRateLimit, AgentRunning, AgentSessionView, AgentsCapWarn, AgentStatus, AgentStatuslineError, AgentStatuslineStatus };
 
 export const listAccounts = () => request<AgentAccount[]>('GET', '/api/agents/accounts');
 
@@ -41,7 +41,7 @@ export const sessionHistory = (sessionId: string) => request<{ events: ChatEvent
 export const markSeen = (sessionId: string) => request<{ ok: boolean }>('POST', '/api/agents/seen', {}, { sessionId });
 export const reportShown = (sessionId: string | null) => request<{ ok: boolean }>('POST', '/api/agents/shown', {}, { sessionId });
 
-/** Opens the live socket; `onFrame` gets `{type:'sessions'|'status'}` frames. Returns a close function. */
+/** Opens the live socket; `onFrame` gets `{type:'sessions'|'status'|'usage'}` frames. Returns a close function. */
 export async function openAgentsSocket(onFrame: (f: { type: string; [k: string]: any }) => void): Promise<() => void> {
   const { ticket } = await request<{ ticket: string }>('POST', '/api/agents/socket-ticket');
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -66,3 +66,11 @@ export const listRecovery = () => request<AgentRunning[]>('GET', '/api/agents/re
 export const dismissRecovery = () => request<{ ok: boolean }>('POST', '/api/agents/recovery/dismiss');
 /** The soft-cap warning when live terminals + chats reached the cap. */
 export const capWarning = async () => (await request<{ warn?: AgentsCapWarn }>('GET', '/api/agents/cap')).warn;
+
+export type StatuslineResult = { ok: true; status: AgentStatuslineStatus } | { ok: false; error: AgentStatuslineError };
+
+export const listStatusline = () => request<AgentStatuslineStatus[]>('GET', '/api/agents/statusline');
+
+export const installStatusline = (account: string) => request<StatuslineResult>('POST', '/api/agents/statusline/install', {}, { account });
+
+export const uninstallStatusline = (account: string) => request<StatuslineResult>('POST', '/api/agents/statusline/uninstall', {}, { account });

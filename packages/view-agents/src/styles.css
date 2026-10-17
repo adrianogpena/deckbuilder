@@ -36,6 +36,18 @@
 .agents-remove { background: none; border: 0; color: var(--ink-muted); cursor: pointer; visibility: hidden; }
 .agents-project header:hover .agents-remove, .agents-remove:focus-visible { visibility: visible; }
 .agents-remove:hover { color: var(--danger, var(--accent)); }
+.agents-session-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.agents-session-usage { font-size: var(--fs-xs); color: var(--ink-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agents-usage { display: flex; flex-direction: column; gap: 4px; padding: 0 4px; }
+.agents-usage-account { display: flex; flex-direction: column; gap: 2px; font-size: var(--fs-xs); color: var(--ink-muted); }
+.agents-usage-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-transform: uppercase; }
+.agents-usage-bar { display: flex; align-items: center; gap: 6px; }
+.agents-usage-bar > span:first-child { width: 2em; }
+.agents-usage-pct { min-width: 3em; text-align: right; font-variant-numeric: tabular-nums; }
+.agents-usage-track { flex: 1; height: 4px; border-radius: 2px; background: var(--border-soft); overflow: hidden; }
+.agents-usage-fill { height: 100%; background: var(--ink-muted); }
+.agents-usage-fill.high { background: var(--warn); }
+.agents-usage-fill.full { background: var(--err); }
 .agents-add { display: flex; flex-direction: column; gap: 8px; min-width: 360px; }
 .agents-add h4 { margin: 0; font-size: var(--fs-sm); color: var(--ink-muted); text-transform: uppercase; }
 .agents-add-list { display: flex; flex-direction: column; max-height: 200px; overflow: auto; }
@@ -108,3 +120,8 @@
 
 .agents-external { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .agents-external-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 12px; font-size: var(--fs-xs); color: var(--ink-muted); }
+
+.agents-statusline { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--space-16); row-gap: var(--space-4); align-items: center; }
+.agents-statusline > :not(.mono-label, .agents-statusline-btn) { grid-column: 1; }
+.agents-statusline-btn { grid-column: 2; grid-row: 1; }
+.agents-statusline-error { color: var(--err); font-size: var(--fs-xs); }

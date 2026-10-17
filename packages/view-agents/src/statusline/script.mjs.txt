@@ -1,0 +1,67 @@
+// Claude Code statusLine command installed by DeckBuilder (one per account, argv[2] = account id).
+// Stores the usage JSON Claude Code sends on stdin, then chains the account's previous statusLine command.
+// Plain ESM with node builtins only: DeckBuilder writes this file to `<dataDir>/agents/statusline.mjs` and runs it with bun.
+import { spawnSync } from 'node:child_process';
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const CHAIN_TIMEOUT_MS = 5000;
+
+function readStdin() {
+  try {
+    return readFileSync(0, 'utf8');
+  } catch {
+    return '';
+  }
+}
+
+function safeName(s) {
+  return String(s).replace(/[^A-Za-z0-9._-]/g, '_');
+}
+
+/** The usage fields DeckBuilder shows; keys the CLI did not send (e.g. `rate_limits` without a subscription) are left out. */
+function usageOf(input, sessionId) {
+  const out = { updatedAt: Date.now(), sessionId };
+  for (const key of ['model', 'context_window', 'rate_limits']) {
+    if (input[key] !== undefined) out[key] = input[key];
+  }
+  return out;
+}
+
+function store(dir, account, input) {
+  if (!input || typeof input !== 'object' || typeof input.session_id !== 'string' || !input.session_id) return;
+  const sessionId = input.session_id;
+  const folder = join(dir, 'usage', safeName(account));
+  const file = join(folder, `${safeName(sessionId)}.json`);
+  mkdirSync(folder, { recursive: true });
+  writeFileSync(`${file}.tmp`, JSON.stringify(usageOf(input, sessionId)));
+  renameSync(`${file}.tmp`, file);
+}
+
+function previousCommand(dir, account) {
+  try {
+    const state = JSON.parse(readFileSync(join(dir, 'statusline.json'), 'utf8'));
+    const prev = state?.[account]?.previous;
+    return prev && typeof prev.command === 'string' && prev.command ? prev.command : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function main() {
+  const account = process.argv[2] ?? '';
+  const dir = dirname(fileURLToPath(import.meta.url));
+  const raw = readStdin();
+  try {
+    store(dir, account, JSON.parse(raw));
+  } catch {
+    /* the status line must never fail: unparsable input or an unwritable folder only skips the usage file */
+  }
+  const command = previousCommand(dir, account);
+  if (!command) return;
+  const res = spawnSync(command, { input: raw, shell: true, encoding: 'utf8', timeout: CHAIN_TIMEOUT_MS, windowsHide: true });
+  if (res.stdout) process.stdout.write(res.stdout);
+}
+
+main();

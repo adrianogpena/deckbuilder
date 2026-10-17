@@ -12,7 +12,7 @@ import { ExternalPane } from './ExternalPane';
 import { NewSession } from './NewSession';
 import { RecoveryBanner } from './RecoveryBanner';
 import { Sidebar } from './Sidebar';
-import { useAgentSessions } from './useAgentSessions';
+import { useAgentsFeed } from './useAgentSessions';
 import '../styles.css';
 
 const SIDEBAR_KEY = 'deckbuilder.agents.sidebarHidden';
@@ -46,7 +46,7 @@ const linkedSession = () => /^#\/?agents\/([\w.-]+)\/?$/.exec(window.location.ha
 
 /** Agents screen: the sessions sidebar and the selected session's terminal. */
 export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat' }) {
-  const sessions = useAgentSessions();
+  const { sessions, usage } = useAgentsFeed();
   const keys = useKeybindings();
   const [hidden, setHidden] = useState(readHidden);
   const [selectedId, setSelectedId] = useState<string>();
@@ -241,6 +241,7 @@ export function AgentsScreen({ mode = 'terminal' }: { mode?: 'terminal' | 'chat'
       {!hidden && <Sidebar
           projects={projects}
           sessions={sessions}
+          usage={usage}
           selectedId={selectedId}
           onSelect={(id) => void select(id)}
           onNewSession={(p) => setNewFor(p)}

@@ -1,7 +1,7 @@
 import { closeSync, openSync, readSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-import type { AgentSession } from '../protocol.ts';
+import type { AgentSession, AgentTokens } from '../protocol.ts';
 
 export type { AgentSession };
 
@@ -117,13 +117,85 @@ export function parseTranscript(
   };
 }
 
+/** Running token sums of a transcript, fed only with the bytes appended since `offset`. */
+export interface TokenTally {
+  /** Bytes consumed (through the last complete line). */
+  offset: number;
+  tokens: AgentTokens;
+  /** Usage counted per assistant message id: Claude writes one entry per content block, repeating the usage. */
+  byMessage: Map<string, AgentTokens>;
+  /** Input + cache tokens of the last main-chain assistant turn (its context size). */
+  lastContext?: number;
+}
+
+const TOKEN_KEYS = ['input', 'output', 'cacheCreation', 'cacheRead'] as const;
+const TALLY_CHUNK = 1024 * 1024;
+
+export const newTally = (): TokenTally => ({ offset: 0, tokens: { input: 0, output: 0, cacheCreation: 0, cacheRead: 0 }, byMessage: new Map() });
+
+function usageTokens(u: unknown): AgentTokens | undefined {
+  if (!u || typeof u !== 'object') return undefined;
+  const o = u as Record<string, unknown>;
+  const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 0);
+  return { input: n(o.input_tokens), output: n(o.output_tokens), cacheCreation: n(o.cache_creation_input_tokens), cacheRead: n(o.cache_read_input_tokens) };
+}
+
+/** Adds one transcript entry's `message.usage`; a repeated message id replaces its earlier count. */
+export function tallyEntry(t: TokenTally, e: Entry): void {
+  if (e.type !== 'assistant') return;
+  const u = usageTokens(e.message?.usage);
+  if (!u) return;
+  const id = typeof e.message?.id === 'string' && e.message.id ? e.message.id : typeof e.uuid === 'string' ? e.uuid : undefined;
+  const prev = id ? t.byMessage.get(id) : undefined;
+  for (const k of TOKEN_KEYS) t.tokens[k] += u[k] - (prev?.[k] ?? 0);
+  if (id) t.byMessage.set(id, u);
+  if (e.isSidechain !== true) t.lastContext = u.input + u.cacheCreation + u.cacheRead;
+}
+
+/** Feeds the complete lines appended since `t.offset`; starts over when the file shrank (rewritten). */
+export function updateTally(file: string, size: number, prev: TokenTally): TokenTally {
+  const t = size < prev.offset ? newTally() : prev;
+  if (size === t.offset) return t;
+  const fd = openSync(file, 'r');
+  try {
+    let pos = t.offset;
+    let rest = Buffer.alloc(0);
+    while (pos < size) {
+      const chunk = Buffer.alloc(Math.min(TALLY_CHUNK, size - pos));
+      const n = readSync(fd, chunk, 0, chunk.length, pos);
+      if (n <= 0) break;
+      pos += n;
+      const buf = rest.length ? Buffer.concat([rest, chunk.subarray(0, n)]) : chunk.subarray(0, n);
+      const nl = buf.lastIndexOf(0x0a);
+      if (nl < 0) {
+        rest = buf;
+        continue;
+      }
+      for (const e of parseLines(buf.subarray(0, nl).toString('utf8'), false, false)) tallyEntry(t, e);
+      t.offset += nl + 1;
+      rest = buf.subarray(nl + 1);
+    }
+  } finally {
+    closeSync(fd);
+  }
+  return t;
+}
+
+/** Context used in percent from the last turn's input + cache tokens; the window is 200k for Claude models (1M once above that). */
+export function contextPercentOf(model: string | undefined, used: number | undefined): number | undefined {
+  if (!used || !model || !/^claude-/i.test(model)) return undefined;
+  const window = /\[1m\]/i.test(model) || used > 200_000 ? 1_000_000 : 200_000;
+  return Math.min(100, Math.round((used / window) * 100));
+}
+
 interface CacheEntry {
   mtime: number;
   size: number;
   session: AgentSession | null;
+  tally: TokenTally;
 }
 
-/** Scanner caching each transcript by (mtime, size); only changed files are re-parsed. */
+/** Scanner caching each transcript by (mtime, size); only changed files are re-parsed, and token sums read only the appended bytes. */
 export function createSessionScanner() {
   const cache = new Map<string, CacheEntry>();
   return {
@@ -159,12 +231,20 @@ export function createSessionScanner() {
             let c = cache.get(file);
             if (!c || c.mtime !== st.mtimeMs || c.size !== st.size) {
               let session: AgentSession | null = null;
+              let tally = c?.tally ?? newTally();
               try {
                 session = parseTranscript(file, st.size, { id: f.slice(0, -6), account: acc.id, folder, mtime: st.mtimeMs });
+                tally = updateTally(file, st.size, tally);
               } catch {
                 session = null;
               }
-              c = { mtime: st.mtimeMs, size: st.size, session };
+              if (session) {
+                const tk = tally.tokens;
+                if (tk.input + tk.output + tk.cacheCreation + tk.cacheRead > 0) session.tokens = { ...tk };
+                const pct = contextPercentOf(session.model, tally.lastContext);
+                if (pct !== undefined) session.contextPercent = pct;
+              }
+              c = { mtime: st.mtimeMs, size: st.size, session, tally };
               cache.set(file, c);
             }
             if (c.session) out.push(c.session);

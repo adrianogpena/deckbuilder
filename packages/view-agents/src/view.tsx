@@ -3,6 +3,7 @@ import { defineView } from '@deckbuilderkit/ui';
 import { agentsCommands } from './commands';
 import { en, ptBR } from './i18n';
 import { agentsSettingDefs, type AgentsViewSettings } from './settings';
+import { AgentsSettingsCard } from './web/StatuslineCard';
 
 const AgentsScreen = lazy(() => import('./web/AgentsScreen').then((m) => ({ default: m.AgentsScreen })));
 
@@ -19,7 +20,7 @@ export function agentsView({ group, order }: AgentsViewOptions) {
     render: ({ settings }) => <AgentsScreen mode={settings.agents?.mode} />,
     commands: agentsCommands,
     settings: { defs: agentsSettingDefs },
-    settingsCards: { sections: [{ path: ['agents'], order: 90, label: 'settings.section.agents' }] },
+    settingsCards: { sections: [{ path: ['agents'], order: 90, label: 'settings.section.agents' }], cards: { agents: AgentsSettingsCard } },
     messages: { en, 'pt-BR': ptBR },
   });
 }

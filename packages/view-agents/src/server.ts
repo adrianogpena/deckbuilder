@@ -5,7 +5,7 @@ import { createToaster } from '@deckbuilderkit/platform';
 import { defineServerView, socketTickets, validGroup, type SocketData, type SocketRoutes } from '@deckbuilderkit/server-core';
 import type { ServerWebSocket } from 'bun';
 import { CHAT_SOCKET_PATH, type ChatClientFrame, type ChatServerFrame } from './chat-protocol.ts';
-import type { AgentRunning, AgentSessionView, AgentsCapWarn, AgentsFrame } from './protocol.ts';
+import type { AgentAccountUsage, AgentRunning, AgentSessionView, AgentsCapWarn, AgentsFrame } from './protocol.ts';
 import type { AgentsMode, AgentsSettings } from './settings-types.ts';
 import { type AgentAccount, detectAccounts } from './server/accounts.ts';
 import { createNotifier, NOTIFY_LABEL } from './server/notify.ts';
@@ -18,7 +18,9 @@ import { createSessionScanner, matchProject } from './server/discovery.ts';
 import { detectScreenError } from './server/screen-errors.ts';
 import { createProjectsStore, type ProjectsStore } from './server/projects.ts';
 import { createRunningStore, type RunningRecord, type RunningStore } from './server/running.ts';
+import { createStatuslineInstaller } from './server/statusline-install.ts';
 import { type AgentStatus, createStatusTracker, externalIds, readPidFiles } from './server/status.ts';
+import { createUsageReader, usageContextPercent } from './server/usage.ts';
 
 /** The part of the server settings the Agents view owns; the app's `Settings` extends it. */
 export interface AgentsServerSettings {
@@ -51,6 +53,8 @@ export interface AgentsServerViewOptions {
   toast?: (toast: { title: string; body: string; launch: string }) => void;
   /** Chat engine overrides (tests): how the `claude` process is spawned, its command and base environment. */
   chat?: { spawn?: SpawnFn; claudeCmd?: string; env?: Record<string, string | undefined>; idleMs?: number };
+  /** Statusline installer overrides (tests). */
+  statusline?: { execPath?: string; platform?: NodeJS.Platform };
 }
 
 export type { AgentsFrame };
@@ -76,9 +80,11 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
   let timer: ReturnType<typeof setInterval> | undefined;
   let debounce: ReturnType<typeof setTimeout> | undefined;
   let seenFile = '';
+  let usageDir: string | undefined;
+  const usageReader = createUsageReader(() => usageDir);
   let seen: Record<string, number> | undefined;
   let projects: ProjectsStore | undefined;
-  let last = { sessions: '', status: '' };
+  let last = { sessions: '', status: '', usage: '' };
   let running: RunningStore | undefined;
   let runningTimer: ReturnType<typeof setInterval> | undefined;
   let loadSettings: () => Promise<AgentsServerSettings> = async () => ({});
@@ -149,15 +155,16 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
     const statuses = tracker.update(pids, screenErrors);
     const external = externalIds(pids, [...liveTerminalIds(), ...(chat?.live().ids ?? [])]);
     const s = loadSeen();
+    const usage = usageReader.read(accs);
     const sessions: AgentSessionView[] = scanner
       .scan(accs.map((a) => ({ id: a.id, dir: a.dir })))
-      .map((x) => ({ ...x, status: statuses.get(x.id) ?? 'stopped', external: external.has(x.id) || undefined, project: matchProject(x.cwd, refs)?.id, seenAt: s[x.id] }))
+      .map((x) => ({ ...x, contextPercent: usageContextPercent(usage.bySession.get(x.id)) ?? x.contextPercent, status: statuses.get(x.id) ?? 'stopped', external: external.has(x.id) || undefined, project: matchProject(x.cwd, refs)?.id, seenAt: s[x.id] }))
       .filter((x) => x.project !== undefined)
       .sort((a, b) => b.updatedAt - a.updatedAt);
     const status: Record<string, AgentStatus> = {};
     for (const x of sessions) status[x.id] = x.status;
     void notifier.observe(sessions);
-    return { sessions, status };
+    return { sessions, status, usage: usage.accounts as AgentAccountUsage[] };
   };
 
   const broadcast = (frame: AgentsFrame) => {
@@ -167,11 +174,16 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
 
   const refresh = async (force = false) => {
     if (clients.size === 0) return;
-    const { sessions, status } = await compute();
+    const { sessions, status, usage } = await compute();
+    const usageKey = JSON.stringify(usage);
+    if (force || usageKey !== last.usage) {
+      last.usage = usageKey;
+      broadcast({ type: 'usage', accounts: usage });
+    }
     const statusKey = JSON.stringify(status);
     const listKey = JSON.stringify(sessions.map(({ status: _s, ...rest }) => rest));
     if (force || listKey !== last.sessions) {
-      last = { sessions: listKey, status: statusKey };
+      last = { ...last, sessions: listKey, status: statusKey };
       broadcast({ type: 'sessions', sessions });
     } else if (statusKey !== last.status) {
       last.status = statusKey;
@@ -211,6 +223,7 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
     settings: { validate: { agents: validAgents } },
     routes: (ctx) => {
       seenFile = join(ctx.dataDir, 'agents', 'seen.json');
+      usageDir = join(ctx.dataDir, 'agents', 'usage');
       chat = createChatManager({ ...opts.chat, dir: join(ctx.dataDir, 'agents', 'chat'), accounts, baseUrl: () => baseUrl });
       const store = createProjectsStore(join(ctx.dataDir, 'agents', 'projects.json'));
       projects = store;
@@ -219,8 +232,22 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
       clearInterval(runningTimer);
       runningTimer = setInterval(() => void syncRunning(), RUNNING_SYNC_MS);
       runningTimer.unref?.();
+      const statusline = createStatuslineInstaller({ agentsDir: join(ctx.dataDir, 'agents'), ...opts.statusline });
+      statusline.refresh();
       return {
         'GET /api/agents/accounts': () => accounts(),
+        // Usage statusLine per account (Settings): install state, install (backup + chain the previous), uninstall (restore it).
+        'GET /api/agents/statusline': () => statusline.statuses(accounts()),
+        'POST /api/agents/statusline/install': async ({ json }) => {
+          const b = await json<{ account?: unknown }>();
+          const acc = accounts().find((a) => a.id === b.account);
+          return acc ? statusline.install(acc) : { ok: false, error: 'unknownAccount' };
+        },
+        'POST /api/agents/statusline/uninstall': async ({ json }) => {
+          const b = await json<{ account?: unknown }>();
+          const acc = accounts().find((a) => a.id === b.account);
+          return acc ? statusline.uninstall(acc) : { ok: false, error: 'unknownAccount' };
+        },
         'GET /api/agents/sessions': async () => (await compute()).sessions,
         'GET /api/agents/projects': () => store.list(),
         // Read-only transcript of a session (external sessions open it instead of a terminal or chat).
@@ -311,7 +338,10 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
         open(ws) {
           clients.add(ws);
           start();
-          void compute().then(({ sessions }) => ws.send(JSON.stringify({ type: 'sessions', sessions } satisfies AgentsFrame)));
+          void compute().then(({ sessions, usage }) => {
+            ws.send(JSON.stringify({ type: 'sessions', sessions } satisfies AgentsFrame));
+            ws.send(JSON.stringify({ type: 'usage', accounts: usage } satisfies AgentsFrame));
+          });
         },
         message() {},
         close(ws) {
