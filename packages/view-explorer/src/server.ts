@@ -11,7 +11,6 @@ export interface ExplorerServerSettings {
   explorer?: ExplorerSettings;
 }
 
-const MARKDOWN_MODES: unknown[] = ['live', 'edit', 'split', 'preview'];
 const MAX_TABS_LAYOUT_BYTES = 64 * 1024;
 const MAX_EXPANDED_IDS = 2000;
 const MAX_ID_LENGTH = 64;
@@ -39,7 +38,7 @@ function validConnections(raw: unknown): Record<string, string> | null {
 export function validExplorer(raw: unknown): ExplorerSettings | null {
   const r = raw as Partial<ExplorerSettings> | null;
   if (typeof r !== 'object' || r === null) return null;
-  const { sizes, collapsed, expanded, tabs, trees, treeSizes, markdownMode, wrapLines, sqlSizes, connections } = r;
+  const { sizes, collapsed, expanded, tabs, trees, treeSizes, wrapLines, sqlSizes, connections } = r;
   if (!Array.isArray(sizes) || sizes.length !== 2 || !sizes.every((n) => typeof n === 'number' && n >= 0 && n <= 1)) return null;
   if (Math.abs(sizes[0] + sizes[1] - 1) > 0.01) return null;
   if (typeof collapsed !== 'boolean' || typeof expanded !== 'object' || expanded === null || Array.isArray(expanded)) return null;
@@ -52,7 +51,6 @@ export function validExplorer(raw: unknown): ExplorerSettings | null {
   if (trees !== undefined && (!isStringArray(trees) || trees.length < 1 || trees.length > 2 || trees.some((id) => id.length > MAX_ID_LENGTH))) return null;
   const pair = treeSizes === undefined ? undefined : validPair(treeSizes);
   if (treeSizes !== undefined && !pair) return null;
-  if (markdownMode !== undefined && !MARKDOWN_MODES.includes(markdownMode)) return null;
   if (wrapLines !== undefined && typeof wrapLines !== 'boolean') return null;
   const sqlPair = sqlSizes === undefined ? undefined : validPair(sqlSizes);
   if (sqlSizes !== undefined && !sqlPair) return null;
@@ -64,7 +62,6 @@ export function validExplorer(raw: unknown): ExplorerSettings | null {
     expanded: out,
     ...(trees !== undefined && { trees }),
     ...(pair && { treeSizes: pair }),
-    ...(markdownMode !== undefined && { markdownMode }),
     ...(wrapLines !== undefined && { wrapLines }),
     ...(sqlPair && { sqlSizes: sqlPair }),
     ...(conns && { connections: conns }),

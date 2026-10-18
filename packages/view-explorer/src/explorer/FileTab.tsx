@@ -1,20 +1,24 @@
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  applyEol, parseXmlQueries, applyCombinedXml, combineXmlStatements, mergeXmlStatements, CodeEditor, detectEol, type Eol, FilePreview, HEX_LIMIT, type ImageInfo, langLabel, langOfFile, MARKDOWN_LAYOUTS, MARKDOWN_MODES, MarkdownEditor,
-  type MarkdownMode, normalizeEol, prepareForSave, previewKind, type PreviewContent, type SelectionInfo, useMarkdownLayout,
+  applyEol, parseXmlQueries, applyCombinedXml, combineXmlStatements, mergeXmlStatements, CodeEditor, detectEol, type Eol, FilePreview, HEX_LIMIT, type ImageInfo, langLabel, langOfFile, MarkdownEditor,
+  type MarkdownEditorHandle, type MarkdownMode, normalizeEol, prepareForSave, previewKind, type PreviewContent, RICH_COMMAND_IDS, type RichCommandId, type RichHost, type SelectionInfo,
+  exportHtml,
   SqlSteps, type SqlStepsTab, useEditorOptions,
 } from '@deckbuilderkit/editor';
 import {
-  type ApiError, type BreadcrumbEntry, Breadcrumbs, errorOf, ErrorBanner, FILE_DEFAULTS, type FileSettings, formatBytes, Icon, type IconName, PanelBanner, PanelLoading,
+  type ApiError, type BreadcrumbEntry, Breadcrumbs, dialogs, errorOf, ErrorBanner, FILE_DEFAULTS, type FileSettings, formatBytes, Icon, PanelBanner, PanelLoading,
   relPath, requestBlob, StatusBar, type StatusItem, type TabAction, useCommand, useDialogs, useViewLink,
 } from '@deckbuilderkit/ui';
 import { explorerApi as api, type LogSettings, type TextEncoding } from '../client';
 import { explorerCommandById as commandById } from '../commands';
+import { fullPath } from '../explorer-paths';
+import { inspectMarkdownConfig, useMarkdownSettings } from '../markdown-settings';
 import { t } from '../i18n';
 import { LogTab } from './LogTab';
 import { useExplorerCurl } from './CurlPanel';
 import { type ExplorerSqlProps, useExplorerSql } from './SqlPanel';
 import { useChordOf, useTabActions } from './tab-actions';
+import { relativeInside } from './untitled';
 import { useLocalImages } from './useLocalImages';
 
 type State =
@@ -25,6 +29,8 @@ type State =
 export interface FileTabProps {
   project: string;
   projectName: string;
+  /** Absolute folder of the project: where the markdown file dialogs start and what picked paths are relative to. */
+  projectPath?: string;
   path: string;
   /** The tab is selected and its pane has the focus. */
   focused: boolean;
@@ -33,9 +39,6 @@ export interface FileTabProps {
   /** Log viewer state (highlights, bookmarks) and its change handler; only log files use them. */
   logs?: LogSettings;
   onLogsChange?: (logs: LogSettings) => void;
-  /** Mode of the markdown editor and its change handler. */
-  markdownMode?: MarkdownMode;
-  onMarkdownModeChange?: (mode: MarkdownMode) => void;
   /** Wrap long lines in the editors (default on) and its change handler. */
   wrapLines?: boolean;
   onWrapLinesChange?: (wrap: boolean) => void;
@@ -51,8 +54,6 @@ export interface FileTabProps {
   /** Running SQL from `.sql` files of allowed projects (see `useExplorerSql`). */
   sql?: ExplorerSqlProps;
 }
-
-const MODE_ICONS: Record<MarkdownMode, IconName> = { live: 'wysiwyg', edit: 'code', split: 'split', preview: 'preview' };
 
 /** Line breaks of new files and of files without any: the OS's, like VS Code's `files.eol: auto`. */
 export const OS_EOL: Eol = typeof navigator !== 'undefined' && /^Win/.test(navigator.platform) ? '\r\n' : '\n';
@@ -85,7 +86,7 @@ export function FileTab(props: FileTabProps) {
 }
 
 /** A preview by extension, and for text files an editor with Save (Ctrl+S). */
-function TextFileTab({ project, projectName, path, focused, preview, markdownMode = 'live', onMarkdownModeChange, wrapLines: wrapLinesProp, onWrapLinesChange, files = FILE_DEFAULTS, onDirty, onSaver, onOpenPath, onActions, sql }: FileTabProps) {
+function TextFileTab({ project, projectName, projectPath, path, focused, preview, wrapLines: wrapLinesProp, onWrapLinesChange, files = FILE_DEFAULTS, onDirty, onSaver, onOpenPath, onActions, sql }: FileTabProps) {
   const wrapLines = wrapLinesProp ?? useEditorOptions()?.wordWrap ?? true;
   const name = relPath.basename(path);
   const markdown = previewKind(name) === 'markdown';
@@ -268,17 +269,46 @@ function TextFileTab({ project, projectName, path, focused, preview, markdownMod
   useCommand(commandById('explorer.file.save'), () => void save(), { enabled: focused && active });
   const toggleWrap = () => onWrapLinesChange?.(!wrapLines);
   useCommand(commandById('explorer.file.wrap'), toggleWrap, { enabled: focused && active && Boolean(onWrapLinesChange) });
-  const [mdLayout, setMdLayout] = useMarkdownLayout();
-  /** The mode Ctrl+Shift+V returns to from Preview. */
-  const beforePreview = useRef<MarkdownMode>('live');
-  const setMode = (m: MarkdownMode) => {
-    if (m === markdownMode) return;
-    if (m === 'preview') beforePreview.current = markdownMode;
-    onMarkdownModeChange?.(m);
+  const mdSettings = useMarkdownSettings(files.markdownToc);
+  /** Rich or Source, per tab; a new tab starts in the default mode. */
+  const [mdMode, setMdMode] = useState<MarkdownMode>(mdSettings.defaultMode);
+  const mdEditorRef = useRef<MarkdownEditorHandle>(null);
+  const onOpenPathRef = useRef(onOpenPath);
+  onOpenPathRef.current = onOpenPath;
+  const mdHost = useMemo<RichHost>(() => ({
+    filePath: path,
+    onOpenPath: (p) => onOpenPathRef.current?.(p),
+    pickFile: async () => {
+      const abs = await dialogs.pickFile({ title: t('explorer.md.pickFileTitle') });
+      return abs && projectPath ? (relativeInside(projectPath, abs) ?? null) : null;
+    },
+    saveAs: async (defaultName, content) => {
+      const start = projectPath ? fullPath(projectPath, relPath.dirname(path)) : undefined;
+      return (await api.fsSaveNew({ text: content, suggestedName: defaultName, ...(start && { start }) })).path !== null;
+    },
+    resolveImage,
+    settings: mdSettings,
+  }), [path, projectPath, resolveImage, mdSettings]);
+  const toggleSource = () => {
+    setSelection(undefined);
+    setMdMode((m) => (m === 'rich' ? 'source' : 'rich'));
   };
-  const modeRun = (m: MarkdownMode) => () => (m === 'preview' && markdownMode === 'preview' ? setMode(beforePreview.current) : setMode(m));
+  const exportMarkdown = async () => {
+    try {
+      const html = await exportHtml(draft, { title: name, resolveImage });
+      await mdHost.saveAs(name.replace(/\.[^./]*$/, '') + '.html', html);
+    } catch (err) {
+      setSaveError(errorOf(err));
+    }
+  };
+  const runMarkdown = (id: RichCommandId) => {
+    if (id === 'toggleSource') toggleSource();
+    else if (id === 'exportHtml') void exportMarkdown();
+    else if (id === 'inspectConfig') inspectMarkdownConfig();
+    else mdEditorRef.current?.run(id);
+  };
   // Fixed order, so the hooks run the same way every render.
-  for (const m of MARKDOWN_MODES) useCommand(commandById(`explorer.markdown.${m}`), modeRun(m), { enabled: focused && mdEditor });
+  for (const id of RICH_COMMAND_IDS) useCommand(commandById(`explorer.markdown.${id}`), () => runMarkdown(id), { enabled: focused && mdEditor });
   const [crumbSignal, setCrumbSignal] = useState(0);
   useCommand(commandById('explorer.breadcrumbs'), () => setCrumbSignal((n) => n + 1), { enabled: focused && files.breadcrumbs });
   const listDir = useCallback(
@@ -386,14 +416,7 @@ function TextFileTab({ project, projectName, path, focused, preview, markdownMod
     actions.push({ id: 'preview', group: 'primary', icon: 'preview', label: t('explorer.preview'), checked: previewing, run: () => void toggleEdit() });
   }
   if (mdEditor) {
-    for (const m of MARKDOWN_MODES) {
-      actions.push({ id: `mode.${m}`, group: 'primary', icon: MODE_ICONS[m], label: t(`preview.mode.${m}`), hint: chordOf(`explorer.markdown.${m}`), checked: markdownMode === m, radio: true, run: () => setMode(m) });
-    }
-    if (markdownMode !== 'edit') {
-      for (const l of MARKDOWN_LAYOUTS) {
-        actions.push({ id: `layout.${l}`, group: 'menu', section: 'layout', label: `${t('explorer.layout')}: ${t(`preview.layout.${l}`)}`, checked: mdLayout === l, radio: true, run: () => setMdLayout(l) });
-      }
-    }
+    actions.push({ id: 'md.source', group: 'primary', icon: 'code', label: t('explorer.md.useSource'), hint: chordOf('explorer.markdown.toggleSource'), checked: mdMode === 'source', run: toggleSource });
   }
   if (active && onWrapLinesChange) {
     actions.push({ id: 'wrap', group: 'menu', section: 'view', label: t('explorer.wrap'), hint: chordOf('explorer.file.wrap'), checked: wrapLines, run: toggleWrap });
@@ -453,7 +476,7 @@ function TextFileTab({ project, projectName, path, focused, preview, markdownMod
         {state.status === 'loading' && <PanelLoading />}
         {state.status === 'error' && <ErrorBanner error={state.error} onRetry={() => void load()} />}
         {content && (mdEditor
-          ? <MarkdownEditor value={draft} onChange={setDraft} mode={markdownMode} layout={mdLayout} wrap={wrapLines} autoFocus={!preview} onSelection={setSelection} toc={files.markdownToc} resolveImage={resolveImage} />
+          ? <MarkdownEditor ref={mdEditorRef} value={draft} onChange={setDraft} mode={mdMode} host={mdHost} wrap={wrapLines} autoFocus={!preview} onSelection={setSelection} />
           : active
           ? curlUi.enabled
             ? curlUi.layout(<CodeEditor ref={curlUi.editor} value={draft} lang={langOfFile(name)} onChange={setDraft} height="100%" wrap={wrapLines} autoFocus={!preview} onSelection={setSelection} {...curlUi.editorProps} />)

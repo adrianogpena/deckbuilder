@@ -1,0 +1,11 @@
+/* Rich markdown pane (RichMarkdown.tsx). Text styles come from `.markdown` in @deckbuilderkit/ui styles.css. */
+.md-rich { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; position: relative; }
+.md-rich-scroll { flex: 1; min-height: 0; overflow: auto; padding: var(--space-16) 28px; }
+.md-rich-doc { max-width: var(--md-reading-width, 860px); margin: 0 auto; }
+.md-rich-front { margin-bottom: var(--space-12); user-select: text; }
+.md-rich-front pre { white-space: pre-wrap; }
+.md-rich-root .ProseMirror { outline: none; min-height: 100%; caret-color: var(--accent); }
+.md-rich-root .ProseMirror > :first-child { margin-top: 0; }
+.md-rich-root .ProseMirror li > p { margin: 0; }
+.md-rich-root .ProseMirror img { max-width: 100%; }
+.md-rich-root .ProseMirror .ProseMirror-selectednode { outline: 2px solid var(--accent); }

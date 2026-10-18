@@ -1,90 +1,55 @@
-import { SplitView } from '@deckbuilderkit/ui';
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { PanelLoading } from '@deckbuilderkit/ui';
+import { forwardRef, lazy, Suspense, useImperativeHandle, useMemo, useRef } from 'react';
 import { CodeEditor, type SelectionInfo } from './CodeEditor';
-import { markdownLive } from './markdownLive';
-import { MarkdownView } from './MarkdownView';
+import type { MarkdownMode, RichCommandId, RichHost } from './rich/commands';
+import type { RichMarkdownHandle } from './rich/RichMarkdown';
 
-export type MarkdownMode = 'live' | 'edit' | 'split' | 'preview';
+/** Milkdown loads with the first rich pane, in its own chunk. */
+const RichMarkdown = lazy(() => import('./rich/RichMarkdown').then((m) => ({ default: m.RichMarkdown })));
 
-export const MARKDOWN_MODES: readonly MarkdownMode[] = ['live', 'edit', 'split', 'preview'];
-
-/** Where the text column sits in the Live and Preview views; `full` fits it to the width. */
-export type MarkdownLayout = 'left' | 'center' | 'full';
-
-export const MARKDOWN_LAYOUTS: readonly MarkdownLayout[] = ['left', 'center', 'full'];
-
-const LAYOUT_KEY = 'deckbuilder.markdownLayout';
-
-function readLayout(): MarkdownLayout {
-  try {
-    const v = localStorage.getItem(LAYOUT_KEY);
-    return MARKDOWN_LAYOUTS.find((l) => l === v) ?? 'center';
-  } catch {
-    return 'center';
-  }
-}
-
-const layoutListeners = new Set<(l: MarkdownLayout) => void>();
-
-/** The markdown text column layout, kept in localStorage and shared by every editor of the page. */
-export function useMarkdownLayout(): [MarkdownLayout, (l: MarkdownLayout) => void] {
-  const [layout, setState] = useState<MarkdownLayout>(readLayout);
-  useEffect(() => {
-    layoutListeners.add(setState);
-    return () => void layoutListeners.delete(setState);
-  }, []);
-  const set = (l: MarkdownLayout) => {
-    try { localStorage.setItem(LAYOUT_KEY, l); } catch { /* storage unavailable */ }
-    for (const fn of layoutListeners) fn(l);
-  };
-  return [layout, set];
+export interface MarkdownEditorHandle {
+  /** Runs a markdown command in the rich pane; false in Source mode or when no feature handled it. */
+  run(id: RichCommandId): boolean;
 }
 
 export interface MarkdownEditorProps {
   value: string;
+  /** Fires only after a user edit; an untouched file keeps its text byte for byte. */
   onChange(value: string): void;
-  /** The view; the host shows the switch (and the layout choice) itself. */
+  /** The view; the host shows the Source toggle itself. */
   mode: MarkdownMode;
-  layout?: MarkdownLayout;
-  resolveImage?(src: string): string | null;
+  host: RichHost;
   autoFocus?: boolean;
-  /** Wrap long lines in the editor; default on. */
+  /** Wrap long lines in Source mode; default on. */
   wrap?: boolean;
+  /** Cursor and selection of Source mode. */
   onSelection?(info: SelectionInfo): void;
-  /** Show the heading rail in the Preview view; default on. */
+  /** Show the heading rail; overrides `host.settings.toc`. */
   toc?: boolean;
+  /** Overrides `host.resolveImage`. */
+  resolveImage?(src: string): string | null;
 }
 
-/** A markdown editor in one of four views: Live (rendered while editing), Source, Split (source and preview) or Preview. */
-export function MarkdownEditor({ value, onChange, mode, layout = 'center', resolveImage, autoFocus, wrap = true, onSelection, toc = true }: MarkdownEditorProps) {
-  const deferred = useDeferredValue(value);
-  const preview = useRef<HTMLDivElement>(null);
-  const liveExt = useMemo(() => markdownLive(resolveImage), [resolveImage]);
-  const [sizes, setSizes] = useState([0.5, 0.5]);
-
-  // Proportional: the preview sits at the same fraction of its range as the editor.
-  const syncScroll = (fraction: number) => {
-    const el = preview.current;
-    if (el) el.scrollTop = fraction * (el.scrollHeight - el.clientHeight);
-  };
-
-  const editor = (
-    <CodeEditor key="editor" value={value} lang="markdown" onChange={onChange} height="100%" autoFocus={autoFocus} wrap={wrap}
-      onScroll={mode === 'split' ? syncScroll : undefined} extensions={mode === 'live' ? liveExt : undefined} onSelection={onSelection} />
-  );
-  const rendered = (
-    <div key="preview" ref={preview} className="md-editor-preview">
-      <MarkdownView markdown={deferred} resolveImage={resolveImage} toc={toc && mode === 'preview'} />
-    </div>
-  );
+/** A markdown editor: the rich (Milkdown) pane, or the raw text in CodeMirror. */
+export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(function MarkdownEditor(
+  { value, onChange, mode, host, autoFocus, wrap = true, onSelection, toc, resolveImage },
+  ref,
+) {
+  const rich = useRef<RichMarkdownHandle>(null);
+  useImperativeHandle(ref, () => ({ run: (id) => (mode === 'rich' && rich.current ? rich.current.run(id) : false) }), [mode]);
+  const effective = useMemo<RichHost>(() => ({
+    ...host,
+    resolveImage: resolveImage ?? host.resolveImage,
+    settings: toc === undefined ? host.settings : { ...host.settings, toc },
+  }), [host, resolveImage, toc]);
 
   return (
-    <div className="md-editor" data-layout={layout} data-mode={mode}>
+    <div className="md-editor" data-mode={mode}>
       <div className="md-editor-body">
-        {mode === 'edit' || mode === 'live' ? editor
-          : mode === 'preview' ? rendered
-            : <SplitView direction="row" sizes={sizes} defaultSizes={[0.5, 0.5]} min={[200, 200]} onResize={setSizes}>{editor}{rendered}</SplitView>}
+        {mode === 'source'
+          ? <CodeEditor value={value} lang="markdown" onChange={onChange} height="100%" autoFocus={autoFocus} wrap={wrap} onSelection={onSelection} />
+          : <Suspense fallback={<PanelLoading />}><RichMarkdown ref={rich} value={value} onChange={onChange} host={effective} autoFocus={autoFocus} /></Suspense>}
       </div>
     </div>
   );
-}
+});
