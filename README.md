@@ -93,7 +93,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the other scripts.
 ## Views
 
 - **Home**: your projects and shortcuts.
-- **Explorer**: file browser with archives, git badges and file compare.
+- **Explorer**: file browser with archives, git badges and file compare. Markdown opens in a rich editor with a toolbar, tables, highlighted code blocks, Mermaid diagrams, heading outline, followable links, zoom and reading width, and Export HTML; Source mode shows the raw text. Settings has a Markdown section. Keys include Ctrl+I, Ctrl+Shift+V (Source), Ctrl+Shift+O (go to heading), Ctrl+Alt+T (table); Ctrl+B stays the sidebar toggle outside the text.
 - **Terminal**: terminal with search and clipboard support.
 - **REST**: HTTP client with environments, history, and curl and `.http` import.
 - **Workbench**: Oracle client with history, explain plan and table details.

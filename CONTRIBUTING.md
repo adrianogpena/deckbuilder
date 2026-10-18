@@ -65,7 +65,7 @@ packages/
                  win/: toasts, tray, autostart (HKCU Run key), URL protocol, PowerShell helpers; theme.ts: osThemeKind
   ui/            React components (Sidebar, Badge, ErrorBanner, Modal, Icon, ...), hooks,
                  API client, i18n engine with the base messages, hash routing, styles.css
-  editor/        CodeMirror 6 editor and content viewers (CodeEditor, CodeView, MarkdownView, FilePreview)
+  editor/        CodeMirror 6 editor, Milkdown rich Markdown editor and content viewers (CodeEditor, CodeView, MarkdownView, FilePreview)
   db/            Opt-in Oracle access (oracledb thin mode): URL parser, sessions with explicit
                  transactions, /api/db/* routes
   terminal/      Opt-in integrated terminal: `TerminalPane` (xterm.js client view), protocol, and server
@@ -219,14 +219,7 @@ source directly; there is no package build step.
   (picks a viewer by file name: markdown, JSON tree, log, highlighted code, CSV/TSV table,
   Jupyter notebook, HAR, `.env`, image, SVG, audio/video, PDF, archive, SQLite, font, else hex
   for binaries; PDF, SVG and font viewers load lazily). The gallery's `FileTab.tsx` shows how
-  each kind gets its content from `/api/fs/*`. `MarkdownEditor` (`value`, `onChange`, `mode`: `'live' | 'edit' | 'split' |
-  'preview'`, `layout?`: `'left' | 'center' | 'full'`, `resolveImage?`) edits markdown in place (`live`: formatted inline, raw syntax
-  only on the cursor's lines) or as source (`edit`), source + preview (`split`) or preview only;
-  the host shows the mode switch (the gallery puts it in the tab bar) and keeps the layout with
-  `useMarkdownLayout()`; in `split` the preview follows the editor's scroll proportionally and
-  renders a deferred copy of the text, so typing stays smooth; `wrap` (default on) wraps long lines,
-  like `CodeEditor`'s `wrap` (default off). Keep the mode in a setting. It brings the CodeMirror language parsers (~700 kB): load the
-  screen with `React.lazy` and set `chunkSizeWarningLimit: 900` in `vite.config.ts`, as the gallery does.
+  each kind gets its content from `/api/fs/*`. `MarkdownEditor` (`value`, `onChange`, `mode`: `'rich' | 'source'`, `host`, `wrap?`, `toc?`, `resolveImage?`) edits markdown in place. `rich` is a Milkdown pane (toolbar, tables, code blocks with highlighting, Mermaid, heading outline, zoom and reading width); `source` is the raw text in CodeMirror. The host shows the mode switch (the gallery has a Source toggle in the tab bar) and passes `host` (`RichHost`: `filePath`, `onOpenPath`, `pickFile`, `saveAs`, `resolveImage?`, `settings`). `onChange` fires only after a user edit, so an untouched file keeps its bytes. The rich pane lives in `packages/editor/src/rich/`: `RichMarkdown.tsx` (editor and round trip), `format.ts` and `Toolbar.tsx` (formatting, toolbar), `tables.ts`, `codeBlock.ts`, `mermaid.ts`, `nav.ts` and `navLinks.ts` (heading picker, outline, links), `view.ts` (zoom, reading width), and `features.ts` (the list). To add a feature, write a `RichFeature` (`plugins?`, `handlers?` per command id, `Overlay?`) as defined in `rich/commands.ts`, add the command id to `RICH_COMMAND_IDS`, and append the feature to `FEATURES` in `features.ts`; give the command a key in `MARKDOWN_KEYS` (`view-explorer/src/commands.ts`) and labels. Files that tests import must not import `@deckbuilderkit/ui` at runtime. Import Milkdown from its separate packages, not `@milkdown/kit`. The rich pane loads lazily (`React.lazy`, its own chunk) and Mermaid loads by dynamic `import()`; set `chunkSizeWarningLimit: 900` in `vite.config.ts`, as the gallery does.
 - **File associations**: `setFileAssociations(list)` (from `@deckbuilderkit/ui`) makes files whose
   name matches a glob (`*`, `?`, case-insensitive) open and get icons as another extension, e.g.
   `{ pattern: '*.out', as: 'log' }`; `effectiveName(name)` applies it. Keep the list in a setting
