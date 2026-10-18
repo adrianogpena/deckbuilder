@@ -25,10 +25,12 @@ export interface StoppedCardProps {
   session: AgentSessionView;
   /** A screen error detected for the session; replaces the status text. */
   screenError?: string;
-  onStart(): void;
-  onBackground(): void;
-  onRestart(): void;
-  onClear(): void;
+  onStart?(): void;
+  onBackground?(): void;
+  onRestart?(): void;
+  onClear?(): void;
+  /** Info only (chat view): no action line, no keys, no focus. */
+  readOnly?: boolean;
   /** Digest of the loaded history; absent while it loads. */
   summary?: SessionSummary;
   /** Git branch of the session cwd, when known. */
@@ -75,12 +77,12 @@ function Files({ files, cwd }: { files: string[]; cwd: string }) {
 }
 
 /** Card of a session that is not attached: name, status line, action line (Enter / s / x), then the history digest (goal, where it stopped, chips, files changed). */
-export function StoppedCard({ session: s, screenError, onStart, onBackground, onRestart, onClear, summary, branch }: StoppedCardProps) {
+export function StoppedCard({ session: s, screenError, onStart, onBackground, onRestart, onClear, summary, branch, readOnly }: StoppedCardProps) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    ref.current?.focus();
-  }, [s.id]);
+    if (!readOnly) ref.current?.focus();
+  }, [s.id, readOnly]);
 
   const exited = s.lifecycle === 'exited' || s.status === 'exited';
   const live = s.live === true && (s.status === 'running' || s.status === 'needs-you');
@@ -89,22 +91,24 @@ export function StoppedCard({ session: s, screenError, onStart, onBackground, on
   const meta = [status + (s.external ? t('agents.card.elsewhere') : ''), s.account, time, shortCwd(s.cwd)];
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    if (e.ctrlKey || e.altKey || e.metaKey || e.target !== e.currentTarget) return;
+    if (readOnly || e.ctrlKey || e.altKey || e.metaKey || e.target !== e.currentTarget) return;
     const k = e.key.toLowerCase();
-    if (e.key === 'Enter') exited ? onRestart() : onStart();
-    else if (k === 's' && !exited) onBackground();
-    else if (k === 'x' && exited) onClear();
+    if (e.key === 'Enter') exited ? onRestart?.() : onStart?.();
+    else if (k === 's' && !exited) onBackground?.();
+    else if (k === 'x' && exited) onClear?.();
     else return;
     e.preventDefault();
   };
 
   return (
-    <div ref={ref} className="agents-card" tabIndex={0} onKeyDown={onKeyDown}>
+    <div ref={ref} className="agents-card" tabIndex={readOnly ? -1 : 0} onKeyDown={onKeyDown}>
       <div className="agents-card-name">{displayName(s)}</div>
       <div className={`agents-card-meta${screenError ? ' is-error' : ''}`}>{meta.join(' · ')}</div>
-      <div className={`agents-card-action${exited ? ' is-exited' : ''}`}>
-        {exited ? t('agents.card.exited', { code: s.exitCode == null ? '?' : String(s.exitCode) }) : t('agents.card.stopped')}
-      </div>
+      {!readOnly && (
+        <div className={`agents-card-action${exited ? ' is-exited' : ''}`}>
+          {exited ? t('agents.card.exited', { code: s.exitCode == null ? '?' : String(s.exitCode) }) : t('agents.card.stopped')}
+        </div>
+      )}
       <div className="agents-card-id">{s.id || t('agents.card.newSession')}</div>
       {summary === undefined ? (
         <div className="agents-card-reply">{t('agents.card.loading')}</div>

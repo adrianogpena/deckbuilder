@@ -638,6 +638,8 @@ export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false, usageS
             <div key={c.key} className="agents-pane" hidden={entryId(c) !== selectedId || newFor !== undefined}>
               <ChatPane
                 {...c.target}
+                session={sessions.find((x) => x.id === entryId(c))}
+                branch={git[sessions.find((x) => x.id === entryId(c))?.cwd ?? '']?.branch}
                 insertRef={(fn) => {
                   if (fn) inserters.current.set(entryId(c), fn);
                   else inserters.current.delete(entryId(c));
