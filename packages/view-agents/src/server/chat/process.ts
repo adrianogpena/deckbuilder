@@ -13,7 +13,7 @@ export interface SpawnedProcess {
 export type SpawnFn = (cmd: string[], opts: { cwd: string; env: Record<string, string> }) => SpawnedProcess;
 
 export const bunSpawn: SpawnFn = (cmd, { cwd, env }) =>
-  Bun.spawn(cmd, { cwd, env, stdin: 'pipe', stdout: 'pipe', stderr: 'ignore' }) as unknown as SpawnedProcess;
+  Bun.spawn(cmd, { cwd, env, stdin: 'pipe', stdout: 'pipe', stderr: 'ignore', windowsHide: true }) as unknown as SpawnedProcess;
 
 /** `claude.cmd` on Windows (Bun does not resolve the npm shim by its bare name), else `claude`. */
 export const defaultClaudeCommand = () => (process.platform === 'win32' ? 'claude.cmd' : 'claude');

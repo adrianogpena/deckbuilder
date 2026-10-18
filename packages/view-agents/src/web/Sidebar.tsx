@@ -974,11 +974,11 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
     const extra = (
       <span>
         <button type="button" className="agents-remove" title={t('agents.remove')} aria-label={t('agents.remove')} onClick={() => void confirmRemove(p)}>x</button>
-        <button type="button" className="agents-new" title={t('agents.new.title')} aria-label={t('agents.new.title')} onClick={() => onNewSession(p.id)}>+</button>
+        <button type="button" className="agents-new" title={t('agents.new.title')} aria-label={t('agents.new.title')} onClick={() => onQuickNew(p.id)}>+</button>
       </span>
     );
     const items: Array<ContextMenuItem | 'sep'> = [
-      { id: 'new', label: t('agents.new.title'), run: () => onNewSession(p.id) },
+      { id: 'new', label: t('agents.new.title'), run: () => onQuickNew(p.id) },
       ...moveItems(r),
       { id: 'moveToFolder', label: t('agents.folder.move'), run: () => openMove(r) },
       { id: 'newFolder', label: t('agents.folder.new'), run: () => void newFolder() },

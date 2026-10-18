@@ -21,14 +21,12 @@ export interface NewSessionProps {
   mode?: 'terminal' | 'chat';
   onChat?(r: { account: string; projectId: string; cwd: string }): void;
   onCancel?(): void;
-  /** Starts as soon as the active account is known, without waiting for the button. */
-  autoStart?: boolean;
 }
 
-/** Picks project and account, then starts a new `claude` session in a terminal. */
-export function NewSession({ projects, projectId, lastAccount, mode, onChat, onStarted, onCancel, autoStart }: NewSessionProps) {
+/** Starts a new `claude` session in the project as soon as the active account is known; shows only errors and the cap prompt. */
+export function NewSession({ projects, projectId, lastAccount, mode, onChat, onStarted, onCancel }: NewSessionProps) {
   const [accounts, setAccounts] = useState<AgentAccount[]>([]);
-  const [project, setProject] = useState(projectId ?? projects[0]?.id ?? '');
+  const [project] = useState(projectId ?? projects[0]?.id ?? '');
   const [account, setAccount] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -66,29 +64,13 @@ export function NewSession({ projects, projectId, lastAccount, mode, onChat, onS
 
   const auto = useRef(false);
   useEffect(() => {
-    if (!autoStart || auto.current || !dir || !account) return;
+    if (auto.current || !dir || !account) return;
     auto.current = true;
     void start();
   });
 
   return (
     <div className="agents-new-session">
-      <label>
-        {t('agents.new.project')}
-        <select value={project} onChange={(e) => setProject(e.target.value)}>
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>{p.name}</option>
-          ))}
-        </select>
-      </label>
-      <label>
-        {t('agents.new.account')}
-        <select value={account} onChange={(e) => setAccount(e.target.value)}>
-          {accounts.map((a) => (
-            <option key={a.id} value={a.id}>{a.email ? `${a.label} (${a.email})` : a.label}</option>
-          ))}
-        </select>
-      </label>
       {error && <div role="alert">{error}</div>}
       {ask && (
         <div role="alert" className="agents-cap-warn">
@@ -99,7 +81,7 @@ export function NewSession({ projects, projectId, lastAccount, mode, onChat, onS
       )}
       <div className="agents-new-session-actions">
         {onCancel && <button type="button" onClick={onCancel}>{t('agents.new.cancel')}</button>}
-        <button type="button" disabled={busy || !!ask || !dir || !account} onClick={() => void start()}>{t('agents.new.start')}</button>
+        {error && <button type="button" disabled={busy || !!ask || !dir || !account} onClick={() => void start()}>{t('agents.new.start')}</button>}
       </div>
     </div>
   );

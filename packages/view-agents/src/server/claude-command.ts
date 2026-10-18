@@ -17,7 +17,7 @@ export const systemDeps: CommandDeps = {
   platform: process.platform,
   where(name) {
     try {
-      const r = Bun.spawnSync(['where.exe', name], { stdout: 'pipe', stderr: 'ignore' });
+      const r = Bun.spawnSync(['where.exe', name], { stdout: 'pipe', stderr: 'ignore', windowsHide: true });
       return r.exitCode === 0 ? r.stdout.toString().split(/\r?\n/).map((l) => l.trim()).filter(Boolean) : [];
     } catch {
       return [];
