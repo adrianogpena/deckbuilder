@@ -515,7 +515,7 @@ export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false, usageS
   useCommand(agentsCommands()[49]!, () => void runCommand('app.keybindings'));
   useCommand(agentsCommands()[50]!, () => void runCommand('app.settings'));
 
-  const appKeys = useMemo(() => terminalAppKeys('agents', keys?.defs ?? [], ['agents.toggleSidebar', 'agents.togglePanel']), [keys?.defs]);
+  const appKeys = useMemo(() => terminalAppKeys('agents', keys?.defs ?? [], ['agents.toggleSidebar', 'agents.togglePanel', 'agents.focusList']), [keys?.defs]);
 
   return (
     <div className={`view-agents agents-screen${hidden ? ' sidebar-hidden' : ''}`}>

@@ -1,4 +1,5 @@
 .view-agents { display: flex; flex: 1; min-width: 0; min-height: 0; }
+.agents-sidebar:focus { outline: none; }
 .agents-sidebar { display: flex; flex-direction: column; gap: var(--space-8); width: 260px; overflow-y: auto; padding: var(--space-8) var(--space-4); background: var(--bg-sunken); border-right: 1px solid var(--border-soft); }
 /* Session list, sdeck look on the Explorer .tree-row pattern: flat rows, no boxes; colour only on glyphs.
    --agents-depth (g6) indents two characters per level; .agents-lead is the checkbox slot (g7). */
@@ -115,8 +116,8 @@
 .agents-error { padding: 6px 12px; color: var(--err); }
 .agents-notice { padding: 6px 12px; color: var(--muted, inherit); }
 .agents-new-session { padding: 16px; }
-.agents-sidebar-head { display: flex; padding: 0 4px 8px; }
-.agents-sidebar-head button { flex: 1; }
+.agents-sidebar-head { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 4px 8px; }
+.agents-sidebar-head button { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .agents-remove { background: none; border: 0; color: var(--text-3); cursor: pointer; visibility: hidden; }
 .agents-project header:hover .agents-remove, .agents-remove:focus-visible { visibility: visible; }
 .agents-remove:hover { color: var(--err); }

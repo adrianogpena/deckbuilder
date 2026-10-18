@@ -150,6 +150,17 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
     return <UsageView {...data} items={usageSettings.items} compact={usageSettings.compact} use24h={usageSettings.use24h} onOpen={onOpenUsage} className={`pin-${usageSettings.position}`} />;
   })();
   useRovingList(ref, '.agents-session, .agents-node');
+  const focusedList = useRef(false);
+  // Letter keys and arrows only work with focus inside the list: put it on the current row once the tree has rows.
+  useEffect(() => {
+    if (focusedList.current) return;
+    const root = ref.current;
+    if (!root) return;
+    const item = root.querySelector<HTMLElement>('.agents-tree [tabindex="0"]');
+    if (!item && (sessions.length > 0 || projects.length > 0)) return;
+    focusedList.current = true;
+    if (!root.contains(document.activeElement)) (item ?? root).focus({ preventScroll: true });
+  });
   const toast = useToast();
   const { tree, patch } = useAgentTree();
   const [drag, setDrag] = useState<DragNode>();
@@ -733,6 +744,12 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
   useCommand(agentsCommands()[45]!, () => moveFocus(1));
   useCommand(agentsCommands()[46]!, () => arrow('left'));
   useCommand(agentsCommands()[47]!, () => arrow('right'));
+  useCommand(agentsCommands()[51]!, () => {
+    const root = ref.current;
+    if (!root) return;
+    const item = root.querySelector<HTMLElement>(`${ITEMS}[aria-current], ${ITEMS}[tabindex="0"]`) ?? root.querySelector<HTMLElement>(ITEMS);
+    (item ?? root).focus();
+  });
   useCommand(agentsCommands()[48]!, () => setTimeout(() => ref.current?.querySelector<HTMLInputElement>('.agents-search input')?.focus(), 0));
 
   const pill = (key: string, active: boolean, label: ReactNode, aria: string, onClick: () => void, status?: AgentStatus) => (
@@ -978,6 +995,7 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
       className={`agents-sidebar${checking ? ' checking' : ''}`}
       aria-label={t('agents.sidebar')}
       ref={ref}
+      tabIndex={-1}
       {...{ [KEY_SCOPE_ATTR]: AGENTS_LIST_SCOPE }}
       onKeyDown={(e) => {
         if (!e.defaultPrevented && !e.ctrlKey && !e.altKey && !e.metaKey && e.target instanceof Element && e.target.matches(ITEMS)) {
@@ -1011,16 +1029,24 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
       <div className="agents-sidebar-head">
         <button type="button" onClick={onAddProject}>{t('agents.add.button')}</button>
         {tree && (
-          <button type="button" className="agents-view-toggle" title={t('agents.sort.title', { mode: sortLabel(tree.sort) })} aria-label={t('agents.sort.title', { mode: sortLabel(tree.sort) })} onClick={cycleSort}>
-            {sortLabel(tree.sort)}
-          </button>
-        )}
-        <button type="button" className="agents-view-toggle" aria-pressed={archivedView} title={t('agents.archived')} onClick={toggleArchivedView}>
-          {t('agents.archived')}
-        </button>
-        {tree && (
-          <button type="button" className="agents-view-toggle" aria-pressed={tree.view === 'active'} title={t('agents.tree.activeOnTop')} onClick={() => void send({ view: tree.view === 'active' ? 'normal' : 'active' })}>
-            {t('agents.tree.activeOnTop')}
+          <button
+            type="button"
+            className="agents-view-toggle"
+            aria-haspopup="menu"
+            title={t('agents.sort.title', { mode: sortLabel(tree.sort) })}
+            onClick={(e) => {
+              const r = e.currentTarget.getBoundingClientRect();
+              setMenu({
+                at: { x: r.left, y: r.bottom },
+                items: [
+                  ...SORTS.map((m) => ({ id: `sort-${m}`, label: sortLabel(m), checked: tree.sort === m, radio: true, run: () => void send({ sort: m }) })),
+                  'sep' as const,
+                  { id: 'activeOnTop', label: t('agents.tree.activeOnTop'), checked: tree.view === 'active', run: () => void send({ view: tree.view === 'active' ? 'normal' : 'active' }) },
+                ],
+              });
+            }}
+          >
+            {t('agents.view.menu')} ▾
           </button>
         )}
         {accounts.length > 1 && activeAccount && (
