@@ -157,7 +157,7 @@ export function orderSessions<T extends OrderableSession>(sessions: T[], sort: A
     const inStored = new Set(stored);
     const added = withId.filter((s) => !inStored.has(s.id)).sort(newest);
     const idless = rest.filter((s) => s.idless);
-    mid = [...idless.filter((s) => s.pending).sort(newest), ...known, ...added, ...idless.filter((s) => !s.pending).sort(newest)];
+    mid = [...idless.sort(newest), ...added, ...known];
   }
   return [...top, ...mid, ...bottom];
 }
@@ -171,7 +171,7 @@ export function freezeOrders(tree: AgentTree, shown: Record<string, string[]>): 
     const missing = ids.filter((id) => id && !have.has(id) && have.add(id));
     if (!missing.length) continue;
     if (order === tree.sessionOrder) order = { ...order };
-    order[key] = [...cur, ...missing];
+    order[key] = [...missing, ...cur];
   }
   return order === tree.sessionOrder ? tree : { ...tree, sessionOrder: order };
 }

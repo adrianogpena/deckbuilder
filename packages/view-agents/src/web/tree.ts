@@ -49,7 +49,7 @@ export function orderSessions<T extends Orderable>(sessions: T[], sort: AgentTre
     const known = stored.filter((id) => byId.has(id)).map((id) => byId.get(id)!);
     const inStored = new Set(stored);
     const added = withId.filter((s) => !inStored.has(s.id)).sort(newest);
-    mid = [...rest.filter((s) => !s.id).sort(newest), ...known, ...added];
+    mid = [...rest.filter((s) => !s.id).sort(newest), ...added, ...known];
   }
   return [...top, ...mid, ...bottom];
 }

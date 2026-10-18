@@ -747,7 +747,7 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
   useCommand(agentsCommands()[51]!, () => {
     const root = ref.current;
     if (!root) return;
-    const item = root.querySelector<HTMLElement>(`${ITEMS}[aria-current], ${ITEMS}[tabindex="0"]`) ?? root.querySelector<HTMLElement>(ITEMS);
+    const item = root.querySelector<HTMLElement>(`.agents-tree .agents-session[aria-current]`) ?? root.querySelector<HTMLElement>(`${ITEMS}[aria-current], ${ITEMS}[tabindex="0"]`) ?? root.querySelector<HTMLElement>(ITEMS);
     (item ?? root).focus();
   });
   useCommand(agentsCommands()[48]!, () => setTimeout(() => ref.current?.querySelector<HTMLInputElement>('.agents-search input')?.focus(), 0));

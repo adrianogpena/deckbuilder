@@ -44,18 +44,18 @@ describe('orderSessions', () => {
     const r = orderSessions([s('i', 9), { ...s('e', 1), status: 'error' as const }, { ...s('w', 2), status: 'done' as const }, { ...s('r', 3), status: 'starting' as const }], 'actionable');
     expect(r.map((x) => x.id)).toEqual(['e', 'w', 'r', 'i']);
   });
-  test('manual mode: pending, stored, appended newest first, other id-less', () => {
+  test('manual mode: id-less and unstored newest first, then stored', () => {
     const r = orderSessions([s('x', 1), s('b', 2), s('n1', 3), s('n2', 4), s('', 5, { idless: true }), s('', 6, { idless: true, pending: true }), s('a', 0, { pin: 'top' })], 'manual', ['x', 'b']);
-    expect(r.map((x) => x.id)).toEqual(['a', '', 'x', 'b', 'n2', 'n1', '']);
+    expect(r.map((x) => x.id)).toEqual(['a', '', '', 'n2', 'n1', 'x', 'b']);
     expect(r[1]!.updatedAt).toBe(6);
   });
 });
 
 describe('freeze', () => {
-  test('appends only missing ids and keeps the tree when unchanged', () => {
+  test('prepends only missing ids and keeps the tree when unchanged', () => {
     const t = { ...emptyTree(), sessionOrder: { p: ['a', 'z'] } };
     const f = freezeOrders(t, { p: ['b', 'a', 'c'], q: ['x'] });
-    expect(f.sessionOrder).toEqual({ p: ['a', 'z', 'b', 'c'], q: ['x'] });
+    expect(f.sessionOrder).toEqual({ p: ['b', 'c', 'a', 'z'], q: ['x'] });
     expect(freezeOrders(f, { p: ['a', 'b'] })).toBe(f);
   });
   test('cleared id goes before the old one in manual mode only', () => {
