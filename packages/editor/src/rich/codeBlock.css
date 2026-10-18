@@ -1,0 +1,21 @@
+/* Rich pane code blocks (codeBlock.ts) and Mermaid previews (mermaid.ts). */
+.md-rich-code { position: relative; margin: 0 0 var(--space-12); }
+.md-rich-code pre { margin: 0; overflow-x: auto; white-space: pre; padding-top: var(--space-24); }
+.md-rich-code pre code { font-family: var(--font-mono); font-size: var(--fs-sm-plus); white-space: pre; tab-size: 4; }
+.md-rich-code-bar { position: absolute; top: var(--space-4); right: var(--space-6); z-index: 1; display: flex; gap: var(--space-6); }
+.md-rich-code-lang {
+  height: var(--control-h-xs); padding: 0 22px 0 var(--space-8); font-family: var(--font-mono); font-size: var(--fs-xs);
+  color: var(--text-3); background-color: transparent; border-color: transparent; border-radius: var(--radius-md);
+}
+.md-rich-code:hover .md-rich-code-lang, .md-rich-code-lang:focus-visible { color: var(--text-2); border-color: var(--border-soft); background-color: var(--bg); }
+
+/* Mermaid: the source hides while the cursor is outside the block; the preview sits below it. */
+.md-rich-code.md-mermaid-folded > pre { display: none; }
+.md-rich-code.md-mermaid-folded .md-rich-code-bar { display: none; }
+.md-mermaid { margin: 0 0 var(--space-12); padding: var(--space-12); border: 1px solid var(--border-soft); border-radius: var(--radius-xl); background: var(--bg-sunken); overflow-x: auto; cursor: text; text-align: center; }
+.md-mermaid svg { max-width: 100%; height: auto; }
+.md-mermaid-pending { min-height: 48px; }
+.md-mermaid-error { text-align: left; border-color: var(--err); background: var(--err-soft); }
+.md-mermaid-error-title { font-weight: 600; color: var(--err); margin-bottom: var(--space-4); }
+.md-mermaid-error-message { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--text-2); white-space: pre-wrap; margin-bottom: var(--space-8); }
+.md-mermaid-error pre { margin: 0; white-space: pre; overflow-x: auto; }

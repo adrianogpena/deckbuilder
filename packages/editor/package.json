@@ -48,6 +48,7 @@
     "@milkdown/utils": "^7.22.3",
     "dompurify": "^3.4.16",
     "marked": "^18.1.0",
+    "mermaid": "^12.2.0",
     "pdfjs-dist": "4.10.38"
   },
   "peerDependencies": {
