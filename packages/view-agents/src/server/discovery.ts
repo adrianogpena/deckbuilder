@@ -1,4 +1,4 @@
-import { closeSync, openSync, readSync, readdirSync, statSync } from 'node:fs';
+import { closeSync, openSync, readSync, readdirSync, statSync, type Stats } from 'node:fs';
 import { join } from 'node:path';
 
 import type { AgentCacheState, AgentSession, AgentTokens } from '../protocol.ts';
@@ -68,6 +68,18 @@ function entryTitle(e: Entry): string | undefined {
 function truncate(s: string, n = 80): string {
   const one = s.replace(/\s+/g, ' ').trim();
   return one.length > n ? `${one.slice(0, n - 1)}…` : one;
+}
+
+/** Claude's transcript folder name of a directory: every non-alphanumeric character becomes `-`. */
+export function encodeFolderName(path: string): string {
+  return path.replace(/[^A-Za-z0-9]/g, '-');
+}
+
+/** Restricts a scan to the folders of the registered projects (and their subfolders), newest `perFolder` transcripts each plus `keep` ids. */
+export interface ScanLimit {
+  projectPaths: string[];
+  perFolder: number;
+  keep: ReadonlySet<string>;
 }
 
 /** Decodes a project folder name (`C--x-y` -> `C:\x\y`), a fallback when no transcript line has a cwd. */
@@ -228,6 +240,8 @@ interface CacheEntry {
   size: number;
   session: AgentSession | null;
   tally: TokenTally;
+  /** False when parsed by a quick scan (no token sums, no cache state). */
+  full: boolean;
 }
 
 /** Scanner caching each transcript by (mtime, size); only changed files are re-parsed, and token sums read only the appended bytes. */
@@ -238,7 +252,9 @@ export function createSessionScanner() {
     clear(): void {
       cache.clear();
     },
-    scan(accounts: Array<{ id: string; dir: string }>): AgentSession[] {
+    /** `quick` skips the token sums and cache state (the costly whole-file reads) for the first paint; a later full scan fills them. */
+    scan(accounts: Array<{ id: string; dir: string }>, quick = false, limit?: ScanLimit): AgentSession[] {
+      const prefixes = limit?.projectPaths.map((p) => encodeFolderName(p).toLowerCase());
       const seen = new Set<string>();
       const out: AgentSession[] = [];
       for (const acc of accounts) {
@@ -252,32 +268,42 @@ export function createSessionScanner() {
           continue;
         }
         for (const folder of folders) {
+          if (prefixes) {
+            const lower = folder.toLowerCase();
+            if (!prefixes.some((p) => lower === p || lower.startsWith(`${p}-`))) continue;
+          }
           let files: string[] = [];
           try {
             files = readdirSync(join(root, folder)).filter((f) => f.endsWith('.jsonl') && !f.startsWith('agent-'));
           } catch {
             continue;
           }
+          let stats: Array<{ f: string; file: string; st: Stats }> = [];
           for (const f of files) {
             const file = join(root, folder, f);
-            seen.add(file);
-            let st;
             try {
-              st = statSync(file);
+              stats.push({ f, file, st: statSync(file) });
             } catch {
-              continue;
+              /* vanished */
             }
+          }
+          if (limit) {
+            stats.sort((a, b) => b.st.mtimeMs - a.st.mtimeMs);
+            stats = stats.filter((x, i) => i < limit.perFolder || limit.keep.has(x.f.slice(0, -6)));
+          }
+          for (const { f, file, st } of stats) {
+            seen.add(file);
             let c = cache.get(file);
-            if (!c || c.mtime !== st.mtimeMs || c.size !== st.size) {
+            if (!c || c.mtime !== st.mtimeMs || c.size !== st.size || (!quick && !c.full)) {
               let session: AgentSession | null = null;
               let tally = c?.tally ?? newTally();
               try {
                 session = parseTranscript(file, st.size, { id: f.slice(0, -6), account: acc.id, folder, mtime: st.mtimeMs });
-                tally = updateTally(file, st.size, tally);
+                if (!quick) tally = updateTally(file, st.size, tally);
               } catch {
                 session = null;
               }
-              if (session) {
+              if (session && !quick) {
                 const tk = tally.tokens;
                 if (tk.input + tk.output + tk.cacheCreation + tk.cacheRead > 0) session.tokens = { ...tk };
                 const pct = contextPercentOf(session.model, tally.lastContext);
@@ -289,7 +315,7 @@ export function createSessionScanner() {
                   /* no cache state */
                 }
               }
-              c = { mtime: st.mtimeMs, size: st.size, session, tally };
+              c = { mtime: st.mtimeMs, size: st.size, session, tally, full: !quick };
               cache.set(file, c);
             }
             if (c.session) out.push(c.session);

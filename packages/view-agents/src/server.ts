@@ -279,13 +279,15 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
   const accounts = (): AgentAccount[] => registry.list();
   const activeOf = (accs: AgentAccount[], g: AgentsSettings | undefined) => resolveActiveAccount(accs, g?.['accounts.activeAccount']);
 
-  const compute = async () => {
+  const compute = async (quick = false) => {
     const accs = accounts();
     const agentsSettings = (await loadSettings().catch(() => ({}) as AgentsServerSettings)).agents;
     const ownerView = { active: activeOf(accs, agentsSettings), showAllSessions: agentsSettings?.['accounts.showAllSessions'] !== false, shareProjects: agentsSettings?.['accounts.shareProjects'] !== false, showOwner: agentsSettings?.['accounts.showOwner'] === true };
     // Built with every owner's sessions (notifications cover hidden ones); `ownerView` filters the listed feed at the end.
     const allView = { ...ownerView, showAllSessions: true };
     const refs = projects?.list() ?? [];
+    const capSetting = agentsSettings?.maxSessionsPerProject;
+    const sessionCap = typeof capSetting === 'number' && capSetting >= 1 ? Math.floor(capSetting) : 10;
     const screenErrors = new Map<string, string>();
     for (const [id, lines] of opts.terminalScreens?.() ?? []) {
       const err = detectScreenError(lines);
@@ -300,7 +302,7 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
     const usage = usageReader.read(accs);
     sevenDayHistory.observe(usage.accounts);
     const views: AgentSessionView[] = applyAccountView(scanner
-      .scan(accs.map((a) => ({ id: a.id, dir: a.dir })))
+      .scan(accs.map((a) => ({ id: a.id, dir: a.dir })), quick, { projectPaths: refs.map((r) => r.path), perFolder: sessionCap, keep: new Set([...statuses.keys(), ...claudeTerms().map((t) => t.sessionId)]) })
       .map((x) => ({ ...x, lifecycle: lc.exited.has(x.id) ? ('exited' as const) : lc.starting.has(x.id) ? ('starting' as const) : undefined, exitCode: lc.exited.get(x.id), contextPercent: usageContextPercent(usage.bySession.get(x.id)) ?? x.contextPercent, startupContextPercent: usage.bySession.get(x.id)?.startupContextPercent, modelName: usage.bySession.get(x.id)?.model?.display_name, effort: usage.bySession.get(x.id)?.effort, status: statusOf(x.id), live: statuses.has(x.id) || undefined, external: external.has(x.id) || undefined, project: matchProject(x.cwd, refs)?.id, seenAt: s[x.id] }))
       .filter((x) => x.project !== undefined)
       .sort((a, b) => b.updatedAt - a.updatedAt), accs, allView);
@@ -321,9 +323,8 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
       return { ...x, ...st, pinned: st?.pin === 'top' || undefined };
     });
     // The per-project cap counts only listed sessions (the account-filtered feed); new ptys without a transcript are never capped.
-    const cap = agentsSettings?.maxSessionsPerProject;
     const listed = ownerView.showAllSessions ? everyOwner : applyAccountView(everyOwner, accs, ownerView);
-    const sessions = capPerProject(listed, typeof cap === 'number' && cap >= 1 ? Math.floor(cap) : 10, (x) => (scannedIds.has(x.id) ? (x.node ?? x.project) : undefined));
+    const sessions = capPerProject(listed, sessionCap, (x) => (scannedIds.has(x.id) ? (x.node ?? x.project) : undefined));
     const status: Record<string, AgentStatus> = {};
     for (const x of sessions) status[x.id] = x.status;
     void hooks.observe(sessions);
@@ -802,8 +803,9 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
         open(ws) {
           clients.add(ws);
           start();
-          void compute().then(({ sessions, usage }) => {
+          void compute(true).then(({ sessions, usage }) => {
             ws.send(JSON.stringify({ type: 'sessions', sessions } satisfies AgentsFrame));
+            setTimeout(() => void refresh(true), 300);
             ws.send(JSON.stringify({ type: 'usage', accounts: usage } satisfies AgentsFrame));
             ws.send(JSON.stringify({ type: 'git', status: git.get() } satisfies AgentsFrame));
             void git.pollNow();
