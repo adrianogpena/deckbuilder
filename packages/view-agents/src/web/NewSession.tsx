@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { errorOf } from '@deckbuilderkit/ui';
 import { t } from '../i18n';
 import { type AgentAccount, type AgentsCapWarn, CapDeclined, capWarning, listAccounts, startSession } from './api';
@@ -21,10 +21,12 @@ export interface NewSessionProps {
   mode?: 'terminal' | 'chat';
   onChat?(r: { account: string; projectId: string; cwd: string }): void;
   onCancel?(): void;
+  /** Starts as soon as the active account is known, without waiting for the button. */
+  autoStart?: boolean;
 }
 
 /** Picks project and account, then starts a new `claude` session in a terminal. */
-export function NewSession({ projects, projectId, lastAccount, mode, onChat, onStarted, onCancel }: NewSessionProps) {
+export function NewSession({ projects, projectId, lastAccount, mode, onChat, onStarted, onCancel, autoStart }: NewSessionProps) {
   const [accounts, setAccounts] = useState<AgentAccount[]>([]);
   const [project, setProject] = useState(projectId ?? projects[0]?.id ?? '');
   const [account, setAccount] = useState('');
@@ -61,6 +63,13 @@ export function NewSession({ projects, projectId, lastAccount, mode, onChat, onS
       setBusy(false);
     }
   };
+
+  const auto = useRef(false);
+  useEffect(() => {
+    if (!autoStart || auto.current || !dir || !account) return;
+    auto.current = true;
+    void start();
+  });
 
   return (
     <div className="agents-new-session">

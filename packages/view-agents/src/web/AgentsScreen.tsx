@@ -94,6 +94,10 @@ export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false, usageS
   const [panelTab, setPanelTab] = useState<SidePanelTab>(readPanelTab);
   const [selectedId, setSelectedId] = useState<string>();
   const [newFor, setNewFor] = useState<string>();
+  const [quickNew, setQuickNew] = useState(false);
+  useEffect(() => {
+    if (newFor === undefined) setQuickNew(false);
+  }, [newFor]);
   /** Project row whose summary fills the main pane; cleared when a session gets selected. */
   const [summaryFor, setSummaryFor] = useState<string>();
   const [visible, setVisible] = useState<AgentSessionView[]>();
@@ -495,9 +499,10 @@ export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false, usageS
   useCommand(agentsCommands()[24]!, interact);
   const newSessionHere = useCallback(() => {
     const project = sessions.find((s) => s.id === selectedId)?.project ?? summaryFor ?? folderFor?.projectIds[0];
-    if (project) setNewFor(project);
+    if (!project) return;
+    setQuickNew(false);
+    setNewFor(project);
   }, [sessions, selectedId, summaryFor, folderFor]);
-  useCommand(agentsCommands()[25]!, newSessionHere);
   useCommand(agentsCommands()[26]!, newSessionHere);
   useCommand(agentsCommands()[27]!, () => setAdding(true));
   useCommand(agentsCommands()[29]!, () => {
@@ -533,8 +538,14 @@ export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false, usageS
           selectedFolderId={folderFor?.id}
           onSelectFolder={selectFolder}
           onVisibleChange={setVisible}
-          onNewSession={(p) => setNewFor(p)}
-          onAddProject={() => setAdding(true)}
+          onNewSession={(p) => {
+            setQuickNew(false);
+            setNewFor(p);
+          }}
+          onQuickNew={(p) => {
+            setQuickNew(true);
+            setNewFor(p);
+          }}
           onRemoveProject={removeProject}
           onStop={(s) => void stop(s)}
           onRestart={(s) => void restart(s)}
@@ -590,6 +601,7 @@ export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false, usageS
             projects={projects}
             projectId={newFor}
             lastAccount={lastAccount}
+            autoStart={quickNew}
             mode={mode}
             onChat={(r) => {
               setNewFor(undefined);

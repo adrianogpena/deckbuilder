@@ -3,7 +3,7 @@ import { ContextMenu, type ContextMenuItem, fuzzyScore, highlightRuns, KEY_SCOPE
 import { AGENTS_LIST_SCOPE, agentsCommands } from '../commands';
 import { t } from '../i18n';
 import type { AgentCategory } from '../protocol.ts';
-import { type AgentAccount, type AgentAccountUsage, listAccounts, type AgentProject, type AgentSessionView, type AgentStatus, type AgentTreePatch, addTags, deleteSession, deleteSessions, markSeen, markUnread, patchSessionState, trashMessage, undoDelete, removeTagEverywhere, searchSessions, stopSession, type TreePatchResult } from './api';
+import { type AgentAccountUsage, type AgentProject, type AgentSessionView, type AgentStatus, type AgentTreePatch, addTags, deleteSession, deleteSessions, markSeen, markUnread, patchSessionState, trashMessage, undoDelete, removeTagEverywhere, searchSessions, stopSession, type TreePatchResult } from './api';
 import { compareSessions, displayName, statusCounts } from './attention';
 import { type BatchAction, BatchBar } from './BatchBar';
 import { archiveOutcome, batchOrder, distinctKeys, isWorking, liveHere, partitionArchive, stopOutcome, toggleChecked } from './batch';
@@ -53,7 +53,8 @@ export interface SidebarProps {
   onVisibleChange?(sessions: AgentSessionView[]): void;
   /** Called with the project id. */
   onNewSession(projectId: string): void;
-  onAddProject(): void;
+  /** `N` on a project or session row: start there with the active account, no form. */
+  onQuickNew(projectId: string): void;
   onRemoveProject(projectId: string): void;
   /** Context menu actions on a session (plain items, no keybindings). */
   onStop?(session: AgentSessionView): void;
@@ -142,7 +143,7 @@ interface RowMatch {
 }
 
 /** Projects with their Claude sessions, a status dot and label per session; search, filter pills, pin, rename and archive. */
-export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenUsage, git = {}, selectedId, onSelect, selectedProjectId, onSelectProject, selectedFolderId, onSelectFolder, onVisibleChange, onNewSession, onAddProject, onRemoveProject, onStop, onRestart, onStartBackground, expandCollapsedOnActiveJump = false }: SidebarProps) {
+export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenUsage, git = {}, selectedId, onSelect, selectedProjectId, onSelectProject, selectedFolderId, onSelectFolder, onVisibleChange, onNewSession, onQuickNew, onRemoveProject, onStop, onRestart, onStartBackground, expandCollapsedOnActiveJump = false }: SidebarProps) {
   const ref = useRef<HTMLDivElement>(null);
   const usageBlock = usageSettings?.show && (() => {
     const selected = sessions.find((x) => x.id === selectedId);
@@ -176,12 +177,9 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
   const [picker, setPicker] = useState<{ keys: string[]; name: string; title?: string; current?: string }>();
   const [checked, setChecked] = useState<ReadonlySet<string>>(new Set());
   const dialogs = useDialogs();
-  const [accounts, setAccounts] = useState<AgentAccount[]>([]);
   const [accountsOpen, setAccountsOpen] = useState(false);
   /** The project row last clicked: of a split project, only that node shows as current. */
   const [selectedNode, setSelectedNode] = useState<string>();
-  const loadAccounts = () => void listAccounts().then(setAccounts, () => undefined);
-  useEffect(loadAccounts, []);
   useCommand(agentsCommands()[21]!, () => setAccountsOpen(true));
   const [manageOpen, setManageOpen] = useState<ManageAccountsMode>();
   /** A new account: with a project selected it becomes active and a new session starts there for `/login`. */
@@ -190,12 +188,10 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
     const n = String(linked);
     if (!projectId) return void toast({ message: t('agents.accounts.addedSelect', { folder, n }) });
     const r = await setActiveAccount(activeDirOf(account)).catch(() => undefined);
-    loadAccounts();
     if (!r?.ok) return void toast({ message: t('agents.accounts.created', { folder, n }) });
     toast({ message: t('agents.accounts.addedLogin', { folder, n }) });
     onNewSession(projectId);
   };
-  const activeAccount = accounts.find((a) => a.active) ?? accounts.find((a) => a.isDefault);
 
   const parsed = useMemo(() => parseQuery(query), [query]);
   const prefixed = parsed.full;
@@ -329,7 +325,6 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
   };
   useCommand(agentsCommands()[9]!, () => jumpStarted(-1));
   useCommand(agentsCommands()[10]!, () => jumpStarted(1));
-  const sortLabel = (m: (typeof SORTS)[number]) => t(`agents.sort.${m}`);
   const cycleSort = () => {
     if (!tree) return;
     const next = SORTS[(SORTS.indexOf(tree.sort) + 1) % SORTS.length]!;
@@ -719,6 +714,11 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
     const s = currentSession();
     if (s) fn(s);
   };
+  useCommand(agentsCommands()[25]!, () => {
+    const r = currentRow();
+    const id = r?.kind === 'project' ? r.project.id : r?.kind === 'session' ? r.session.project : undefined;
+    if (id) onQuickNew(id);
+  });
   useCommand(agentsCommands()[28]!, () => {
     const r = currentRow();
     if (r?.kind === 'folder') void renameFolder(r.id, r.name);
@@ -1026,35 +1026,6 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
           return note && <span className="agents-panel-note"> {note}</span>;
         })()}
       </h2>
-      <div className="agents-sidebar-head">
-        <button type="button" onClick={onAddProject}>{t('agents.add.button')}</button>
-        {tree && (
-          <button
-            type="button"
-            className="agents-view-toggle"
-            aria-haspopup="menu"
-            title={t('agents.sort.title', { mode: sortLabel(tree.sort) })}
-            onClick={(e) => {
-              const r = e.currentTarget.getBoundingClientRect();
-              setMenu({
-                at: { x: r.left, y: r.bottom },
-                items: [
-                  ...SORTS.map((m) => ({ id: `sort-${m}`, label: sortLabel(m), checked: tree.sort === m, radio: true, run: () => void send({ sort: m }) })),
-                  'sep' as const,
-                  { id: 'activeOnTop', label: t('agents.tree.activeOnTop'), checked: tree.view === 'active', run: () => void send({ view: tree.view === 'active' ? 'normal' : 'active' }) },
-                ],
-              });
-            }}
-          >
-            {t('agents.view.menu')} ▾
-          </button>
-        )}
-        {accounts.length > 1 && activeAccount && (
-          <button type="button" className="agents-view-toggle agents-account" title={t('agents.account.button', { label: activeAccount.label })} aria-label={t('agents.account.button', { label: activeAccount.label })} onClick={() => setAccountsOpen(true)}>
-            {activeAccount.label}
-          </button>
-        )}
-      </div>
       {usageSettings?.position === 'top' && usageBlock}
       {sessions.length > 0 && (
         <div className="agents-find">
@@ -1150,8 +1121,8 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
       {checking && <BatchBar count={checked.size} actions={batchActions} onClear={() => clearBatch(true)} />}
       {menu && <ContextMenu at={menu.at} items={menu.items} onClose={() => setMenu(undefined)} />}
       {trashOpen && <TrashPanel onRestored={restored} onRefused={(message) => toast({ message, kind: 'error' })} onClose={() => setTrashOpen(false)} />}
-      {accountsOpen && <AccountPicker onSwitched={() => loadAccounts()} onAdd={() => setManageOpen('add')} onManage={() => setManageOpen('manage')} onClose={() => setAccountsOpen(false)} />}
-      {manageOpen && <ManageAccounts mode={manageOpen} onAdded={(a) => void accountAdded(a)} onChanged={loadAccounts} onClose={() => setManageOpen(undefined)} />}
+      {accountsOpen && <AccountPicker onAdd={() => setManageOpen('add')} onManage={() => setManageOpen('manage')} onClose={() => setAccountsOpen(false)} />}
+      {manageOpen && <ManageAccounts mode={manageOpen} onAdded={(a) => void accountAdded(a)} onChanged={() => undefined} onClose={() => setManageOpen(undefined)} />}
       {picker && tree && <MoveToFolder name={picker.name} title={picker.title} folders={tree.folders} current={picker.current} onPick={(pick) => {
         if (picker.title) clearBatch();
         void pickFolder(picker.keys, pick);
