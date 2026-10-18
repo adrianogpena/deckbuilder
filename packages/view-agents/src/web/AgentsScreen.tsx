@@ -475,8 +475,8 @@ export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false, usageS
   useCommand(agentsCommands()[32]!, () => {
     void listAgentProjects().then(setProjects, (e) => setError(errorOf(e).message));
   });
-  useCommand(agentsCommands()[49]!, () => void runCommand('app.keybindings'));
-  useCommand(agentsCommands()[50]!, () => void runCommand('app.settings'));
+  useCommand(agentsCommands()[48]!, () => void runCommand('app.keybindings'));
+  useCommand(agentsCommands()[49]!, () => void runCommand('app.settings'));
 
   const appKeys = useMemo(() => terminalAppKeys('agents', keys?.defs ?? [], ['agents.toggleSidebar', 'agents.togglePanel', 'agents.focusList']), [keys?.defs]);
 

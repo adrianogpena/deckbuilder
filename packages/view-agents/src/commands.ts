@@ -51,7 +51,6 @@ export const agentsCommands = (): CommandDef[] => [
   { id: 'agents.reorderUp', scope: 'agents', label: t('keys.agents.reorderUp'), keys: ['Shift+K'], focus: L },
   { id: 'agents.reorderDown', scope: 'agents', label: t('keys.agents.reorderDown'), keys: ['Shift+J'], focus: L },
   { id: 'agents.viewMode', scope: 'agents', label: t('keys.agents.viewMode'), keys: ['T'], focus: L },
-  { id: 'agents.timeFilter', scope: 'agents', label: t('keys.agents.timeFilter'), keys: ['Shift+*'], focus: L },
   { id: 'agents.moveUp', scope: 'agents', label: t('keys.agents.moveUp'), keys: ['K'], focus: L },
   { id: 'agents.moveDown', scope: 'agents', label: t('keys.agents.moveDown'), keys: ['J'], focus: L },
   { id: 'agents.collapse', scope: 'agents', label: t('keys.agents.collapse'), keys: ['H'], focus: L },

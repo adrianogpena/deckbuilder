@@ -4,10 +4,10 @@ import { AGENTS_LIST_SCOPE, agentsCommands } from '../commands';
 import { t } from '../i18n';
 import type { AgentCategory } from '../protocol.ts';
 import { type AgentAccountUsage, type AgentProject, type AgentSessionView, type AgentStatus, type AgentTreePatch, addTags, deleteSession, deleteSessions, markSeen, markUnread, patchSessionState, trashMessage, undoDelete, removeTagEverywhere, searchSessions, stopSession, type TreePatchResult } from './api';
-import { compareSessions, displayName, statusCounts } from './attention';
+import { compareSessions, displayName } from './attention';
 import { type BatchAction, BatchBar } from './BatchBar';
 import { archiveOutcome, batchOrder, distinctKeys, isWorking, liveHere, partitionArchive, stopOutcome, toggleChecked } from './batch';
-import { type AgentFilters, CATEGORIES, categoryOf, clearFilters, clearStatus, isFiltering, matchesFilters, NO_FILTERS, nextTime, parseQuery, STATUS_KEYS, type TimeMode, type TitleLabels, titleNote, toggleStatus, toggleTag } from './filters';
+import { type AgentFilters, categoryOf, clearFilters, isFiltering, matchesFilters, NO_FILTERS, parseQuery, STATUS_KEYS, type TitleLabels, titleNote, toggleStatus, toggleTag } from './filters';
 import { type FolderPick, MoveToFolder } from './MoveToFolder';
 import { AccountPicker, activeDirOf } from './AccountPicker';
 import { type AddedAccount, ManageAccounts, type ManageAccountsMode } from './ManageAccounts';
@@ -110,30 +110,12 @@ function sessionUsage(s: AgentSessionView): { line: string; title: string } | un
   return { line: `${s.contextPercent}%`, title: lines.join('\n') };
 }
 
-/** Pill glyph and status class (colour) per category; the done-unseen pill sits after waiting. */
-function timeLabel(mode: TimeMode): string {
-  switch (mode) {
-    case 'today': return t('agents.time.today');
-    case '3d': return t('agents.time.3d');
-    case '7d': return t('agents.time.7d');
-    default: return t('agents.time.all');
-  }
-}
-
 const TITLE_LABELS: TitleLabels = {
   selected: (count) => t('agents.note.selected', { count: String(count) }),
   get archived() { return t('agents.note.archived'); },
   get filtered() { return t('agents.note.filtered'); },
   get actionable() { return t('agents.note.actionable'); },
   get activeOnTop() { return t('agents.note.activeOnTop'); },
-};
-
-const CATEGORY_PILL: Record<AgentCategory, { glyph: string; status: AgentStatus }> = {
-  running: { glyph: '●', status: 'running' },
-  waiting: { glyph: '◐', status: 'needs-you' },
-  idle: { glyph: '○', status: 'idle' },
-  error: { glyph: '✕', status: 'error' },
-  stopped: { glyph: '■', status: 'stopped' },
 };
 
 /** How a session matched the search: fuzzy name positions, or a full-text snippet. */
@@ -249,12 +231,6 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
     };
   }, [projects, sessions, filters, q, qStatus, full, hits, archivedView]);
 
-  // Pill counts: listed sessions of known projects matching the archived view, ignoring status, time and tag filters.
-  const base = useMemo(() => {
-    const known = new Set(projects.map((p) => p.id));
-    return sessions.filter((s) => !!s.archived === archivedView && !!s.project && known.has(s.project));
-  }, [projects, sessions, archivedView]);
-  const counts = useMemo(() => statusCounts(base), [base]);
 
   // Counted over every listed session, archived and filtered-out ones included.
   const tags = useMemo(() => {
@@ -742,26 +718,23 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
     void send({ view: next });
     toast({ message: t(next === 'active' ? 'agents.view.toast.active' : 'agents.view.toast.normal') });
   });
-  useCommand(agentsCommands()[43]!, () => setFilters(nextTime));
-  useCommand(agentsCommands()[44]!, () => moveFocus(-1));
-  useCommand(agentsCommands()[45]!, () => moveFocus(1));
-  useCommand(agentsCommands()[46]!, () => arrow('left'));
-  useCommand(agentsCommands()[47]!, () => arrow('right'));
-  useCommand(agentsCommands()[51]!, () => {
+  useCommand(agentsCommands()[43]!, () => moveFocus(-1));
+  useCommand(agentsCommands()[44]!, () => moveFocus(1));
+  useCommand(agentsCommands()[45]!, () => arrow('left'));
+  useCommand(agentsCommands()[46]!, () => arrow('right'));
+  useCommand(agentsCommands()[50]!, () => {
     const root = ref.current;
     if (!root) return;
     const item = root.querySelector<HTMLElement>(`.agents-tree .agents-session[aria-current]`) ?? root.querySelector<HTMLElement>(`${ITEMS}[aria-current], ${ITEMS}[tabindex="0"]`) ?? root.querySelector<HTMLElement>(ITEMS);
     (item ?? root).focus();
   });
-  useCommand(agentsCommands()[48]!, () => setTimeout(() => ref.current?.querySelector<HTMLInputElement>('.agents-search input')?.focus(), 0));
+  useCommand(agentsCommands()[47]!, () => setTimeout(() => ref.current?.querySelector<HTMLInputElement>('.agents-search input')?.focus(), 0));
 
   const pill = (key: string, active: boolean, label: ReactNode, aria: string, onClick: () => void, status?: AgentStatus) => (
     <button key={key} type="button" className={`agents-pill${status ? ` ${status}` : ''}`} aria-pressed={active} title={aria} aria-label={aria} onClick={onClick}>
       {label}
     </button>
   );
-  const categoryPill = (c: AgentCategory, glyph: string, status: AgentStatus, count: number, name: string, done = false) =>
-    pill(`c-${done ? 'done' : c}`, filters.status.has(c), <><span className="agents-pill-glyph">{glyph}</span>{count}</>, `${name} (${count})`, () => setFilters((f) => toggleStatus(f, c)), status);
   const pillsMenu = (e: MouseEvent) => {
     e.preventDefault();
     setMenu({ at: { x: e.clientX, y: e.clientY }, items: [{ id: 'clearFilters', label: t('agents.filter.clear'), disabled: !filtered, run: () => setFilters(clearFilters()) }] });
@@ -1061,19 +1034,8 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
             >?</button>
           </div>
           <div className="agents-pills" role="group" aria-label={t('agents.filter')} onContextMenu={pillsMenu}>
-            {pill('all', filters.status.size === 0, `${t('agents.filter.all')} ${base.length}`, `${t('agents.filter.all')} (${base.length})`, () => setFilters(clearStatus))}
-            {CATEGORIES.flatMap((c) => {
-              const p = CATEGORY_PILL[c];
-              const one = categoryPill(c, p.glyph, p.status, counts[c], statusLabel(p.status));
-              return c === 'waiting' ? [one, categoryPill('waiting', '✓', 'done', counts.done, t('agents.filter.done'), true)] : [one];
-            })}
-            <span className="agents-pill-sep" aria-hidden="true">│</span>
-            {pill('time', filters.time !== 'all', timeLabel(filters.time), t('agents.time.title', { mode: timeLabel(filters.time) }), () => setFilters(nextTime))}
             {tagFilter !== undefined && (
-              <>
-                <span className="agents-pill-sep" aria-hidden="true">│</span>
-                {pill('tag', true, `# ${tagFilter}`, t('agents.filter.tagClear'), () => setFilters((f) => ({ ...f, tag: undefined })))}
-              </>
+              pill('tag', true, `# ${tagFilter}`, t('agents.filter.tagClear'), () => setFilters((f) => ({ ...f, tag: undefined })))
             )}
           </div>
         </div>
