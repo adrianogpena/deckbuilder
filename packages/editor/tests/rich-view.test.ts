@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { clampZoom, fitZoom, readingWidthCss, stepZoom } from '../src/rich/view.ts';
+import { clampZoom, readingWidthCss, stepZoom } from '../src/rich/view.ts';
 
 describe('zoom', () => {
   test('clamps to 50-200 and snaps to 10', () => {
@@ -12,12 +12,6 @@ describe('zoom', () => {
     expect(stepZoom(100, 1)).toBe(110);
     expect(stepZoom(50, -1)).toBe(50);
     expect(stepZoom(200, 1)).toBe(200);
-  });
-  test('fit picks the largest step that fits', () => {
-    expect(fitZoom(100, 1000, 700)).toBe(70);
-    expect(fitZoom(100, 400, 700)).toBe(175 - 5);
-    expect(fitZoom(100, 5000, 500)).toBe(50);
-    expect(fitZoom(120, 0, 500)).toBe(120);
   });
 });
 

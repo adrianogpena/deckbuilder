@@ -15,13 +15,6 @@ export function clampZoom(zoom: number): number {
 /** One step up or down from `zoom`. */
 export const stepZoom = (zoom: number, dir: 1 | -1): number => clampZoom(clampZoom(zoom) + dir * ZOOM_STEP);
 
-/** The largest step at which content `widest` px wide (at `zoom`) fits `available` px. */
-export function fitZoom(zoom: number, widest: number, available: number): number {
-  if (!(widest > 0) || !(available > 0)) return clampZoom(zoom);
-  const target = Math.floor((zoom * available) / widest / ZOOM_STEP) * ZOOM_STEP;
-  return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, target));
-}
-
 /** CSS `max-width` for the document column. */
 export function readingWidthCss(width: ReadingWidth): string {
   if (width === 'full') return 'none';
@@ -32,6 +25,9 @@ export function readingWidthCss(width: ReadingWidth): string {
 type Listener = () => void;
 interface ZoomStore {
   zoom: number;
+  /** Max view: the column fills the pane at 100%; `restoreZoom` is the zoom to return to. */
+  wide: boolean;
+  restoreZoom: number;
   listeners: Set<Listener>;
 }
 const stores = new WeakMap<EditorView, ZoomStore>();
@@ -39,7 +35,7 @@ const stores = new WeakMap<EditorView, ZoomStore>();
 export function zoomStore(api: RichApi): ZoomStore {
   let s = stores.get(api.view);
   if (!s) {
-    s = { zoom: clampZoom(api.host.settings.zoom), listeners: new Set() };
+    s = { zoom: clampZoom(api.host.settings.zoom), wide: false, restoreZoom: 100, listeners: new Set() };
     stores.set(api.view, s);
   }
   return s;
@@ -50,7 +46,7 @@ export function applyView(api: RichApi): void {
   const pane = api.view.dom.closest<HTMLElement>('.md-rich');
   if (!pane) return;
   pane.style.setProperty('--md-zoom', String(zoomStore(api).zoom / 100));
-  pane.style.setProperty('--md-reading-width', readingWidthCss(api.host.settings.readingWidth));
+  pane.style.setProperty('--md-reading-width', readingWidthCss(zoomStore(api).wide ? 'full' : api.host.settings.readingWidth));
 }
 
 export function setZoom(api: RichApi, zoom: number): void {
@@ -60,16 +56,17 @@ export function setZoom(api: RichApi, zoom: number): void {
   s.listeners.forEach((fn) => fn());
 }
 
-export function fitToWidth(api: RichApi): void {
+/** Toggles between the centered column and the max view (full width, no zoom). */
+export function toggleWide(api: RichApi): void {
   const s = zoomStore(api);
-  const doc = api.view.dom.closest<HTMLElement>('.md-rich-doc');
-  if (!doc) return;
-  let widest = 0;
-  api.view.dom.querySelectorAll<HTMLElement>('table, pre, img').forEach((el) => {
-    const w = el instanceof HTMLImageElement ? el.naturalWidth * (s.zoom / 100) : el.scrollWidth;
-    if (w > widest) widest = w;
-  });
-  setZoom(api, widest > 0 ? fitZoom(s.zoom, widest, doc.clientWidth) : 100);
+  if (s.wide) {
+    s.wide = false;
+    setZoom(api, s.restoreZoom);
+  } else {
+    s.restoreZoom = s.zoom;
+    s.wide = true;
+    setZoom(api, 100);
+  }
 }
 
 const LazyZoom = lazy(() => import('./ZoomControl').then((m) => ({ default: m.ZoomControl })));
@@ -81,6 +78,6 @@ export const viewFeature: RichFeature = {
     zoomIn: (api) => (setZoom(api, stepZoom(zoomStore(api).zoom, 1)), true),
     zoomOut: (api) => (setZoom(api, stepZoom(zoomStore(api).zoom, -1)), true),
     zoomReset: (api) => (setZoom(api, 100), true),
-    zoomFit: (api) => (fitToWidth(api), true),
+    zoomFit: (api) => (toggleWide(api), true),
   },
 };
