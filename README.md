@@ -13,6 +13,14 @@ Base for local-first desktop apps. A Bun workspace of shared packages plus thin 
 
 The Agents view (`view-agents`): Claude Code sessions per project, with live status, terminal/chat, usage, attention and side panels.
 
+- Projects are any picked folder. The sidebar is a tree of folders and tags with clean rows. Sessions can be archived (and shown in an archived view) or moved to the trash.
+- Each project shows at most `agents.maxSessionsPerProject` sessions (default 10); live sessions are always shown and counted first. New sessions go on top. Sort: manual, recent or needs attention.
+- A stopped session shows a card; `agents.resumeOnSelect` resumes it when selected. One account is active at a time.
+- Search accepts status prefixes `! @ # & ~`. `agents.restoreSessions` (ask, always, never) controls restoring sessions on start.
+- Every list action is a palette command with a rebindable key; single-letter keys work only while the session list has focus.
+- Settings > Usage previews changes next to a live sample Usage view.
+- `<app> ctl <command> [id]` (commands `list`, `status <id>`, `screen <id>`, `wait <id> --status <names>`, `ping`; option `--json`) talks to a read-only local server (setting `agents.ctl`). `--rows` applies only to `screen`; `--timeout` and `--status` only to `wait`. Write options as `--opt value`; `--opt=value` is not parsed. Exit codes: 0 ok, 1 bad arguments or server error, 2 not running, 3 wait timed out.
+
 ## Install
 
 Requirements: [Bun](https://bun.sh) 1.3 or newer (not needed for the gallery executable). Window mode needs the OS web view: WebView2 on Windows 10/11, WebKitGTK 6.0 on Linux (`sudo apt install libwebkitgtk-6.0-4` on Debian/Ubuntu).
