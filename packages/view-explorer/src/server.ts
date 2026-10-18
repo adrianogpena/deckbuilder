@@ -4,11 +4,14 @@ import { defineServerView, invalid, isRecord, type ServerViewDef } from '@deckbu
 import { dbSharedRoutes, type DbStores } from '@deckbuilderkit/db';
 import { dialogRoutes, editorRoutes, fromPlatform, httpSharedRoutes, pickedPaths, recordRoutes, rootedFs, type AppStores, type RootedFs } from '@deckbuilderkit/server-mods';
 import type { ExplorerSettings } from './explorer-state';
+import { type MarkdownStored, validMarkdown } from './settings/markdown';
 
 /** The part of the server settings the Explorer view owns; the app's `Settings` extends it. */
 export interface ExplorerServerSettings {
   /** Explorer screen state; checked by `validExplorer`. */
   explorer?: ExplorerSettings;
+  /** Markdown editor settings; checked by `validMarkdown`. */
+  markdown?: Partial<MarkdownStored>;
 }
 
 const MAX_TABS_LAYOUT_BYTES = 64 * 1024;
@@ -135,7 +138,7 @@ export function explorerServerView(opts: ExplorerServerOptions = {}): ExplorerSe
       };
     },
     unauthenticated: () => mounted().openRoutes,
-    settings: { validate: { explorer: validExplorer } },
+    settings: { validate: { explorer: validExplorer, markdown: validMarkdown } },
   });
   return {
     ...view,

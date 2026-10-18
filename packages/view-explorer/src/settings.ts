@@ -1,8 +1,10 @@
+import { MARKDOWN_MODES } from '@deckbuilderkit/editor/markdown-commands';
 import { DEFAULT_FORMAT_OPTIONS, type SqlFormatOptions } from '@deckbuilderkit/editor/options';
 import type { CopyFormat, SqlRunnerSettings } from '@deckbuilderkit/sql-ui';
 import { DEFAULT_RESULT_FORMAT, FILE_DEFAULTS, fileBoolSetting, fileEnumSetting, fileSettingsOf, type FileSettings, type GitSettings, type LogSettings, type ResultFormat, type SectionPath, type SettingDef, SORT_ORDERS } from '@deckbuilderkit/ui';
 
 import type { ExplorerSettings } from './explorer-state';
+import { MARKDOWN_STORED_DEFAULTS, markdownStoredOf, type MarkdownStored } from './settings/markdown';
 
 export type { ExplorerSettings };
 
@@ -27,6 +29,8 @@ export interface ExplorerViewSettings {
   logs?: LogSettings;
   /** How text files are saved and how the Explorer shows files. */
   files?: FileSettings;
+  /** Markdown editor settings (`toc` stays in `files.markdownToc`); the server validates it. */
+  markdown?: Partial<MarkdownStored>;
   /** Read only: the editor's word wrap. */
   editor?: { wordWrap?: boolean };
   /** Read only: closing dirty tabs. */
@@ -68,6 +72,22 @@ export const sqlRunnerSettings = (s: ReturnType<typeof withWorkbenchDefaults>): 
 });
 
 const explorer: SectionPath = ['explorer'];
+const markdown: SectionPath = ['explorer'];
+
+function markdownDef<K extends keyof MarkdownStored>(key: K, order: number, label: string, kind: 'enum' | 'boolean' | 'custom'): SettingDef<ExplorerViewSettings> {
+  const common = {
+    id: `markdown.${key}`,
+    section: markdown,
+    order,
+    label,
+    description: `${label}.hint`,
+    default: MARKDOWN_STORED_DEFAULTS[key],
+    get: (s: ExplorerViewSettings) => markdownStoredOf(s.markdown)[key],
+    set: (s: ExplorerViewSettings, v: unknown): Partial<ExplorerViewSettings> => ({ markdown: { ...markdownStoredOf(s.markdown), [key]: v } }),
+  };
+  if (kind === 'enum') return { ...common, kind, values: MARKDOWN_MODES } as SettingDef<ExplorerViewSettings>;
+  return { ...common, kind } as SettingDef<ExplorerViewSettings>;
+}
 
 /** The `files.*` rows of the Explorer section; the editor's saving rows stay with the app. */
 export const explorerSettingDefs: SettingDef<ExplorerViewSettings>[] = [
@@ -103,5 +123,9 @@ export const explorerSettingDefs: SettingDef<ExplorerViewSettings>[] = [
   fileBoolSetting('confirmDragDrop', explorer, 100, 'settings.explorer.confirmDragDrop'),
   fileBoolSetting('showHidden', explorer, 110, 'settings.explorer.showHidden'),
   fileBoolSetting('restoreTabs', explorer, 120, 'settings.explorer.restoreTabs'),
-  fileBoolSetting('markdownToc', explorer, 130, 'settings.explorer.markdownToc'),
+  fileBoolSetting('markdownToc', markdown, 130, 'settings.explorer.markdownToc'),
+  markdownDef('defaultMode', 140, 'settings.explorer.markdownDefaultMode', 'enum'),
+  markdownDef('readingWidth', 150, 'settings.explorer.markdownReadingWidth', 'custom'),
+  markdownDef('zoom', 160, 'settings.explorer.markdownZoom', 'custom'),
+  markdownDef('mermaid', 170, 'settings.explorer.markdownMermaid', 'boolean'),
 ];

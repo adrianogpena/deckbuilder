@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { deepEqual, FILE_DEFAULTS, fileSettingsOf, SettingItem, type SettingsCardProps, type SettingsFieldProps, useResync } from '@deckbuilderkit/ui';
+import { deepEqual, FILE_DEFAULTS, fileSettingsOf, SettingDescription, SettingItem, type SettingsCardProps, type SettingsFieldProps, useResync } from '@deckbuilderkit/ui';
 import { t } from '../i18n';
 import type { ExplorerViewSettings } from '../settings';
+import { MARKDOWN_STORED_DEFAULTS, markdownStoredOf, READING_WIDTH_MAX, READING_WIDTH_MIN, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP, type MarkdownStored } from './markdown';
 
 function NestingField({ value, onChange }: { value: Record<string, string>; onChange: (next: Record<string, string>) => void }) {
   const toText = (v: Record<string, string>) => Object.entries(v).map(([k, c]) => `${k}: ${c}`).join(String.fromCharCode(10));
@@ -68,16 +69,101 @@ export function ExcludeSettingField({ settings, onChange }: SettingsFieldProps<E
   return <ExcludeField value={files.exclude} onChange={(exclude) => onChange({ files: { ...files, exclude } })} />;
 }
 
+function ReadingWidthField({ value, onChange }: { value: MarkdownStored['readingWidth']; onChange: (next: MarkdownStored['readingWidth']) => void }) {
+  const custom = typeof value === 'number';
+  const [text, setText] = useState(String(custom ? value : 80));
+  const kind = custom ? 'chars' : value;
+  const pick = (k: string) => onChange(k === 'chars' ? (Number(text) >= READING_WIDTH_MIN && Number(text) <= READING_WIDTH_MAX ? Number(text) : 80) : (k as 'comfortable' | 'full'));
+  return (
+    <SettingItem id="markdown.readingWidth" modified={value !== MARKDOWN_STORED_DEFAULTS.readingWidth}>
+      <div className="field">
+        <span className="mono-label">{t('settings.explorer.markdownReadingWidth')}</span>
+        <div className="chips">
+          {['comfortable', 'full', 'chars'].map((k) => (
+            <button key={k} className={`chip${kind === k ? ' chip-on' : ''}`} onClick={() => pick(k)}>
+              {t(`settings.explorer.markdownReadingWidth.${k}` as 'settings.explorer.markdownReadingWidth.chars')}
+            </button>
+          ))}
+        </div>
+        {custom && (
+          <input
+            type="number"
+            min={READING_WIDTH_MIN}
+            max={READING_WIDTH_MAX}
+            value={text}
+            aria-label={t('settings.explorer.markdownReadingWidth.chars')}
+            onChange={(e) => {
+              setText(e.target.value);
+              const n = Number(e.target.value);
+              if (e.target.value !== '' && Number.isInteger(n) && n >= READING_WIDTH_MIN && n <= READING_WIDTH_MAX) onChange(n);
+            }}
+            onBlur={() => setText(String(value))}
+          />
+        )}
+        <span className="muted"><SettingDescription text={t('settings.explorer.markdownReadingWidth.hint')} /></span>
+      </div>
+    </SettingItem>
+  );
+}
+
+function ZoomField({ value, onChange }: { value: number; onChange: (next: number) => void }) {
+  const [text, setText] = useState(String(value));
+  return (
+    <SettingItem id="markdown.zoom" modified={value !== MARKDOWN_STORED_DEFAULTS.zoom}>
+      <label className="field">
+        <span className="mono-label">{t('settings.explorer.markdownZoom')}</span>
+        <input
+          type="number"
+          min={ZOOM_MIN}
+          max={ZOOM_MAX}
+          step={ZOOM_STEP}
+          value={text}
+          onChange={(e) => {
+            setText(e.target.value);
+            const n = Number(e.target.value);
+            if (e.target.value !== '' && Number.isInteger(n) && n >= ZOOM_MIN && n <= ZOOM_MAX && n % ZOOM_STEP === 0) onChange(n);
+          }}
+          onBlur={() => setText(String(value))}
+        />
+        <span className="muted"><SettingDescription text={t('settings.explorer.markdownZoom.hint')} /></span>
+      </label>
+    </SettingItem>
+  );
+}
+
+/** The hand-written rows of the `markdown.readingWidth` and `markdown.zoom` settings (search results show them too). */
+export function ReadingWidthSettingField({ settings, onChange }: SettingsFieldProps<ExplorerViewSettings>) {
+  const md = markdownStoredOf(settings.markdown);
+  return <ReadingWidthField value={md.readingWidth} onChange={(readingWidth) => onChange({ markdown: { ...md, readingWidth } })} />;
+}
+
+export function ZoomSettingField({ settings, onChange }: SettingsFieldProps<ExplorerViewSettings>) {
+  const md = markdownStoredOf(settings.markdown);
+  return <ZoomField key={md.zoom} value={md.zoom} onChange={(zoom) => onChange({ markdown: { ...md, zoom } })} />;
+}
+
 /** How the Explorer tree and its tabs behave (`files.*` settings, shared with the file tabs). */
 export function ExplorerCard({ settings, onChange, row }: SettingsCardProps<ExplorerViewSettings>) {
   const files = fileSettingsOf(settings.files);
   const set = (patch: Partial<typeof files>) => onChange({ files: { ...files, ...patch } });
+  const md = markdownStoredOf(settings.markdown);
+  const setMd = (patch: Partial<MarkdownStored>) => onChange({ markdown: { ...md, ...patch } });
   return (
     <>
       <section className="section">
         <h4 className="mono-label">{t('settings.explorer.tabs')}</h4>
         <div className="card form">
-          {['previewTabs', 'autoReveal', 'breadcrumbs', 'restoreTabs', 'markdownToc'].map((k) => row(`files.${k}`))}
+          {['previewTabs', 'autoReveal', 'breadcrumbs', 'restoreTabs'].map((k) => row(`files.${k}`))}
+        </div>
+      </section>
+      <section className="section">
+        <h4 className="mono-label">{t('settings.explorer.markdown')}</h4>
+        <div className="card form">
+          {row('markdown.defaultMode')}
+          <ReadingWidthField value={md.readingWidth} onChange={(readingWidth) => setMd({ readingWidth })} />
+          <ZoomField key={md.zoom} value={md.zoom} onChange={(zoom) => setMd({ zoom })} />
+          {row('markdown.mermaid')}
+          {row('files.markdownToc')}
         </div>
       </section>
       <section className="section">
