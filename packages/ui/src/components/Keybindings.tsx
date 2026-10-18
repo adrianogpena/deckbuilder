@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, type MutableRefObject, type ReactNode } from 'react';
 import { isDesktop } from '../api';
 import { isTyping } from '../hooks';
-import { chordOf, firesInInput, ownsKey, resolve, startsOf, type CommandDef, type Keymap } from '../keybindings';
+import { chordOf, firesInInput, inFocusScope, ownsKey, resolve, startsOf, type CommandDef, type Keymap } from '../keybindings';
 import { isModalOpen } from './ui';
 
 interface Handler {
@@ -19,6 +19,7 @@ export interface KeybindingsValue {
 }
 
 interface Registry extends KeybindingsValue {
+  runCommand: (id: string) => boolean;
   register: (handler: HandlerRef) => () => void;
 }
 
@@ -29,7 +30,7 @@ const SEQUENCE_TIMEOUT = 1500;
 
 /** `continuing`: a later step of a sequence, already allowed while typing by its first step. */
 function blocked(e: KeyboardEvent, def: CommandDef, chord: string, continuing = false): boolean {
-  return ownsKey(e.target, def.id) || (!continuing && isTyping(e) && !firesInInput(def, chord)) || (isModalOpen() && !def.inModal);
+  return ownsKey(e.target, def.id) || !inFocusScope(e.target, def.focus) || (!continuing && isTyping(e) && !firesInInput(def, chord)) || (isModalOpen() && !def.inModal);
 }
 
 /**
@@ -110,7 +111,17 @@ export function KeybindingProvider({ defs, keymap, scope, sequenceTimeout = SEQU
       if (!list.length && registry.current.get(id) === list) registry.current.delete(id);
     };
   }, []);
-  const value = useMemo<Registry>(() => ({ defs, keymap, scope, register }), [defs, keymap, scope, register]);
+  const runCommand = useCallback((id: string) => {
+    const list = registry.current.get(id) ?? [];
+    for (let i = list.length - 1; i >= 0; i--) {
+      if (list[i].current.enabled) {
+        list[i].current.run();
+        return true;
+      }
+    }
+    return false;
+  }, []);
+  const value = useMemo<Registry>(() => ({ defs, keymap, scope, register, runCommand }), [defs, keymap, scope, register, runCommand]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
@@ -144,4 +155,10 @@ export function useCommand(def: CommandDef, run: () => void, { enabled = true }:
 export function useKeybindings(): KeybindingsValue | null {
   const ctx = useContext(Ctx);
   return useMemo(() => (ctx ? { defs: ctx.defs, keymap: ctx.keymap, scope: ctx.scope } : null), [ctx]);
+}
+
+/** Runs the newest enabled handler of a command by id (true when one ran); a no-op without a `KeybindingProvider`. */
+export function useRunCommand(): (id: string) => boolean {
+  const ctx = useContext(Ctx);
+  return ctx?.runCommand ?? (() => false);
 }

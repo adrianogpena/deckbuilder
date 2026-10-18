@@ -187,3 +187,41 @@ export function tagCounts(sessions: Array<{ tags?: string[] }>): Array<{ tag: st
 
 /** Next pin in the cycle none → top → bottom → none. */
 export const nextPin = (pin: AgentPin | undefined): AgentPin | undefined => (pin === undefined ? 'top' : pin === 'top' ? 'bottom' : undefined);
+
+/** What ← does on `rows[i]`: collapse an expanded folder/project, else the nearest folder or shallower project above (none at depth 0). */
+export type LeftAction = { kind: 'collapse' } | { kind: 'move'; to: number } | undefined;
+
+export function leftAction(rows: readonly TreeRow[], i: number): LeftAction {
+  const r = rows[i];
+  if (!r || r.kind === 'divider') return undefined;
+  if (r.kind !== 'session' && !r.collapsed) return { kind: 'collapse' };
+  if (r.depth === 0) return undefined;
+  for (let j = i - 1; j >= 0; j--) {
+    const p = rows[j]!;
+    if (p.kind !== 'session' && p.kind !== 'divider' && p.depth < r.depth) return { kind: 'move', to: j };
+  }
+  return undefined;
+}
+
+/** What → does on `rows[i]`: expand a collapsed folder/project; on an expanded one, the very next row when it is selectable. */
+export type RightAction = { kind: 'expand' } | { kind: 'move'; to: number } | undefined;
+
+export function rightAction(rows: readonly TreeRow[], i: number): RightAction {
+  const r = rows[i];
+  if (!r || r.kind === 'divider' || r.kind === 'session') return undefined;
+  if (r.collapsed) return { kind: 'expand' };
+  const next = rows[i + 1];
+  return next && next.kind !== 'divider' ? { kind: 'move', to: i + 1 } : undefined;
+}
+
+/** Index in `rows` of the n-th selectable (non-divider) row. */
+export function selectableToRow(rows: readonly TreeRow[], n: number): number {
+  let k = -1;
+  for (let i = 0; i < rows.length; i++) {
+    if (rows[i]!.kind !== 'divider' && ++k === n) return i;
+  }
+  return -1;
+}
+
+/** Position among the selectable rows of `rows[i]`. */
+export const rowToSelectable = (rows: readonly TreeRow[], i: number): number => rows.slice(0, i).filter((r) => r.kind !== 'divider').length;

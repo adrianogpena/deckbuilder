@@ -1,6 +1,6 @@
 import { type UsageSettings, usageViewData } from './UsageView';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { errorOf, setTitleBadge, useCommand, useKeybindings } from '@deckbuilderkit/ui';
+import { errorOf, setTitleBadge, useCommand, useKeybindings, useRunCommand } from '@deckbuilderkit/ui';
 import { TerminalPane, terminalAppKeys, type TerminalPaneHandle } from '@deckbuilderkit/terminal';
 import { closeSession, listSessions } from '@deckbuilderkit/terminal/session';
 import { agentsCommands } from '../commands';
@@ -88,6 +88,7 @@ const linkedSession = (): { id: string; owner?: string } | undefined => {
 export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false, usageSettings }: { mode?: 'terminal' | 'chat'; resumeOnSelect?: boolean; usageSettings?: UsageSettings }) {
   const { sessions, usage, git } = useAgentsFeed();
   const keys = useKeybindings();
+  const runCommand = useRunCommand();
   const [hidden, setHidden] = useState(readHidden);
   const [panelHidden, setPanelHidden] = useState(readPanelHidden);
   const [panelTab, setPanelTab] = useState<SidePanelTab>(readPanelTab);
@@ -483,6 +484,36 @@ export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false, usageS
     setNotice(t('agents.clear.done'));
   }, [sessions, selectedId]);
   useCommand(agentsCommands()[5]!, clearContext);
+
+  const interact = useCallback(() => {
+    if (!selectedId) return setNotice(t('agents.interact.none'));
+    const inputs = document.querySelectorAll<HTMLElement>('.agents-main .xterm-helper-textarea, .agents-main .chat-input textarea');
+    const visible = [...inputs].find((el) => el.offsetParent !== null) ?? inputs[0];
+    if (visible) visible.focus();
+    else setNotice(t('agents.interact.none'));
+  }, [selectedId]);
+  useCommand(agentsCommands()[24]!, interact);
+  const newSessionHere = useCallback(() => {
+    const project = sessions.find((s) => s.id === selectedId)?.project ?? summaryFor ?? folderFor?.projectIds[0];
+    if (project) setNewFor(project);
+  }, [sessions, selectedId, summaryFor, folderFor]);
+  useCommand(agentsCommands()[25]!, newSessionHere);
+  useCommand(agentsCommands()[26]!, newSessionHere);
+  useCommand(agentsCommands()[27]!, () => setAdding(true));
+  useCommand(agentsCommands()[29]!, () => {
+    if (selected && !selected.live && !selected.external) void startPreview();
+  });
+  useCommand(agentsCommands()[30]!, () => {
+    if (selected) void stop(selected);
+  });
+  useCommand(agentsCommands()[31]!, () => {
+    if (selected) void restart(selected);
+  });
+  useCommand(agentsCommands()[32]!, () => {
+    void listAgentProjects().then(setProjects, (e) => setError(errorOf(e).message));
+  });
+  useCommand(agentsCommands()[49]!, () => void runCommand('app.keybindings'));
+  useCommand(agentsCommands()[50]!, () => void runCommand('app.settings'));
 
   const appKeys = useMemo(() => terminalAppKeys('agents', keys?.defs ?? [], ['agents.toggleSidebar', 'agents.togglePanel']), [keys?.defs]);
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PALETTES } from '@deckbuilderkit/server-core/palettes';
-import { CommandPalette, detectLanguage, effectiveKeys, ErrorBanner, AppFrame, Icon, isDesktop, KeybindingProvider, LayoutProvider, type PaletteItem, setFileAssociations, setLanguage, Sidebar, Spinner, titleWithBadge, ToastProvider,useAsync, useCommand, useCommandPalette, useHashRoute, useHeartbeat, useKeybindings, useTheme, useTitleBadge,useZen, useZoom } from '@deckbuilderkit/ui';
+import { CommandPalette, detectLanguage, effectiveKeys, ErrorBanner, GLOBAL, AppFrame, Icon, isDesktop, KeybindingProvider, LayoutProvider, type PaletteItem, setFileAssociations, setLanguage, Sidebar, Spinner, titleWithBadge, ToastProvider,useAsync, useCommand, useCommandPalette, useHashRoute, useHeartbeat, useKeybindings, useRunCommand, useTheme, useTitleBadge,useZen, useZoom } from '@deckbuilderkit/ui';
 import { EditorOptionsContext } from '@deckbuilderkit/editor/options';
 import { APP } from '../../app';
 import { api, type Settings } from './api';
@@ -120,6 +120,7 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
   useCommand(commandById(KEYS_COMMAND), () => setOverlay('keys'));
   const zen = useZen();
   const keys = useKeybindings();
+  const runCommand = useRunCommand();
   const chordOf = (id: string) => (keys ? effectiveKeys(keys.defs, keys.keymap).get(id)?.[0] : undefined);
 
   const quit = useCallback(() => { api.quit().then(() => setStopped(true)).catch(() => { /* already gone */ }); }, []);
@@ -143,7 +144,10 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
     const quitItem: PaletteItem[] = isDesktop ? [] : [{
       id: 'app:quit', group: t('palette.group.app'), label: t('palette.quit', { name: APP.name }), keywords: ['quit', 'exit', 'stop'], run: quit,
     }];
-    return [...goTo, ...overlays, toggle, ...palettes, ...quitItem];
+    const viewItems = (keys?.defs ?? []).filter((d) => d.scope === keys!.scope && d.scope !== GLOBAL).map((d): PaletteItem => ({
+      id: `cmd:${d.id}`, group: views.label(keys!.scope), label: d.label, hint: chordOf(d.id), keywords: [d.id], run: () => void runCommand(d.id),
+    }));
+    return [...goTo, ...overlays, ...viewItems, toggle, ...palettes, ...quitItem];
   }, [go, save, quit, nextTheme, settings.language, keys, setOverlay]);
 
   if (stopped) return <div className="boot"><span>{t('app.stopped', { name: APP.name })}</span></div>;

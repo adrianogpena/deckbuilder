@@ -16,6 +16,8 @@ export interface CommandDef {
   inModal?: boolean;
   /** Only bound in the native window (browsers keep Ctrl+T/W/Tab). */
   desktopOnly?: boolean;
+  /** Fires only while focus is inside `[data-key-scope="<focus>"]` (see `KEY_SCOPE_ATTR`); default: anywhere. */
+  focus?: string;
 }
 
 /** User overrides by command id; [] = unbound. */
@@ -253,4 +255,14 @@ export function ownsKey(target: unknown, id: string): boolean {
   const owner = (target as Closest).closest(`[${OWN_KEYS_ATTR}="own"]`);
   if (!owner) return false;
   return !(owner.getAttribute(ALLOW_KEYS_ATTR) ?? '').split(/\s+/).includes(id);
+}
+
+/** A container attribute: `data-key-scope="<name>"` marks where commands with `focus: '<name>'` fire. */
+export const KEY_SCOPE_ATTR = 'data-key-scope';
+
+/** Whether a command with `focus` may fire for a key event on `target`: always without `focus`, else only inside `[data-key-scope="<focus>"]`. */
+export function inFocusScope(target: unknown, focus: string | undefined): boolean {
+  if (!focus) return true;
+  if (!target || typeof (target as Closest).closest !== 'function') return false;
+  return (target as Closest).closest(`[${KEY_SCOPE_ATTR}="${focus}"]`) !== null;
 }

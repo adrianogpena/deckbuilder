@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { GLOBAL, chordOf, conflictsOf, effectiveKeys, firesInInput, normalizeChord, ownsKey, resolve, startsOf, validKeymap, type CommandDef, type KeyLike } from '../src/keybindings.ts';
+import { GLOBAL, chordOf, conflictsOf, effectiveKeys, firesInInput, inFocusScope, normalizeChord, ownsKey, resolve, startsOf, validKeymap, type CommandDef, type KeyLike } from '../src/keybindings.ts';
 
 const ev = (key: string, code: string, mods: Partial<KeyLike> = {}): KeyLike => ({ key, code, ctrlKey: false, altKey: false, shiftKey: false, metaKey: false, ...mods });
 const def = (id: string, scope: string, keys: string[], extra: Partial<CommandDef> = {}): CommandDef => ({ id, scope, label: id, keys, ...extra });
@@ -206,5 +206,21 @@ describe('gallery default keymap', () => {
     const { commands } = await import('../../../apps/gallery/web/src/commands.ts');
     const { views } = await import('../../../apps/gallery/web/src/views.ts');
     expect(conflictsOf(commands(views), {})).toEqual([]);
+  });
+});
+
+describe('inFocusScope', () => {
+  const inside = (scope: string | null) => ({ closest: (sel: string) => (scope && sel === `[data-key-scope="${scope}"]` ? {} : null) as never });
+
+  test('a command without focus fires anywhere', () => {
+    expect(inFocusScope(inside(null), undefined)).toBe(true);
+    expect(inFocusScope(null, undefined)).toBe(true);
+  });
+
+  test('a command with focus fires only inside its scope', () => {
+    expect(inFocusScope(inside('agents-list'), 'agents-list')).toBe(true);
+    expect(inFocusScope(inside(null), 'agents-list')).toBe(false);
+    expect(inFocusScope(inside('other'), 'agents-list')).toBe(false);
+    expect(inFocusScope(null, 'agents-list')).toBe(false);
   });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { AgentProject, AgentSessionView, AgentTree } from '../protocol.ts';
-import { buildRows, folderName, nextPin, orderSessions, parseTags, projectKey, tagCounts } from './tree';
+import { buildRows, folderName, leftAction, nextPin, orderSessions, parseTags, projectKey, rightAction, rowToSelectable, selectableToRow, tagCounts, type TreeRow } from './tree';
 
 const tree = (over: Partial<AgentTree> = {}): AgentTree => ({ folders: [], topOrder: [], sessionOrder: {}, collapsed: [], sort: 'manual', view: 'normal', ...over });
 const proj = (id: string, name: string): AgentProject => ({ id, name, path: `C:\\src\\${name}\\` });
@@ -58,4 +58,35 @@ test('tagCounts counts per session and sorts case-insensitively then exactly', (
     { tag: 'a', count: 2 },
     { tag: 'b', count: 1 },
   ]);
+});
+
+describe('arrow navigation', () => {
+  const folder = (collapsed: boolean): TreeRow => ({ kind: 'folder', id: 'f', name: 'F', depth: 0, collapsed, sessions: [], projectIds: [], displayed: [] });
+  const proj = (depth: number, collapsed: boolean): TreeRow => ({ kind: 'project', project: {} as AgentProject, key: 'k', node: 'k', depth, collapsed, sessions: [], displayed: [] });
+  const sessRow = (depth: number): TreeRow => ({ kind: 'session', session: {} as AgentSessionView, projectKey: 'k', depth, last: true, displayed: [] });
+  const div: TreeRow = { kind: 'divider' };
+  const rows = [folder(false), proj(1, false), sessRow(2), div, proj(0, true), proj(0, false)];
+
+  test('left collapses expanded nodes, else goes to the parent', () => {
+    expect(leftAction(rows, 0)).toEqual({ kind: 'collapse' });
+    expect(leftAction(rows, 1)).toEqual({ kind: 'collapse' });
+    expect(leftAction(rows, 2)).toEqual({ kind: 'move', to: 1 });
+    expect(leftAction([folder(false), proj(1, true)], 1)).toEqual({ kind: 'move', to: 0 });
+    expect(leftAction(rows, 4)).toBeUndefined();
+    expect(leftAction([sessRow(0)], 0)).toBeUndefined();
+  });
+
+  test('right expands collapsed nodes, else moves to a selectable next row', () => {
+    expect(rightAction(rows, 4)).toEqual({ kind: 'expand' });
+    expect(rightAction(rows, 0)).toEqual({ kind: 'move', to: 1 });
+    expect(rightAction(rows, 5)).toBeUndefined();
+    expect(rightAction([proj(0, false), div], 0)).toBeUndefined();
+    expect(rightAction(rows, 2)).toBeUndefined();
+  });
+
+  test('selectable index mapping skips dividers', () => {
+    expect(selectableToRow(rows, 3)).toBe(4);
+    expect(selectableToRow(rows, 9)).toBe(-1);
+    expect(rowToSelectable(rows, 4)).toBe(3);
+  });
 });

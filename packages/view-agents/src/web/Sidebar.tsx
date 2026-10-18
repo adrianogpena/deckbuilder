@@ -1,13 +1,13 @@
 import { type CSSProperties, type DragEvent, type MouseEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { ContextMenu, type ContextMenuItem, fuzzyScore, highlightRuns, useCommand, useDialogs, useRovingList, useToast } from '@deckbuilderkit/ui';
-import { agentsCommands } from '../commands';
+import { ContextMenu, type ContextMenuItem, fuzzyScore, highlightRuns, KEY_SCOPE_ATTR, useCommand, useDialogs, useRovingList, useToast } from '@deckbuilderkit/ui';
+import { AGENTS_LIST_SCOPE, agentsCommands } from '../commands';
 import { t } from '../i18n';
 import type { AgentCategory } from '../protocol.ts';
-import { type AgentAccount, type AgentAccountUsage, listAccounts, type AgentProject, type AgentSessionView, type AgentStatus, type AgentTreePatch, addTags, deleteSession, deleteSessions, markUnread, patchSessionState, trashMessage, undoDelete, removeTagEverywhere, searchSessions, stopSession, type TreePatchResult } from './api';
+import { type AgentAccount, type AgentAccountUsage, listAccounts, type AgentProject, type AgentSessionView, type AgentStatus, type AgentTreePatch, addTags, deleteSession, deleteSessions, markSeen, markUnread, patchSessionState, trashMessage, undoDelete, removeTagEverywhere, searchSessions, stopSession, type TreePatchResult } from './api';
 import { compareSessions, displayName, statusCounts } from './attention';
 import { type BatchAction, BatchBar } from './BatchBar';
 import { archiveOutcome, batchOrder, distinctKeys, isWorking, liveHere, partitionArchive, stopOutcome, toggleChecked } from './batch';
-import { type AgentFilters, CATEGORIES, categoryOf, clearFilters, clearStatus, isFiltering, matchesFilters, NO_FILTERS, nextTime, parseQuery, type TimeMode, type TitleLabels, titleNote, toggleStatus, toggleTag } from './filters';
+import { type AgentFilters, CATEGORIES, categoryOf, clearFilters, clearStatus, isFiltering, matchesFilters, NO_FILTERS, nextTime, parseQuery, STATUS_KEYS, type TimeMode, type TitleLabels, titleNote, toggleStatus, toggleTag } from './filters';
 import { type FolderPick, MoveToFolder } from './MoveToFolder';
 import { AccountPicker, activeDirOf } from './AccountPicker';
 import { type AddedAccount, ManageAccounts, type ManageAccountsMode } from './ManageAccounts';
@@ -15,7 +15,7 @@ import { setActiveAccount } from './api';
 import { pruneBatch, rowKey, shownOrders, startedCandidates, stepStarted, trackPrevious, reselect, type PreviousState } from './navigation';
 import { TrashPanel } from './TrashPanel';
 import { type GitStatusMap, projectGitBadge } from './git';
-import { buildRows, folderName, folderNodeKey, nextPin, parseTags, projectKey, projectNodeKey, sessionNodeKey, tagCounts, type TreeRow } from './tree';
+import { buildRows, folderName, folderNodeKey, leftAction, nextPin, parseTags, projectKey, projectNodeKey, rightAction, rowToSelectable, sessionNodeKey, tagCounts, type TreeRow } from './tree';
 import { useAgentTree } from './useAgentSessions';
 import { type UsageSettings, UsageView, usageViewData } from './UsageView';
 import { severity } from './usage-format';
@@ -64,6 +64,8 @@ export interface SidebarProps {
 }
 
 const SORTS = ['manual', 'recent', 'actionable'] as const;
+
+const ITEMS = '.agents-tree .agents-session, .agents-tree .agents-node';
 
 export function statusLabel(s: AgentStatus): string {
   switch (s) {
@@ -318,7 +320,10 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
   useCommand(agentsCommands()[10]!, () => jumpStarted(1));
   const sortLabel = (m: (typeof SORTS)[number]) => t(`agents.sort.${m}`);
   const cycleSort = () => {
-    if (tree) void send({ sort: SORTS[(SORTS.indexOf(tree.sort) + 1) % SORTS.length]! });
+    if (!tree) return;
+    const next = SORTS[(SORTS.indexOf(tree.sort) + 1) % SORTS.length]!;
+    void send({ sort: next });
+    if (next !== 'manual') toast({ message: t(next === 'actionable' ? 'agents.sort.toast.actionable' : 'agents.sort.toast.recent') });
   };
   useCommand(agentsCommands()[7]!, cycleSort);
 
@@ -472,7 +477,7 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
   };
   useCommand(agentsCommands()[16]!, toggleArchivedView);
   useCommand(agentsCommands()[15]!, () => {
-    const s = sessions.find((x) => x.id === selectedId);
+    const s = currentSession();
     if (s) void archiveOne(s);
   });
 
@@ -519,7 +524,7 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
     }
   };
   useCommand(agentsCommands()[17]!, () => {
-    const s = sessions.find((x) => x.id === selectedId);
+    const s = currentSession();
     if (s) void deleteOne(s);
   });
   useCommand(agentsCommands()[18]!, () => void undo());
@@ -654,6 +659,81 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
       },
     };
   };
+
+  // ---- Keyboard: the focused row (else the selected one) is the target of the list commands.
+  const listItems = () => [...(ref.current?.querySelectorAll<HTMLElement>(ITEMS) ?? [])];
+  const focusedItem = () => (document.activeElement as HTMLElement | null)?.closest<HTMLElement>(ITEMS) ?? null;
+  /** Index in rows of the focused list row, else of the selected one; -1 when none. */
+  const currentIndex = () => {
+    const at = listItems().indexOf(focusedItem()!);
+    if (at >= 0) {
+      let n = -1;
+      const i = rows.findIndex((r) => r.kind !== 'divider' && ++n === at);
+      if (i >= 0) return i;
+    }
+    return rows.findIndex((r) => (selectedId ? r.kind === 'session' && r.session.id === selectedId : selectedProjectId ? r.kind === 'project' && r.project.id === selectedProjectId : r.kind === 'folder' && r.id === selectedFolderId));
+  };
+  const currentRow = () => rows[currentIndex()];
+  const currentSession = () => {
+    const r = currentRow();
+    return r?.kind === 'session' ? r.session : undefined;
+  };
+  const focusRow = (i: number) => {
+    const el = listItems()[rowToSelectable(rows, i)];
+    el?.focus({ preventScroll: true });
+    el?.scrollIntoView({ block: 'center' });
+  };
+  const moveFocus = (dir: -1 | 1) => {
+    const list = listItems();
+    const at = list.indexOf(focusedItem()!);
+    const next = at < 0 ? undefined : list[at + dir];
+    next?.focus({ preventScroll: true });
+    next?.scrollIntoView({ block: 'center' });
+  };
+  const arrow = (dir: 'left' | 'right') => {
+    const i = currentIndex();
+    const r = rows[i];
+    const a = r && (dir === 'left' ? leftAction(rows, i) : rightAction(rows, i));
+    if (!a) return;
+    if (a.kind === 'move') focusRow(a.to);
+    else if (r.kind === 'folder' || r.kind === 'project') setCollapsed(r.kind === 'folder' ? folderNodeKey(r.id) : projectNodeKey(r.node), a.kind === 'collapse');
+  };
+  const reorder = (dir: -1 | 1) => {
+    const r = currentRow();
+    if (!r || r.kind === 'divider') return;
+    const at = r.displayed.indexOf(rowId(r));
+    if (at >= 0) void rowMove(r, at + dir);
+  };
+  const onSession = (fn: (s: AgentSessionView) => void) => () => {
+    const s = currentSession();
+    if (s) fn(s);
+  };
+  useCommand(agentsCommands()[28]!, () => {
+    const r = currentRow();
+    if (r?.kind === 'folder') void renameFolder(r.id, r.name);
+    else if (r?.kind === 'session') setTimeout(() => startRename(r.session.id), 0);
+  });
+  useCommand(agentsCommands()[33]!, onSession((s) => toggleCheck(s.id)));
+  useCommand(agentsCommands()[34]!, onSession((s) => void markUnread(s.id).catch(() => undefined)));
+  useCommand(agentsCommands()[35]!, onSession((s) => void markSeen(s.id).catch(() => undefined)));
+  useCommand(agentsCommands()[36]!, onSession((s) => cyclePin(s)));
+  useCommand(agentsCommands()[37]!, () => void newFolder());
+  useCommand(agentsCommands()[38]!, () => openMove(currentRow()));
+  useCommand(agentsCommands()[39]!, onSession((s) => void editTags(s)));
+  useCommand(agentsCommands()[40]!, () => reorder(-1));
+  useCommand(agentsCommands()[41]!, () => reorder(1));
+  useCommand(agentsCommands()[42]!, () => {
+    if (!tree) return;
+    const next = tree.view === 'active' ? 'normal' : 'active';
+    void send({ view: next });
+    toast({ message: t(next === 'active' ? 'agents.view.toast.active' : 'agents.view.toast.normal') });
+  });
+  useCommand(agentsCommands()[43]!, () => setFilters(nextTime));
+  useCommand(agentsCommands()[44]!, () => moveFocus(-1));
+  useCommand(agentsCommands()[45]!, () => moveFocus(1));
+  useCommand(agentsCommands()[46]!, () => arrow('left'));
+  useCommand(agentsCommands()[47]!, () => arrow('right'));
+  useCommand(agentsCommands()[48]!, () => setTimeout(() => ref.current?.querySelector<HTMLInputElement>('.agents-search input')?.focus(), 0));
 
   const pill = (key: string, active: boolean, label: ReactNode, aria: string, onClick: () => void, status?: AgentStatus) => (
     <button key={key} type="button" className={`agents-pill${status ? ` ${status}` : ''}`} aria-pressed={active} title={aria} aria-label={aria} onClick={onClick}>
@@ -898,7 +978,23 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
       className={`agents-sidebar${checking ? ' checking' : ''}`}
       aria-label={t('agents.sidebar')}
       ref={ref}
+      {...{ [KEY_SCOPE_ATTR]: AGENTS_LIST_SCOPE }}
       onKeyDown={(e) => {
+        if (!e.defaultPrevented && !e.ctrlKey && !e.altKey && !e.metaKey && e.target instanceof Element && e.target.matches(ITEMS)) {
+          const status = STATUS_KEYS[e.key];
+          if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+            e.preventDefault();
+            arrow(e.key === 'ArrowLeft' ? 'left' : 'right');
+          } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+            e.preventDefault();
+            const dir = e.key === 'ArrowUp' ? -1 : 1;
+            if (e.shiftKey) reorder(dir);
+            else moveFocus(dir);
+          } else if (status) {
+            e.preventDefault();
+            setFilters((f) => toggleStatus(f, status));
+          }
+        }
         if (e.key !== 'Escape' || e.defaultPrevented || !checking) return;
         e.preventDefault();
         e.stopPropagation();
