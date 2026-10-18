@@ -1,0 +1,12 @@
+/* GFM tables in the rich pane (tables.ts). Borders, header and padding come from `.markdown table` in @deckbuilderkit/ui styles.css. */
+.md-rich-root .ProseMirror .tableWrapper { overflow-x: auto; max-width: 100%; margin: 0 0 var(--space-12); }
+.md-rich-root .ProseMirror .tableWrapper > table { display: table; margin: 0; overflow: visible; table-layout: fixed; }
+.md-rich-root .ProseMirror th, .md-rich-root .ProseMirror td { position: relative; min-width: 64px; vertical-align: top; box-sizing: border-box; }
+.md-rich-root .ProseMirror th > p, .md-rich-root .ProseMirror td > p { margin: 0; }
+.md-rich-root .ProseMirror .selectedCell::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 1;
+  background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent);
+}
+.md-rich-root .ProseMirror .selectedCell { caret-color: transparent; }
+.md-rich-root .ProseMirror .column-resize-handle { position: absolute; right: -2px; top: 0; bottom: -1px; width: 4px; z-index: 2; background: var(--accent); pointer-events: none; }
+.md-rich-root .ProseMirror.resize-cursor { cursor: col-resize; }
