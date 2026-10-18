@@ -10,8 +10,6 @@ import type { AgentLocal, AgentSkill, AgentAccountUsage, AgentActiveAccountResul
 import type { AgentsMode, AgentsSettings, AgentsUsagePosition } from './settings-types.ts';
 import { type AgentAccount, accountByDir, createAccountRegistry, detectAccounts, resolveActiveAccount } from './server/accounts.ts';
 import { createAlerts } from './server/alerts.ts';
-import { CTL_STATUS, type CtlServer, startCtlServer } from './server/ctl-server.ts';
-import pkg from '../package.json';
 import { createGitPoller } from './server/git-status.ts';
 import { createHooks } from './server/hooks.ts';
 import { createNotifier, createTransitions, NOTIFY_LABEL } from './server/notify.ts';
@@ -401,30 +399,6 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
     void refresh(true);
   };
 
-  let ctlServer: CtlServer | undefined;
-  const startCtl = (dir: string) => {
-    if (ctlServer) return;
-    try {
-      ctlServer = startCtlServer({
-        dir,
-        deps: {
-          version: pkg.version,
-          pid: process.pid,
-          list: async () => {
-            const names = new Map((projects?.list() ?? []).map((p) => [p.id, p.name]));
-            return (await compute()).sessions.map((x) => ({ id: x.id, agent: 'claude', title: x.title || x.firstPrompt, project: (x.project && names.get(x.project)) || '', status: CTL_STATUS[x.status], live: x.live === true, cwd: x.cwd, updatedAt: new Date(x.updatedAt).toISOString() }));
-          },
-          screenLines: (id) => {
-            for (const [sid, lines] of opts.terminalScreens?.() ?? []) if (sid === id) return lines;
-            return undefined;
-          },
-        },
-      });
-    } catch (e) {
-      console.error(`sdeck ctl is off: ${e instanceof Error ? e.message : String(e)}`);
-    }
-  };
-
   const stop = () => {
     for (const w of watchers) w.close();
     watchers = [];
@@ -459,7 +433,6 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
       void loadSettings().then((s) => {
         claudeCommand.configure(s.agents);
         git.setEnabled(s.agents?.gitStatus !== false);
-        if (s.agents?.ctl !== false) startCtl(join(ctx.dataDir, 'agents'));
       }, () => {});
       running = createRunningStore(join(ctx.dataDir, 'agents', 'running.json'));
       clearInterval(runningTimer);
@@ -890,8 +863,6 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
     },
     onQuit() {
       running?.setQuitting();
-      ctlServer?.stop();
-      ctlServer = undefined;
       stop();
       clearInterval(runningTimer);
       clearInterval(lifeTimer);

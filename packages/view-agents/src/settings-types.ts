@@ -25,8 +25,6 @@ export interface AgentsSettings {
   autoSettle?: boolean;
   /** Background git status of every listed session's cwd; on when omitted, false = git never runs. */
   gitStatus?: boolean;
-  /** Read-only ctl server for the sdeck command (127.0.0.1, token in ctl.json); on when omitted, read at startup only. */
-  ctl?: boolean;
   /** Toast when a session needs you / finishes / fails and is not on screen; on when omitted. */
   notifyNeedsYou?: boolean;
   notifyDone?: boolean;

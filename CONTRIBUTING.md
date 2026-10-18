@@ -387,7 +387,7 @@ scheme for deep links (default: the folder without dashes). Then:
 4. Capabilities: when two views need the same code (SQL/db, HTTP, git), put it in a shared non-view package and depend on that, not on the other view.
 5. Settings cards: set `ViewDef.settingsCards`; write the cards in `src/settings/cards.tsx` and wire them in `view.tsx`.
 
-The Agents view lives in `packages/view-agents`. Its read-only ctl server is `src/server/ctl-server.ts` (publishes `ctl.json` with a token) and the `<app> ctl` client is `src/ctl-client.ts`, registered as a shell subcommand (see `packages/shell/src/index.ts`).
+The Agents view lives in `packages/view-agents`.
 
 ## Releases
 

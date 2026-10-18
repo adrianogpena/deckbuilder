@@ -42,7 +42,6 @@ export const agentsSettingDefs: SettingDef<AgentsViewSettings>[] = [
   groupField<AgentsViewSettings, 'agents'>('agents', 'trashRetentionDays', 18, num(30, 1, 3650)),
   groupField<AgentsViewSettings, 'agents'>('agents', 'autoSettle', 25, bool(true)),
   groupField<AgentsViewSettings, 'agents'>('agents', 'gitStatus', 27, bool(true)),
-  groupField<AgentsViewSettings, 'agents'>('agents', 'ctl', 27.5, bool(true)),
   groupField<AgentsViewSettings, 'agents'>('agents', 'usage.show', 28, bool(false)),
   groupField<AgentsViewSettings, 'agents'>('agents', 'usage.position', 28.1, oneOf('float', USAGE_POSITIONS)),
   groupField<AgentsViewSettings, 'agents'>('agents', 'usage.compact', 28.2, bool(false)),

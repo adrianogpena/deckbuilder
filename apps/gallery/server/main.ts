@@ -16,7 +16,6 @@ import {
   type BaseSettings,
 } from '@deckbuilderkit/server-mods';
 import { runApp } from '@deckbuilderkit/shell';
-import { runCtl } from '@deckbuilderkit/view-agents/ctl';
 import type { ExplorerServerSettings } from '@deckbuilderkit/view-explorer/server';
 import type { GitServerSettings } from '@deckbuilderkit/view-git/server';
 import type { AgentsServerSettings } from '@deckbuilderkit/view-agents/server';
@@ -174,9 +173,6 @@ const mounted = mountViews(serverViews, { dataDir, settings, stores });
 
 await runApp({
   app: APP,
-  subcommands: {
-    ctl: (args) => runCtl(args, { dir: join(dataDir, 'agents'), enabled: async () => (await settings.load()).agents?.ctl !== false }),
-  },
   routes: (ctx) => ({
     ...infoRoutes({ app: APP, version: pkg.version, dataDir }),
     ...settingsRoutes(settings),

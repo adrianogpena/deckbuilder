@@ -6,7 +6,6 @@
   "exports": {
     "./web": "./src/web.ts",
     "./server": "./src/server.ts",
-    "./ctl": "./src/ctl-client.ts",
     "./styles.css": "./src/styles.css"
   },
   "dependencies": {

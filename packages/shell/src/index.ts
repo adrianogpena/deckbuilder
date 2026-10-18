@@ -75,7 +75,7 @@ export interface RunOptions {
    */
   tray?: boolean | TrayMenu;
   /**
-   * Command-line subcommands (`<app> ctl ...`): when the first argument names one, it runs with the
+   * Command-line subcommands (`<app> <name> ...`): when the first argument names one, it runs with the
    * rest of the arguments before any flag is read or window opens, and the app exits with its code.
    */
   subcommands?: Record<string, (args: string[]) => number | Promise<number>>;

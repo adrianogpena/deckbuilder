@@ -19,7 +19,6 @@ The Agents view (`view-agents`): Claude Code sessions per project, with live sta
 - Search accepts status prefixes `! @ # & ~`. `agents.restoreSessions` (ask, always, never) controls restoring sessions on start.
 - Every list action is a palette command with a rebindable key; single-letter keys work only while the session list has focus.
 - Settings > Usage previews changes next to a live sample Usage view.
-- `<app> ctl <command> [id]` (commands `list`, `status <id>`, `screen <id>`, `wait <id> --status <names>`, `ping`; option `--json`) talks to a read-only local server (setting `agents.ctl`). `--rows` applies only to `screen`; `--timeout` and `--status` only to `wait`. Write options as `--opt value`; `--opt=value` is not parsed. Exit codes: 0 ok, 1 bad arguments or server error, 2 not running, 3 wait timed out.
 
 ## Install
 
