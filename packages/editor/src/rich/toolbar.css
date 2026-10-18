@@ -1,0 +1,32 @@
+/* Rich markdown toolbar (Toolbar.tsx) and task checkboxes (format.ts). */
+.md-tb {
+  position: relative; display: flex; align-items: center; gap: var(--space-6); flex-shrink: 0; min-width: 0;
+  padding: var(--space-4) var(--space-8); border-bottom: 1px solid var(--border-soft); background: var(--panel);
+}
+.md-tb-select { height: var(--control-h-sm); flex-shrink: 0; font-size: var(--fs-sm); }
+.md-tb-items { display: flex; align-items: center; gap: var(--space-2); flex: 1; min-width: 0; overflow: hidden; }
+.md-tb-items .btn { flex-shrink: 0; }
+.md-tb .btn:focus-visible { outline: none; box-shadow: inset 0 0 0 1px var(--accent); }
+.md-tb-glyph { font-size: var(--fs-lg); line-height: 1; }
+.md-tb-b { font-weight: 700; }
+.md-tb-i { font-style: italic; font-family: Georgia, serif; }
+.md-tb-s { text-decoration: line-through; }
+.md-tb-link {
+  position: absolute; top: calc(100% + var(--space-4)); left: var(--space-8); z-index: 20;
+  padding: var(--space-6); border: 1px solid var(--border); border-radius: var(--radius-xl);
+  background: var(--bg-elev); box-shadow: var(--shadow);
+}
+.md-tb-link input { width: 320px; max-width: calc(100vw - 48px); height: var(--control-h-xs); font-family: var(--font-mono); font-size: var(--fs-sm); }
+
+/* GFM task items: the checkbox is drawn in the item's left padding; a click there toggles it. */
+.md-rich-root li[data-item-type="task"] { list-style: none; position: relative; margin-left: -22px; padding-left: 22px; }
+.md-rich-root li[data-item-type="task"]::before {
+  content: ''; position: absolute; left: 3px; top: .3em; width: 14px; height: 14px; box-sizing: border-box;
+  border: 1.5px solid var(--text-3); border-radius: var(--radius-xs); background: var(--bg); cursor: pointer;
+}
+.md-rich-root li[data-item-type="task"][data-checked="true"]::before { border-color: var(--accent); background: var(--accent); }
+.md-rich-root li[data-item-type="task"][data-checked="true"]::after {
+  content: ''; position: absolute; left: 8px; top: calc(.3em + 2px); width: 4px; height: 8px;
+  border: solid var(--ink-on-accent); border-width: 0 2px 2px 0; transform: rotate(45deg); pointer-events: none;
+}
+.md-rich-root li[data-item-type="task"][data-checked="true"] > p { color: var(--text-2); }
