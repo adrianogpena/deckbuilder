@@ -20,10 +20,9 @@
 .agents-session { display: flex; align-items: center; gap: var(--space-6); width: 100%; min-height: var(--control-h-xs); padding: 0 var(--space-8) 0 calc(var(--space-6) + var(--agents-depth, 0) * 2ch); border: 0; border-radius: var(--radius-md); background: none; color: var(--text-2); font: inherit; font-size: var(--fs-md); text-align: left; cursor: pointer; outline: none; }
 .agents-session:hover { background: var(--hover); color: var(--text); }
 .agents-session:focus-visible { box-shadow: inset 0 0 0 1px var(--accent); }
-.agents-session.selected { background: var(--accent); color: var(--ink-on-accent); }
+.agents-session.selected { color: var(--text); }
 .agents-session.selected .agents-session-title { font-weight: 600; }
 .agents-session.selected :is(.agents-glyph, .agents-mark, .agents-ctx, .agents-session-snippet) { color: inherit; }
-.agents-session.selected:focus-visible { box-shadow: inset 0 0 0 1px var(--ink-on-accent); }
 .agents-session.strong .agents-session-title { font-weight: 600; color: var(--text); }
 .agents-session.failed .agents-session-title { text-decoration: underline; text-underline-offset: 2px; }
 .agents-session.other-account .agents-session-title { color: var(--text-3); }

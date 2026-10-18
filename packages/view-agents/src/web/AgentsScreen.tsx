@@ -440,14 +440,22 @@ export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false, usageS
   }, [sessions, selectedId]);
   useCommand(agentsCommands()[5]!, clearContext);
 
-  const interact = useCallback(() => {
-    if (!selectedId) return setNotice(t('agents.interact.none'));
+  const focusInput = useCallback(() => {
     const inputs = document.querySelectorAll<HTMLElement>('.agents-main .xterm-helper-textarea, .agents-main .chat-input textarea');
-    const visible = [...inputs].find((el) => el.offsetParent !== null) ?? inputs[0];
-    if (visible) visible.focus();
-    else setNotice(t('agents.interact.none'));
-  }, [selectedId]);
-  useCommand(agentsCommands()[24]!, interact);
+    const visible = [...inputs].find((el) => el.offsetParent !== null && !(el as HTMLTextAreaElement).disabled);
+    visible?.focus();
+    return visible !== undefined && document.activeElement === visible;
+  }, []);
+  const interact = useCallback(async () => {
+    if (!selectedId) return setNotice(t('agents.interact.none'));
+    if (inPreview) await startPreview();
+    for (let i = 0; i < 40; i++) {
+      if (focusInput()) return;
+      await new Promise((res) => setTimeout(res, 50));
+    }
+    setNotice(t('agents.interact.none'));
+  }, [selectedId, inPreview, startPreview, focusInput]);
+  useCommand(agentsCommands()[24]!, () => void interact());
   const newSessionHere = useCallback(() => {
     const project = sessions.find((s) => s.id === selectedId)?.project ?? summaryFor ?? folderFor?.projectIds[0];
     if (!project) return;
