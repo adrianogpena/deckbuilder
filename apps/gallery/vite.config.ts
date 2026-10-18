@@ -16,6 +16,12 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          if (id.includes('@xterm/')) return 'xterm';
+          if (id.includes('/marked/') || id.includes('/dompurify/')) return 'markdown';
+          if (id.includes('/react-dom/') || id.includes('/react/') || id.includes('/scheduler/')) return 'react';
+          if (/react-(grid-layout|resizable|draggable)|prop-types|clsx/.test(id)) return 'grid';
+          const view = /packages[\/](sql-ui)[\/]/.exec(id);
+          if (view) return view[1];
           if (id.includes('@codemirror/legacy-modes')) return 'cm-legacy-modes';
           if (id.includes('@codemirror/') || id.includes('@lezer/') || id.includes('/codemirror/')) return 'codemirror';
         },
