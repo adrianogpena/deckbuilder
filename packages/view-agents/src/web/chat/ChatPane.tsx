@@ -31,7 +31,7 @@ export function ChatPane({ onSession, insertRef, submitRef, session, branch, ...
   const summary = useMemo(() => summarize(chat.events), [chat.events]);
   const running = chat.state?.run === 'running';
   const closed = chat.state?.run === 'closed';
-  const inactive = closed || session?.status === 'stopped' || session?.status === 'exited';
+  const inactive = closed;
   return (
     <div className="chat-pane">
       {session && <StoppedCard readOnly session={session} branch={branch} summary={summary} />}
