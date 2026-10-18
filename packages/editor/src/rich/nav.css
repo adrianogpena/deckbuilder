@@ -1,0 +1,4 @@
+.md-rich-toc-slot { position: sticky; top: 0; height: 0; z-index: 5; }
+.md-rich-scroll.md-rich-has-toc { padding-left: 40px; }
+.md-heading-pick .pal-item { width: 100%; text-align: left; }
+.md-heading-pick .pal-hint { flex-shrink: 0; }
