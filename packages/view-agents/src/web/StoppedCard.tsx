@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useRef, useState, type KeyboardEvent } from 'react';
 import type { AgentSessionView, AgentStatus } from '../protocol.ts';
 import { t } from '../i18n';
 import { since } from './AlertsPanel';
@@ -79,10 +79,6 @@ function Files({ files, cwd }: { files: string[]; cwd: string }) {
 /** Card of a session that is not attached: name, status line, action line (Enter / s / x), then the history digest (goal, where it stopped, chips, files changed). */
 export function StoppedCard({ session: s, screenError, onStart, onBackground, onRestart, onClear, summary, branch, readOnly }: StoppedCardProps) {
   const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!readOnly) ref.current?.focus();
-  }, [s.id, readOnly]);
 
   const exited = s.lifecycle === 'exited' || s.status === 'exited';
   const live = s.live === true && (s.status === 'running' || s.status === 'needs-you');

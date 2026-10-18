@@ -52,13 +52,13 @@ export function trackPrevious(state: PreviousState, selected: string | undefined
   return { current: selected, previous: state.current };
 }
 
-/** The ids of session rows `[` / `]` can land on: Running (incl. Starting), Waiting (incl. finished-unseen) or Idle, in row order. */
+/** The ids of session rows `[` / `]` can land on: active: Running (incl. Starting), Waiting (incl. finished-unseen), Idle or Error (not Stopped), in row order. */
 export function startedCandidates(rows: TreeRow[]): string[] {
   const out: string[] = [];
   for (const r of rows) {
     if (r.kind !== 'session') continue;
     const c = categoryOf(r.session as AgentSessionView);
-    if (c === 'running' || c === 'waiting' || c === 'idle') out.push(r.session.id);
+    if (c !== 'stopped') out.push(r.session.id);
   }
   return out;
 }
@@ -77,3 +77,6 @@ export function shownOrders(rows: TreeRow[]): Record<string, string[]> {
   for (const r of rows) if (r.kind === 'session') if (r.session.id) (out[r.projectKey] ??= []).push(r.session.id);
   return out;
 }
+
+/** Where focus was last inside the Agents view (kept across view switches): the tree or the session pane. Unset on the first run. */
+export const focusMemory: { region?: 'tree' | 'main' } = {};

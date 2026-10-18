@@ -1,5 +1,5 @@
 import { type CSSProperties, type DragEvent, type MouseEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { ContextMenu, type ContextMenuItem, fuzzyScore, highlightRuns, KEY_SCOPE_ATTR, useCommand, useDialogs, useRovingList, useToast } from '@deckbuilderkit/ui';
+import { ContextMenu, type ContextMenuItem, fuzzyScore, highlightRuns, KEY_SCOPE_ATTR, useCommand, useDialogs, useRovingList, useRunCommand, useToast } from '@deckbuilderkit/ui';
 import { AGENTS_LIST_SCOPE, agentsCommands } from '../commands';
 import { t } from '../i18n';
 import type { AgentCategory } from '../protocol.ts';
@@ -12,7 +12,7 @@ import { type FolderPick, MoveToFolder } from './MoveToFolder';
 import { AccountPicker, activeDirOf } from './AccountPicker';
 import { type AddedAccount, ManageAccounts, type ManageAccountsMode } from './ManageAccounts';
 import { setActiveAccount } from './api';
-import { pruneBatch, rowKey, shownOrders, startedCandidates, stepStarted, trackPrevious, reselect, type PreviousState } from './navigation';
+import { focusMemory, pruneBatch, rowKey, shownOrders, startedCandidates, stepStarted, trackPrevious, reselect, type PreviousState } from './navigation';
 import { TrashPanel } from './TrashPanel';
 import { type GitStatusMap, projectGitBadge } from './git';
 import { buildRows, folderName, folderNodeKey, leftAction, nextPin, parseTags, projectKey, projectNodeKey, rightAction, rowToSelectable, sessionNodeKey, tagCounts, type TreeRow } from './tree';
@@ -131,8 +131,7 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
     const selected = sessions.find((x) => x.id === selectedId);
     const counts: Partial<Record<AgentCategory, number>> = {};
     for (const x of sessions) counts[categoryOf(x)] = (counts[categoryOf(x)] ?? 0) + 1;
-    const withModel = selected?.modelName ? selected : [...sessions].filter((x) => x.modelName).sort((a, b) => b.updatedAt - a.updatedAt)[0];
-    const data = usageViewData(withModel ?? selected, usage, sessions.map((x) => x.account), counts);
+    const data = usageViewData(selected, usage, sessions.map((x) => x.account), counts);
     return <UsageView {...data} items={usageSettings.items} compact={usageSettings.compact} use24h={usageSettings.use24h} onOpen={onOpenUsage} className={`pin-${usageSettings.position}`} />;
   })();
   useRovingList(ref, '.agents-session, .agents-node');
@@ -142,12 +141,18 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
     if (focusedList.current) return;
     const root = ref.current;
     if (!root) return;
-    const item = root.querySelector<HTMLElement>('.agents-tree [tabindex="0"]');
+    if (focusMemory.region === 'main') {
+      focusedList.current = true;
+      return;
+    }
+    const item = root.querySelector<HTMLElement>('.agents-session[aria-current], .agents-node[aria-current]')
+      ?? (root.querySelector('.agents-session') ? undefined : root.querySelector<HTMLElement>('.agents-tree [tabindex="0"]'));
     if (!item && (sessions.length > 0 || projects.length > 0)) return;
     focusedList.current = true;
     if (!root.contains(document.activeElement)) (item ?? root).focus({ preventScroll: true });
   });
   const toast = useToast();
+  const runCommand = useRunCommand();
   const { tree, patch } = useAgentTree();
   const [drag, setDrag] = useState<DragNode>();
   const [query, setQuery] = useState('');
@@ -299,8 +304,10 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
   const jumpStarted = (dir: 1 | -1) => {
     const list = expandCollapsedOnActiveJump && tree ? buildRows({ tree: { ...tree, collapsed: [] }, projects, sessions: live, filtering: searching }) : rows;
     const id = stepStarted(startedCandidates(list), selectedId, dir);
-    if (id) onSelect(id);
-    else toast({ message: t('agents.nav.noStarted') });
+    if (id) {
+      onSelect(id);
+      setTimeout(() => ref.current?.querySelector<HTMLElement>('.agents-tree .agents-session[aria-current]')?.focus(), 0);
+    } else toast({ message: t('agents.nav.noStarted') });
   };
   useCommand(agentsCommands()[9]!, () => jumpStarted(-1));
   useCommand(agentsCommands()[10]!, () => jumpStarted(1));
@@ -674,6 +681,10 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
     const next = at < 0 ? undefined : list[at + dir];
     next?.focus({ preventScroll: true });
     next?.scrollIntoView({ block: 'center' });
+    const r = next && currentRow();
+    if (r?.kind === 'session') onSelect(r.session.id);
+    else if (r?.kind === 'project') onSelectProject?.(r.project.id);
+    else if (r?.kind === 'folder') onSelectFolder?.({ id: r.id, name: r.name, projectIds: r.projectIds });
   };
   const arrow = (dir: 'left' | 'right') => {
     const i = currentIndex();
@@ -725,7 +736,7 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
   useCommand(agentsCommands()[50]!, () => {
     const root = ref.current;
     if (!root) return;
-    const item = root.querySelector<HTMLElement>(`.agents-tree .agents-session[aria-current]`) ?? root.querySelector<HTMLElement>(`${ITEMS}[aria-current], ${ITEMS}[tabindex="0"]`) ?? root.querySelector<HTMLElement>(ITEMS);
+    const item = root.querySelector<HTMLElement>('.agents-tree .agents-session[aria-current], .agents-tree .agents-node[aria-current]') ?? root.querySelector<HTMLElement>(`${ITEMS}[aria-current], ${ITEMS}[tabindex="0"]`) ?? root.querySelector<HTMLElement>(ITEMS);
     (item ?? root).focus();
   });
   useCommand(agentsCommands()[47]!, () => setTimeout(() => ref.current?.querySelector<HTMLInputElement>('.agents-search input')?.focus(), 0));
@@ -972,11 +983,15 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
       aria-label={t('agents.sidebar')}
       ref={ref}
       tabIndex={-1}
+      onFocusCapture={() => { focusMemory.region = 'tree'; }}
       {...{ [KEY_SCOPE_ATTR]: AGENTS_LIST_SCOPE }}
       onKeyDown={(e) => {
         if (!e.defaultPrevented && !e.ctrlKey && !e.altKey && !e.metaKey && e.target instanceof Element && e.target.matches(ITEMS)) {
           const status = STATUS_KEYS[e.key];
-          if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+          if (e.key === 'Enter' && e.target.matches('.agents-session') && !e.shiftKey) {
+            e.preventDefault();
+            void runCommand('agents.interact');
+          } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
             e.preventDefault();
             arrow(e.key === 'ArrowLeft' ? 'left' : 'right');
           } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {

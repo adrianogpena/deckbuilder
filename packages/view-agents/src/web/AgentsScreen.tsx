@@ -10,6 +10,8 @@ import { AddProject } from './AddProject';
 import { AlertsPanel } from './AlertsPanel';
 import { UsageTab } from './UsageTab';
 import { SkillsPanel } from './SkillsPanel';
+import { categoryOf } from './filters';
+import { focusMemory } from './navigation';
 import { needsYouCount, nextWaiting } from './attention';
 import { ChatPane } from './chat/ChatPane';
 import { ExternalPane } from './ExternalPane';
@@ -70,7 +72,7 @@ const linkedSession = (): { id: string; owner?: string } | undefined => {
 };
 
 /** Agents screen: the sessions sidebar and the selected session's terminal. */
-export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false, usageSettings }: { mode?: 'terminal' | 'chat'; resumeOnSelect?: boolean; usageSettings?: UsageSettings }) {
+export function AgentsScreen({ mode = 'terminal', usageSettings }: { mode?: 'terminal' | 'chat'; resumeOnSelect?: boolean; usageSettings?: UsageSettings }) {
   const { sessions, usage, git } = useAgentsFeed();
   const keys = useKeybindings();
   const runCommand = useRunCommand();
@@ -194,6 +196,13 @@ export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false, usageS
       setViewing(ext ? sessionId : undefined);
       setPreview(undefined);
       if (ext) return;
+      const stopped = sessions.find((x) => x.id === sessionId);
+      if (stopped && categoryOf(stopped) === 'stopped') {
+        setPool((p) => p.filter((x) => x.sessionId !== sessionId));
+        setChats((c) => c.filter((x) => entryId(x) !== sessionId));
+        setPreview(sessionId);
+        return;
+      }
       if (chats.some((c) => entryId(c) === sessionId)) return;
       if (pool.some((x) => x.sessionId === sessionId)) {
         setPool((p) => [p.find((x) => x.sessionId === sessionId)!, ...p.filter((x) => x.sessionId !== sessionId)]);
@@ -204,19 +213,13 @@ export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false, usageS
         const live = await terminalOf(sessionId);
         if (live) return attach({ sessionId, terminal: live });
         if (!s) return;
-        // Off: show the stopped-session card, nothing is started until Enter / s.
-        if (!resumeOnSelect) return setPreview(sessionId);
-        if (mode === 'chat') {
-          openChat({ sessionId });
-          return;
-        }
-        const r = await startSession({ account: s.account, dir: s.cwd, sessionId: s.id });
-        attach({ sessionId: s.id, terminal: r.session });
+        // Selecting never starts a session: show the stopped-session card, started only by Enter / i / s.
+        setPreview(sessionId);
       } catch (e) {
         setError(errorOf(e).message);
       }
     },
-    [pool, chats, sessions, attach, mode, openChat, resumeOnSelect],
+    [pool, chats, sessions, attach],
   );
 
   const jumpWaiting = useCallback(() => {
@@ -337,11 +340,13 @@ export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false, usageS
       if (mode === 'chat') {
         setPreview(undefined);
         openChat({ sessionId: s.id });
+        void focusSoon();
         return;
       }
       const r = await startSession({ account: s.account, dir: s.cwd, sessionId: s.id });
       setPreview(undefined);
       attach({ sessionId: s.id, terminal: r.session });
+      void focusSoon();
     } catch (e) {
       setError(errorOf(e).message);
     }
@@ -446,15 +451,26 @@ export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false, usageS
     visible?.focus();
     return visible !== undefined && document.activeElement === visible;
   }, []);
+  const focusSoon = async () => {
+    for (let i = 0; i < 40; i++) {
+      await new Promise((res) => setTimeout(res, 50));
+      if (focusInput()) return;
+    }
+  };
+  useEffect(() => {
+    if (focusMemory.region === 'main') void focusSoon();
+    else focusMemory.region ??= 'tree';
+  }, []);
   const interact = useCallback(async () => {
     if (!selectedId) return setNotice(t('agents.interact.none'));
-    if (inPreview) await startPreview();
+    const stopped = selected !== undefined && !selected.external && categoryOf(selected) === 'stopped';
+    if (inPreview || stopped) await startPreview();
     for (let i = 0; i < 40; i++) {
       if (focusInput()) return;
       await new Promise((res) => setTimeout(res, 50));
     }
     setNotice(t('agents.interact.none'));
-  }, [selectedId, inPreview, startPreview, focusInput]);
+  }, [selectedId, selected, inPreview, startPreview, focusInput]);
   useCommand(agentsCommands()[24]!, () => void interact());
   const newSessionHere = useCallback(() => {
     const project = sessions.find((s) => s.id === selectedId)?.project ?? summaryFor ?? folderFor?.projectIds[0];
@@ -508,7 +524,7 @@ export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false, usageS
       {usageOpen && <UsageTab usage={usage} activeAccount={usageViewData(sessions.find((s) => s.id === selectedId), usage, []).usage?.account} use24h={usageSettings?.use24h} onClose={() => setUsageOpen(false)} />}
       {skillsOpen && <SkillsPanel onClose={() => setSkillsOpen(false)} />}
       {adding && <AddProject added={projects} onAdded={(p) => setProjects((l) => [...l, p])} onClose={() => setAdding(false)} />}
-      <section className="agents-main">
+      <section className="agents-main" onFocusCapture={() => { focusMemory.region = 'main'; }}>
         {error && <div role="alert" className="agents-error">{error}</div>}
         {notice && <div role="status" className="agents-notice">{notice}</div>}
         {newFor !== undefined && (
@@ -535,7 +551,7 @@ export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false, usageS
               <TerminalPane
                 session={a.terminal}
                 appKeys={appKeys}
-                focused={a.sessionId === selectedId && newFor === undefined}
+                focused={false}
                 handle={(h: TerminalPaneHandle | null) => {
                   if (h) {
                     inserters.current.set(a.sessionId, h.insert);

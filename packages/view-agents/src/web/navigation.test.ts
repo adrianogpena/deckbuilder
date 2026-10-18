@@ -40,8 +40,8 @@ describe('trackPrevious', () => {
 
 describe('started sessions', () => {
   const rows = [row('a', 'idle'), row('b', 'stopped'), row('c', 'done'), row('d', 'starting'), row('e', 'error')];
-  test('candidates are running, waiting and idle', () => {
-    expect(startedCandidates(rows)).toEqual(['a', 'c', 'd']);
+  test('candidates are all but stopped', () => {
+    expect(startedCandidates(rows)).toEqual(['a', 'c', 'd', 'e']);
   });
   test('steps with wrap and handles a non-candidate current', () => {
     const c = ['a', 'c', 'd'];
