@@ -667,6 +667,7 @@ export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false, usageS
             <div className="agents-pane">
               <StoppedPane
                 session={selected}
+                branch={git[selected.cwd]?.branch}
                 onStart={() => void startPreview()}
                 onBackground={() => void startBackground(selected)}
                 onRestart={() => void restart(selected)}
