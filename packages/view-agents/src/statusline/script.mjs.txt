@@ -61,6 +61,7 @@ function usageOf(input, sessionId, prev) {
   if (input.model && typeof input.model === 'object') out.model = input.model;
   const effort = effortOf(input);
   if (effort) out.effort = effort;
+  if (typeof input.version === 'string' && input.version) out.version = input.version;
   const cw = input.context_window;
   if (cw && typeof cw === 'object') {
     const ctx = { ...cw };

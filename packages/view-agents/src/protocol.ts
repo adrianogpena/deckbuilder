@@ -137,6 +137,8 @@ export interface AgentSession {
   modelName?: string;
   /** Effort level from the statusLine usage file (only when Claude sends it). */
   effort?: string;
+  /** Claude Code version from the statusLine usage file. */
+  claudeVersion?: string;
   /** Prompt-cache state from the transcript tail: time of the last request and the cache TTL. */
   cache?: AgentCacheState;
   /** Held at the top or bottom of its project. */
@@ -350,6 +352,8 @@ export interface AgentUsage {
   sessionId: string;
   model?: { id?: string; display_name?: string };
   effort?: string;
+  /** Claude Code version the CLI reported. */
+  version?: string;
   startupContextPercent?: number;
   email?: string;
   context_window?: { used_percentage?: number | null; context_window_size?: number; total_input_tokens?: number; total_output_tokens?: number; [k: string]: unknown };

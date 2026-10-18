@@ -147,7 +147,10 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
   const ref = useRef<HTMLDivElement>(null);
   const usageBlock = usageSettings?.show && (() => {
     const selected = sessions.find((x) => x.id === selectedId);
-    const data = usageViewData(selected, usage, sessions.map((x) => x.account));
+    const counts: Partial<Record<AgentCategory, number>> = {};
+    for (const x of sessions) counts[categoryOf(x)] = (counts[categoryOf(x)] ?? 0) + 1;
+    const withModel = selected?.modelName ? selected : [...sessions].filter((x) => x.modelName).sort((a, b) => b.updatedAt - a.updatedAt)[0];
+    const data = usageViewData(withModel ?? selected, usage, sessions.map((x) => x.account), counts);
     return <UsageView {...data} items={usageSettings.items} compact={usageSettings.compact} use24h={usageSettings.use24h} onOpen={onOpenUsage} className={`pin-${usageSettings.position}`} />;
   })();
   useRovingList(ref, '.agents-session, .agents-node');

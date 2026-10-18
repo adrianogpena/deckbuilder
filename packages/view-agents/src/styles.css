@@ -131,6 +131,16 @@
 .agents-sidebar.checking .agents-usage-view.pin-bottom { position: static; }
 .agents-usage-rows { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: baseline; column-gap: var(--space-6); row-gap: var(--space-2); }
 .agents-usage-row { display: contents; }
+.agents-usage-card { display: flex; flex-direction: column; gap: var(--space-6); }
+.agents-usage-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-6); min-width: 0; font-size: var(--fs-sm); }
+.agents-usage-user { color: var(--text-1); font-weight: 600; }
+.agents-usage-version { flex: none; font-family: var(--font-mono); }
+.agents-usage-foot { display: flex; flex-direction: column; gap: var(--space-4); padding-top: var(--space-6); border-top: 1px solid var(--border-soft); }
+.agents-usage-value .agents-usage-meter { flex: 1; flex-wrap: nowrap; }
+.agents-usage-value .agents-usage-extra { flex: none; }
+.agents-usage-bar { flex: 1; height: var(--space-8); border-radius: 999px; background: var(--border-soft); overflow: hidden; }
+.agents-usage-bar > span { display: block; height: 100%; border-radius: inherit; background: currentColor; }
+.agents-usage-meter-extra { width: 12ch; }
 .agents-usage-label { white-space: nowrap; }
 .agents-usage-value { display: flex; align-items: baseline; min-width: 0; font-family: var(--font-mono); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
 .agents-usage-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
