@@ -5,18 +5,17 @@ import { TerminalPane, terminalAppKeys, type TerminalPaneHandle } from '@deckbui
 import { closeSession, listSessions } from '@deckbuilderkit/terminal/session';
 import { agentsCommands } from '../commands';
 import { t } from '../i18n';
-import { lastResponse, type AgentProject, type AgentRunning, type AgentSessionView, dismissRecovery, listAgentProjects, listRecovery, markSeen, removeAgentProject, reportShown, restartSession, startInBackground, startSession, stopChat, stopSession, terminalOf } from './api';
+import { lastResponse, type AgentProject, type AgentRunning, type AgentSessionView, dismissRecovery, listAgentProjects, listRecovery, markSeen, removeAgentProject, reportShown, restartSession, startInBackground, startSession, stopSession, terminalOf } from './api';
 import { AddProject } from './AddProject';
 import { AlertsPanel } from './AlertsPanel';
 import { UsageTab } from './UsageTab';
 import { SkillsPanel } from './SkillsPanel';
-import { displayName, needsYouCount, nextWaiting } from './attention';
+import { needsYouCount, nextWaiting } from './attention';
 import { ChatPane } from './chat/ChatPane';
 import { ExternalPane } from './ExternalPane';
 import { NewSession } from './NewSession';
 import { activeDirOf } from './AccountPicker';
 import { listAccounts, setActiveAccount } from './api';
-import { RecoveryBanner } from './RecoveryBanner';
 import { ChangesTab } from './ChangesTab';
 import { NotesTab } from './NotesTab';
 import { readPanelTab, SidePanel, type SidePanelTab, writePanelTab } from './SidePanel';
@@ -24,7 +23,6 @@ import { TrajectoryTab } from './TrajectoryTab';
 import { StoppedPane } from './StoppedPane';
 import { GroupSummary } from './GroupSummary';
 import { Sidebar } from './Sidebar';
-import type { GitStatus } from '../protocol.ts';
 import { useAgentsFeed } from './useAgentSessions';
 import '../styles.css';
 
@@ -65,19 +63,6 @@ const readPanelHidden = () => {
 };
 
 /** The session id of an `#agents/<id>` app link, if the hash is one. */
-/** Session header git line: '⎇branch' ('(detached)' without one), '⇡a ⇣b' when either is non-zero, '✱n' when dirty. */
-function GitLine({ g }: { g: GitStatus }) {
-  const branch = g.branch ?? t('agents.git.detached');
-  const moved = g.ahead > 0 || g.behind > 0;
-  return (
-    <span className="agents-git-line">
-      <span className="branch" title={`${t('agents.git.branch')}: ${branch}`}>⎇{branch}</span>
-      {moved && <span className="behind" title={`${t('agents.git.ahead', { n: g.ahead })} · ${t('agents.git.behind', { n: g.behind })}`}>⇡{g.ahead} ⇣{g.behind}</span>}
-      {g.dirty > 0 && <span className="dirty" title={t('agents.git.dirty', { n: g.dirty })}>✱{g.dirty}</span>}
-    </span>
-  );
-}
-
 /** The session id (and owner account id, if given) of an `#agents/<id>[/<account id>]` app link. */
 const linkedSession = (): { id: string; owner?: string } | undefined => {
   const m = /^#\/?agents\/([\w.-]+)(?:\/([\w.-]+))?\/?$/.exec(window.location.hash);
@@ -125,20 +110,17 @@ export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false, usageS
   const [usageOpen, setUsageOpen] = useState(false);
   const [skillsOpen, setSkillsOpen] = useState(false);
   const [chats, setChats] = useState<ChatEntry[]>([]);
-  const [switching, setSwitching] = useState(false);
   const [viewing, setViewing] = useState<string>();
   const [preview, setPreview] = useState<string>();
-  const [recovery, setRecovery] = useState<AgentRunning[]>([]);
 
   const autoResume = useRef<(items: AgentRunning[]) => Promise<void>>();
   useEffect(() => {
     void listRecovery().then((items) => {
       if (items.length > 0 && items.every((x) => x.auto)) void autoResume.current?.(items);
-      else setRecovery(items);
+      else void dismissRecovery().catch(() => undefined);
     }, () => undefined);
   }, []);
   const dismissBanner = useCallback(() => {
-    setRecovery([]);
     void dismissRecovery().catch(() => undefined);
   }, []);
 
@@ -376,33 +358,6 @@ export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false, usageS
     }
   };
 
-  const switchMode = async (to: 'terminal' | 'chat') => {
-    if (!selectedId || switching || (to === 'chat' ? inChat : !inChat)) return;
-    setSwitching(true);
-    setError('');
-    try {
-      if (to === 'chat') {
-        const a = pool.find((x) => x.sessionId === selectedId);
-        if (a) {
-          await closeSession(a.terminal);
-          for (let i = 0; i < 30 && (await terminalOf(selectedId)); i++) await new Promise((res) => setTimeout(res, 100));
-        }
-        setPool((p) => p.filter((x) => x.sessionId !== selectedId));
-        setPreview(undefined);
-        openChat({ sessionId: selectedId });
-      } else {
-        const r = await stopChat(selectedId);
-        if (r.busy) return setError(t('agents.mode.busy'));
-        setChats((c) => c.filter((x) => entryId(x) !== selectedId));
-        setPreview(selectedId);
-      }
-    } catch (e) {
-      setError(errorOf(e).message);
-    } finally {
-      setSwitching(false);
-    }
-  };
-
   // Tells the server which session is on screen (none while the window is unfocused), so it does not toast for it.
   useEffect(() => {
     const report = () => void reportShown(selectedId && document.hasFocus() && !document.hidden ? selectedId : null).catch(() => undefined);
@@ -546,43 +501,6 @@ export function AgentsScreen({ mode = 'terminal', resumeOnSelect = false, usageS
       {skillsOpen && <SkillsPanel onClose={() => setSkillsOpen(false)} />}
       {adding && <AddProject added={projects} onAdded={(p) => setProjects((l) => [...l, p])} onClose={() => setAdding(false)} />}
       <section className="agents-main">
-        <header className="agents-main-head">
-          <button
-            type="button"
-            className="agents-toggle"
-            aria-pressed={!hidden}
-            title={t('keys.agents.toggleSidebar')}
-            aria-label={t('keys.agents.toggleSidebar')}
-            onClick={toggleSidebar}
-          >
-            ☰
-          </button>
-          <h1 className="agents-title">{newFor !== undefined ? t('agents.new.title') : (selected ? displayName(selected) : t('agents.heading'))}</h1>
-          {newFor === undefined && selected && git[selected.cwd] && <GitLine g={git[selected.cwd]} />}
-          {newFor === undefined && (inChat || inTerminal || inPreview) && (
-            <div className="agents-mode" role="group" aria-label={t('agents.mode.label')}>
-              {(['terminal', 'chat'] as const).map((m) => (
-                <button key={m} type="button" aria-pressed={(m === 'chat') === inChat} disabled={switching} onClick={() => void switchMode(m)}>
-                  {t(`agents.mode.${m}`)}
-                </button>
-              ))}
-            </div>
-          )}
-          <button type="button" className="agents-toggle" title={t('agents.alerts.title')} aria-label={t('agents.alerts.title')} onClick={() => setAlertsOpen(true)}>
-            🔔
-          </button>
-          <button
-            type="button"
-            className="agents-toggle agents-panel-toggle"
-            aria-pressed={!panelHidden}
-            title={t('keys.agents.togglePanel')}
-            aria-label={t('keys.agents.togglePanel')}
-            onClick={togglePanel}
-          >
-            ◫
-          </button>
-        </header>
-        <RecoveryBanner items={recovery} onResume={(i) => void resume(i)} onDismiss={dismissBanner} />
         {error && <div role="alert" className="agents-error">{error}</div>}
         {notice && <div role="status" className="agents-notice">{notice}</div>}
         {newFor !== undefined && (
