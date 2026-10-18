@@ -193,10 +193,13 @@ export function updateTally(file: string, size: number, prev: TokenTally): Token
   return t;
 }
 
-/** Context used in percent from the last turn's input + cache tokens; the window is 200k for Claude models (1M once above that). */
-export function contextPercentOf(model: string | undefined, used: number | undefined): number | undefined {
+/**
+ * Context used in percent from the last turn's input + cache tokens. The window is the one a statusLine record reported for the model
+ * (`windowSize`); without it 200k for Claude models (1M once above that).
+ */
+export function contextPercentOf(model: string | undefined, used: number | undefined, windowSize?: number): number | undefined {
   if (!used || !model || !/^claude-/i.test(model)) return undefined;
-  const window = /\[1m\]/i.test(model) || used > 200_000 ? 1_000_000 : 200_000;
+  const window = windowSize && windowSize >= used ? windowSize : /\[1m\]/i.test(model) || used > 200_000 ? 1_000_000 : 200_000;
   return Math.min(100, Math.round((used / window) * 100));
 }
 
@@ -253,7 +256,7 @@ export function createSessionScanner() {
       cache.clear();
     },
     /** `quick` skips the token sums and cache state (the costly whole-file reads) for the first paint; a later full scan fills them. */
-    scan(accounts: Array<{ id: string; dir: string }>, quick = false, limit?: ScanLimit): AgentSession[] {
+    scan(accounts: Array<{ id: string; dir: string }>, quick = false, limit?: ScanLimit, windowOf?: (model: string) => number | undefined): AgentSession[] {
       const prefixes = limit?.projectPaths.map((p) => encodeFolderName(p).toLowerCase());
       const seen = new Set<string>();
       const out: AgentSession[] = [];
@@ -306,8 +309,6 @@ export function createSessionScanner() {
               if (session && !quick) {
                 const tk = tally.tokens;
                 if (tk.input + tk.output + tk.cacheCreation + tk.cacheRead > 0) session.tokens = { ...tk };
-                const pct = contextPercentOf(session.model, tally.lastContext);
-                if (pct !== undefined) session.contextPercent = pct;
                 try {
                   const cache = cacheStateOf(file, st.size);
                   if (cache) session.cache = cache;
@@ -318,7 +319,10 @@ export function createSessionScanner() {
               c = { mtime: st.mtimeMs, size: st.size, session, tally, full: !quick };
               cache.set(file, c);
             }
-            if (c.session) out.push(c.session);
+            if (c.session) {
+              const pct = c.full ? contextPercentOf(c.session.model, c.tally.lastContext, c.session.model ? windowOf?.(c.session.model) : undefined) : undefined;
+              out.push(pct !== undefined && pct !== c.session.contextPercent ? { ...c.session, contextPercent: pct } : c.session);
+            }
           }
         }
       }

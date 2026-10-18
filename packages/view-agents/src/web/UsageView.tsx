@@ -79,7 +79,10 @@ export function usageSample(now: number = Date.now()): UsageViewData {
 
 /** Picks the active account (the selected session's, else the freshest with data) and its label when there are several accounts. */
 export function usageViewData(session: UsageSession | undefined, accounts: AgentAccountUsage[], accountIds: Iterable<string>): UsageViewData {
-  const usage = session ? accounts.find((a) => a.account === session.account) : [...accounts].sort((a, b) => b.updatedAt - a.updatedAt)[0];
+  const flagged = accounts.some((a) => a.active !== undefined);
+  const usage = flagged
+    ? accounts.find((a) => a.active)
+    : session ? accounts.find((a) => a.account === session.account) : [...accounts].sort((a, b) => b.updatedAt - a.updatedAt)[0];
   const ids = new Set(accountIds);
   for (const a of accounts) ids.add(a.account);
   const accountLabel = ids.size > 1 ? (usage?.email ?? usage?.label ?? session?.account) : undefined;

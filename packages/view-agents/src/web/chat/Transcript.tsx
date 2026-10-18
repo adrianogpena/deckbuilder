@@ -49,7 +49,6 @@ function EventRow({ event }: { event: Extract<TranscriptItem, { kind: 'event' }>
         <div className={`chat-note${event.isError ? ' error' : ''}`}>
           {event.isError ? t('agents.chat.turnFailed') : t('agents.chat.turnDone')}
           {event.durationMs != null && ` · ${(event.durationMs / 1000).toFixed(1)}s`}
-          {event.costUsd != null && ` · $${event.costUsd.toFixed(4)}`}
         </div>
       );
     case 'error':

@@ -70,12 +70,14 @@ const hasValue = (w: Window): boolean => typeof w?.used_percentage === 'number' 
 export function createUsageReader(usageDir: () => string | undefined, now: () => number = Date.now) {
   const cache = new Map<string, { mtime: number; size: number; usage: AgentUsage | null }>();
   return {
-    read(accounts: Array<{ id: string; label: string; email?: string }>): { bySession: Map<string, AgentUsage>; accounts: AgentAccountUsage[] } {
+    read(accounts: Array<{ id: string; label: string; email?: string }>, activeId?: string): { bySession: Map<string, AgentUsage>; windows: Map<string, number>; accounts: AgentAccountUsage[] } {
       const bySession = new Map<string, AgentUsage>();
+      const windows = new Map<string, number>();
+      const windowAt = new Map<string, number>();
       const out: AgentAccountUsage[] = [];
       const root = usageDir();
       const seen = new Set<string>();
-      if (!root) return { bySession, accounts: out };
+      if (!root) return { bySession, windows, accounts: out };
       const t = now();
       for (const acc of accounts) {
         const dir = join(root, safeName(acc.id));
@@ -104,6 +106,11 @@ export function createUsageReader(usageDir: () => string | undefined, now: () =>
           const u = c.usage;
           if (!u) continue;
           bySession.set(u.sessionId, u);
+          const size = u.context_window?.context_window_size;
+          if (u.model?.id && typeof size === 'number' && size > 0 && u.updatedAt >= (windowAt.get(u.model.id) ?? 0)) {
+            windows.set(u.model.id, size);
+            windowAt.set(u.model.id, u.updatedAt);
+          }
           if (u.email && acc.email && u.email !== acc.email) continue;
           if (hasValue(u.rate_limits?.five_hour) && (!five || u.updatedAt > five.updatedAt)) five = u;
           if (hasValue(u.rate_limits?.seven_day) && (!seven || u.updatedAt > seven.updatedAt)) seven = u;
@@ -112,10 +119,10 @@ export function createUsageReader(usageDir: () => string | undefined, now: () =>
         const sevenDay = seven && limitOf(seven.rate_limits?.seven_day, seven.updatedAt, t);
         if (!fiveHour && !sevenDay) continue;
         const email = acc.email ?? five?.email ?? seven?.email;
-        out.push({ account: acc.id, label: acc.label, updatedAt: Math.max(fiveHour?.updatedAt ?? 0, sevenDay?.updatedAt ?? 0), ...(email ? { email } : {}), fiveHour, sevenDay });
+        out.push({ account: acc.id, label: acc.label, ...(activeId !== undefined ? { active: acc.id === activeId } : {}), updatedAt: Math.max(fiveHour?.updatedAt ?? 0, sevenDay?.updatedAt ?? 0), ...(email ? { email } : {}), fiveHour, sevenDay });
       }
       for (const k of [...cache.keys()]) if (!seen.has(k)) cache.delete(k);
-      return { bySession, accounts: out };
+      return { bySession, windows, accounts: out };
     },
   };
 }

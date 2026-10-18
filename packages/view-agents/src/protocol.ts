@@ -204,6 +204,8 @@ export interface AgentAccountUsage {
   updatedAt: number;
   /** Signed-in account email, when the statusLine script found it. */
   email?: string;
+  /** The account new sessions launch as; the usage block shows this account's 5h/7d whatever session is selected. */
+  active?: boolean;
   fiveHour?: AgentRateLimit;
   sevenDay?: AgentRateLimit;
 }
