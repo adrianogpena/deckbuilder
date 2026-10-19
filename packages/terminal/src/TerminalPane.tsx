@@ -356,7 +356,7 @@ export function TerminalPane(props: TerminalPaneProps) {
             view.fit();
             const { cols, rows } = view.size();
             if (cols !== msg.cols || rows !== msg.rows) send(encodeControl({ type: 'resize', cols, rows }));
-            view.focus();
+            if (latest.current.focused !== false) view.focus();
           }
           setStatus({ kind: 'live' });
         } else if (msg.type === 'exit') {
