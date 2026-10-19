@@ -22,14 +22,19 @@ interface Pkg {
 const version: string = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version;
 if (!/^\d+\.\d+\.\d+(-[\w.]+)?$/.test(version)) throw new Error(`root package.json version is not semver: ${version}`);
 
-const pkgs: Pkg[] = readdirSync(join(root, 'packages')).map((d) => {
+const all: Pkg[] = readdirSync(join(root, 'packages')).map((d) => {
   const dir = join(root, 'packages', d);
   const raw = readFileSync(join(dir, 'package.json'), 'utf8');
   return { name: JSON.parse(raw).name, dir, raw, json: JSON.parse(raw) };
 });
+// Private packages are not published, so no published package may depend on one.
+const privateNames = new Set(all.filter((p) => p.json.private).map((p) => p.name));
+const pkgs = all.filter((p) => !p.json.private);
 for (const p of pkgs) {
-  if (p.json.private) throw new Error(`${p.name} is private`);
   if (p.json.version !== version) throw new Error(`${p.name} is at ${p.json.version}, root is ${version}`);
+  for (const f of DEP_FIELDS) for (const dep of Object.keys(p.json[f] ?? {})) {
+    if (privateNames.has(dep)) throw new Error(`${p.name} depends on private ${dep}`);
+  }
 }
 
 export function publishOrder(all: Pkg[]): Pkg[] {

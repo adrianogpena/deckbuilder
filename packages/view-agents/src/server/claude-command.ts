@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join } from 'node:path';
 import type { AgentsSettings } from '../settings-types.ts';
 
 const PACKAGE = ['@anthropic-ai', 'claude-code'] as const;
@@ -56,7 +56,7 @@ function nativeFromShim(shim: string, agent: string, deps: CommandDeps): string 
   }
   const rel = typeof bin === 'string' ? bin : bin && typeof bin === 'object' ? ((bin as Record<string, unknown>)[agent] ?? Object.values(bin)[0]) : undefined;
   if (typeof rel !== 'string' || !/\.exe$/i.test(rel)) return undefined;
-  const exe = resolve(pkgDir, rel);
+  const exe = join(pkgDir, rel);
   return deps.exists(exe) ? exe : undefined;
 }
 
