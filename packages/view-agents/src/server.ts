@@ -300,8 +300,11 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
     const lc = lifecycleStep(pids);
     const s = loadSeen();
     const statuses = tracker.update(pids, screenErrors, { seen: s, starting: lc.starting, exited: lc.exited.keys() });
+    // A live chat process writes no pid file: it counts as idle (never stopped, even when its last state was done).
+    const chatIds = new Set(chat?.live().ids ?? []);
+    for (const id of chatIds) if (!statuses.has(id)) statuses.set(id, 'idle');
     const statusOf = (id: string): AgentStatus => statuses.get(id) ?? tracker.offline(id, s);
-    const external = externalIds(pids, [...liveTerminalIds(), ...(chat?.live().ids ?? [])]);
+    const external = externalIds(pids, [...liveTerminalIds(), ...chatIds]);
     const usage = usageReader.read(accs, ownerView.active?.id);
     sevenDayHistory.observe(usage.accounts);
     const views: AgentSessionView[] = applyAccountView(scanner

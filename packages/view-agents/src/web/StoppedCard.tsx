@@ -1,5 +1,6 @@
-import { useRef, useState, type KeyboardEvent } from 'react';
-import type { AgentSessionView, AgentStatus } from '../protocol.ts';
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import type { AgentAccount, AgentSessionView, AgentStatus } from '../protocol.ts';
+import { listAccounts } from './api';
 import { t } from '../i18n';
 import { since } from './AlertsPanel';
 import { displayName } from './attention';
@@ -19,6 +20,19 @@ export function cardStatus(s: AgentStatus): string {
     case 'exited': return t('agents.card.status.exited');
     default: return t('agents.card.status.stopped');
   }
+}
+
+let accountsCache: Promise<AgentAccount[]> | undefined;
+
+/** Owner of a session for the card: the account's email, else its folder name. */
+function useOwner(accountId: string): string {
+  const [accounts, setAccounts] = useState<AgentAccount[]>([]);
+  useEffect(() => {
+    accountsCache ??= listAccounts().catch(() => { accountsCache = undefined; return []; });
+    void accountsCache.then(setAccounts);
+  }, []);
+  const a = accounts.find((x) => x.id === accountId);
+  return a?.email ?? a?.label ?? accountId;
 }
 
 /** The cwd with the user's home folder shown as `~`. */
@@ -89,7 +103,8 @@ export function StoppedCard({ session: s, screenError, onStart, onBackground, on
   const live = s.live === true && (s.status === 'running' || s.status === 'needs-you');
   const badge = headBadge(s);
   const time = live ? t('agents.alerts.now') : t('agents.card.ago', { t: since(s.updatedAt) });
-  const meta = [s.external ? t('agents.card.elsewhere').trim() : '', s.account, time, shortCwd(s.cwd)].filter(Boolean);
+  const owner = useOwner(s.account);
+  const meta = [s.external ? t('agents.card.elsewhere').trim() : '', time, shortCwd(s.cwd)].filter(Boolean);
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (readOnly || e.ctrlKey || e.altKey || e.metaKey || e.target !== e.currentTarget) return;
@@ -109,6 +124,7 @@ export function StoppedCard({ session: s, screenError, onStart, onBackground, on
         {screenError ? <span>{screenError}</span> : <Badge kind={badge.kind}>{badge.label}</Badge>}
         <span>{meta.join(' · ')}</span>
       </div>
+      {owner && <div className="agents-card-owner">{t('agents.card.account', { owner })}</div>}
       {!readOnly && (
         <div className={`agents-card-action${exited ? ' is-exited' : ''}`}>
           {exited ? t('agents.card.exited', { code: s.exitCode == null ? '?' : String(s.exitCode) }) : t('agents.card.stopped')}

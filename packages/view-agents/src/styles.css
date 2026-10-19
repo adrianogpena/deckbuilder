@@ -200,7 +200,8 @@
 .chat-queued-tag { font-size: var(--fs-xs); color: var(--ink-muted); text-transform: uppercase; }
 .chat-queued-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chat-input { display: flex; flex-direction: column; gap: 6px; }
-.chat-input textarea { width: 100%; box-sizing: border-box; resize: vertical; min-height: 60px; font: inherit; }
+.chat-input textarea { width: 100%; box-sizing: border-box; resize: vertical; min-height: 60px; font: inherit; padding: 8px 10px; color: inherit; background: var(--bg-sunken); border: 1px solid var(--border-soft); border-radius: 8px; outline: none; }
+.chat-input textarea:focus { border-color: var(--accent); }
 .chat-actions { display: flex; justify-content: flex-end; gap: 6px; }
 
 .agents-recovery,
@@ -233,6 +234,7 @@
 /* room for the g9 git branch bits after the meta line */
 .agents-card-action { font-size: var(--fs-sm); color: var(--accent); margin-top: var(--space-4); }
 .agents-card-action.is-exited { color: var(--err); }
+.agents-card-owner { font-size: var(--fs-sm); color: var(--ink-muted); }
 .agents-card-id { font-family: var(--font-mono, monospace); font-size: var(--fs-xs); color: var(--ink-muted); }
 .agents-card-label { margin-top: var(--space-4); }
 .agents-card-reply { font-size: var(--fs-sm); color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; }

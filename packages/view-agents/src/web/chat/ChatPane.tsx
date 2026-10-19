@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import type { AgentSessionView } from '../../protocol.ts';
+import { categoryOf } from '../filters';
 import { summarize } from '../session-summary';
 import { StoppedCard } from '../StoppedCard';
 import { Composer } from './Composer';
@@ -34,7 +35,7 @@ export function ChatPane({ onSession, insertRef, submitRef, session, branch, ...
   const inactive = closed;
   return (
     <div className="chat-pane">
-      {session && <StoppedCard readOnly session={session} branch={branch} summary={summary} />}
+      {session && (inactive || categoryOf(session) === 'stopped') && <StoppedCard readOnly session={session} branch={branch} summary={summary} />}
       <Transcript events={chat.events} />
       {chat.error && (
         <div className="chat-banner error" role="alert">
