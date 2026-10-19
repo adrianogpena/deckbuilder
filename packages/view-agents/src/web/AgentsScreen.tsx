@@ -1,6 +1,6 @@
 import { type UsageSettings, usageViewData } from './UsageView';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { effectiveKeys, errorOf, setTitleBadge, useCommand, useKeybindings, useRunCommand } from '@deckbuilderkit/ui';
+import { type CSSProperties, type PointerEvent as ReactPointerEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { effectiveKeys, errorOf, setTitleBadge, setViewTitle, useCommand, useKeybindings, useRunCommand, useToast } from '@deckbuilderkit/ui';
 import { TerminalPane, terminalAppKeys, type TerminalPaneHandle } from '@deckbuilderkit/terminal';
 import { closeSession, listSessions } from '@deckbuilderkit/terminal/session';
 import { agentsCommands } from '../commands';
@@ -11,8 +11,9 @@ import { AlertsPanel } from './AlertsPanel';
 import { UsageTab } from './UsageTab';
 import { SkillsPanel } from './SkillsPanel';
 import { categoryOf } from './filters';
-import { focusMemory } from './navigation';
-import { needsYouCount, nextWaiting } from './attention';
+import { clampWidth, focusMemory, type FocusRegion, PANEL_W, parseWidths, type PaneWidths, regionOf, SIDEBAR_W, WIDTHS_KEY } from './navigation';
+import { displayName, needsYouCount, nextWaiting } from './attention';
+import { StatusStrip } from './StatusStrip';
 import { ChatPane } from './chat/ChatPane';
 import { ExternalPane } from './ExternalPane';
 import { NewSession } from './NewSession';
@@ -32,6 +33,8 @@ import { Sidebar } from './Sidebar';
 import { useAgentsFeed } from './useAgentSessions';
 import '../styles.css';
 import './ui.css';
+import './chrome.css';
+import './islands.css';
 
 const SIDEBAR_KEY = 'deckbuilder.agents.sidebarHidden';
 const PANEL_KEY = 'deckbuilder.agents.panelHidden';
@@ -76,9 +79,70 @@ const linkedSession = (): { id: string; owner?: string } | undefined => {
   return m ? { id: m[1]!, owner: m[2] } : undefined;
 };
 
+const readWidths = (): PaneWidths => {
+  try {
+    return parseWidths(localStorage.getItem(WIDTHS_KEY));
+  } catch {
+    return parseWidths(null);
+  }
+};
+
+/**
+ * Invisible 8px drag strip between two regions (dashed line, accent on hover or drag). `edge` is the side of the
+ * resized region it sits on: 'end' grows the region to its left when dragged right, 'start' the region to its right.
+ */
+function Sash({ edge, width, onWidth, onDone, onReset }: { edge: 'start' | 'end'; width: () => number; onWidth: (w: number) => void; onDone: () => void; onReset: () => void }) {
+  const [dragging, setDragging] = useState(false);
+  const down = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const el = e.currentTarget;
+    el.setPointerCapture(e.pointerId);
+    const x0 = e.clientX;
+    const w0 = width();
+    setDragging(true);
+    const move = (ev: PointerEvent) => onWidth(w0 + (edge === 'end' ? ev.clientX - x0 : x0 - ev.clientX));
+    const up = () => {
+      el.removeEventListener('pointermove', move);
+      el.removeEventListener('pointerup', up);
+      el.removeEventListener('pointercancel', up);
+      setDragging(false);
+      onDone();
+    };
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', up);
+    el.addEventListener('pointercancel', up);
+  };
+  return <div className={`agents-sash${dragging ? ' dragging' : ''}`} aria-hidden="true" onPointerDown={down} onDoubleClick={onReset} />;
+}
+
 /** Agents screen: the sessions sidebar and the selected session's terminal. */
-export function AgentsScreen({ mode = 'terminal', usageSettings }: { mode?: 'terminal' | 'chat'; resumeOnSelect?: boolean; usageSettings?: UsageSettings }) {
+export function AgentsScreen({ mode = 'terminal', usageSettings, dnd = false, onDnd }: { mode?: 'terminal' | 'chat'; resumeOnSelect?: boolean; usageSettings?: UsageSettings; dnd?: boolean; onDnd?: (on: boolean) => void }) {
   const { sessions, usage, git } = useAgentsFeed();
+  const toast = useToast();
+  const [region, setRegion] = useState<FocusRegion | undefined>(focusMemory.region);
+  const onFocusRegion = useCallback((e: { target: EventTarget | null }) => {
+    const r = regionOf(e.target instanceof Element ? e.target : null);
+    if (!r) return;
+    focusMemory.region = r;
+    setRegion(r);
+  }, []);
+  const [widths, setWidths] = useState(readWidths);
+  const widthsRef = useRef(widths);
+  widthsRef.current = widths;
+  const saveWidths = useCallback(() => {
+    try {
+      localStorage.setItem(WIDTHS_KEY, JSON.stringify(widthsRef.current));
+    } catch {
+      /* storage unavailable */
+    }
+  }, []);
+  const screenRef = useRef<HTMLDivElement>(null);
+  const panelWidth = (key: 'panel' | 'panelWide') => () => {
+    const stored = widthsRef.current[key];
+    if (stored !== undefined) return stored;
+    return screenRef.current?.querySelector<HTMLElement>('.agents-panel')?.offsetWidth ?? PANEL_W.def;
+  };
   const keys = useKeybindings();
   const runCommand = useRunCommand();
   const [hidden, setHidden] = useState(readHidden);
@@ -233,8 +297,11 @@ export function AgentsScreen({ mode = 'terminal', usageSettings }: { mode?: 'ter
   const jumpWaiting = useCallback(() => {
     const next = nextWaiting(sessions);
     if (next) void select(next.id);
-  }, [sessions, select]);
+    else toast({ message: t('agents.noneWaiting') });
+  }, [sessions, select, toast]);
   useCommand(agentsCommands()[2]!, jumpWaiting);
+  const toggleDnd = useCallback(() => onDnd?.(!dnd), [onDnd, dnd]);
+  useCommand(agentsCommands().find((c) => c.id === 'agents.toggleDnd')!, toggleDnd);
   useCommand(agentsCommands()[3]!, () => setAlertsOpen(true));
   useCommand(agentsCommands()[20]!, () => setUsageOpen(true));
   useCommand(agentsCommands()[23]!, () => setSkillsOpen(true));
@@ -520,8 +587,21 @@ export function AgentsScreen({ mode = 'terminal', usageSettings }: { mode?: 'ter
   const projectName = selected ? (projects.find((p) => p.id === selected.project)?.name ?? selected.cwd.split(/[\\/]/).filter(Boolean).pop() ?? selected.cwd) : '';
   const appKeys = useMemo(() => terminalAppKeys('agents', keys?.defs ?? [], ['agents.toggleSidebar', 'agents.togglePanel', 'agents.focusList']), [keys?.defs]);
 
+  // Window title "<project> — <session>" for the selected session; cleared with no selection and on unmount.
+  const viewTitle = selected ? `${projectName} — ${displayName(selected)}` : undefined;
+  useEffect(() => setViewTitle(viewTitle), [viewTitle]);
+  useEffect(() => () => setViewTitle(undefined), []);
+
+  const wide = panelTab === 'trajectory';
+  const sizeVars = {
+    '--agents-sidebar-w': `${widths.sidebar}px`,
+    '--agents-panel-w': `${widths.panel}px`,
+    ...(widths.panelWide === undefined ? {} : { '--agents-panel-wide-w': `${widths.panelWide}px` }),
+  } as CSSProperties;
+
   return (
-    <div className={`view-agents agents-screen${hidden ? ' sidebar-hidden' : ''}`}>
+    <div ref={screenRef} className={`view-agents agents-screen${hidden ? ' sidebar-hidden' : ''}${region ? ` focus-${region}` : ''}`} style={sizeVars} onFocusCapture={onFocusRegion}>
+      <div className="agents-body">
       {!hidden && <Sidebar
           projects={projects}
           sessions={sessions}
@@ -544,11 +624,23 @@ export function AgentsScreen({ mode = 'terminal', usageSettings }: { mode?: 'ter
           onStartBackground={(s) => void startBackground(s)}
         />
       }
+      {!hidden && (
+        <Sash
+          edge="end"
+          width={() => widthsRef.current.sidebar}
+          onWidth={(w) => setWidths((v) => ({ ...v, sidebar: clampWidth('sidebar', w) }))}
+          onDone={saveWidths}
+          onReset={() => {
+            setWidths((v) => ({ ...v, sidebar: SIDEBAR_W.def }));
+            setTimeout(saveWidths);
+          }}
+        />
+      )}
       {alertsOpen && <AlertsPanel projects={projects} onClose={() => setAlertsOpen(false)} />}
       {usageOpen && <UsageTab usage={usage} activeAccount={usageViewData(sessions.find((s) => s.id === selectedId), usage, []).usage?.account} use24h={usageSettings?.use24h} onClose={() => setUsageOpen(false)} />}
       {skillsOpen && <SkillsPanel onClose={() => setSkillsOpen(false)} />}
       {adding && <AddProject added={projects} onAdded={(p) => setProjects((l) => [...l, p])} onClose={() => setAdding(false)} />}
-      <section className="agents-main" onFocusCapture={() => { focusMemory.region = 'main'; }}>
+      <section className={`agents-main${region === 'main' ? ' focused' : ''}`}>
         {error && <div role="alert" className="agents-error">{error}</div>}
         {notice && <div role="status" className="agents-notice">{notice}</div>}
         {newFor !== undefined && (
@@ -676,7 +768,21 @@ export function AgentsScreen({ mode = 'terminal', usageSettings }: { mode?: 'ter
         {exitedHere && <ExitBar code={selected.exitCode} userStopped={userStopped.has(selected.id)} onRestart={() => void restart(selected)} onClose={() => void clearExited(selected.id)} />}
         {resumeHere && <ResumeBar onResume={() => void startPreview()} onDismiss={() => setResumeDismissed((d) => new Set(d).add(selected.id))} />}
       </section>
-      {!panelHidden && <SidePanel onClose={togglePanel} tab={panelTab} onTabChange={setPanelTab} trajectory={<TrajectoryTab sessionId={selected?.id} available={!!selected && selected.lifecycle !== 'starting'} onClose={togglePanel} />} notes={<NotesTab project={selected?.project} canSend={(inTerminal || inChat) && newFor === undefined} onSend={sendToSession} />} changes={<ChangesTab root={projects.find((p) => p.id === selected?.project)?.path ?? selected?.cwd} status={selected?.status} />} />}
+      {!panelHidden && (
+        <Sash
+          edge="start"
+          width={panelWidth(wide ? 'panelWide' : 'panel')}
+          onWidth={(w) => setWidths((v) => ({ ...v, [wide ? 'panelWide' : 'panel']: clampWidth('panel', w) }))}
+          onDone={saveWidths}
+          onReset={() => {
+            setWidths((v) => (wide ? { sidebar: v.sidebar, panel: v.panel } : { ...v, panel: PANEL_W.def }));
+            setTimeout(saveWidths);
+          }}
+        />
+      )}
+      {!panelHidden && <SidePanel focused={region === 'panel'} onClose={togglePanel} tab={panelTab} onTabChange={setPanelTab} trajectory={<TrajectoryTab sessionId={selected?.id} available={!!selected && selected.lifecycle !== 'starting'} onClose={togglePanel} />} notes={<NotesTab project={selected?.project} canSend={(inTerminal || inChat) && newFor === undefined} onSend={sendToSession} />} changes={<ChangesTab root={projects.find((p) => p.id === selected?.project)?.path ?? selected?.cwd} status={selected?.status} />} />}
+      </div>
+      <StatusStrip sessions={sessions} dnd={dnd} onJumpWaiting={jumpWaiting} onToggleDnd={toggleDnd} />
     </div>
   );
 }

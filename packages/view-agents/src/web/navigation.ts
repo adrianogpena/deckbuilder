@@ -78,5 +78,47 @@ export function shownOrders(rows: TreeRow[]): Record<string, string[]> {
   return out;
 }
 
-/** Where focus was last inside the Agents view (kept across view switches): the tree or the session pane. Unset on the first run. */
-export const focusMemory: { region?: 'tree' | 'main' } = {};
+/** A focusable region of the Agents view: the sidebar tree, the session pane or the side panel. */
+export type FocusRegion = 'tree' | 'main' | 'panel';
+
+/** Where focus was last inside the Agents view (kept across view switches). Unset on the first run. */
+export const focusMemory: { region?: FocusRegion } = {};
+
+/** The region an element sits in, from the closest region root; undefined outside them. */
+export function regionOf(el: Element | null): FocusRegion | undefined {
+  const root = el?.closest('.agents-sidebar, .agents-main, .agents-panel');
+  if (!root) return undefined;
+  return root.classList.contains('agents-sidebar') ? 'tree' : root.classList.contains('agents-main') ? 'main' : 'panel';
+}
+
+export interface PaneWidths {
+  sidebar: number;
+  panel: number;
+  /** Width of the wide (Trajectory) panel; the CSS default until dragged. */
+  panelWide?: number;
+}
+
+export const WIDTHS_KEY = 'deckbuilder.agents.widths';
+export const SIDEBAR_W = { min: 220, max: 520, def: 260 };
+export const PANEL_W = { min: 240, max: 900, def: 320 };
+
+const clamp = (v: number, r: { min: number; max: number }) => Math.round(Math.min(r.max, Math.max(r.min, v)));
+
+/** Stored widths, clamped; defaults for anything missing or malformed. */
+export function parseWidths(raw: string | null): PaneWidths {
+  let v: Partial<PaneWidths> = {};
+  try {
+    v = raw ? (JSON.parse(raw) as Partial<PaneWidths>) : {};
+  } catch {
+    /* malformed: defaults */
+  }
+  const num = (x: unknown) => (typeof x === 'number' && Number.isFinite(x) ? x : undefined);
+  const wide = num(v?.panelWide);
+  return {
+    sidebar: clamp(num(v?.sidebar) ?? SIDEBAR_W.def, SIDEBAR_W),
+    panel: clamp(num(v?.panel) ?? PANEL_W.def, PANEL_W),
+    ...(wide === undefined ? {} : { panelWide: clamp(wide, PANEL_W) }),
+  };
+}
+
+export const clampWidth = (which: 'sidebar' | 'panel', v: number) => clamp(v, which === 'sidebar' ? SIDEBAR_W : PANEL_W);

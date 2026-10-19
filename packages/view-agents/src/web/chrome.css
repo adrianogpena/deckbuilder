@@ -1,0 +1,32 @@
+/* Agents view chrome, all layouts (spec S1 sashes, S2 density): body row + status strip, resizable sidebar and
+   side panel (widths from --agents-*-w, set inline by AgentsScreen), 34px panel tab strip, focused head tint. */
+.view-agents.agents-screen { flex-direction: column; }
+.view-agents .agents-body { display: flex; flex: 1; min-width: 0; min-height: 0; }
+.view-agents > .agents-strip { flex: none; }
+
+.view-agents .agents-sidebar { flex: none; width: var(--agents-sidebar-w, 260px); border-right: 0; }
+.view-agents .agents-panel { flex: none; width: var(--agents-panel-w, 320px); border-left: 0; }
+.view-agents .agents-panel.agents-panel-wide { width: var(--agents-panel-wide-w, min(45%, 110ch)); }
+
+/* ---- sash: invisible 8px strip over the seam; dashed 1px line inset 8px, solid accent on hover (delayed) or drag */
+.agents-sash { position: relative; z-index: 2; flex: none; width: 8px; margin: 0 -4px; cursor: col-resize; touch-action: none; }
+.agents-sash::before,
+.agents-sash::after { content: ''; position: absolute; top: 8px; bottom: 8px; left: 50%; width: 0; pointer-events: none; }
+.agents-sash::before { border-left: 1px dashed var(--border); }
+.agents-sash::after { border-left: 1px solid var(--accent); opacity: 0; transition: opacity 0.1s ease 0.2s; }
+.agents-sash:hover::after { opacity: 1; }
+.agents-sash.dragging::after { opacity: 1; transition: none; }
+.view-agents:has(.agents-sash.dragging) { cursor: col-resize; user-select: none; }
+
+/* ---- side panel tab strip: 34px, underline on the active tab, close at the right */
+.view-agents .agents-panel-head { flex: none; align-items: stretch; height: 34px; gap: 4px; padding: 0 5px 0 0; }
+.view-agents .agents-panel-tabs { gap: 0; }
+.view-agents .agents-panel-tabs button { height: 100%; padding: 0 12px; border-radius: 0; color: var(--text-2); font-size: 12px; transition: color var(--agents-fast, 120ms); }
+.view-agents .agents-panel-tabs button:hover { background: none; color: var(--text); }
+.view-agents .agents-panel-tabs button[aria-selected='true'] { background: none; color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); }
+.view-agents .agents-panel-tabs button:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--accent); }
+.view-agents .agents-panel-head .agents-toggle { align-self: center; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; font-size: 14px; }
+
+/* ---- focused region: its head strip is tinted */
+.view-agents .agents-main.focused .agents-head,
+.view-agents .agents-panel.focused .agents-panel-head { background: var(--agents-focus-tint); }

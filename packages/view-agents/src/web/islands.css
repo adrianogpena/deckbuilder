@@ -1,0 +1,33 @@
+/* Agents view in the Islands layout (spec S1): the view sits on the frame; sidebar sections, the session pane and the
+   side panel are separate islands with --island-gap between them; the focused one gets an accent border and ring. */
+/* .main is an island by default: the Agents view brings its own islands, so .main goes flat (like .main:has(.panes)). */
+:root[data-layout='islands'] .main:has(.view-agents) { background: transparent; border-radius: 0; overflow: visible; }
+:root[data-layout='islands'] .view-agents.agents-screen { gap: var(--island-gap); background: transparent; }
+:root[data-layout='islands'] .view-agents .agents-body { gap: var(--island-gap); }
+/* The sash sits in the gap: its 8px plus the two gaps around it collapse to one gap. */
+:root[data-layout='islands'] .view-agents .agents-sash { margin: 0 calc((var(--island-gap) + 8px) / -2); }
+
+/* ---- sidebar: a column of section cards on the frame */
+:root[data-layout='islands'] .view-agents .agents-sidebar { gap: 8px; padding: 1px; border: 0; background: transparent; }
+:root[data-layout='islands'] .view-agents .agents-sidebar .agents-section {
+  border: 1px solid var(--border); border-radius: var(--island-radius); background: var(--panel); overflow: hidden;
+}
+:root[data-layout='islands'] .view-agents .agents-sidebar .agents-section-body { padding: 0 8px 8px; }
+:root[data-layout='islands'] .view-agents .agents-sidebar .agents-section-head { border-radius: 0; padding: 0 var(--space-4); }
+
+/* ---- session pane and side panel */
+:root[data-layout='islands'] .view-agents .agents-main,
+:root[data-layout='islands'] .view-agents .agents-panel {
+  border: 1px solid var(--border); border-radius: var(--island-radius); background: var(--bg); overflow: hidden;
+}
+
+/* ---- focused island: accent border, 1px ring at 35%, tinted head strip */
+:root[data-layout='islands'] .view-agents .agents-main.focused,
+:root[data-layout='islands'] .view-agents .agents-panel.focused,
+:root[data-layout='islands'] .view-agents.focus-tree .agents-sidebar .agents-section:focus-within {
+  border-color: var(--accent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+:root[data-layout='islands'] .view-agents.focus-tree .agents-sidebar .agents-section:focus-within .agents-section-head { background: var(--agents-focus-tint); }
+
+/* ---- status strip on the frame */
+:root[data-layout='islands'] .view-agents .agents-strip .status-bar { background: transparent; border-top: 0; }

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { AgentSessionView, AgentStatus } from './api';
-import { pruneBatch, reselect, shownOrders, startedCandidates, stepStarted, trackPrevious } from './navigation';
+import { clampWidth, parseWidths, pruneBatch, reselect, shownOrders, startedCandidates, stepStarted, trackPrevious } from './navigation';
 import type { TreeRow } from './tree';
 
 const row = (id: string, status: AgentStatus, projectKey = 'p'): TreeRow => ({ kind: 'session', session: { id, status } as AgentSessionView, projectKey, depth: 1, last: false, displayed: [] });
@@ -58,5 +58,19 @@ describe('started sessions', () => {
 describe('shownOrders', () => {
   test('groups shown ids per project', () => {
     expect(shownOrders([row('a', 'idle', 'p'), row('b', 'idle', 'q'), row('c', 'idle', 'p')])).toEqual({ p: ['a', 'c'], q: ['b'] });
+  });
+});
+
+describe('parseWidths', () => {
+  test('defaults when missing or malformed', () => {
+    expect(parseWidths(null)).toEqual({ sidebar: 260, panel: 320 });
+    expect(parseWidths('{oops')).toEqual({ sidebar: 260, panel: 320 });
+  });
+  test('clamps stored widths', () => {
+    expect(parseWidths(JSON.stringify({ sidebar: 900, panel: 10, panelWide: 500 }))).toEqual({ sidebar: 520, panel: 240, panelWide: 500 });
+  });
+  test('clampWidth uses the region range', () => {
+    expect(clampWidth('sidebar', 100)).toBe(220);
+    expect(clampWidth('panel', 1000)).toBe(900);
   });
 });

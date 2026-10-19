@@ -36,10 +36,12 @@ export interface SidePanelProps {
   tab?: SidePanelTab;
   onTabChange?: (tab: SidePanelTab) => void;
   onClose: () => void;
+  /** Focus is inside the panel (accent head strip, island ring). */
+  focused?: boolean;
 }
 
 /** Right side panel of the Agents view: Changes / Notes / Trajectory tabs, the active one remembered. */
-export function SidePanel({ changes, notes, trajectory, tab: controlled, onTabChange, onClose }: SidePanelProps) {
+export function SidePanel({ changes, notes, trajectory, tab: controlled, onTabChange, onClose, focused = false }: SidePanelProps) {
   const [own, setOwn] = useState(readPanelTab);
   const tab = controlled ?? own;
   const pick = (next: SidePanelTab) => {
@@ -50,7 +52,7 @@ export function SidePanel({ changes, notes, trajectory, tab: controlled, onTabCh
   const content = tab === 'changes' ? changes : tab === 'notes' ? notes : trajectory;
 
   return (
-    <aside className={`agents-panel${tab === 'trajectory' ? ' agents-panel-wide' : ''}`} aria-label={t('agents.panel.label')}>
+    <aside className={`agents-panel${tab === 'trajectory' ? ' agents-panel-wide' : ''}${focused ? ' focused' : ''}`} aria-label={t('agents.panel.label')}>
       <header className="agents-panel-head">
         <div className="agents-panel-tabs" role="tablist">
           {TABS.map((id) => (
