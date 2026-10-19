@@ -15,7 +15,7 @@ test('recordsOf keeps the last usage of a repeated message id and skips unknown 
 
 test('summarize groups by period, day and key; spendOf splits day and month per project', () => {
   const now = new Date(2026, 9, 19, 15, 0).getTime();
-  const rec = (at: number, usd: number, session = 's1', model = 'm') => ({ at, session, project: 'C:/Proj/A', model, usd, tokens: { input: 1, output: 2, cacheWrite: 3, cacheRead: 4 } });
+  const rec = (at: number, usd: number, session = 's1', model = 'm') => ({ at, session, account: 'a', project: 'C:/Proj/A', model, usd, tokens: { input: 1, output: 2, cacheWrite: 3, cacheRead: 4 } });
   const records = [rec(now - 3_600_000, 5), rec(now - 3 * 86_400_000, 2, 's2'), rec(now - 20 * 86_400_000, 1), rec(now - 60 * 86_400_000, 100)];
   const s = summarize(records, now);
   expect(s.today.usd).toBe(5);

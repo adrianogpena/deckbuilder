@@ -16,6 +16,8 @@ export interface UsageRecord {
   /** ms epoch of the entry timestamp. */
   at: number;
   session: string;
+  /** The account (config folder name) whose transcript it came from. */
+  account: string;
   project: string;
   model: string;
   tokens: UsageTokens;
@@ -133,7 +135,7 @@ export function spendOf(records: UsageRecord[], now: number, keyOf: (project: st
 const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 0);
 
 /** Priced records of one transcript's text: a repeated message id keeps its last usage; unknown models and entries without a timestamp are left out. */
-export function recordsOf(text: string, session: string, fallbackProject: string): UsageRecord[] {
+export function recordsOf(text: string, session: string, fallbackProject: string, account = ''): UsageRecord[] {
   const byId = new Map<string, UsageRecord>();
   let project = '';
   let n = 0;
@@ -155,7 +157,7 @@ export function recordsOf(text: string, session: string, fallbackProject: string
     const usd = costOf(model, { input: tokens.input, output: tokens.output, cacheCreation: tokens.cacheWrite, cacheRead: tokens.cacheRead, cacheCreation1h: num(u.cache_creation?.ephemeral_1h_input_tokens) });
     if (usd === undefined) continue;
     const id = typeof e.message?.id === 'string' && e.message.id ? e.message.id : `#${n++}`;
-    byId.set(id, { at, session, project: '', model, tokens, usd });
+    byId.set(id, { at, session, account, project: '', model, tokens, usd });
   }
   const p = project || fallbackProject;
   return [...byId.values()].map((r) => ({ ...r, project: p }));
@@ -165,7 +167,7 @@ export function recordsOf(text: string, session: string, fallbackProject: string
 export function createBreakdownReader() {
   const cache = new Map<string, { mtime: number; size: number; records: UsageRecord[] }>();
   return {
-    read(accounts: Array<{ dir: string }>, now: number): UsageRecord[] {
+    read(accounts: Array<{ dir: string; id?: string }>, now: number): UsageRecord[] {
       const since = now - 31 * DAY;
       const seen = new Set<string>();
       const out: UsageRecord[] = [];
@@ -192,7 +194,7 @@ export function createBreakdownReader() {
               seen.add(file);
               let c = cache.get(file);
               if (!c || c.mtime !== st.mtimeMs || c.size !== st.size) {
-                c = { mtime: st.mtimeMs, size: st.size, records: recordsOf(readFileSync(file, 'utf8'), f.slice(0, -6), decodeFolderName(folder)) };
+                c = { mtime: st.mtimeMs, size: st.size, records: recordsOf(readFileSync(file, 'utf8'), f.slice(0, -6), decodeFolderName(folder), acc.id ?? '') };
                 cache.set(file, c);
               }
               for (const r of c.records) out.push(r);

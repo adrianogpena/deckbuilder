@@ -127,7 +127,8 @@ export const routes: PanelRoutes = (ctx: PanelCtx) => {
       const records = reader.read(detectAccounts(homedir()), now);
       const budgets = await check(await load(), records, now);
       const spend = spendOf(records, now, projectKey);
-      return { summary: summarize(records, now), budgets: { global: budgets.global, projects: budgets.projects }, spend };
+      const accounts = detectAccounts(homedir()).map((a) => ({ id: a.id, label: a.label, summary: summarize(records.filter((r) => r.account === a.id), now) }));
+      return { summary: summarize(records, now), accounts, budgets: { global: budgets.global, projects: budgets.projects }, spend };
     },
     'GET /api/agents/usage/budgets': async () => {
       const b = await load();

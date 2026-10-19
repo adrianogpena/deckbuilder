@@ -4,7 +4,7 @@ import { t } from '../../../i18n';
 import { formatCost, liveLimit, resetLabel, shownPercent } from '../../usage-format';
 import { useAgentsHost } from '../../workspace/host';
 import type { PanelModule, PanelProps } from '../../workspace/types';
-import { loadUsage, saveBudgets, type Budgets, type Limits, type Row, type Totals, type UsageData } from './usage-api';
+import { loadUsage, saveBudgets, type Budgets, type Limits, type Row, type Summary, type Totals, type UsageData } from './usage-api';
 import './style.css';
 
 const POLL_MS = 60_000;
@@ -72,12 +72,42 @@ function LimitInputs({ value, onChange }: { value: Limits; onChange(v: Limits): 
   );
 }
 
+function SummaryBlock({ s }: { s: Summary }) {
+  const host = useAgentsHost();
+  const max = Math.max(0.01, ...s.days.map((d) => d.usd));
+  return (
+    <>
+      <div className="usage-totals">
+        <TotalsCard label={t('panel.usage.today')} v={s.today} />
+        <TotalsCard label={t('panel.usage.week')} v={s.week} />
+        <TotalsCard label={t('panel.usage.month')} v={s.month} />
+      </div>
+      <section className="usage-section">
+        <h3>{t('panel.usage.daily')}</h3>
+        <div className="usage-days">
+          {s.days.map((d) => (
+            <div key={d.day} title={`${d.day}: ${formatCost(d.usd)}`} style={{ height: `${(d.usd / max) * 100}%` }} />
+          ))}
+        </div>
+        <div>{t('panel.usage.burn')}: {formatCost(s.burnPerHour)}{t('panel.usage.perHour')}</div>
+      </section>
+      {s.month.usd === 0 && <div>{t('panel.usage.empty')}</div>}
+      <div className="usage-tables">
+        <Table title={t('panel.usage.bySession')} rows={s.bySession} label={(k) => host.sessions.find((x) => x.id === k)?.title ?? k.slice(0, 8)} />
+        <Table title={t('panel.usage.byProject')} rows={s.byProject} label={nameOf} />
+        <Table title={t('panel.usage.byModel')} rows={s.byModel} />
+      </div>
+    </>
+  );
+}
+
 function UsagePanel({ visible }: PanelProps) {
   const host = useAgentsHost();
   const [data, setData] = useState<UsageData>();
   const [budgets, setBudgets] = useState<Budgets>({ global: {}, projects: {} });
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
+  const [split, setSplit] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -113,7 +143,6 @@ function UsagePanel({ visible }: PanelProps) {
 
   const now = Date.now();
   const s = data?.summary;
-  const max = Math.max(0.01, ...(s?.days.map((d) => d.usd) ?? []));
   const budgetKeys = Object.keys(budgets.projects);
   const spentOf = (scope: string, kind: 'day' | 'month') => (scope ? data?.spend.projects[scope]?.[kind] : data?.spend[kind]) ?? 0;
   const budgetRow = (scope: string, name: string, v: Limits, onChange: (v: Limits) => void, onRemove?: () => void) => (
@@ -130,26 +159,13 @@ function UsagePanel({ visible }: PanelProps) {
       <div className="usage-bar">
         <h2>{t('panel.usage.title')}</h2>
         {error && <span className="error">{error}</span>}
+        <button type="button" aria-pressed={split} onClick={() => setSplit((v) => !v)}>{split ? t('panel.usage.combined') : t('panel.usage.split')}</button>
         <button type="button" onClick={() => void refresh()}>{t('panel.usage.refresh')}</button>
       </div>
       {!s ? (
         <div>{t('panel.usage.loading')}</div>
       ) : (
         <>
-          <div className="usage-totals">
-            <TotalsCard label={t('panel.usage.today')} v={s.today} />
-            <TotalsCard label={t('panel.usage.week')} v={s.week} />
-            <TotalsCard label={t('panel.usage.month')} v={s.month} />
-          </div>
-          <section className="usage-section">
-            <h3>{t('panel.usage.daily')}</h3>
-            <div className="usage-days">
-              {s.days.map((d) => (
-                <div key={d.day} title={`${d.day}: ${formatCost(d.usd)}`} style={{ height: `${(d.usd / max) * 100}%` }} />
-              ))}
-            </div>
-            <div>{t('panel.usage.burn')}: {formatCost(s.burnPerHour)}{t('panel.usage.perHour')}</div>
-          </section>
           <section className="usage-section">
             <h3>{t('panel.usage.limits')}</h3>
             <div className="usage-limits">
@@ -169,12 +185,16 @@ function UsagePanel({ visible }: PanelProps) {
               })}
             </div>
           </section>
-          {s.month.usd === 0 && <div>{t('panel.usage.empty')}</div>}
-          <div className="usage-tables">
-            <Table title={t('panel.usage.bySession')} rows={s.bySession} label={(k) => host.sessions.find((x) => x.id === k)?.title ?? k.slice(0, 8)} />
-            <Table title={t('panel.usage.byProject')} rows={s.byProject} label={nameOf} />
-            <Table title={t('panel.usage.byModel')} rows={s.byModel} />
-          </div>
+          {split ? (
+            data.accounts.map((a) => (
+              <section className="usage-account" key={a.id}>
+                <h3>{a.label}</h3>
+                <SummaryBlock s={a.summary} />
+              </section>
+            ))
+          ) : (
+            <SummaryBlock s={s} />
+          )}
           <section className="usage-section">
             <h3>{t('panel.usage.budgets')}</h3>
             {budgetRow('', t('panel.usage.global'), budgets.global, (v) => setBudgets({ ...budgets, global: v }))}

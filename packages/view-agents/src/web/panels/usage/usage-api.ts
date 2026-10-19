@@ -31,6 +31,7 @@ export interface Budgets {
 }
 export interface UsageData {
   summary: Summary;
+  accounts: Array<{ id: string; label: string; summary: Summary }>;
   budgets: Budgets;
   spend: { day: number; month: number; projects: Record<string, { day: number; month: number }> };
 }

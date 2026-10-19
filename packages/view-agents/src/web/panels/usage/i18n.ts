@@ -3,6 +3,8 @@ import type { Messages } from '@deckbuilderkit/ui';
 export const en = {
   'panel.usage.title': 'Usage',
   'panel.usage.refresh': 'Refresh',
+  'panel.usage.split': 'Split by account',
+  'panel.usage.combined': 'All accounts',
   'panel.usage.loading': 'Loading...',
   'panel.usage.today': 'Today',
   'panel.usage.week': '7 days',
@@ -38,6 +40,8 @@ export const en = {
 export const ptBR: Messages<typeof en> = {
   'panel.usage.title': 'Uso',
   'panel.usage.refresh': 'Atualizar',
+  'panel.usage.split': 'Separar por conta',
+  'panel.usage.combined': 'Todas as contas',
   'panel.usage.loading': 'Carregando...',
   'panel.usage.today': 'Hoje',
   'panel.usage.week': '7 dias',
