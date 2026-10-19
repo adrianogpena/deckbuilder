@@ -5,7 +5,7 @@ import { gitView } from '@deckbuilderkit/view-git/web';
 import { restView } from '@deckbuilderkit/view-rest/web';
 import { terminalView } from '@deckbuilderkit/view-terminal/web';
 import { workbenchView } from '@deckbuilderkit/view-workbench/web';
-import { agentsView } from '@deckbuilderkit/view-agents/web';
+import { agentsView } from '@deckbuilderkit/view-agents/view';
 import type { Settings } from './api';
 import { bindViews } from './commands';
 import { gridView } from './screens/grid.view';
