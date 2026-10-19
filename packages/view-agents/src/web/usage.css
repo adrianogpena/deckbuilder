@@ -1,0 +1,31 @@
+/* Usage card (spec S10): per-account groups, today's cost, limit bars. */
+.agents-usage-view:not(.compact) { padding: 6px 10px 8px; }
+.agents-ucard { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.agents-ucard-group { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.agents-ucard-group + .agents-ucard-group { padding-top: 6px; border-top: 1px solid var(--border-soft); }
+.agents-ucard-head { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.agents-ucard-cost { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.agents-ucard-amount { font-size: 15px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+.agents-ucard-trend { font-family: var(--font-mono); font-size: 11px; font-variant-numeric: tabular-nums; }
+.agents-ucard-trend.up { color: var(--warn); }
+.agents-ucard-trend.down { color: var(--ok); }
+
+.agents-ucard-label { font-size: 11px; color: var(--text-2); }
+.agents-ucard-metric { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.agents-ucard-line { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
+.agents-ucard-pct { font-family: var(--font-mono); font-size: 11px; color: var(--text); font-variant-numeric: tabular-nums; }
+.agents-ucard-bar { display: block; height: 4px; border-radius: 2px; background: var(--border-soft); overflow: hidden; }
+.agents-ucard-bar > span { display: block; height: 100%; border-radius: inherit; background: var(--ok); transition: width var(--agents-normal, 200ms) ease; }
+.agents-ucard-metric.sev-warn .agents-ucard-bar > span { background: var(--warn); }
+.agents-ucard-metric.sev-err .agents-ucard-bar > span { background: var(--err); }
+.agents-ucard-metric.sev-warn .agents-ucard-pct { color: var(--warn); }
+.agents-ucard-metric.sev-err .agents-ucard-pct { color: var(--err); }
+.agents-ucard-metric.stale { opacity: 0.6; }
+.agents-ucard-note { font-size: 11px; color: var(--text-3); }
+
+.agents-ucard-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.agents-ucard-model { display: inline-flex; min-width: 0; max-width: 100%; }
+.agents-ucard-model .agents-badge { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.agents-ucard-cache { font-size: 11px; color: var(--text-2); }
+.agents-ucard-cache.warm { color: var(--ok); }

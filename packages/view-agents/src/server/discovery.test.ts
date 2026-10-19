@@ -93,6 +93,33 @@ test('sums token usage once per message and reads only appended lines', () => {
   expect(b.contextPercent).toBe(20);
 });
 
+test('cost per local day: repeated message id counted once, unknown model and no timestamp left out', () => {
+  const p = setup();
+  const file = join(p, 's1.jsonl');
+  const u = (i: number, o: number) => ({ input_tokens: i, output_tokens: o });
+  const today = new Date(2026, 9, 19, 10).getTime();
+  const yesterday = new Date(2026, 9, 18, 22).getTime();
+  const iso = (ms: number) => new Date(ms).toISOString();
+  writeFileSync(
+    file,
+    jl(
+      { type: 'user', cwd: 'C:\\x\\app', message: { content: 'Hi' } },
+      { type: 'assistant', timestamp: iso(yesterday), message: { id: 'm0', model: 'claude-sonnet-4-5', usage: u(1_000_000, 0) } },
+      { type: 'assistant', timestamp: iso(today), message: { id: 'm1', model: 'claude-sonnet-4-5', usage: u(0, 100_000) } },
+      { type: 'assistant', timestamp: iso(today), message: { id: 'm1', model: 'claude-sonnet-4-5', usage: u(0, 200_000) } },
+      { type: 'assistant', timestamp: iso(today), message: { id: 'm2', model: 'other', usage: u(5, 5) } },
+      { type: 'assistant', message: { id: 'm3', model: 'claude-sonnet-4-5', usage: u(1_000_000, 0) } },
+    ),
+  );
+  const scanner = createSessionScanner();
+  scanner.scan([{ id: 'acc', dir }]);
+  const day = (ms: number) => { const d = new Date(ms); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+  const c = scanner.cost(day(today), day(yesterday), 0).get('acc');
+  expect(c?.today).toBeCloseTo(3);
+  expect(c?.yesterday).toBeCloseTo(3);
+  expect(scanner.cost(day(today), day(yesterday), Date.now() + 86_400_000).size).toBe(0);
+});
+
 test('omits tokens and context when the transcript has no usage', () => {
   const p = setup();
   writeFileSync(join(p, 's1.jsonl'), jl({ type: 'user', message: { content: 'Hi' } }, { type: 'assistant', message: { model: 'claude-opus' } }));

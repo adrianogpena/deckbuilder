@@ -6,7 +6,7 @@ import { createToaster } from '@deckbuilderkit/platform';
 import { defineServerView, ndjson, socketTickets, validGroup, type SocketData, type SocketRoutes } from '@deckbuilderkit/server-core';
 import type { ServerWebSocket } from 'bun';
 import { CHAT_SOCKET_PATH, type ChatClientFrame, type ChatServerFrame } from './chat-protocol.ts';
-import type { AgentLocal, AgentSkill, AgentAccountUsage, AgentActiveAccountResult, AgentActiveAccountSet, AgentLaunch, AgentRunning, AgentSessionView, AgentsCapWarn, AgentsFrame, AgentStopResult } from './protocol.ts';
+import type { AgentLocal, AgentSkill, AgentActiveAccountResult, AgentActiveAccountSet, AgentLaunch, AgentRunning, AgentSessionView, AgentsCapWarn, AgentsFrame, AgentStopResult } from './protocol.ts';
 import type { AgentsMode, AgentsSettings, AgentsUsagePosition } from './settings-types.ts';
 import { type AgentAccount, accountByDir, createAccountRegistry, detectAccounts, resolveActiveAccount } from './server/accounts.ts';
 import { createAlerts } from './server/alerts.ts';
@@ -41,6 +41,7 @@ import type { AgentDeleteResult, AgentRestoreResult, AgentTreePatch, AgentTrashE
 import { createTrashStore, isSafeId } from './server/trash.ts';
 import { createUsageReader, pruneUsage, usageContextPercent } from './server/usage.ts';
 import { createSevenDayHistory } from './server/usage-history.ts';
+import { costDays, withCost } from './server/pricing.ts';
 import type { AgentSevenDayHistory } from './protocol.ts';
 
 /** The part of the server settings the Agents view owns; the app's `Settings` extends it. */
@@ -331,7 +332,9 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
     void notifier.observe(everyOwner);
     alerts.observe(sessions);
     gitCwds = sessions.map((x) => x.cwd);
-    return { sessions, status, usage: usage.accounts as AgentAccountUsage[] };
+    const days = costDays(Date.now());
+    const usageWithCost = withCost(usage.accounts, scanner.cost(days.today, days.yesterday, days.since), accs, ownerView.active?.id);
+    return { sessions, status, usage: usageWithCost };
   };
 
   const broadcast = (frame: AgentsFrame) => {

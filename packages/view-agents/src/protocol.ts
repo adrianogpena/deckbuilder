@@ -210,6 +210,14 @@ export interface AgentAccountUsage {
   active?: boolean;
   fiveHour?: AgentRateLimit;
   sevenDay?: AgentRateLimit;
+  /** Estimated spend from transcript token counts × a static price table; absent when no priced message was seen. */
+  cost?: AgentCost;
+}
+
+/** Estimated USD spent by an account, per local day (assistant message timestamps). */
+export interface AgentCost {
+  today: number;
+  yesterday: number;
 }
 
 /** `GET /api/agents/usage/history`: per account email (or 'unknown'), the 7d quota percent spent per local day ('YYYY-MM-DD'). */

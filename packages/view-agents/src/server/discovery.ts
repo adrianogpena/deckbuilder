@@ -1,7 +1,9 @@
 import { closeSync, openSync, readSync, readdirSync, statSync, type Stats } from 'node:fs';
 import { join } from 'node:path';
 
-import type { AgentCacheState, AgentSession, AgentTokens } from '../protocol.ts';
+import type { AgentCacheState, AgentCost, AgentSession, AgentTokens } from '../protocol.ts';
+import { costOf } from './pricing.ts';
+import { localDayKey } from './usage-history.ts';
 
 export type { AgentSession };
 
@@ -138,12 +140,35 @@ export interface TokenTally {
   byMessage: Map<string, AgentTokens>;
   /** Input + cache tokens of the last main-chain assistant turn (its context size). */
   lastContext?: number;
+  /** Estimated USD per local day ('YYYY-MM-DD', from the entry `timestamp`); entries without a timestamp or with an unknown model are left out. */
+  dayCost: Map<string, number>;
+  /** Cost counted per assistant message id, so a repeated id replaces its earlier amount. */
+  msgCost: Map<string, { day: string; usd: number }>;
 }
 
 const TOKEN_KEYS = ['input', 'output', 'cacheCreation', 'cacheRead'] as const;
 const TALLY_CHUNK = 1024 * 1024;
 
-export const newTally = (): TokenTally => ({ offset: 0, tokens: { input: 0, output: 0, cacheCreation: 0, cacheRead: 0 }, byMessage: new Map() });
+export const newTally = (): TokenTally => ({ offset: 0, tokens: { input: 0, output: 0, cacheCreation: 0, cacheRead: 0 }, byMessage: new Map(), dayCost: new Map(), msgCost: new Map() });
+
+/** Local day of an entry's ISO `timestamp`, or undefined. */
+function entryDay(e: Entry): string | undefined {
+  const ms = typeof e.timestamp === 'string' ? Date.parse(e.timestamp) : typeof e.timestamp === 'number' ? e.timestamp : NaN;
+  return Number.isFinite(ms) ? localDayKey(ms) : undefined;
+}
+
+function tallyCost(t: TokenTally, e: Entry, u: AgentTokens, id: string | undefined): void {
+  const raw = e.message?.usage?.cache_creation;
+  const oneHour = raw && typeof raw.ephemeral_1h_input_tokens === 'number' ? raw.ephemeral_1h_input_tokens : 0;
+  const day = entryDay(e);
+  const usd = day ? costOf(typeof e.message?.model === 'string' ? e.message.model : undefined, { ...u, cacheCreation1h: oneHour }) : undefined;
+  const prev = id ? t.msgCost.get(id) : undefined;
+  if (prev) t.dayCost.set(prev.day, (t.dayCost.get(prev.day) ?? 0) - prev.usd);
+  if (day && usd !== undefined) {
+    t.dayCost.set(day, (t.dayCost.get(day) ?? 0) + usd);
+    if (id) t.msgCost.set(id, { day, usd });
+  } else if (id) t.msgCost.delete(id);
+}
 
 function usageTokens(u: unknown): AgentTokens | undefined {
   if (!u || typeof u !== 'object') return undefined;
@@ -160,6 +185,7 @@ export function tallyEntry(t: TokenTally, e: Entry): void {
   const id = typeof e.message?.id === 'string' && e.message.id ? e.message.id : typeof e.uuid === 'string' ? e.uuid : undefined;
   const prev = id ? t.byMessage.get(id) : undefined;
   for (const k of TOKEN_KEYS) t.tokens[k] += u[k] - (prev?.[k] ?? 0);
+  tallyCost(t, e, u, id);
   if (id) t.byMessage.set(id, u);
   if (e.isSidechain !== true) t.lastContext = u.input + u.cacheCreation + u.cacheRead;
 }
@@ -239,6 +265,7 @@ export function cacheStateOf(file: string, size: number): AgentCacheState | unde
 }
 
 interface CacheEntry {
+  account: string;
   mtime: number;
   size: number;
   session: AgentSession | null;
@@ -254,6 +281,21 @@ export function createSessionScanner() {
     /** Forgets every cached transcript so the next scan re-reads them. */
     clear(): void {
       cache.clear();
+    },
+    /** Estimated USD per account on two local days, summed over cached transcripts modified at or after `since` (ms). */
+    cost(today: string, yesterday: string, since: number): Map<string, AgentCost> {
+      const out = new Map<string, AgentCost>();
+      for (const c of cache.values()) {
+        if (!c.full || c.mtime < since) continue;
+        const td = c.tally.dayCost.get(today);
+        const yd = c.tally.dayCost.get(yesterday);
+        if (td === undefined && yd === undefined) continue;
+        const o = out.get(c.account) ?? { today: 0, yesterday: 0 };
+        o.today += td ?? 0;
+        o.yesterday += yd ?? 0;
+        out.set(c.account, o);
+      }
+      return out;
     },
     /** `quick` skips the token sums and cache state (the costly whole-file reads) for the first paint; a later full scan fills them. */
     scan(accounts: Array<{ id: string; dir: string }>, quick = false, limit?: ScanLimit, windowOf?: (model: string) => number | undefined): AgentSession[] {
@@ -316,7 +358,7 @@ export function createSessionScanner() {
                   /* no cache state */
                 }
               }
-              c = { mtime: st.mtimeMs, size: st.size, session, tally, full: !quick };
+              c = { account: acc.id, mtime: st.mtimeMs, size: st.size, session, tally, full: !quick };
               cache.set(file, c);
             }
             if (c.session) {

@@ -88,3 +88,19 @@ export function historyRows(days: Record<string, number> | undefined, now: numbe
     return percent === undefined ? { day, weekday } : { day, weekday, percent };
   });
 }
+
+/** Estimated cost in USD: '$1.23', '$1,234.50'; a cost below a cent but above zero shows '<$0.01'; undefined → '—'. */
+export function formatCost(usd: number | undefined): string {
+  if (usd === undefined || !Number.isFinite(usd)) return '—';
+  if (usd > 0 && usd < 0.005) return '<$0.01';
+  return `$${Math.max(0, usd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/** Today vs yesterday: direction and the change in percent of yesterday (no percent when yesterday was zero); undefined without both. */
+export function costTrend(today: number | undefined, yesterday: number | undefined): { dir: 'up' | 'down' | 'flat'; pct?: number } | undefined {
+  if (today === undefined || yesterday === undefined) return undefined;
+  const diff = today - yesterday;
+  if (Math.abs(diff) < 0.005) return { dir: 'flat', pct: 0 };
+  const dir = diff > 0 ? 'up' : 'down';
+  return yesterday > 0.005 ? { dir, pct: Math.round((Math.abs(diff) / yesterday) * 100) } : { dir };
+}

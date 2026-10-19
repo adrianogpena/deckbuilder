@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { barCells, cacheState, historyRows, isStale, liveLimit, modelLine, resetLabel, severity, shortDuration, shownPercent, startupShown, STALE_MS } from './usage-format';
+import { barCells, cacheState, costTrend, formatCost, historyRows, isStale, liveLimit, modelLine, resetLabel, severity, shortDuration, shownPercent, startupShown, STALE_MS } from './usage-format';
 
 test('severity per metric thresholds', () => {
   expect(severity('context', 19)).toBe('ok');
@@ -63,4 +63,20 @@ test('historyRows: last 5 local days latest first, two-letter weekdays, gaps und
   expect(rows.map((r) => r.day)).toEqual(['2026-10-17', '2026-10-16', '2026-10-15', '2026-10-14', '2026-10-13']);
   expect(rows.map((r) => r.weekday)).toEqual(['Sa', 'Fr', 'Th', 'We', 'Tu']);
   expect(rows.map((r) => r.percent)).toEqual([3.4, undefined, 0, undefined, undefined]);
+});
+
+test('formatCost', () => {
+  expect(formatCost(undefined)).toBe('—');
+  expect(formatCost(0)).toBe('$0.00');
+  expect(formatCost(0.001)).toBe('<$0.01');
+  expect(formatCost(3.456)).toBe('$3.46');
+  expect(formatCost(1234.5)).toBe('$1,234.50');
+});
+
+test('costTrend', () => {
+  expect(costTrend(undefined, 1)).toBeUndefined();
+  expect(costTrend(2, 1)).toEqual({ dir: 'up', pct: 100 });
+  expect(costTrend(1, 4)).toEqual({ dir: 'down', pct: 75 });
+  expect(costTrend(1, 1)).toEqual({ dir: 'flat', pct: 0 });
+  expect(costTrend(1, 0)).toEqual({ dir: 'up' });
 });
