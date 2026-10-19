@@ -1,1 +1,16 @@
 .agents-panel-changes { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; }
+.agents-chg { display: flex; flex: 1; flex-direction: column; gap: 6px; min-height: 0; padding: 6px; overflow: auto; }
+.agents-chg-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.agents-chg-branch { max-width: 160px; }
+.agents-chg-sync { font-size: 12px; opacity: 0.7; }
+.agents-chg-commit { display: flex; flex-direction: column; gap: 4px; }
+.agents-chg-commit textarea { width: 100%; resize: vertical; box-sizing: border-box; }
+.agents-chg-commit-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.agents-chg-amend { display: flex; align-items: center; gap: 4px; font-size: 12px; }
+.agents-chg-groups { display: flex; flex-direction: column; gap: 8px; }
+.agents-chg-head { display: flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; }
+.agents-chg-head > span { flex: 1; }
+.agents-chg-list { margin: 0; padding: 0; list-style: none; }
+.agents-chg-file { display: flex; align-items: center; gap: 2px; }
+.agents-chg-open { display: flex; flex: 1; align-items: center; gap: 6px; min-width: 0; text-align: left; }
+.agents-chg-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
