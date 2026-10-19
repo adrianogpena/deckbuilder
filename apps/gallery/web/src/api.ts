@@ -133,6 +133,8 @@ export const api = {
   info: () => request<Info>('GET', '/api/info'),
   settings: () => request<Settings>('GET', '/api/settings'),
   saveSettings: (patch: Partial<Settings>) => request<Settings>('PUT', '/api/settings', {}, patch),
+  openSettingsFile: () => request<{ ok: true }>('POST', '/api/settings/open-file'),
+  externalSettings: () => request<{ changed: boolean; settings: Settings }>('GET', '/api/settings/external'),
   /** Shows the server's folder dialog and saves the result as `updateFolder` (unchanged when cancelled). */
   pickUpdateFolder: (title: string) => request<Settings>('POST', '/api/settings/update-folder', {}, { title }),
   update: () => request<UpdateState>('GET', '/api/update'),

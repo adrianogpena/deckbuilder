@@ -87,3 +87,11 @@ test('dock and layoutIcon are saved when valid, ignored otherwise, cleared by an
   expect(await s.save({ dock: 'up', layoutIcon: 'nope' })).toEqual({ theme: 'dark', dock: 'right', layoutIcon: 'calm' });
   expect(await s.save({ dock: '', layoutIcon: '' })).toEqual({ theme: 'dark' });
 });
+
+test('reload picks up an edit made outside the app', async () => {
+  const { dir, store: s } = await store({ theme: 'light' });
+  expect((await s.reload()).changed).toBe(false);
+  await writeFile(join(dir, 'settings.json'), JSON.stringify({ theme: 'system' }));
+  expect(await s.reload()).toEqual({ changed: true, settings: { theme: 'system' } });
+  expect((await s.reload()).changed).toBe(false);
+});

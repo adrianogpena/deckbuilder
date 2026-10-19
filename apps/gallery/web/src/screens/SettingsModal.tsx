@@ -48,6 +48,28 @@ interface SectionHit {
   ids: string[];
 }
 
+const PROBLEMS_TAG = '@problems';
+
+/** Takes the `@problems` filter out of a settings search. */
+const splitProblemsTag = (query: string): { problems: boolean; rest: string } => {
+  const tokens = query.split(/s+/).filter(Boolean);
+  const rest = tokens.filter((tok) => tok.toLowerCase() !== PROBLEMS_TAG);
+  return { problems: rest.length !== tokens.length, rest: rest.join(' ') };
+};
+
+/** Whether the saved value of a setting fails its schema (wrong type, not one of the enum values, outside min/max). */
+function problemOf(def: SettingDef<Settings>, s: Settings): boolean {
+  if (def.kind === 'custom' || !def.get) return false;
+  const v: unknown = def.get(s);
+  if (v === undefined) return false;
+  switch (def.kind) {
+    case 'boolean': return typeof v !== 'boolean';
+    case 'string': return typeof v !== 'string';
+    case 'number': return typeof v !== 'number' || !Number.isFinite(v) || (def.min !== undefined && v < def.min) || (def.max !== undefined && v > def.max);
+    case 'enum': return !(def.values as readonly unknown[]).includes(v);
+  }
+}
+
 /** Whether the screen can read and reset the setting (every non-custom one, and the custom ones that give a getter and setter). */
 const handled = (def: SettingDef<Settings>): boolean => def.kind !== 'custom' || (!!def.get && !!def.set);
 
@@ -67,9 +89,10 @@ const labelOf = (id: string): string | undefined => {
  * since hand-written fields have no schema entry to filter. Returns the sections with hits.
  */
 function searchSchema(flat: FlatNode[], query: string, settings: Settings): Map<string, SectionHit> {
-  const { text, modified, ids: only } = parseSettingsQuery(query);
+  const { problems, rest } = splitProblemsTag(query);
+  const { text, modified, ids: only } = parseSettingsQuery(rest);
   const words = norm(text).trim().split(' ').filter(Boolean);
-  const filtered = modified || only.length > 0;
+  const filtered = modified || problems || only.length > 0;
   const found = new Map<string, SectionHit>();
   if (words.length === 0 && !filtered) return found;
   const labelKeys: string[] = [];
@@ -81,6 +104,7 @@ function searchSchema(flat: FlatNode[], query: string, settings: Settings): Map<
       .settingsIn(node.path)
       .filter((s) => {
         if (modified && !isModified(s, settings)) return false;
+        if (problems && !problemOf(s, settings)) return false;
         if (only.length > 0 && !only.includes(s.id)) return false;
         if (labelHit) return true;
         const hay = norm([tr(s.label), settingDescriptionText(tr(s.description), labelOf), s.id].join(' '));
@@ -149,7 +173,16 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
   const body = useRef<HTMLDivElement>(null);
   const searching = query.trim() !== '';
   const hits = useMemo(() => searchSchema(flat, query, draft), [flat, query, draft]);
-  const modifiedOnly = parseSettingsQuery(query).modified;
+  const modifiedOnly = parseSettingsQuery(splitProblemsTag(query).rest).modified;
+  const problemSettings = useMemo(() => settingsRegistry.settings().filter((d) => problemOf(d, draft)), [draft]);
+  const [fileError, setFileError] = useState<string | null>(null);
+  // Picks up edits made to settings.json outside the app.
+  useEffect(() => {
+    const timer = setInterval(() => {
+      api.externalSettings().then((r) => { if (r.changed) onChange(r.settings); }, () => {});
+    }, 2000);
+    return () => clearInterval(timer);
+  }, [onChange]);
   const deepCount = (key: string) => [...hits].reduce((n, [k, h]) => (isUnder(k, key) ? n + h.ids.length : n), 0);
   const total = [...hits.values()].reduce((n, h) => n + h.ids.length, 0);
 
@@ -297,9 +330,21 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
           </div>
           {searching && <span className="settings-count">{t(total === 1 ? 'settings.search.count.one' : 'settings.search.count', { n: total })}</span>}
         <span className="settings-head-spacer" />
-        <button type="button" className="btn btn-sm" disabled title={t('settings.openFile')}>{t('settings.openFile')}</button>
+        {fileError && <span className="tone-err small">{fileError}</span>}
+        <button type="button" className="btn btn-sm" title={t('settings.openFile')} onClick={() => { setFileError(null); api.openSettingsFile().catch((err) => setFileError(errorMessage(errorOf(err)))); }}>{t('settings.openFile')}</button>
         <button type="button" className="btn btn-ghost btn-sm btn-icon" title={t('settings.close')} aria-label={t('settings.close')} onClick={onClose}>✕</button>
       </header>
+      {problemSettings.length > 0 && (
+        <div className="settings-problems" style={{ padding: '8px 16px' }}>
+          <span className="tone-err">{t('settings.problems.banner', { n: problemSettings.length })}</span>
+          <div className="settings-links">
+            {problemSettings.map((d) => (
+              <button key={d.id} type="button" className="setting-link" onClick={() => links.onNavigate(d.id)}>{tr(d.label, d.id)}</button>
+            ))}
+            <button type="button" className="setting-link" onClick={() => setQuery(PROBLEMS_TAG)}>{PROBLEMS_TAG}</button>
+          </div>
+        </div>
+      )}
       <div className="settings-layout">
         <nav className="settings-nav" aria-label={t('settings.title')}>
           {flat.filter(visible).map((f) => {

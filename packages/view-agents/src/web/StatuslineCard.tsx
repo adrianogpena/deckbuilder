@@ -21,14 +21,18 @@ export function AgentsAccountsCard({ settings, rows }: SettingsCardProps<AgentsV
   );
 }
 
-/** The Agents settings page: the schema rows, then the usage status line install per account. */
-export function AgentsSettingsCard({ settings, rows }: SettingsCardProps<AgentsViewSettings>) {
+/** The Agents page: the schema rows of the view itself. */
+export function AgentsSettingsCard({ rows }: SettingsCardProps<AgentsViewSettings>) {
+  return <>{rows(OTHER_IDS)}</>;
+}
+
+/** The Agents > Usage page: the status line rows with their preview, then the status line install per account. */
+export function AgentsUsageCard({ settings, rows }: SettingsCardProps<AgentsViewSettings>) {
   const usage = usageSettingsOf(settings.agents);
   const now = useMemo(() => Date.now(), []);
   const sample = useMemo(() => usageSample(now), [now]);
   return (
     <>
-      {rows(OTHER_IDS)}
       <div className="settings-format">
         <aside className="settings-format-preview">
           <h4 className="mono-label">{t('settings.agents.usage.preview')}</h4>

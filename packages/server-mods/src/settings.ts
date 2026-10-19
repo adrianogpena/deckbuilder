@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { readJsonFile, writeJsonAtomic } from '@deckbuilderkit/platform';
+import { EDITOR_NAMES, type EditorId, findEditor, openInEditor, readJsonFile, revealInFolder, writeJsonAtomic } from '@deckbuilderkit/platform';
 import { isRecord, type Routes } from '@deckbuilderkit/server-core';
 import { ICON_SET_IDS, LAYOUT_MARK_IDS, layoutById } from '@deckbuilderkit/server-core/layouts';
 import { PALETTES, ZOOM_LEVELS, type ThemeKind, type ThemeSettings } from '@deckbuilderkit/server-core/palettes';
@@ -24,8 +24,12 @@ export interface SettingsOptions<T extends BaseSettings> {
 
 export interface SettingsStore<T extends BaseSettings> {
   dir: string;
+  /** Absolute path of settings.json. */
+  file: string;
   load(): Promise<T>;
   save(patch: Record<string, unknown>): Promise<T>;
+  /** Re-reads settings.json; `changed` when it differs from what the store held (the file was edited outside the app). */
+  reload(): Promise<{ changed: boolean; settings: T }>;
 }
 
 export function settingsStore<T extends BaseSettings>(opts: SettingsOptions<T>): SettingsStore<T> {
@@ -65,7 +69,16 @@ export function settingsStore<T extends BaseSettings>(opts: SettingsOptions<T>):
     return next;
   }
 
-  return { dir: opts.dir, load, save };
+  async function reload(): Promise<{ changed: boolean; settings: T }> {
+    const prev = await load();
+    const stored = await readJsonFile(file, isRecord);
+    const next = { ...opts.defaults, ...(stored as object | undefined) } as T;
+    const changed = JSON.stringify(next) !== JSON.stringify(prev);
+    if (changed) cache = next;
+    return { changed, settings: cache ?? next };
+  }
+
+  return { dir: opts.dir, file, load, save, reload };
 }
 
 
@@ -76,10 +89,33 @@ function applyPalette(value: unknown, kind: ThemeKind, next: ThemeSettings): voi
   else if (PALETTES.some((p) => p.id === value && p.kind === kind)) next[key] = value as string;
 }
 
-/** GET and PUT /api/settings. */
+/** Opens `file` in the first editor found (the program chosen in Settings first), else shows it in the file manager. */
+async function openSettingsFile(dir: string, file: string): Promise<void> {
+  const overrides = ((await readJsonFile(join(dir, 'editors.json'), isRecord).catch(() => undefined)) ?? {}) as Record<string, unknown>;
+  for (const id of Object.keys(EDITOR_NAMES) as EditorId[]) {
+    const custom = overrides[id];
+    const exe = typeof custom === 'string' && custom !== '' ? custom : await findEditor(id).catch(() => null);
+    if (!exe) continue;
+    try {
+      await openInEditor(id, exe, { folder: dir, file });
+      return;
+    } catch {
+      // try the next editor
+    }
+  }
+  await revealInFolder(file);
+}
+
+/** GET and PUT /api/settings, `POST /api/settings/open-file` and `GET /api/settings/external` (the file edited outside the app). */
 export function settingsRoutes<T extends BaseSettings>(store: SettingsStore<T>): Routes {
   return {
     'GET /api/settings': () => store.load(),
     'PUT /api/settings': async ({ json }) => store.save(await json()),
+    'POST /api/settings/open-file': async () => {
+      await store.load();
+      await openSettingsFile(store.dir, store.file);
+      return { ok: true };
+    },
+    'GET /api/settings/external': () => store.reload(),
   };
 }
