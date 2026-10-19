@@ -1,11 +1,11 @@
 .view-agents { display: flex; flex: 1; min-width: 0; min-height: 0; }
 .agents-sidebar:focus { outline: none; }
-.agents-sidebar-scroll { display: flex; flex-direction: column; gap: var(--space-8); flex: 1 1 auto; min-height: 0; overflow-y: auto; }
-.agents-sidebar { display: flex; flex-direction: column; gap: var(--space-8); width: 260px; overflow: hidden; padding: var(--space-8) var(--space-4); background: var(--bg-sunken); border-right: 1px solid var(--border-soft); }
+.agents-sidebar-scroll { display: flex; flex-direction: column; gap: var(--space-4); flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.agents-sidebar { display: flex; flex-direction: column; gap: var(--space-4); width: 260px; overflow: hidden; padding: var(--space-8) var(--space-4); background: var(--bg-sunken); border-right: 1px solid var(--border-soft); }
 /* Session list, sdeck look on the Explorer .tree-row pattern: flat rows, no boxes; colour only on glyphs.
    --agents-depth (g6) indents two characters per level; .agents-lead is the checkbox slot (g7). */
 .agents-project { display: flex; flex-direction: column; }
-.agents-group-row, .agents-folder-row, .agents-tag-row { display: flex; align-items: center; gap: var(--space-6); min-height: var(--control-h-xs); padding: 0 var(--space-6) 0 calc(var(--space-6) + var(--agents-depth, 0) * 2ch); border-radius: var(--radius-md); color: var(--text-2); font-size: var(--fs-md); }
+.agents-group-row, .agents-folder-row, .agents-tag-row { display: flex; align-items: center; gap: var(--space-6); min-height: var(--control-h-3xs); padding: 0 var(--space-6) 0 calc(var(--space-6) + var(--agents-depth, 0) * 2ch); border-radius: var(--radius-md); color: var(--text-2); font-size: var(--fs-md); }
 .agents-group-row h3 { flex: 0 1 auto; min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: inherit; font-weight: 600; color: var(--text); }
 .agents-group-row > :last-child:not(.agents-group-counts) { margin-left: auto; flex: none; }
 .agents-git-badge { display: inline-flex; gap: var(--space-2); flex: none; white-space: nowrap; font-family: 'Segoe UI Symbol', var(--font-mono); font-size: var(--fs-sm); color: var(--text-2); }
@@ -18,7 +18,7 @@
 .agents-divider::after { content: ''; flex: 1; border-top: 1px solid var(--border); }
 .agents-new { background: none; border: 0; color: var(--text-3); cursor: pointer; font-size: var(--fs-lg); line-height: 1; }
 .agents-new:hover { color: var(--accent); }
-.agents-session { display: flex; align-items: center; gap: var(--space-6); width: 100%; min-height: var(--control-h-xs); padding: 0 var(--space-8) 0 calc(var(--space-6) + var(--agents-depth, 0) * 2ch); border: 0; border-radius: var(--radius-md); background: none; color: var(--text-2); font: inherit; font-size: var(--fs-md); text-align: left; cursor: pointer; outline: none; }
+.agents-session { display: flex; align-items: center; gap: var(--space-6); width: 100%; min-height: var(--control-h-3xs); padding: 0 var(--space-8) 0 calc(var(--space-6) + var(--agents-depth, 0) * 2ch); border: 0; border-radius: var(--radius-md); background: none; color: var(--text-2); font: inherit; font-size: var(--fs-md); text-align: left; cursor: pointer; outline: none; }
 .agents-session:hover { background: var(--hover); color: var(--text); }
 .agents-session:focus-visible { box-shadow: inset 0 0 0 1px var(--accent); }
 .agents-session.selected { color: var(--text); }
@@ -47,7 +47,7 @@
 @media (prefers-reduced-motion: no-preference) { .agents-session { transition: background-color 120ms, color 120ms; } }
 .agents-session-edit { display: flex; align-items: center; gap: var(--space-6); min-height: var(--control-h-xs); padding: 0 var(--space-8) 0 var(--space-6); }
 .agents-rename { flex: 1; min-width: 0; font: inherit; padding: 2px 4px; border: 1px solid var(--accent); border-radius: 4px; background: var(--bg); color: inherit; }
-.agents-find { display: flex; flex-direction: column; gap: 6px; }
+.agents-find { display: flex; flex-direction: column; gap: var(--space-4); }
 .agents-search { display: flex; gap: 4px; }
 .agents-search input { flex: 1; min-width: 0; font: inherit; font-size: var(--fs-sm); padding: 3px 6px; border: 1px solid var(--border-soft); border-radius: 6px; background: var(--bg); color: inherit; }
 .agents-search input:focus { outline: none; border-color: var(--accent); }
@@ -299,7 +299,10 @@
 .agents-twisty .icon { transition: transform var(--agents-fast, 120ms); }
 .agents-twisty.open .icon { transform: rotate(90deg); }
 .agents-twisty:hover { color: var(--text); }
-.agents-connector { flex: none; font-family: var(--font-mono); font-size: var(--fs-sm); color: var(--text-3); margin-right: calc(-1 * var(--space-4)); }
+.agents-connector { position: relative; align-self: stretch; flex: none; width: 2ch; color: var(--text-3); margin-right: calc(-1 * var(--space-4)); }
+.agents-connector::before { content: ''; position: absolute; left: 0.5ch; top: 0; bottom: 0; border-left: 1px solid currentColor; }
+.agents-connector::after { content: ''; position: absolute; left: 0.5ch; right: 0; top: 50%; border-top: 1px solid currentColor; }
+.agents-connector.last::before { bottom: 50%; }
 .agents-session.selected .agents-connector { color: inherit; }
 .agents-folder-row:hover, .agents-group-row:hover { background: var(--hover); }
 .dragging { opacity: 0.5; }

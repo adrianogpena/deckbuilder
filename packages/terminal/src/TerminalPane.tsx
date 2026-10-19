@@ -211,6 +211,12 @@ export function TerminalPane(props: TerminalPaneProps) {
       },
       onKey: (e) => {
         if (preview || e.type !== 'keydown') return true;
+        if (e.key === 'Enter' && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+          // xterm sends a bare CR for Shift+Enter; ESC+CR is the newline sequence Claude Code reads.
+          e.preventDefault();
+          send('\x1b\r');
+          return false;
+        }
         const action = terminalKeyAction(e, view.hasSelection(), appChords.current, findChords.current, navChords.current, paneChords.current);
         if (action.startsWith('terminal.')) {
           e.preventDefault();

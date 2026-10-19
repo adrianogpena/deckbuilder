@@ -838,7 +838,7 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
   const row = ({ s, m }: { s: AgentSessionView; m: RowMatch }, r?: Extract<TreeRow, { kind: 'session' }>) => {
     const dot = <SessionDot status={s.status} account={s.account} title={dotTitle(s)} />;
     const name = displayName(s);
-    const connector = r && <span className="agents-connector" aria-hidden="true">{r.last ? '└─' : '├─'}</span>;
+    const connector = r && <span className={r.last ? 'agents-connector last' : 'agents-connector'} aria-hidden="true" />;
     if (renaming === s.id) {
       return (
         <div key={s.id} className="agents-session-edit" style={r && depthStyle(r.depth)}>
