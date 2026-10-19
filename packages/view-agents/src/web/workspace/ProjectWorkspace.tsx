@@ -5,6 +5,7 @@ import { EmptyCard } from './EmptyCard';
 import { useAgentsHost } from './host';
 import { MissingPanel } from './MissingPanel';
 import { PanelBoundary } from './PanelBoundary';
+import { SectionButton } from '../SidebarSection';
 import { isDockable, setDocked } from '../sidebar-sections';
 import { PANELS, panelOf } from './registry';
 import { useRightSide } from './use-right-side';
@@ -176,7 +177,7 @@ export function ProjectWorkspace({ project, hidden, register, onFocusedAgent }: 
             const mod = panelOf(kind);
             return (
               <section key={kind} className="agents-dock-side-item" onContextMenu={(e) => { e.preventDefault(); setSideMenu({ at: { x: e.clientX, y: e.clientY }, items: [{ id: 'toLeft', label: t('agents.section.toLeft'), run: () => moveToLeft(kind) }] }); }}>
-                <div className="agents-section-head agents-dock-side-head"><span className="agents-label">{mod ? t(mod.titleKey) : kind}</span></div>
+                <div className="agents-section-head agents-dock-side-head"><span className="agents-label">{mod ? t(mod.titleKey) : kind}</span><span className="agents-section-actions"><SectionButton icon="close" label={t('agents.section.hide')} onClick={() => setSide((cur) => cur.filter((k) => k !== kind))} /></span></div>
                 <PanelBoundary>{mod ? <mod.Panel {...panelProps(kind, {}, true, () => undefined)} /> : <MissingPanel kind={kind} />}</PanelBoundary>
               </section>
             );
