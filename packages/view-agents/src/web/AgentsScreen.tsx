@@ -1,11 +1,11 @@
 import { type UsageSettings, usageViewData } from './UsageView';
 import { type CSSProperties, type PointerEvent as ReactPointerEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { effectiveKeys, errorOf, setTitleBadge, setViewTitle, useCommand, useKeybindings, useRunCommand, useToast } from '@deckbuilderkit/ui';
+import { effectiveKeys, errorOf, setTitleBadge, useDialogs, setViewTitle, useCommand, useKeybindings, useRunCommand, useToast } from '@deckbuilderkit/ui';
 import { TerminalPane, terminalAppKeys, type TerminalPaneHandle } from '@deckbuilderkit/terminal';
 import { closeSession, listSessions } from '@deckbuilderkit/terminal/session';
 import { agentsCommands } from '../commands';
 import { t } from '../i18n';
-import { lastResponse, patchSessionState, type AgentProject, type AgentRunning, type AgentSessionView, dismissRecovery, listAgentProjects, listRecovery, markSeen, removeAgentProject, reportShown, restartSession, startInBackground, startSession, stopSession, terminalOf } from './api';
+import { lastResponse, patchSessionState, type AgentProject, type AgentRunning, type AgentSessionView, dismissRecovery, listAgentProjects, listRecovery, markSeen, removeAgentProject, reportShown, restartSession, startInBackground, startSession, stopSession, takeOverSession, terminalOf } from './api';
 import { AddProject } from './AddProject';
 import { AlertsPanel } from './AlertsPanel';
 import { UsageTab } from './UsageTab';
@@ -120,6 +120,7 @@ function Sash({ edge, width, onWidth, onDone, onReset }: { edge: 'start' | 'end'
 export function AgentsScreen({ mode = 'terminal', usageSettings, dnd = false, onDnd }: { mode?: 'terminal' | 'chat'; resumeOnSelect?: boolean; usageSettings?: UsageSettings; dnd?: boolean; onDnd?: (on: boolean) => void }) {
   const { sessions, usage, git } = useAgentsFeed();
   const toast = useToast();
+  const dialogs = useDialogs();
   const [region, setRegion] = useState<FocusRegion | undefined>(focusMemory.region);
   const onFocusRegion = useCallback((e: { target: EventTarget | null }) => {
     const r = regionOf(e.target instanceof Element ? e.target : null);
@@ -433,6 +434,28 @@ export function AgentsScreen({ mode = 'terminal', usageSettings, dnd = false, on
     }
   };
 
+  /** Take over an external session: ends the other terminal's process (after a warning unless it is idle), then resumes it here. */
+  const takeOver = async (s: AgentSessionView) => {
+    setError('');
+    if (s.status !== 'idle' && s.status !== 'done') {
+      const status = t(`agents.status.${s.status}`).toLowerCase();
+      const ok = await dialogs.confirm({ title: t('agents.external.takeover'), body: t('agents.external.takeoverBusy', { status }), okLabel: t('agents.external.takeover'), danger: true });
+      if (!ok) return;
+    }
+    try {
+      if (!(await takeOverSession(s.id)).ok) return setError(t('agents.external.takeoverFailed'));
+      setViewing(undefined);
+      if (mode === 'chat') {
+        openChat({ sessionId: s.id });
+      } else {
+        attach({ sessionId: s.id, terminal: (await startSession({ account: s.account, dir: s.cwd, sessionId: s.id })).session });
+      }
+      void focusSoon();
+    } catch (e) {
+      setError(errorOf(e).message);
+    }
+  };
+
   /** Clears an exited session: closes its ended terminal so it reads as stopped. */
   const clearExited = async (sessionId: string) => {
     setError('');
@@ -721,7 +744,7 @@ export function AgentsScreen({ mode = 'terminal', usageSettings, dnd = false, on
                 sessionId={selected.id}
                 updatedAt={selected.updatedAt}
                 external={selected.external === true}
-                onTakeOver={() => void select(selected.id)}
+                onTakeOver={() => void takeOver(selected)}
               />
             </div>
           )}

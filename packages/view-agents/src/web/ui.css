@@ -45,6 +45,7 @@
 }
 .agents-dot--none { visibility: hidden; }
 .agents-dot--idle { border: 1.5px solid var(--text-3); }
+.agents-dot--stopped { border-radius: 2px; background: var(--text-3); opacity: 0.55; transform: scale(0.85); }
 .agents-dot--ok { background: var(--ok); }
 .agents-dot--error { background: var(--err); animation: agents-flash 0.8s ease-out 1; }
 .agents-dot--attention { background: var(--warn); }

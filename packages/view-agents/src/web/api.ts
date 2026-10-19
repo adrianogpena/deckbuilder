@@ -77,13 +77,15 @@ export const sessionHistory = (sessionId: string) => request<{ events: ChatEvent
 
 /** Mark unread: done / error become unseen again; a session with no status gets a fresh done. */
 export const markUnread = (sessionId: string) => request<{ ok: boolean }>('POST', '/api/agents/unread', {}, { sessionId });
+/** Ends the Claude process that runs the session in another terminal; true once it is gone. */
+export const takeOverSession = (sessionId: string) => request<{ ok: boolean }>('POST', '/api/agents/session/takeover', {}, { sessionId });
 export const markSeen = (sessionId: string) => request<{ ok: boolean }>('POST', '/api/agents/seen', {}, { sessionId });
 export const reportShown = (sessionId: string | null) => request<{ ok: boolean }>('POST', '/api/agents/shown', {}, { sessionId });
 
-export interface TailTurn { role: 'user' | 'assistant'; text: string }
-const tailListeners = new Set<(sessionId: string, turns: TailTurn[]) => void>();
+export type TailEvent = import('../chat-protocol.ts').ChatEvent;
+const tailListeners = new Set<(sessionId: string, events: TailEvent[]) => void>();
 /** Subscribes to `tail` frames of the agents socket; returns the unsubscribe. */
-export function onTail(fn: (sessionId: string, turns: TailTurn[]) => void): () => void {
+export function onTail(fn: (sessionId: string, events: TailEvent[]) => void): () => void {
   tailListeners.add(fn);
   return () => void tailListeners.delete(fn);
 }
@@ -98,7 +100,7 @@ export async function openAgentsSocket(onFrame: (f: { type: string; [k: string]:
   ws.onmessage = (e) => {
     try {
       const f = JSON.parse(String(e.data));
-      if (f.type === 'tail') for (const l of tailListeners) l(f.sessionId, f.turns);
+      if (f.type === 'tail') for (const l of tailListeners) l(f.sessionId, f.events);
       onFrame(f);
     } catch { /* ignore malformed frames */ }
   };

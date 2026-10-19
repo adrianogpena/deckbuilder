@@ -41,7 +41,7 @@ describe('dotKind', () => {
     expect(dotKind('starting')).toBe('working');
     expect(dotKind('done')).toBe('ok');
     expect(dotKind('idle')).toBe('idle');
-    expect(dotKind('stopped')).toBe('idle');
+    expect(dotKind('stopped')).toBe('stopped');
     expect(dotKind('error')).toBe('error');
     expect(dotKind('exited')).toBe('error');
     expect(dotKind('none')).toBe('none');

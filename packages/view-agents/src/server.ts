@@ -36,7 +36,7 @@ import { createStatuslineInstaller } from './server/statusline-install.ts';
 import { addAccount, applyShared, deleteAccount, readShared, shareList } from './server/account-admin.ts';
 import { forgetPendingAccount, markPendingAccount } from './server/accounts.ts';
 import type { AgentAccountAddResult, AgentAccountApplyResult, AgentAccountDeleteResult, AgentAccountSharedResult } from './protocol.ts';
-import { type AgentStatus, createStatusTracker, externalIds, readPidFiles } from './server/status.ts';
+import { type AgentStatus, createStatusTracker, externalIds, isPidAlive, readPidFiles } from './server/status.ts';
 import type { AgentDeleteResult, AgentRestoreResult, AgentTreePatch, AgentTrashEntry } from './protocol.ts';
 import { createTrashStore, isSafeId } from './server/trash.ts';
 import { createUsageReader, pruneUsage, usageContextPercent } from './server/usage.ts';
@@ -208,10 +208,12 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
     tail = {
       sessionId: id,
       path,
-      tailer: createTailer(path, (turns) => {
-        if (tail?.sessionId === id) broadcast({ type: 'tail', sessionId: id, turns });
+      tailer: createTailer(path, (events) => {
+        if (tail?.sessionId === id) broadcast({ type: 'tail', sessionId: id, events });
       }),
     };
+    // The backfill callback ran inside createTailer, before `tail` was set.
+    broadcast({ type: 'tail', sessionId: id, events: tail.tailer.events() });
   };
 
   /** The live sessions (terminal ptys and chat processes) with the account and project the scan knows. */
@@ -751,6 +753,21 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
           const r = chat?.stop(b.sessionId) ?? 'none';
           return { ok: r !== 'busy', busy: r === 'busy' };
         },
+        // Take over: ends the other terminal's Claude process (its pid file) so the session can resume here.
+        'POST /api/agents/session/takeover': async ({ json }) => {
+          const b = await json<{ sessionId?: unknown }>();
+          const id = typeof b.sessionId === 'string' ? b.sessionId : '';
+          const pids = accounts().flatMap((a) => readPidFiles(a.dir)).filter((e) => e.sessionId === id);
+          if (!pids.length || !(await compute()).sessions.some((x) => x.id === id && x.external)) return { ok: false };
+          for (const e of pids) {
+            try {
+              process.kill(e.pid);
+            } catch { /* already gone */ }
+          }
+          for (let i = 0; i < 30 && pids.some((e) => isPidAlive(e.pid)); i++) await new Promise((r) => setTimeout(r, 100));
+          await refresh(true);
+          return { ok: !pids.some((e) => isPidAlive(e.pid)) };
+        },
         'POST /api/agents/seen': async ({ json }) => {
           const b = await json<{ sessionId?: unknown }>();
           if (typeof b.sessionId !== 'string' || !b.sessionId) return { ok: false };
@@ -813,7 +830,7 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
             ws.send(JSON.stringify({ type: 'git', status: git.get() } satisfies AgentsFrame));
             void git.pollNow();
           });
-          if (tail) ws.send(JSON.stringify({ type: 'tail', sessionId: tail.sessionId, turns: tail.tailer.turns() } satisfies AgentsFrame));
+          if (tail) ws.send(JSON.stringify({ type: 'tail', sessionId: tail.sessionId, events: tail.tailer.events() } satisfies AgentsFrame));
         },
         message() {},
         close(ws) {

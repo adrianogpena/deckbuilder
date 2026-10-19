@@ -298,7 +298,7 @@ export type AgentsFrame =
   | { type: 'status'; status: Record<string, AgentStatus> }
   | { type: 'usage'; accounts: AgentAccountUsage[] }
   | { type: 'git'; status: Record<string, GitStatus> }
-  | { type: 'tail'; sessionId: string; turns: Array<{ role: 'user' | 'assistant'; text: string }> };
+  | { type: 'tail'; sessionId: string; events: import('./chat-protocol.ts').ChatEvent[] };
 
 /** One step of a session trace (user prompt, assistant reply or tool call with its result). */
 export interface AgentTraceStep {
