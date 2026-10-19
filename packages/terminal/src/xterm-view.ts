@@ -404,6 +404,7 @@ export function createXtermView(el: HTMLElement, opts: XtermViewOptions = {}): X
       if (cols !== term.cols || rows !== term.rows) term.resize(cols, rows);
     },
     onInput: (cb) => void subs.push(term.onData(cb)),
+    onBinary: (cb) => void subs.push(term.onBinary(cb)),
     onResize: (cb) => void subs.push(term.onResize(({ cols, rows }) => cb(cols, rows))),
     fit,
     focus: () => term.focus(),

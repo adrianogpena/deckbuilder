@@ -3,6 +3,8 @@ export interface TerminalView {
   write(data: string): void;
   resize(cols: number, rows: number): void;
   onInput(cb: (data: string) => void): void;
+  /** Raw bytes as a binary string (X10 mouse reports, wheel included). */
+  onBinary(cb: (data: string) => void): void;
   onResize(cb: (cols: number, rows: number) => void): void;
   dispose(): void;
 }

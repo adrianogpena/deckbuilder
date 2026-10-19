@@ -302,6 +302,7 @@ export function TerminalPane(props: TerminalPaneProps) {
       if (ws?.readyState === WebSocket.OPEN) ws.send(data);
     };
     view.onInput((data) => send(encoder.encode(data)));
+    view.onBinary((data) => send(Uint8Array.from(data, (c) => c.charCodeAt(0))));
     if (!preview) latest.current.handle?.({ run: runPane, insert: (text) => view.paste(text), submit: (text) => send(encoder.encode(text + String.fromCharCode(13))) });
     view.onResize((cols, rows) => {
       if (!preview) send(encodeControl({ type: 'resize', cols, rows }));
