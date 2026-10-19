@@ -5,6 +5,8 @@ import type { ChatEvent, ChatUsage } from '../../chat-protocol.ts';
 const MAX_RESULT = 20_000;
 const INTERRUPT_TEXT = '[Request interrupted by user';
 
+const TASK_NOTIFICATION = '<task-notification>';
+
 type Json = Record<string, any>;
 const isObj = (v: unknown): v is Json => typeof v === 'object' && v !== null && !Array.isArray(v);
 
@@ -12,6 +14,16 @@ function resultText(content: unknown): string {
   if (typeof content === 'string') return content;
   if (!Array.isArray(content)) return content == null ? '' : JSON.stringify(content);
   return content.map((c) => (isObj(c) && typeof c.text === 'string' ? c.text : isObj(c) ? `[${String(c.type)}]` : String(c))).join('\n');
+}
+
+/** User-role text as an event: interrupt marker, background-task notification (summary only), or a real user message. */
+function userEvent(text: string): ChatEvent {
+  if (text.startsWith(INTERRUPT_TEXT)) return { type: 'interrupted' };
+  if (text.trimStart().startsWith(TASK_NOTIFICATION)) {
+    const summary = /<summary>([\s\S]*?)<\/summary>/.exec(text)?.[1].trim();
+    return { type: 'notice', text: summary || 'Background task finished' };
+  }
+  return { type: 'user', text };
 }
 
 function usageOf(u: unknown): ChatUsage | undefined {
@@ -64,7 +76,7 @@ export function normalizeLine(raw: unknown): ChatEvent[] {
       if (!isObj(msg)) return [];
       if (typeof msg.content === 'string') {
         if (!msg.content) return [];
-        return [msg.content.startsWith(INTERRUPT_TEXT) ? { type: 'interrupted' } : { type: 'user', text: msg.content }];
+        return [userEvent(msg.content)];
       }
       if (!Array.isArray(msg.content)) return [];
       const out: ChatEvent[] = [];
@@ -82,7 +94,7 @@ export function normalizeLine(raw: unknown): ChatEvent[] {
             ...parentId,
           });
         } else if (b.type === 'text' && typeof b.text === 'string' && b.text) {
-          out.push(b.text.startsWith(INTERRUPT_TEXT) ? { type: 'interrupted' } : { type: 'user', text: b.text });
+          out.push(userEvent(b.text));
         }
       }
       return out;

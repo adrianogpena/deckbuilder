@@ -20,7 +20,7 @@ export function eventsOfLine(line: string): TailEvent[] {
   }
   return normalizeLine(raw).filter((e) => {
     if (e.type === 'user') return !ECHO_PREFIXES.some((p) => e.text.trimStart().startsWith(p));
-    return e.type === 'text' || e.type === 'tool_use' || e.type === 'tool_result' || e.type === 'interrupted';
+    return e.type === 'text' || e.type === 'tool_use' || e.type === 'tool_result' || e.type === 'interrupted' || e.type === 'notice';
   });
 }
 

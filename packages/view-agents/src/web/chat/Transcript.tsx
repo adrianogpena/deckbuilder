@@ -43,6 +43,8 @@ function EventRow({ event }: { event: Extract<TranscriptItem, { kind: 'event' }>
       return <div className="chat-note">{event.model ? t('agents.chat.started.model', { model: event.model }) : t('agents.chat.started')}</div>;
     case 'interrupted':
       return <div className="chat-note">{t('agents.chat.interrupted')}</div>;
+    case 'notice':
+      return <div className="chat-note">{event.text}</div>;
     case 'result':
       if (event.aborted) return null;
       return (

@@ -21,6 +21,8 @@ export type ChatEvent =
   | { type: 'tool_result'; toolUseId: string; content: string; isError: boolean; truncated?: boolean; parentId?: string }
   /** The user interrupted the running turn. */
   | { type: 'interrupted' }
+  /** A system-generated message stored as a user turn (background task finished); `text` is its summary line. */
+  | { type: 'notice'; text: string }
   /** Turn end. `aborted` when it ended by an interrupt. */
   | { type: 'result'; subtype: string; isError: boolean; aborted: boolean; text?: string; usage?: ChatUsage; costUsd?: number; durationMs?: number }
   | { type: 'error'; message: string };

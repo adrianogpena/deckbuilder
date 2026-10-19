@@ -20,6 +20,11 @@ describe('eventsOfLine', () => {
     expect(eventsOfLine(asst({ type: 'thinking', thinking: 't' }, { type: 'tool_use', id: 'a', name: 'X' })).map((e) => e.type)).toEqual(['tool_use']);
     expect(eventsOfLine(asst({ type: 'text', text: 'yo' }))).toEqual([{ type: 'text', text: 'yo', messageId: 'm' }]);
   });
+
+  test('a task notification becomes a notice with its summary', () => {
+    const xml = '<task-notification>\n<task-id>a1</task-id>\n<summary>Agent "X" finished</summary>\n</task-notification>';
+    expect(eventsOfLine(user(xml))).toEqual([{ type: 'notice', text: 'Agent "X" finished' }]);
+  });
 });
 
 describe('createTailer', () => {
