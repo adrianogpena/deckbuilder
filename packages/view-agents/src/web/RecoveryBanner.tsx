@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { t } from '../i18n';
 import type { AgentRunning } from './api';
+import { ResumeBar } from './ResumeBar';
 
 export interface RecoveryBannerProps {
   items: AgentRunning[];
@@ -8,7 +9,7 @@ export interface RecoveryBannerProps {
   onDismiss(): void;
 }
 
-/** "N sessions were running": resume them all, pick which, or dismiss. */
+/** "N sessions were running", in the resume bar look: resume them all, pick which, or dismiss. */
 export function RecoveryBanner({ items, onResume, onDismiss }: RecoveryBannerProps) {
   const [picking, setPicking] = useState(false);
   const [chosen, setChosen] = useState<Set<string>>(() => new Set(items.map((x) => x.id)));
@@ -19,8 +20,19 @@ export function RecoveryBanner({ items, onResume, onDismiss }: RecoveryBannerPro
       if (!n.delete(id)) n.add(id);
       return n;
     });
+  const actions = picking ? (
+    <>
+      <button type="button" className="agents-bar-btn is-primary" disabled={chosen.size === 0} onClick={() => onResume(items.filter((x) => chosen.has(x.id)))}>{t('agents.recovery.resume')}</button>
+      <button type="button" className="agents-bar-btn" onClick={() => setPicking(false)}>{t('agents.recovery.back')}</button>
+    </>
+  ) : (
+    <>
+      <button type="button" className="agents-bar-btn is-primary" onClick={() => onResume(items)}>{t('agents.recovery.resumeAll')}</button>
+      <button type="button" className="agents-bar-btn" onClick={() => setPicking(true)}>{t('agents.recovery.pick')}</button>
+    </>
+  );
   return (
-    <div className="agents-recovery" role="region" aria-label={t('agents.recovery.title', { n: items.length })}>
+    <ResumeBar title={t('agents.recovery.title', { n: items.length })} actions={actions} onDismiss={onDismiss}>
       <strong>{t('agents.recovery.title', { n: items.length })}</strong>
       {picking && (
         <ul className="agents-recovery-list">
@@ -34,20 +46,6 @@ export function RecoveryBanner({ items, onResume, onDismiss }: RecoveryBannerPro
           ))}
         </ul>
       )}
-      <div className="agents-recovery-actions">
-        {picking ? (
-          <>
-            <button type="button" disabled={chosen.size === 0} onClick={() => onResume(items.filter((x) => chosen.has(x.id)))}>{t('agents.recovery.resume')}</button>
-            <button type="button" onClick={() => setPicking(false)}>{t('agents.recovery.back')}</button>
-          </>
-        ) : (
-          <>
-            <button type="button" onClick={() => onResume(items)}>{t('agents.recovery.resumeAll')}</button>
-            <button type="button" onClick={() => setPicking(true)}>{t('agents.recovery.pick')}</button>
-          </>
-        )}
-        <button type="button" onClick={onDismiss}>{t('agents.recovery.dismiss')}</button>
-      </div>
-    </div>
+    </ResumeBar>
   );
 }

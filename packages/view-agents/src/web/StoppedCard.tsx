@@ -4,6 +4,9 @@ import { t } from '../i18n';
 import { since } from './AlertsPanel';
 import { displayName } from './attention';
 import { shortPath, type SessionSummary } from './session-summary';
+import { Badge } from './Badge';
+import { headBadge } from './SessionHead';
+import { StatusDot } from './StatusDot';
 
 export function cardStatus(s: AgentStatus): string {
   switch (s) {
@@ -35,6 +38,8 @@ export interface StoppedCardProps {
   summary?: SessionSummary;
   /** Git branch of the session cwd, when known. */
   branch?: string | null;
+  /** The head strip above shows the name: leave it out of the card. */
+  noName?: boolean;
 }
 
 const FILES_SHOWN = 5;
@@ -77,14 +82,14 @@ function Files({ files, cwd }: { files: string[]; cwd: string }) {
 }
 
 /** Card of a session that is not attached: name, status line, action line (Enter / s / x), then the history digest (goal, where it stopped, chips, files changed). */
-export function StoppedCard({ session: s, screenError, onStart, onBackground, onRestart, onClear, summary, branch, readOnly }: StoppedCardProps) {
+export function StoppedCard({ session: s, screenError, onStart, onBackground, onRestart, onClear, summary, branch, readOnly, noName }: StoppedCardProps) {
   const ref = useRef<HTMLDivElement>(null);
 
   const exited = s.lifecycle === 'exited' || s.status === 'exited';
   const live = s.live === true && (s.status === 'running' || s.status === 'needs-you');
-  const status = screenError ?? cardStatus(s.status);
+  const badge = headBadge(s);
   const time = live ? t('agents.alerts.now') : t('agents.card.ago', { t: since(s.updatedAt) });
-  const meta = [status + (s.external ? t('agents.card.elsewhere') : ''), s.account, time, shortCwd(s.cwd)];
+  const meta = [s.external ? t('agents.card.elsewhere').trim() : '', s.account, time, shortCwd(s.cwd)].filter(Boolean);
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (readOnly || e.ctrlKey || e.altKey || e.metaKey || e.target !== e.currentTarget) return;
@@ -98,8 +103,12 @@ export function StoppedCard({ session: s, screenError, onStart, onBackground, on
 
   return (
     <div ref={ref} className="agents-card" tabIndex={readOnly ? -1 : 0} onKeyDown={onKeyDown}>
-      <div className="agents-card-name">{displayName(s)}</div>
-      <div className={`agents-card-meta${screenError ? ' is-error' : ''}`}>{meta.join(' · ')}</div>
+      {!noName && <div className="agents-card-name">{displayName(s)}</div>}
+      <div className={`agents-card-meta${screenError ? ' is-error' : ''}`}>
+        <StatusDot status={s.status} title={cardStatus(s.status)} />
+        {screenError ? <span>{screenError}</span> : <Badge kind={badge.kind}>{badge.label}</Badge>}
+        <span>{meta.join(' · ')}</span>
+      </div>
       {!readOnly && (
         <div className={`agents-card-action${exited ? ' is-exited' : ''}`}>
           {exited ? t('agents.card.exited', { code: s.exitCode == null ? '?' : String(s.exitCode) }) : t('agents.card.stopped')}

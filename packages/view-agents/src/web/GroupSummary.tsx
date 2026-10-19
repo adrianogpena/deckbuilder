@@ -5,6 +5,8 @@ import { since } from './AlertsPanel';
 import { displayName, statusCounts } from './attention';
 import { statusLabel } from './Sidebar';
 import { shortCwd } from './StoppedCard';
+import { StatusDot } from './StatusDot';
+import './main.css';
 
 export interface GroupSummaryProps {
   kind: 'project' | 'folder';
@@ -40,12 +42,14 @@ export function GroupSummary({ kind, name, path, sessions, projectCount, onSelec
   };
 
   return (
-    <div className="agents-card agents-summary" tabIndex={0} onKeyDown={onKeyDown}>
-      <div className={`agents-card-name agents-summary-name ${kind}`}>
-        {t(kind === 'folder' ? 'agents.summary.folder' : 'agents.summary.projectKind')} · {name}
+    <div className="agents-summary-card" tabIndex={0} onKeyDown={onKeyDown}>
+      <div className="agents-summary-head">
+        <span className={`agents-summary-name ${kind}`}>
+          {t(kind === 'folder' ? 'agents.summary.folder' : 'agents.summary.projectKind')} · {name}
+        </span>
+        <span className="agents-summary-meta">{meta.join(' · ')}</span>
       </div>
-      <div className="agents-card-meta">{meta.join(' · ')}</div>
-      <div className="agents-card-action">{t(onNewSession ? 'agents.summary.hint' : 'agents.summary.hintFolder')}</div>
+      <div className="agents-summary-hint">{t(onNewSession ? 'agents.summary.hint' : 'agents.summary.hintFolder')}</div>
       {list.length === 0 && <p className="agents-empty">{t('agents.noSessions')}</p>}
       <ul className="agents-summary-list">
         {list.map((s) => {
@@ -54,7 +58,7 @@ export function GroupSummary({ kind, name, path, sessions, projectCount, onSelec
           return (
             <li key={s.id}>
               <button type="button" className="agents-summary-row" onClick={() => onSelect(s.id)}>
-                <span className={`agents-dot ${s.status}`} role="img" title={label} aria-label={label} />
+                <StatusDot status={s.status} title={label} />
                 <span className="agents-summary-title" title={title}>{title}</span>
                 <span className="agents-summary-time">{since(s.updatedAt)}</span>
               </button>

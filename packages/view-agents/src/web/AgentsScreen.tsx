@@ -1,11 +1,11 @@
 import { type UsageSettings, usageViewData } from './UsageView';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { errorOf, setTitleBadge, useCommand, useKeybindings, useRunCommand } from '@deckbuilderkit/ui';
+import { effectiveKeys, errorOf, setTitleBadge, useCommand, useKeybindings, useRunCommand } from '@deckbuilderkit/ui';
 import { TerminalPane, terminalAppKeys, type TerminalPaneHandle } from '@deckbuilderkit/terminal';
 import { closeSession, listSessions } from '@deckbuilderkit/terminal/session';
 import { agentsCommands } from '../commands';
 import { t } from '../i18n';
-import { lastResponse, type AgentProject, type AgentRunning, type AgentSessionView, dismissRecovery, listAgentProjects, listRecovery, markSeen, removeAgentProject, reportShown, restartSession, startInBackground, startSession, stopSession, terminalOf } from './api';
+import { lastResponse, patchSessionState, type AgentProject, type AgentRunning, type AgentSessionView, dismissRecovery, listAgentProjects, listRecovery, markSeen, removeAgentProject, reportShown, restartSession, startInBackground, startSession, stopSession, terminalOf } from './api';
 import { AddProject } from './AddProject';
 import { AlertsPanel } from './AlertsPanel';
 import { UsageTab } from './UsageTab';
@@ -24,6 +24,10 @@ import { readPanelTab, SidePanel, type SidePanelTab, writePanelTab } from './Sid
 import { TrajectoryTab } from './TrajectoryTab';
 import { StoppedPane } from './StoppedPane';
 import { GroupSummary } from './GroupSummary';
+import { EmptyState } from './EmptyState';
+import { ExitBar } from './ExitBar';
+import { ResumeBar } from './ResumeBar';
+import { SessionHead } from './SessionHead';
 import { Sidebar } from './Sidebar';
 import { useAgentsFeed } from './useAgentSessions';
 import '../styles.css';
@@ -115,6 +119,9 @@ export function AgentsScreen({ mode = 'terminal', usageSettings }: { mode?: 'ter
   const [chats, setChats] = useState<ChatEntry[]>([]);
   const [viewing, setViewing] = useState<string>();
   const [preview, setPreview] = useState<string>();
+  /** Sessions the user stopped (exit bar reads "Session stopped") and sessions whose resume bar was dismissed. */
+  const [userStopped, setUserStopped] = useState<ReadonlySet<string>>(new Set());
+  const [resumeDismissed, setResumeDismissed] = useState<ReadonlySet<string>>(new Set());
 
   const autoResume = useRef<(items: AgentRunning[]) => Promise<void>>();
   useEffect(() => {
@@ -283,6 +290,7 @@ export function AgentsScreen({ mode = 'terminal', usageSettings }: { mode?: 'ter
     setError('');
     try {
       const r = await stopSession(s.id);
+      setUserStopped((u) => new Set(u).add(s.id));
       setPool((p) => p.filter((x) => x.sessionId !== s.id));
       setChats((c) => c.filter((x) => entryId(x) !== s.id));
       if (r.removed) setSelectedId((cur) => (cur === s.id ? undefined : cur));
@@ -303,6 +311,11 @@ export function AgentsScreen({ mode = 'terminal', usageSettings }: { mode?: 'ter
           return;
         }
         const r = await restartSession(s.id);
+        setUserStopped((u) => {
+          const n = new Set(u);
+          n.delete(s.id);
+          return n;
+        });
         setPool((p) => [{ sessionId: r.sessionId, terminal: r.session }, ...p.filter((x) => x.sessionId !== s.id && x.sessionId !== r.sessionId)].slice(0, POOL_SIZE));
         setSelectedId(r.sessionId);
       } catch (e) {
@@ -356,6 +369,11 @@ export function AgentsScreen({ mode = 'terminal', usageSettings }: { mode?: 'ter
   /** Clears an exited session: closes its ended terminal so it reads as stopped. */
   const clearExited = async (sessionId: string) => {
     setError('');
+    setUserStopped((u) => {
+      const n = new Set(u);
+      n.delete(sessionId);
+      return n;
+    });
     try {
       const all = await listSessions();
       for (const x of all) if (x.exited && x.meta?.agentSession === sessionId) await closeSession(x.id);
@@ -495,6 +513,11 @@ export function AgentsScreen({ mode = 'terminal', usageSettings }: { mode?: 'ter
   useCommand(agentsCommands()[48]!, () => void runCommand('app.keybindings'));
   useCommand(agentsCommands()[49]!, () => void runCommand('app.settings'));
 
+  const newKey = useMemo(() => (keys ? effectiveKeys(keys.defs, keys.keymap).get('agents.newSession')?.[0] : undefined), [keys]);
+  const showSession = selected !== undefined && newFor === undefined && (inTerminal || inChat || inExternal || inPreview);
+  const exitedHere = showSession && !inChat && !inExternal && (selected.lifecycle === 'exited' || (inPreview && (selected.status === 'exited' || userStopped.has(selected.id))));
+  const resumeHere = showSession && inPreview && !exitedHere && !selected.external && !resumeDismissed.has(selected.id);
+  const projectName = selected ? (projects.find((p) => p.id === selected.project)?.name ?? selected.cwd.split(/[\\/]/).filter(Boolean).pop() ?? selected.cwd) : '';
   const appKeys = useMemo(() => terminalAppKeys('agents', keys?.defs ?? [], ['agents.toggleSidebar', 'agents.togglePanel', 'agents.focusList']), [keys?.defs]);
 
   return (
@@ -544,6 +567,20 @@ export function AgentsScreen({ mode = 'terminal', usageSettings }: { mode?: 'ter
               setSelectedId(r.sessionId);
               attach({ sessionId: r.sessionId, terminal: r.terminal });
             }}
+          />
+        )}
+        {showSession && (
+          <SessionHead
+            session={selected}
+            mode={inChat ? 'chat' : inExternal ? 'external' : 'terminal'}
+            project={projectName}
+            git={git[selected.cwd]}
+            onRename={(name) => void patchSessionState(selected.id, { name }).catch((e) => setError(errorOf(e).message))}
+            onStop={() => void stop(selected)}
+            onRestart={() => void restart(selected)}
+            onCopy={() => void copyResponse()}
+            onTrajectory={() => void runCommand('agents.trajectory')}
+            onTogglePanel={() => void runCommand('agents.togglePanel')}
           />
         )}
         <div className="agents-panes" hidden={newFor !== undefined}>
@@ -605,6 +642,7 @@ export function AgentsScreen({ mode = 'terminal', usageSettings }: { mode?: 'ter
                 onBackground={() => void startBackground(selected)}
                 onRestart={() => void restart(selected)}
                 onClear={() => void clearExited(selected.id)}
+                noName
               />
             </div>
           )}
@@ -631,8 +669,12 @@ export function AgentsScreen({ mode = 'terminal', usageSettings }: { mode?: 'ter
               />
             </div>
           )}
-          {!summaryProject && !folderFor && !inTerminal && !inChat && !inExternal && !inPreview && newFor === undefined && <p className="agents-empty agents-placeholder">{t('agents.pick')}</p>}
+          {!summaryProject && !folderFor && !inTerminal && !inChat && !inExternal && !inPreview && newFor === undefined && (
+            <EmptyState newKey={newKey} onNewSession={projects[0] ? () => setNewFor(projects[0]!.id) : () => setAdding(true)} />
+          )}
         </div>
+        {exitedHere && <ExitBar code={selected.exitCode} userStopped={userStopped.has(selected.id)} onRestart={() => void restart(selected)} onClose={() => void clearExited(selected.id)} />}
+        {resumeHere && <ResumeBar onResume={() => void startPreview()} onDismiss={() => setResumeDismissed((d) => new Set(d).add(selected.id))} />}
       </section>
       {!panelHidden && <SidePanel onClose={togglePanel} tab={panelTab} onTabChange={setPanelTab} trajectory={<TrajectoryTab sessionId={selected?.id} available={!!selected && selected.lifecycle !== 'starting'} onClose={togglePanel} />} notes={<NotesTab project={selected?.project} canSend={(inTerminal || inChat) && newFor === undefined} onSend={sendToSession} />} changes={<ChangesTab root={projects.find((p) => p.id === selected?.project)?.path ?? selected?.cwd} status={selected?.status} />} />}
     </div>

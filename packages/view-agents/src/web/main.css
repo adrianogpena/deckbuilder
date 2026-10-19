@@ -1,0 +1,50 @@
+/* Main pane (g3, spec S7, S8, S11): session head strip, exit / resume bars, empty state, group summary cards. */
+
+/* S7 head strip */
+.view-agents .agents-head { display: flex; align-items: center; gap: 8px; flex: none; height: 34px; padding: 0 8px 0 12px; border-bottom: 1px solid var(--border-soft); background: var(--bg-card, var(--bg-sunken)); font-size: 12px; min-width: 0; }
+.view-agents .agents-main:focus-within .agents-head { box-shadow: inset 0 -2px 0 var(--accent); }
+.view-agents .agents-head-title { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: var(--ink); cursor: text; }
+.view-agents .agents-head-rename { flex: 0 1 240px; min-width: 80px; height: 20px; padding: 0 6px; border: 1px solid var(--accent); border-radius: 4px; background: var(--bg); color: var(--ink); font: inherit; font-weight: 600; outline: none; }
+.view-agents .agents-head-bell { display: inline-flex; color: var(--warn); }
+.view-agents .agents-head-sub { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted); }
+.view-agents .agents-head-git,
+.view-agents .agents-head-ctx { display: inline-flex; align-items: center; gap: 4px; flex: none; font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted); white-space: nowrap; }
+.view-agents .agents-head-dirty { color: var(--warn); }
+.view-agents .agents-head-actions { display: inline-flex; gap: 2px; flex: none; margin-left: auto; }
+.view-agents .agents-head-btn { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 4px; background: none; color: var(--ink-muted); cursor: pointer; transition: background var(--agents-fast, 120ms), color var(--agents-fast, 120ms); }
+.view-agents .agents-head-btn:hover { background: var(--bg-hover); color: var(--ink); }
+.view-agents .agents-head-btn:focus-visible { outline: none; box-shadow: inset 0 0 0 1px var(--accent); }
+
+/* S8 bars */
+.view-agents .agents-bar { display: flex; align-items: center; gap: 8px; flex: none; padding: 6px 12px; border-top: 1px solid var(--border-soft); background: var(--bg-card, var(--bg-sunken)); font-size: 11px; color: var(--ink); }
+.view-agents .agents-bar-text { flex: 1; min-width: 0; }
+.view-agents .agents-exit-bar.is-error { background: color-mix(in srgb, var(--err) 10%, transparent); color: var(--err); }
+.view-agents .agents-bar-btn { height: 22px; padding: 0 10px; border: 1px solid var(--border-soft); border-radius: 4px; background: var(--bg); color: var(--ink); font: inherit; cursor: pointer; }
+.view-agents .agents-bar-btn:hover { background: var(--bg-hover); }
+.view-agents .agents-bar-btn.is-primary { border-color: var(--accent); background: var(--accent); color: var(--on-accent, #fff); }
+.view-agents .agents-bar-btn:disabled { opacity: 0.5; cursor: default; }
+.view-agents .agents-resume-icon { display: inline-flex; color: var(--agents-working); }
+/* Old `.agents-recovery*` banner look (styles.css) is replaced by the bar; its list keeps working inside it. */
+.view-agents .agents-resume-bar .agents-recovery-list { margin: 4px 0 0; }
+
+/* S11 empty state */
+.view-agents .agents-empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; margin: auto; padding: 24px; text-align: center; color: var(--ink-muted); }
+.view-agents .agents-empty-icon { display: inline-flex; align-items: center; justify-content: center; width: 52px; height: 52px; border-radius: 12px; border: 1px solid var(--border-soft); background: var(--bg-card, var(--bg-sunken)); color: var(--ink-muted); }
+.view-agents .agents-empty-title { margin: 4px 0 0; font-size: 15px; font-weight: 600; color: var(--ink); }
+.view-agents .agents-empty-desc { margin: 0; max-width: 360px; font-size: 12px; line-height: 1.6; }
+.view-agents .agents-keycap { display: inline-block; min-width: 18px; padding: 0 5px; margin: 0 2px; border: 1px solid var(--border-soft); border-bottom-width: 2px; border-radius: 4px; background: var(--bg-card, var(--bg-sunken)); font-family: var(--font-mono); font-size: 11px; line-height: 16px; color: var(--ink); }
+.view-agents .agents-empty-btn { margin-top: 8px; height: 28px; padding: 0 14px; border: 0; border-radius: 6px; background: var(--accent); color: var(--on-accent, #fff); font: inherit; font-weight: 600; cursor: pointer; }
+.view-agents .agents-empty-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* S11 project / folder summary card (overrides `.agents-card.agents-summary` of styles.css, no longer used here). */
+.view-agents .agents-summary-card { display: flex; flex-direction: column; margin: 12px; border: 1px solid var(--border-soft); border-radius: var(--radius-card, 8px); background: var(--bg-card, var(--bg-sunken)); overflow-y: auto; outline: none; min-height: 0; }
+.view-agents .agents-summary-card:focus-visible { box-shadow: inset 0 0 0 1px var(--accent); }
+.view-agents .agents-summary-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 12px; flex: none; height: 36px; padding: 0 12px; border-bottom: 1px solid var(--border-soft); background: inherit; }
+.view-agents .agents-summary-head .agents-summary-name { font-weight: 600; white-space: nowrap; }
+.view-agents .agents-summary-meta { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted); text-align: right; }
+.view-agents .agents-summary-hint { padding: 8px 12px 0; font-size: 11px; color: var(--ink-muted); }
+.view-agents .agents-summary-card .agents-summary-list { margin: 4px 0 0; padding: 0 6px 8px; }
+.view-agents .agents-summary-card .agents-empty { padding: 8px 12px; }
+
+/* Stopped card meta line: dot, badge, then account / time / cwd. */
+.view-agents .agents-card-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
