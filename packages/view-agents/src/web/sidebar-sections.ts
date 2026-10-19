@@ -1,6 +1,7 @@
+import { getUiState, setUiState } from './ui-state';
 import { PANEL_KINDS } from './workspace/types';
 
-/** Sidebar section cards (spec S5, A3): collapsed, hidden and order state, kept in localStorage. */
+/** Sidebar section cards (spec S5, A3): collapsed, hidden and order state, kept in the server UI state. */
 export type CoreSectionId = 'sessions' | 'changes' | 'files' | 'tags' | 'archived' | 'usage';
 /** A core card, or a docked tool panel (`tool:<kind>`). */
 export type SectionId = CoreSectionId | `tool:${string}`;
@@ -116,24 +117,14 @@ export function moveWithin(s: SectionsState, id: SectionId, to: number, usageTop
   return { ...s, order: order.map((x) => (same(x) ? group[i++]! : x)) };
 }
 
-type Store = Pick<Storage, 'getItem' | 'setItem'>;
-const store = (): Store | undefined => (typeof localStorage === 'undefined' ? undefined : localStorage);
-
-export function loadSections(storage: Store | undefined = store()): SectionsState {
-  try {
-    const raw = storage?.getItem(SECTIONS_KEY);
-    return raw ? normalizeSections(JSON.parse(raw)) : DEFAULT_SECTIONS;
-  } catch {
-    return DEFAULT_SECTIONS;
-  }
+/** The state from the in-memory UI state (the server's, once loaded); defaults until then. */
+export function loadSections(): SectionsState {
+  const raw = getUiState(SECTIONS_KEY);
+  return raw ? normalizeSections(raw) : DEFAULT_SECTIONS;
 }
 
-export function saveSections(s: SectionsState, storage: Store | undefined = store()): void {
-  try {
-    storage?.setItem(SECTIONS_KEY, JSON.stringify(s));
-  } catch {
-    // Storage full or blocked: the state lives for this session only.
-  }
+export function saveSections(s: SectionsState): void {
+  setUiState(SECTIONS_KEY, { ...s });
 }
 
 /** Docks (`on`) or undocks a tool kind from outside the sidebar: saves the state and tells a mounted sidebar to reload. */

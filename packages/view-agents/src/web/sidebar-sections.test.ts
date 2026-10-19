@@ -1,10 +1,7 @@
 import { describe, expect, test } from 'bun:test';
+import { setUiState } from './ui-state';
 import { DEFAULT_SECTIONS, dockTool, hideSection, isTreeSection, loadSections, moveSection, moveWithin, normalizeSections, restoreAll, restoreSection, saveSections, sectionOrder, SECTIONS_KEY, toggleSection } from './sidebar-sections';
 
-const memory = () => {
-  const m = new Map<string, string>();
-  return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), m };
-};
 
 describe('sidebar sections', () => {
   test('toggle collapses and expands', () => {
@@ -51,15 +48,12 @@ describe('sidebar sections', () => {
     expect(normalizeSections({ tools: ['json'], order: ['tool:task'] }).order).not.toContain('tool:task');
   });
 
-  test('save and load round trip; bad JSON and throwing storage fall back', () => {
-    const s = memory();
+  test('save and load round trip; a bad stored value falls back to the defaults', () => {
+    expect(loadSections()).toEqual(DEFAULT_SECTIONS);
     const a = hideSection(DEFAULT_SECTIONS, 'tags');
-    saveSections(a, s);
-    expect(loadSections(s)).toEqual(a);
-    s.m.set(SECTIONS_KEY, '{');
-    expect(loadSections(s)).toEqual(DEFAULT_SECTIONS);
-    const broken = { getItem: () => { throw new Error('x'); }, setItem: () => { throw new Error('x'); } };
-    expect(loadSections(broken)).toEqual(DEFAULT_SECTIONS);
-    expect(() => saveSections(a, broken)).not.toThrow();
+    saveSections(a);
+    expect(loadSections()).toEqual(a);
+    setUiState(SECTIONS_KEY, { collapsed: 'x', hidden: 5, tools: 'y' });
+    expect(loadSections()).toEqual({ collapsed: [], hidden: [], tools: [] });
   });
 });

@@ -2,11 +2,36 @@ import { request, stream } from '@deckbuilderkit/ui';
 import { listSessions, openSession, type Ticketed } from '@deckbuilderkit/terminal/session';
 import type { ChatEvent } from '../chat-protocol.ts';
 import { t } from '../i18n';
+import { hydrateUiState, setUiStatePersister } from './ui-state';
 import type { AgentDeleteResult, AgentRestoreResult, AgentTrashEntry, AgentTrashError, AgentLaunch, AgentLifecycleError, AgentStopResult, AgentAccount,AgentAccountUsage, AgentProject, AgentRateLimit, AgentRunning, AgentSearchHit, AgentSessionView, AgentsCapWarn, AgentStatus, AgentStatuslineError, AgentStatuslineStatus, AgentSkillsResponse, AgentTagCount, AgentTraceResponse, AgentTree, AgentTreePatch } from '../protocol.ts';
 
 export type { AgentAccount, AgentAccountUsage, AgentProject, AgentRateLimit, AgentRunning, AgentSearchHit, AgentSessionView, AgentsCapWarn, AgentStatus, AgentStatuslineError, AgentStatuslineStatus, AgentTagCount, AgentTree, AgentTreePatch };
 
-export const listAccounts = () => request<AgentAccount[]>('GET', '/api/agents/accounts');
+let rightSideMap: Promise<unknown> | undefined;
+
+/** The saved right sidebar map (`{ [scope]: { list, open? } }`), fetched once per page load; `{}` when the request fails. */
+export function loadRightSideMap(): Promise<unknown> {
+  rightSideMap ??= request<unknown>('GET', '/api/agents/right-side').catch(() => ({}));
+  return rightSideMap;
+}
+
+/** Saves one scope on the server (best effort) and keeps the cached map current. */
+export function saveRightSide(scope: string, value: { list: string[]; open?: boolean }): void {
+  rightSideMap = loadRightSideMap().then((m) => ({ ...(m && typeof m === 'object' ? m : {}), [scope]: value }));
+  void request('PUT', '/api/agents/right-side', {}, { scope, value }).catch(() => undefined);
+}
+
+setUiStatePersister((key, value) => {
+  void request('PUT', '/api/agents/ui-state', {}, { key, value }).catch(() => undefined);
+});
+
+/** Fetches the saved UI state once and applies it to the in-memory state (`{}` when the request fails); true on the first apply. */
+export async function loadUiState(): Promise<boolean> {
+  const map = await request<unknown>('GET', '/api/agents/ui-state').catch(() => ({}));
+  return hydrateUiState(map);
+}
+
+export const listAccounts =() => request<AgentAccount[]>('GET', '/api/agents/accounts');
 /** Sets the account new sessions launch as (`dir` "" = the default); the server saves it and rebuilds the tree. */
 export const setActiveAccount = (dir: string) => request<import('../protocol.ts').AgentActiveAccountResult>('POST', '/api/agents/accounts/active', {}, { dir });
 /** Creates `~/.claude-<name>` with links to the checked default-account entries; listed right away. */

@@ -7,6 +7,7 @@ import { MissingPanel } from './MissingPanel';
 import { PanelBoundary } from './PanelBoundary';
 import { isDockable, setDocked } from '../sidebar-sections';
 import { PANELS, panelOf } from './registry';
+import { useRightSide } from './use-right-side';
 import type { OpenOptions, PanelKind, PanelParams, PanelProps, WorkspaceApi } from './types';
 
 /** What the screen can do to one project's workspace. */
@@ -48,8 +49,12 @@ export function ProjectWorkspace({ project, hidden, register, onFocusedAgent }: 
   hostRef.current = host;
   const [agent, setAgent] = useState<AgentView>();
   const [tools, setTools] = useState<Tool[]>([]);
-  const [side, setSide] = useState<PanelKind[]>([]);
-  const [sideOpen, setSideOpen] = useState(false);
+  const { list: localSide, setList: setLocalSide, open: localSideOpen, setOpen: setLocalSideOpen } = useRightSide(project, host.rightSidebarOpen === true);
+  const shared = host.rightSidebarPerProject !== true;
+  const side = shared ? host.sharedSide.side : localSide;
+  const sideOpen = shared ? host.sharedSide.open : localSideOpen;
+  const setSide = shared ? host.sharedSide.setSide : setLocalSide;
+  const setSideOpen = shared ? host.sharedSide.setOpen : setLocalSideOpen;
   const [sideMenu, setSideMenu] = useState<{ at: { x: number; y: number }; items: ContextMenuItem[] }>();
   const nonce = useRef(0);
   const tool = tools[tools.length - 1];
@@ -171,6 +176,7 @@ export function ProjectWorkspace({ project, hidden, register, onFocusedAgent }: 
             const mod = panelOf(kind);
             return (
               <section key={kind} className="agents-dock-side-item" onContextMenu={(e) => { e.preventDefault(); setSideMenu({ at: { x: e.clientX, y: e.clientY }, items: [{ id: 'toLeft', label: t('agents.section.toLeft'), run: () => moveToLeft(kind) }] }); }}>
+                <div className="agents-section-head agents-dock-side-head"><span className="agents-label">{mod ? t(mod.titleKey) : kind}</span></div>
                 <PanelBoundary>{mod ? <mod.Panel {...panelProps(kind, {}, true, () => undefined)} /> : <MissingPanel kind={kind} />}</PanelBoundary>
               </section>
             );

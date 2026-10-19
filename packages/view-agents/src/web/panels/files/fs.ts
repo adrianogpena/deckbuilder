@@ -18,13 +18,13 @@ export interface EditorInfo {
 
 /** The server's file routes the Files, Code and Preview panels use. */
 export const fs = {
-  list: (root: string, path: string) => request<{ entries: FsEntry[] }>('GET', '/api/fs/list', { root, path }).then((r) => r.entries),
-  read: (root: string, path: string) => request<FsRead>('GET', '/api/fs/read', { root, path }),
-  stat: (root: string, path: string) => request<FsEntry>('GET', '/api/fs/stat', { root, path }),
+  list: (root: string, path: string) => request<{ entries: FsEntry[] }>('GET', '/api/agents/fs/list', { root, path }).then((r) => r.entries),
+  read: (root: string, path: string) => request<FsRead>('GET', '/api/agents/fs/read', { root, path }),
+  stat: (root: string, path: string) => request<FsEntry>('GET', '/api/agents/fs/stat', { root, path }),
   write: (root: string, path: string, text: string, expectedMtime?: number) =>
-    request<FsEntry>('POST', '/api/fs/write', {}, { root, path, text, expectedMtime }),
-  editors: () => request<EditorInfo[]>('GET', '/api/editors'),
-  openInEditor: (editor: string, root: string, path: string) => request<{ ok: true }>('POST', '/api/editors/open', {}, { editor, root, path }),
+    request<FsEntry>('POST', '/api/agents/fs/write', {}, { root, path, text, expectedMtime }),
+  editors: () => request<EditorInfo[]>('GET', '/api/agents/editors'),
+  openInEditor: (editor: string, root: string, path: string) => request<{ ok: true }>('POST', '/api/agents/editors/open', {}, { editor, root, path }),
 };
 
 export const joinPath = (dir: string, name: string) => (dir ? `${dir}/${name}` : name);

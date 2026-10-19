@@ -23,5 +23,11 @@ const byKind = new Map<string, PanelModule>(PANELS.map((p) => [p.kind, p]));
 /** The module of a kind; undefined for a kind this build does not know (the workspace shows a "missing panel" card). */
 export const panelOf = (kind: string): PanelModule | undefined => byKind.get(kind);
 
-export const isPanelKind = (kind: string): kind is PanelKind => byKind.has(kind);
+/** A known kind that can live in a sidebar (not center-only). */
+export const isDockableKind = (kind: string): boolean => {
+  const m = byKind.get(kind);
+  return !!m && m.placement !== 'center';
+};
+
+export const isPanelKind =(kind: string): kind is PanelKind => byKind.has(kind);
 

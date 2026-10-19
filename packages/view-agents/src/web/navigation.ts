@@ -104,11 +104,11 @@ export const PANEL_W = { min: 240, max: 900, def: 320 };
 
 const clamp = (v: number, r: { min: number; max: number }) => Math.round(Math.min(r.max, Math.max(r.min, v)));
 
-/** Stored widths, clamped; defaults for anything missing or malformed. */
-export function parseWidths(raw: string | null): PaneWidths {
+/** Stored widths (a JSON string or the object), clamped; defaults for anything missing or malformed. */
+export function parseWidths(raw: string | object | null | undefined): PaneWidths {
   let v: Partial<PaneWidths> = {};
   try {
-    v = raw ? (JSON.parse(raw) as Partial<PaneWidths>) : {};
+    v = typeof raw === 'string' ? (JSON.parse(raw) as Partial<PaneWidths>) : raw ? (raw as Partial<PaneWidths>) : {};
   } catch {
     /* malformed: defaults */
   }

@@ -2,9 +2,9 @@ import type { GitFile, GitFileContent, GitStatus } from '@deckbuilderkit/server-
 import { request } from '@deckbuilderkit/ui';
 
 export const gitClient = {
-  gitStatus: (root: string) => request<GitStatus>('GET', '/api/git/status', { root }),
-  gitFile: (root: string, path: string, from: 'head' | 'index') => request<GitFileContent>('GET', '/api/git/file', { root, path, from }),
-  fsRead: (root: string, path: string) => request<{ binary: true } | { text: string; truncated: boolean }>('GET', '/api/fs/read', { root, path }),
+  gitStatus: (root: string) => request<GitStatus>('GET', '/api/agents/git/status', { root }),
+  gitFile: (root: string, path: string, from: 'head' | 'index') => request<GitFileContent>('GET', '/api/agents/git/file', { root, path, from }),
+  fsRead: (root: string, path: string) => request<{ binary: true } | { text: string; truncated: boolean }>('GET', '/api/agents/fs/read', { root, path }),
 };
 
 const EMPTY: GitFileContent = { text: '' };

@@ -1,8 +1,9 @@
-import { createContext, useContext } from 'react';
+import { createContext, useContext, type Dispatch, type SetStateAction } from 'react';
 import type { CommandDef } from '@deckbuilderkit/ui';
 import type { AgentAccount, AgentAccountUsage, AgentProject, AgentSessionView } from '../api';
 import type { GitStatusMap } from '../git';
 import type { UsageSettings } from '../UsageView';
+import type { PanelKind } from './types';
 
 /** The handles an agent tab's terminal gives the screen: insert text (no Enter) and submit it. */
 export interface TerminalInput {
@@ -19,6 +20,11 @@ export interface AgentsHost {
   git: GitStatusMap;
   usage: AgentAccountUsage[];
   usageSettings?: UsageSettings;
+  /** Setting `agents.rightSidebarOpen`: a workspace mounts with its right sidebar open. */
+  rightSidebarOpen?: boolean;
+  /** Setting `agents.rightSidebarPerProject`: false = every workspace uses the shared `sharedSide` state. */
+  rightSidebarPerProject?: boolean;
+  sharedSide: { side: PanelKind[]; setSide: Dispatch<SetStateAction<PanelKind[]>>; open: boolean; setOpen: Dispatch<SetStateAction<boolean>> };
   projects: AgentProject[];
   accounts: AgentAccount[];
   /** App commands whose keys still work while a terminal has the focus. */

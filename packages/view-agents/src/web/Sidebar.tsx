@@ -25,6 +25,7 @@ import { SessionDot } from './StatusIcon';
 import { statusSince } from './status-text';
 import { activityStatus, projectActivity } from './project-activity';
 import { SectionButton, SidebarSection } from './SidebarSection';
+import { UI_STATE_EVENT } from './ui-state';
 import { hideSection, loadSections, moveWithin, restoreAll, restoreSection, saveSections, SECTIONS_EVENT, type SectionId, type SectionsState, sectionOrder, isTreeSection, toggleSection, toolKind } from './sidebar-sections';
 import { panelOf } from './workspace/registry';
 import type { PanelKind, WorkspaceApi } from './workspace/types';
@@ -195,7 +196,11 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
   useEffect(() => {
     const reload = () => setSectionsState(loadSections());
     window.addEventListener(SECTIONS_EVENT, reload);
-    return () => window.removeEventListener(SECTIONS_EVENT, reload);
+    window.addEventListener(UI_STATE_EVENT, reload);
+    return () => {
+      window.removeEventListener(SECTIONS_EVENT, reload);
+      window.removeEventListener(UI_STATE_EVENT, reload);
+    };
   }, []);
   const focusChanges = useRef(false);
   useCommand(agentsCommands().find((c) => c.id === 'agents.focusChanges')!, () => {

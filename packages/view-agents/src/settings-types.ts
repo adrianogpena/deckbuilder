@@ -22,6 +22,10 @@ export interface AgentsSettings {
   autoSettle?: boolean;
   /** Background git status of every listed session's cwd; on when omitted, false = git never runs. */
   gitStatus?: boolean;
+  /** A project workspace opens with the right sidebar shown; off when omitted. */
+  rightSidebarOpen?: boolean;
+  /** Each project keeps its own right sidebar; off when omitted (all projects share one). */
+  rightSidebarPerProject?: boolean;
   /** Toast when a session needs you / finishes / fails and is not on screen; on when omitted. */
   notifyNeedsYou?: boolean;
   notifyDone?: boolean;

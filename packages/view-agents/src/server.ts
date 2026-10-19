@@ -3,6 +3,7 @@ import { type FSWatcher, mkdirSync, readdirSync, readFileSync, rmSync, watch, wr
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { confirmDialog, createToaster } from '@deckbuilderkit/platform';
+import { editorRoutes, gitRoutes, rootedFs } from '@deckbuilderkit/server-mods';
 import { defineServerView, invalid, ndjson, socketTickets, validGroup, type SocketData, type SocketRoutes } from '@deckbuilderkit/server-core';
 import type { ServerWebSocket } from 'bun';
 import type { AgentLocal, AgentSkill, AgentActiveAccountResult, AgentActiveAccountSet, AgentLaunch, AgentRunning, AgentSessionView, AgentsCapWarn, AgentsFrame, AgentStopResult } from './protocol.ts';
@@ -10,6 +11,8 @@ import type { AgentsSettings, AgentsUsagePosition } from './settings-types.ts';
 import { type AgentAccount, accountByDir, createAccountRegistry, detectAccounts, resolveActiveAccount } from './server/accounts.ts';
 import { createAlerts } from './server/alerts.ts';
 import { createLayoutStore } from './server/layouts.ts';
+import { createRightSideStore } from './server/right-side.ts';
+import { createUiStateStore } from './server/ui-state.ts';
 import { type PanelCtx, panelRoutes } from './server/panels/index.ts';
 import { createGitPoller } from './server/git-status.ts';
 import { checkHookSettings, createHookApprovals, createHooks, type HookConfirm } from './server/hooks.ts';
@@ -52,7 +55,7 @@ export interface AgentsServerSettings {
 /** A copy of `raw` when it is a well-formed Agents settings group, else null. */
 const USAGE_POSITIONS: AgentsUsagePosition[] = ['top', 'bottom'];
 
-const AGENTS_SPEC = { restoreSessions: ['ask', 'always', 'never'] as const, softCap: [1, 100], notifyNeedsYou: 'boolean', notifyDone: 'boolean', notifyError: 'boolean', doNotDisturb: 'boolean', autoSettle: 'boolean', gitStatus: 'boolean', ctl: 'boolean', resumeOnSelect: 'boolean', 'accounts.activeAccount': 'string', 'accounts.showAllSessions': 'boolean', 'accounts.shareProjects': 'boolean', 'accounts.showOwner': 'boolean', 'usage.show': 'boolean', 'usage.position': USAGE_POSITIONS, 'usage.compact': 'boolean', 'usage.use24HourClock': 'boolean', 'usage.showAccount': 'boolean', 'usage.showModel': 'boolean', 'usage.showCache': 'boolean', 'usage.showContext': 'boolean', 'usage.showFiveHour': 'boolean', 'usage.showSevenDay': 'boolean', 'usage.showCost': 'boolean', maxSessionsPerProject: [1, 10000], trashRetentionDays: [1, 3650], claudeCommand: 'string', 'hooks.onRunning': 'string', 'hooks.onWaiting': 'string', 'hooks.onDone': 'string', 'hooks.onError': 'string' } as const;
+const AGENTS_SPEC = { restoreSessions: ['ask', 'always', 'never'] as const, softCap: [1, 100], notifyNeedsYou: 'boolean', notifyDone: 'boolean', notifyError: 'boolean', doNotDisturb: 'boolean', autoSettle: 'boolean', gitStatus: 'boolean', rightSidebarOpen: 'boolean', rightSidebarPerProject: 'boolean', ctl: 'boolean', resumeOnSelect: 'boolean', 'accounts.activeAccount': 'string', 'accounts.showAllSessions': 'boolean', 'accounts.shareProjects': 'boolean', 'accounts.showOwner': 'boolean', 'usage.show': 'boolean', 'usage.position': USAGE_POSITIONS, 'usage.compact': 'boolean', 'usage.use24HourClock': 'boolean', 'usage.showAccount': 'boolean', 'usage.showModel': 'boolean', 'usage.showCache': 'boolean', 'usage.showContext': 'boolean', 'usage.showFiveHour': 'boolean', 'usage.showSevenDay': 'boolean', 'usage.showCost': 'boolean', maxSessionsPerProject: [1, 10000], trashRetentionDays: [1, 3650], claudeCommand: 'string', 'hooks.onRunning': 'string', 'hooks.onWaiting': 'string', 'hooks.onDone': 'string', 'hooks.onError': 'string' } as const;
 
 /** Told on every valid Agents config edit (the running view's git poller). */
 let agentsConfigListener: ((group: AgentsSettings) => void) | undefined;
@@ -481,6 +484,8 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
       const statusline = createStatuslineInstaller({ agentsDir: join(ctx.dataDir, 'agents'), ...opts.statusline });
       statusline.refresh();
       const layouts = createLayoutStore(join(ctx.dataDir, 'agents', 'layouts'));
+      const rightSide = createRightSideStore(join(ctx.dataDir, 'agents'));
+      const uiState = createUiStateStore(join(ctx.dataDir, 'agents'));
       const panelCtx: PanelCtx = {
         dataDir: ctx.dataDir,
         agentsDir: join(ctx.dataDir, 'agents'),
@@ -491,13 +496,37 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
         scanner,
         notify: (toast) => show({ launch: '', ...toast }),
       };
+      // The panels' file and git routes over the Agents projects (not the Explorer's), keyed by the project's folder.
+      const roots = async () => store.list().map((p) => ({ id: p.path, path: p.path }));
+      const rooted = rootedFs({ roots });
+      const pick = new Set(['GET /api/fs/list', 'GET /api/fs/stat', 'GET /api/fs/read', 'POST /api/fs/write', 'GET /api/git/status', 'GET /api/git/file', 'GET /api/editors', 'POST /api/editors/open']);
+      const projectFs = Object.fromEntries(
+        Object.entries({ ...rooted.routes, ...gitRoutes({ roots }), ...editorRoutes({ dir: ctx.dataDir, fs: rooted }) })
+          .filter(([key]) => pick.has(key))
+          .map(([key, handler]) => [key.replace(' /api/', ' /api/agents/'), handler]),
+      );
       return {
         ...panelRoutes(panelCtx),
+        ...projectFs,
         // The workspace layout of one project (`?project=<path>`); `layout: null` when none is saved or the file is bad.
         'GET /api/agents/layout': async ({ query }) => ({ layout: (await layouts.read(query.get('project') ?? '')) ?? null }),
         'PUT /api/agents/layout': async ({ query, json }) => {
           const b = await json<{ layout?: unknown }>();
           if (!(await layouts.write(query.get('project') ?? '', b.layout))) throw invalid('layout', 'Not a workspace layout');
+          return { ok: true };
+        },
+        // Right sidebar state of every scope (`""` = shared, else a project path): `{ [scope]: { list, open? } }`; PUT merges one scope.
+        'GET /api/agents/right-side': async () => rightSide.read(),
+        'PUT /api/agents/right-side': async ({ json }) => {
+          const b = await json<{ scope?: unknown; value?: unknown }>();
+          if (typeof b.scope !== 'string' || !(await rightSide.write(b.scope, b.value))) throw invalid('value', 'Not a right sidebar state');
+          return { ok: true };
+        },
+        // Persistent UI state of the Agents screen: `{ [key]: object }`; PUT merges one key.
+        'GET /api/agents/ui-state': async () => uiState.read(),
+        'PUT /api/agents/ui-state': async ({ json }) => {
+          const b = await json<{ key?: unknown; value?: unknown }>();
+          if (!(await uiState.write(b.key, b.value))) throw invalid('value', 'Not a UI state value');
           return { ok: true };
         },
         // Rediscovers the accounts; `active` marks the one new sessions launch as.

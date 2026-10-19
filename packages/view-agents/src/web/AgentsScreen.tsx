@@ -5,7 +5,7 @@ import { terminalAppKeys } from '@deckbuilderkit/terminal';
 import { closeSession, listSessions } from '@deckbuilderkit/terminal/session';
 import { agentsCommands } from '../commands';
 import { t } from '../i18n';
-import { type AgentAccount, type AgentsCapWarn, CapDeclined, lastResponse, type AgentProject, type AgentRunning, type AgentSessionView, dismissRecovery, listAccounts, listAgentProjects, listRecovery, markSeen, removeAgentProject, reportShown, restartSession, setActiveAccount, startInBackground, startSession, stopSession, terminalOf } from './api';
+import { type AgentAccount, type AgentsCapWarn, CapDeclined, lastResponse, type AgentProject, type AgentRunning, type AgentSessionView, dismissRecovery, listAccounts, listAgentProjects, listRecovery, loadUiState, markSeen, removeAgentProject, reportShown, restartSession, setActiveAccount, startInBackground, startSession, stopSession, terminalOf } from './api';
 import { AddProject } from './AddProject';
 import { AlertsPanel } from './AlertsPanel';
 import { categoryOf } from './filters';
@@ -22,6 +22,9 @@ import { type AgentsHost, AgentsHostProvider, type TerminalInput } from './works
 import { projectPathOf, sameFolder } from './workspace/project-path';
 import { ProjectWorkspace, type WorkspaceHandle } from './workspace/ProjectWorkspace';
 import type { PanelKind, PanelParams } from './workspace/types';
+import { SHARED_SCOPE } from './workspace/right-side-store';
+import { getUiState, setUiState, UI_STATE_EVENT, uiStateLoaded } from './ui-state';
+import { useRightSide } from './workspace/use-right-side';
 import '../styles.css';
 import './ui.css';
 import './chrome.css';
@@ -32,20 +35,11 @@ const ACTIVE_PROJECT_KEY = 'deckbuilder.agents.activeProject';
 /** Project workspaces kept mounted (hidden) so switching back is instant; older ones detach and are rebuilt from the saved layout. */
 const MAX_MOUNTED = 4;
 
-const readHidden = () => {
-  try {
-    return localStorage.getItem(SIDEBAR_KEY) === '1';
-  } catch {
-    return false;
-  }
-};
+const readHidden = () => getUiState(SIDEBAR_KEY)?.hidden === true;
 
 const readActiveProject = (): string | undefined => {
-  try {
-    return localStorage.getItem(ACTIVE_PROJECT_KEY) || undefined;
-  } catch {
-    return undefined;
-  }
+  const p = getUiState(ACTIVE_PROJECT_KEY)?.path;
+  return typeof p === 'string' && p ? p : undefined;
 };
 
 /** The session id (and owner account id, if given) of an `#agents/<id>[/<account id>]` app link. */
@@ -54,13 +48,7 @@ const linkedSession = (): { id: string; owner?: string } | undefined => {
   return m ? { id: m[1]!, owner: m[2] } : undefined;
 };
 
-const readWidths = (): PaneWidths => {
-  try {
-    return parseWidths(localStorage.getItem(WIDTHS_KEY));
-  } catch {
-    return parseWidths(null);
-  }
-};
+const readWidths = (): PaneWidths => parseWidths(getUiState(WIDTHS_KEY));
 
 /**
  * Invisible 8px drag strip between two regions (dashed line, accent on hover or drag). `edge` is the side of the
@@ -92,7 +80,7 @@ function Sash({ edge, width, onWidth, onDone, onReset }: { edge: 'start' | 'end'
 }
 
 /** Agents screen: the sessions sidebar and the dock workspace of the selected project (the selected session, or a tool opened over it). */
-export function AgentsScreen({ usageSettings, dnd = false, onDnd }: { resumeOnSelect?: boolean; usageSettings?: UsageSettings; dnd?: boolean; onDnd?: (on: boolean) => void }) {
+export function AgentsScreen({ usageSettings, rightSidebarOpen = false, rightSidebarPerProject = false, dnd = false, onDnd }: { resumeOnSelect?: boolean; usageSettings?: UsageSettings; rightSidebarOpen?: boolean; rightSidebarPerProject?: boolean; dnd?: boolean; onDnd?: (on: boolean) => void }) {
   const { sessions, usage, git } = useAgentsFeed();
   const toast = useToast();
   const dialogs = useDialogs();
@@ -107,11 +95,7 @@ export function AgentsScreen({ usageSettings, dnd = false, onDnd }: { resumeOnSe
   const widthsRef = useRef(widths);
   widthsRef.current = widths;
   const saveWidths = useCallback(() => {
-    try {
-      localStorage.setItem(WIDTHS_KEY, JSON.stringify(widthsRef.current));
-    } catch {
-      /* storage unavailable */
-    }
+    setUiState(WIDTHS_KEY, { ...widthsRef.current });
   }, []);
   const screenRef = useRef<HTMLDivElement>(null);
   const keys = useKeybindings();
@@ -141,6 +125,22 @@ export function AgentsScreen({ usageSettings, dnd = false, onDnd }: { resumeOnSe
   });
   const mountedRef = useRef(mounted);
   mountedRef.current = mounted;
+  // The saved UI state (widths, sidebar, last project) arrives after the first paint; first paint used the in-memory values.
+  useEffect(() => {
+    const apply = () => {
+      setWidths(readWidths());
+      setHidden(readHidden());
+      const p = readActiveProject();
+      if (p && mountedRef.current.length === 0) {
+        mountedRef.current = [p];
+        setMounted([p]);
+        setActiveProject(p);
+      }
+    };
+    window.addEventListener(UI_STATE_EVENT, apply);
+    if (!uiStateLoaded()) void loadUiState();
+    return () => window.removeEventListener(UI_STATE_EVENT, apply);
+  }, []);
   const handles = useRef(new Map<string, WorkspaceHandle>());
   const queue = useRef(new Map<string, Array<(h: WorkspaceHandle) => void>>());
 
@@ -151,11 +151,7 @@ export function AgentsScreen({ usageSettings, dnd = false, onDnd }: { resumeOnSe
     mountedRef.current = next;
     setMounted(next);
     setActiveProject(known);
-    try {
-      localStorage.setItem(ACTIVE_PROJECT_KEY, known);
-    } catch {
-      /* storage unavailable */
-    }
+    setUiState(ACTIVE_PROJECT_KEY, { path: known });
     return known;
   }, []);
   const registerWorkspace = useCallback((project: string, handle: WorkspaceHandle | null) => {
@@ -225,11 +221,7 @@ export function AgentsScreen({ usageSettings, dnd = false, onDnd }: { resumeOnSe
 
   const toggleSidebar = useCallback(() => {
     setHidden((h) => {
-      try {
-        localStorage.setItem(SIDEBAR_KEY, h ? '0' : '1');
-      } catch {
-        /* storage unavailable */
-      }
+      setUiState(SIDEBAR_KEY, { hidden: !h });
       return !h;
     });
   }, []);
@@ -565,11 +557,15 @@ export function AgentsScreen({ usageSettings, dnd = false, onDnd }: { resumeOnSe
 
   const sizeVars = { '--agents-sidebar-w': `${widths.sidebar}px` } as CSSProperties;
 
+  const { list: sharedSideList, setList: setSharedSideList, open: sharedSideOpen, setOpen: setSharedSideOpen } = useRightSide(SHARED_SCOPE, rightSidebarOpen);
   const host: AgentsHost = {
     sessions,
     git,
     usage,
     usageSettings,
+    rightSidebarOpen,
+    rightSidebarPerProject,
+    sharedSide: { side: sharedSideList, setSide: setSharedSideList, open: sharedSideOpen, setOpen: setSharedSideOpen },
     projects,
     accounts,
     appKeys,
