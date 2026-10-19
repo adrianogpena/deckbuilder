@@ -436,8 +436,7 @@ git tag gallery-v0.1.1 && git push origin gallery-v0.1.1
 `.github/workflows/release.yml` checks the tag against `package.json`, builds every target on
 a Windows runner, writes `latest.json` and `latest.json.sig` with `deckbuilder manifest`
 (SHA-256 per exe, notes from the commits since the previous tag; needs the
-`DECKBUILDER_SIGNING_KEY` repository secret) and uploads everything to a **draft** release; check the
-files and publish it.
+`DECKBUILDER_SIGNING_KEY` repository secret) and publishes everything as a GitHub release (no draft step).
 
 **GitHub releases as update source**: set `repo: 'owner/name'` in the app's `app.ts`
 (`AppIdentity.repo`) and build the app's server with `githubSource({ repo, tagPrefix })` from
