@@ -53,6 +53,11 @@ export interface ServerViewDef<S = any> {
     /** Group key -> validator returning the clean value, or null when invalid. */
     validate: Record<string, (raw: unknown) => unknown | null>;
     spec?: Record<string, FieldSpec>;
+    /**
+     * Runs before a save (see `checkViewSettings`) with the raw patch and the current settings;
+     * throws (an `invalid` AppError) to reject the whole save. May ask the user.
+     */
+    check?(patch: Record<string, unknown>, prev: Record<string, unknown>): Promise<void>;
   };
 }
 
@@ -72,6 +77,11 @@ export function applyViewSettings(defs: readonly ServerViewDef[], patch: Record<
       if (v !== null) next[group] = v;
     }
   }
+}
+
+/** For the settings store `check`: runs every view's `settings.check`, in order; the first throw rejects the save. */
+export async function checkViewSettings(defs: readonly ServerViewDef[], patch: Record<string, unknown>, prev: Record<string, unknown>): Promise<void> {
+  for (const d of defs) await d.settings?.check?.(patch, prev);
 }
 
 export function mountViews<S>(

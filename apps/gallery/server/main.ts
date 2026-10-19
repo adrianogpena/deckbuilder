@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { appHome, confirmNo, createAutostart, pickFolder } from '@deckbuilderkit/platform';
-import { applyViewSettings, type FieldSpec, mountViews, updatePublicKey, validGroup } from '@deckbuilderkit/server-core';
+import { applyViewSettings, checkViewSettings, type FieldSpec, mountViews, updatePublicKey, validGroup } from '@deckbuilderkit/server-core';
 import {
   backupRoutes,
   createUpdater,
@@ -115,6 +115,7 @@ const pickedUpdateFolder = pickedPaths({ max: 1 });
 const settings = settingsStore<Settings>({
   dir: dataDir,
   defaults: { theme: 'dark', autostart: false, closeToTray: false, rememberSettingsPage: true, updateFolder: '' },
+  check: (patch, prev) => checkViewSettings(serverViews, patch, prev as unknown as Record<string, unknown>),
   apply(patch, next) {
     if (typeof patch.autostart === 'boolean') next.autostart = patch.autostart;
     if (typeof patch.closeToTray === 'boolean') next.closeToTray = patch.closeToTray;

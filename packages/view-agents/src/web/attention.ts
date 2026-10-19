@@ -26,6 +26,7 @@ export interface StripCounts {
   working: number;
   /** Needs-you. */
   waiting: number;
+  /** Active sessions: everything except stopped. */
   total: number;
 }
 
@@ -37,7 +38,7 @@ export function stripCounts(sessions: AgentSessionView[]): StripCounts {
     if (s.status === 'running' || s.status === 'starting') working++;
     else if (s.status === 'needs-you') waiting++;
   }
-  return { working, waiting, total: sessions.length };
+  return { working, waiting, total: sessions.filter((s) => s.status !== 'stopped').length };
 }
 
 export interface StatusCounts {

@@ -16,6 +16,8 @@ export interface SettingsOptions<T extends BaseSettings> {
   defaults: T;
   /** Copies the valid app-specific fields of `patch` onto `next`; unknown or malformed fields are ignored. */
   apply?: (patch: Record<string, unknown>, next: T) => void;
+  /** Runs first on every save, with the raw patch and the current settings; a throw rejects the save unchanged. */
+  check?: (patch: Record<string, unknown>, prev: T) => Promise<void>;
   /** Runs after every save, with the new and the previous settings. */
   onChange?: (next: T, prev: T) => void;
 }
@@ -39,6 +41,7 @@ export function settingsStore<T extends BaseSettings>(opts: SettingsOptions<T>):
 
   async function save(patch: Record<string, unknown>): Promise<T> {
     const prev = await load();
+    await opts.check?.(patch, prev);
     const next: T = { ...prev };
     if (patch.theme === 'system' || patch.theme === 'dark' || patch.theme === 'light') next.theme = patch.theme;
     applyPalette(patch.paletteDark, 'dark', next);

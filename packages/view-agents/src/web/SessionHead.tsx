@@ -29,7 +29,7 @@ export interface SessionHeadProps {
   mode: SessionMode;
   /** Project display name; the cwd folder when the session has no project. */
   project: string;
-  git?: { branch?: string | null; dirty?: number };
+  git?: { branch?: string | null; dirty?: number; ahead?: number; behind?: number };
   onRename(name: string | null): void;
   onStop(): void;
   onRestart(): void;
@@ -91,6 +91,8 @@ export function SessionHead({ session: s, mode, project, git, onRename, onStop, 
           <Icon name="git-branch" size={12} />
           {git.branch}
           {git.dirty ? <span className="agents-head-dirty">±{git.dirty}</span> : null}
+          {git.behind ? <span className="agents-head-behind" title={t('agents.git.pull', { n: git.behind })}>⇣{git.behind}</span> : null}
+          {git.ahead ? <span className="agents-head-ahead" title={t('agents.git.push', { n: git.ahead })}>⇡{git.ahead}</span> : null}
         </span>
       )}
       {s.contextPercent != null && <span className="agents-head-ctx">{Math.round(s.contextPercent)}%</span>}

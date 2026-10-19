@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { type DialogDeps, dialogScript, pickFile, pickFolder, saveFileAs } from './dialogs.ts';
+import { confirmArgv, confirmDialog, confirmScript, type DialogDeps, dialogScript, pickFile, pickFolder, saveFileAs } from './dialogs.ts';
 
 function fakeSpawn(stdout: string, code = 0) {
   const calls: Array<{ script: string; stdin: string }> = [];
@@ -59,4 +59,29 @@ test('a second dialog while one is open is dialogBusy', async () => {
   expect(await pickFolder({}, deps).catch((e) => e)).toMatchObject({ code: 'dialogBusy' });
   release(0);
   expect(await first).toBeNull();
+});
+
+test('the confirm script reads its texts from stdin and defaults to No', async () => {
+  const script = confirmScript();
+  expect(script).toContain('[Console]::In.ReadToEnd() | ConvertFrom-Json');
+  expect(script).toContain('MessageBoxDefaultButton]::Button2');
+  const { calls, deps } = fakeSpawn('yes');
+  const message = `run "x"; $(rm -rf /) 'ção'`;
+  expect(await confirmDialog({ title: 'T', message }, deps)).toBe(true);
+  expect(calls[0]!.script).not.toContain(message);
+  expect(JSON.parse(calls[0]!.stdin)).toEqual({ title: 'T', message, ok: 'OK' });
+});
+
+test('confirm is false on No or a failing host', async () => {
+  expect(await confirmDialog({ title: 'T', message: 'm' }, fakeSpawn('no').deps)).toBe(false);
+  expect(await confirmDialog({ title: 'T', message: 'm' }, fakeSpawn('yes', 1).deps)).toBe(false);
+});
+
+test('confirm argv keeps the texts as separate arguments', () => {
+  const opts = { title: 'T', message: 'echo <b>"x"</b>', ok: 'Allow' };
+  const mac = confirmArgv('osascript', opts);
+  expect(mac.slice(-4)).toEqual(['--', 'T', 'echo <b>"x"</b>', 'Allow']);
+  expect(mac.filter((_, i) => mac[i - 1] === '-e').join('\n')).not.toContain('echo');
+  expect(confirmArgv('zenity', opts)).toEqual(['zenity', '--question', '--no-markup', '--default-cancel', '--title=T', '--text=echo <b>"x"</b>', '--ok-label=Allow']);
+  expect(confirmArgv('kdialog', opts)).toEqual(['kdialog', '--title', 'T', '--yes-label', 'Allow', '--yesno', 'echo <b>"x"</b>']);
 });

@@ -287,6 +287,88 @@ function macDialog(kind: DialogKind, req: Request): Promise<string | null> {
   return runDialog(['osascript', ...lines.flatMap((line) => ['-e', line]), '--', ...args]);
 }
 
+// --- Yes/No confirmation ---------------------------------------------------------------------
+
+export interface ConfirmDialogOptions {
+  title: string;
+  message: string;
+  /** Label of the confirming button where the platform allows one (macOS, Linux); Windows shows Yes/No. */
+  ok?: string;
+}
+
+interface ConfirmRequest {
+  title: string;
+  message: string;
+  ok: string;
+}
+
+const confirmRequest = (opts: ConfirmDialogOptions): ConfirmRequest => ({
+  title: str(opts?.title, 200),
+  message: str(opts?.message, 4000),
+  ok: str(opts?.ok, 60) || 'OK',
+});
+
+/**
+ * The PowerShell script for the Yes/No box (default No, on top of other windows). It holds no
+ * caller data: title and message arrive as JSON on stdin.
+ */
+export function confirmScript(): string {
+  return `
+$ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
+$o = [Console]::In.ReadToEnd() | ConvertFrom-Json
+Add-Type -AssemblyName System.Windows.Forms
+$owner = New-Object System.Windows.Forms.Form
+$owner.TopMost = $true
+$r = [System.Windows.Forms.MessageBox]::Show($owner, [string]$o.message, [string]$o.title, [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Warning, [System.Windows.Forms.MessageBoxDefaultButton]::Button2)
+$owner.Dispose()
+if ($r -eq [System.Windows.Forms.DialogResult]::Yes) { [Console]::Out.Write('yes') } else { [Console]::Out.Write('no') }
+`;
+}
+
+export type ConfirmTool = 'osascript' | 'zenity' | 'kdialog';
+
+/** The argv of the macOS / Linux Yes/No dialog; the texts are separate arguments, never script text. */
+export function confirmArgv(tool: ConfirmTool, opts: ConfirmDialogOptions): string[] {
+  const req = confirmRequest(opts);
+  if (tool === 'osascript') {
+    const lines = [
+      'on run argv',
+      'display dialog (item 2 of argv) with title (item 1 of argv) buttons {"Cancel", (item 3 of argv)} default button "Cancel" cancel button "Cancel" with icon caution',
+      'end run',
+    ];
+    return ['osascript', ...lines.flatMap((line) => ['-e', line]), '--', req.title, req.message, req.ok];
+  }
+  if (tool === 'zenity') return ['zenity', '--question', '--no-markup', '--default-cancel', `--title=${req.title}`, `--text=${req.message}`, `--ok-label=${req.ok}`];
+  return ['kdialog', '--title', req.title, '--yes-label', req.ok, '--yesno', req.message];
+}
+
+/**
+ * Asks a Yes/No question in a native dialog; true only when the user confirms. No GUI, an open
+ * dialog or any failure gives false.
+ */
+export async function confirmDialog(opts: ConfirmDialogOptions, deps = defaultDeps): Promise<boolean> {
+  if (busy) return false;
+  busy = true;
+  try {
+    if (deps !== defaultDeps || process.platform === 'win32') {
+      const proc = deps.spawn(confirmScript(), { sta: true, stdin: 'pipe', stdout: 'pipe' });
+      proc.stdin.write(asciiJson(confirmRequest(opts)));
+      proc.stdin.end();
+      const [stdout, , code] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited]);
+      return code === 0 && stdout.trim() === 'yes';
+    }
+    const tool: ConfirmTool | undefined = process.platform === 'darwin' ? 'osascript' : Bun.which('zenity') ? 'zenity' : Bun.which('kdialog') ? 'kdialog' : undefined;
+    if (!tool) return false;
+    const proc = Bun.spawn(confirmArgv(tool, opts), { stdin: 'ignore', stdout: 'ignore', stderr: 'ignore' });
+    return (await proc.exited) === 0;
+  } catch {
+    return false;
+  } finally {
+    busy = false;
+  }
+}
+
 // `bun packages/platform/src/dialogs.ts --selftest`: opens the folder picker, then "Save as";
 // prints each result (null = cancelled).
 if (import.meta.main && process.argv.includes('--selftest')) {

@@ -2,7 +2,7 @@ import { t } from '@deckbuilderkit/ui/i18n';
 import { type FSWatcher, mkdirSync, readdirSync, readFileSync, rmSync, watch, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { createToaster } from '@deckbuilderkit/platform';
+import { confirmDialog, createToaster } from '@deckbuilderkit/platform';
 import { defineServerView, ndjson, socketTickets, validGroup, type SocketData, type SocketRoutes } from '@deckbuilderkit/server-core';
 import type { ServerWebSocket } from 'bun';
 import type { AgentLocal, AgentSkill, AgentActiveAccountResult, AgentActiveAccountSet, AgentLaunch, AgentRunning, AgentSessionView, AgentsCapWarn, AgentsFrame, AgentStopResult } from './protocol.ts';
@@ -10,7 +10,7 @@ import type { AgentsSettings, AgentsUsagePosition } from './settings-types.ts';
 import { type AgentAccount, accountByDir, createAccountRegistry, detectAccounts, resolveActiveAccount } from './server/accounts.ts';
 import { createAlerts } from './server/alerts.ts';
 import { createGitPoller } from './server/git-status.ts';
-import { createHooks } from './server/hooks.ts';
+import { checkHookSettings, createHookApprovals, createHooks, type HookConfirm } from './server/hooks.ts';
 import { createNotifier, createTransitions, NOTIFY_LABEL } from './server/notify.ts';
 import { CLAUDE_LAUNCHER_ID, claudeLauncher } from './server/launcher.ts';
 import { claudeCommand } from './server/claude-command.ts';
@@ -96,6 +96,8 @@ export interface AgentsServerViewOptions {
   link?: () => ((path: string) => string) | undefined;
   /** Toast sink (tests); defaults to the Windows toaster. */
   toast?: (toast: { title: string; body: string; launch: string }) => void;
+  /** Asks the user to allow a new hook command; defaults to the OS Yes/No dialog (tests inject it). */
+  confirm?: HookConfirm;
   /** Statusline installer overrides (tests). */
   statusline?: { execPath?: string; platform?: NodeJS.Platform };
 }
@@ -144,7 +146,9 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
   let shownId: string | undefined;
   const toaster = opts.toast ? undefined : createToaster();
   const show = opts.toast ?? ((x: { title: string; body: string; launch: string }) => toaster?.show(x));
-  const hooks = createHooks({ settings: async () => (await loadSettings()).agents, flash: (message) => show({ title: 'Agents', body: message, launch: '' }) }, createTransitions());
+  let approvalsFile: string | undefined;
+  const approvals = createHookApprovals(() => approvalsFile);
+  const hooks = createHooks({ settings: async () => (await loadSettings()).agents, flash: (message) => show({ title: 'Agents', body: message, launch: '' }), approvals }, createTransitions());
   let alertsDir: string | undefined;
   const alerts = createAlerts(() => alertsDir, createTransitions());
   const notifier = createNotifier({
@@ -408,8 +412,12 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
 
   return defineServerView<AgentsServerSettings>({
     id: 'agents',
-    settings: { validate: { agents: validAgents } },
+    settings: {
+      validate: { agents: validAgents },
+      check: (patch, prev) => checkHookSettings(patch, prev, { approvals, confirm: opts.confirm ?? ((o) => confirmDialog(o)) }),
+    },
     routes: (ctx) => {
+      approvalsFile = join(ctx.dataDir, 'agents', 'approved-hooks.json');
       seenFile = join(ctx.dataDir, 'agents', 'seen.json');
       alertsDir = join(ctx.dataDir, 'agents', 'alerts');
       usageDir = join(ctx.dataDir, 'agents', 'usage');

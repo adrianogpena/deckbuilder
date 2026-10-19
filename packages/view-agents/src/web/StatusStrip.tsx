@@ -2,7 +2,6 @@ import { Icon, StatusBar, type StatusItem } from '@deckbuilderkit/ui';
 import { t } from '../i18n';
 import type { AgentSessionView } from './api';
 import { stripCounts } from './attention';
-import { StatusDot } from './StatusDot';
 import './strip.css';
 
 export interface StatusStripProps {
@@ -22,10 +21,7 @@ export function StatusStrip({ sessions, dnd, onJumpWaiting, onToggleDnd }: Statu
       id: 'agents-working',
       align: 'left',
       text: (
-        <span className="agents-strip-item">
-          <StatusDot status="running" size={6} />
-          {t('agents.strip.working', { n: working })}
-        </span>
+        <span className="agents-strip-item">{t('agents.strip.working', { n: working })}</span>
       ),
     },
     {
@@ -34,10 +30,7 @@ export function StatusStrip({ sessions, dnd, onJumpWaiting, onToggleDnd }: Statu
       title: t('agents.strip.waiting', { n: waiting }),
       onClick: onJumpWaiting,
       text: (
-        <span className="agents-strip-item">
-          <StatusDot status="needs-you" size={6} />
-          {t('agents.strip.waiting', { n: waiting })}
-        </span>
+        <span className="agents-strip-item">{t('agents.strip.waiting', { n: waiting })}</span>
       ),
     },
     { id: 'agents-sessions', align: 'left', text: <span className="agents-strip-item">{t('agents.strip.sessions', { n: total })}</span> },

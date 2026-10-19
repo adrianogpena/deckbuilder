@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PALETTES } from '@deckbuilderkit/server-core/palettes';
-import { CommandPalette, detectLanguage, effectiveKeys, ErrorBanner, GLOBAL, AppFrame, Icon, isDesktop, KeybindingProvider, LayoutProvider, type PaletteItem, setFileAssociations, setLanguage, setViewTitle, Sidebar, Spinner, titleWithBadge, ToastProvider,useAsync, useCommand, useCommandPalette, useHashRoute, useHeartbeat, useKeybindings, useRunCommand, useTheme, useTitleBadge,useViewTitle,useZen, useZoom } from '@deckbuilderkit/ui';
+import { CommandPalette, detectLanguage, effectiveKeys, ErrorBanner, GLOBAL, AppFrame, Icon, isDesktop, KeybindingProvider, LayoutProvider, type PaletteItem, setFileAssociations, setLanguage, setViewTitle, Sidebar, Spinner, titleWithBadge, ToastProvider, type ApiError, errorMessage, errorOf, useToast, useAsync, useCommand, useCommandPalette, useHashRoute, useHeartbeat, useKeybindings, useRunCommand, useTheme, useTitleBadge,useViewTitle,useZen, useZoom } from '@deckbuilderkit/ui';
 import { EditorOptionsContext } from '@deckbuilderkit/editor/options';
 import { APP } from '../../app';
 import { api, type Settings } from './api';
@@ -111,9 +111,16 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
     document.title = titleWithBadge(base, titleBadge);
   }, [screen, settings.language, titleBadge, viewTitle]);
 
+  /** A save the server rejected as invalid (e.g. a hook command not allowed); shown once, then the stored settings come back. */
+  const [saveError, setSaveError] = useState<ApiError | null>(null);
   const save = useCallback((patch: Partial<Settings>) => {
     setSettings((s) => ({ ...s, ...patch }));
-    api.saveSettings(patch).catch(() => { /* preferences are best-effort */ });
+    api.saveSettings(patch).catch((e: unknown) => {
+      const err = errorOf(e);
+      if (err.kind !== 'invalid') return; // preferences are best-effort
+      setSaveError(err);
+      api.settings().then(setSettings, () => {});
+    });
   }, []);
 
   const navItems = views.nav.flatMap((s) => s.items);
@@ -176,6 +183,7 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
   return (
     <LayoutProvider layout={settings.layout} icons={settings.icons} mainMenu={settings.mainMenu} dock={settings.dock} layoutIcon={settings.layoutIcon}>
     <ToastProvider defaultTimeout={general.toastDuration}>
+      <SaveErrorToast error={saveError} onShown={() => setSaveError(null)} />
       <EditorOptionsContext.Provider value={editorOptions}>
       <views.Providers settings={settings} go={go as (id: string) => void}>
       <AppFrame
@@ -194,4 +202,14 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
     </ToastProvider>
     </LayoutProvider>
   );
+}
+
+function SaveErrorToast({ error, onShown }: { error: ApiError | null; onShown: () => void }) {
+  const toast = useToast();
+  useEffect(() => {
+    if (!error) return;
+    toast({ message: errorMessage(error), kind: 'error' });
+    onShown();
+  }, [error, toast, onShown]);
+  return null;
 }

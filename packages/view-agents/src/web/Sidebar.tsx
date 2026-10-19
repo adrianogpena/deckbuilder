@@ -15,14 +15,13 @@ import { type AddedAccount, ManageAccounts, type ManageAccountsMode } from './Ma
 import { setActiveAccount } from './api';
 import { focusMemory, pruneBatch, rowKey, shownOrders, startedCandidates, stepStarted, trackPrevious, reselect, type PreviousState } from './navigation';
 import { TrashPanel } from './TrashPanel';
-import { type GitStatusMap, projectGitBadge } from './git';
 import { buildRows, folderName, folderNodeKey, leftAction, nextPin, parseTags, projectKey, projectNodeKey, rightAction, rowToSelectable, sessionNodeKey, tagCounts, type TreeRow } from './tree';
 import { useAgentTree } from './useAgentSessions';
 import { type UsageSettings, UsageView, usageViewData } from './UsageView';
 import { severity } from './usage-format';
 import { StatusDot } from './StatusDot';
 import { statusSince } from './status-text';
-import { activityStatus, avatarColour, avatarInitial, projectActivity } from './project-activity';
+import { activityStatus, projectActivity } from './project-activity';
 import { SectionButton, SidebarSection } from './SidebarSection';
 import { hideSection, loadSections, moveSection, restoreAll, restoreSection, saveSections, type SectionId, type SectionsState, sectionOrder, toggleSection } from './sidebar-sections';
 
@@ -50,8 +49,6 @@ export interface SidebarProps {
   usageSettings?: UsageSettings;
   /** A click on the usage section. */
   onOpenUsage?(): void;
-  /** Git status per session cwd (latest `git` frame); project rows show a worst-case badge. */
-  git?: GitStatusMap;
   selectedId?: string;
   onSelect(sessionId: string): void;
   /** The selected project row, if any (its summary is on screen). */
@@ -133,7 +130,7 @@ interface RowMatch {
 }
 
 /** Projects with their Claude sessions, a status dot and label per session; search, filter pills, pin, rename and archive. */
-export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenUsage, git = {}, selectedId, onSelect, selectedProjectId, onSelectProject, selectedFolderId, onSelectFolder, onVisibleChange, onNewSession, onQuickNew, onRemoveProject, onStop, onRestart, onStartBackground, expandCollapsedOnActiveJump = false }: SidebarProps) {
+export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenUsage, selectedId, onSelect, selectedProjectId, onSelectProject, selectedFolderId, onSelectFolder, onVisibleChange, onNewSession, onQuickNew, onRemoveProject, onStop, onRestart, onStartBackground, expandCollapsedOnActiveJump = false }: SidebarProps) {
   const ref = useRef<HTMLDivElement>(null);
   const usageBlock = usageSettings?.show && (() => {
     const selected = sessions.find((x) => x.id === selectedId);
@@ -951,8 +948,6 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
             toggle();
           }}
         >{name}</button>
-        <GroupCounts list={r.sessions} />
-        {r.kind === 'project' && <GitBadge list={r.sessions} git={git} />}
         {extra}
       </div>
     );
@@ -970,13 +965,7 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
         { id: 'renameFolder', label: t('agents.folder.rename'), run: () => void renameFolder(r.id, r.name) },
         { id: 'deleteFolder', label: t('agents.folder.delete'), danger: true, run: () => void deleteFolder(r.id, r.name) },
       ];
-      const folderLead = (
-        <>
-          <StatusDot status={activityStatus(projectActivity(r.sessions))} />
-          <span className="agents-folder-icon" aria-hidden="true"><Icon name="folder" size={14} /></span>
-        </>
-      );
-      return nodeRow(r, folderNodeKey(r.id), r.name, r.name, r.id === selectedFolderId, select, null, items, folderLead);
+      return nodeRow(r, folderNodeKey(r.id), r.name, r.name, r.id === selectedFolderId, select, null, items, null);
     }
     const p = r.project;
     const select = onSelectProject && (() => {
@@ -993,12 +982,6 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
     const path = r.suffix ? `${p.path} · ${r.suffix}` : p.path;
     const stateLabel = activity === 'none' ? t('agents.since.status.idle') : t(`agents.since.status.${activity}`);
     const tip = t('agents.project.tooltip', { path, state: stateLabel, count: String(r.sessions.length) });
-    const projectLead = (
-      <>
-        <StatusDot status={activity} />
-        <span className={`agents-avatar agents-avatar--${avatarColour(p.path)}`} aria-hidden="true">{avatarInitial(p.name)}</span>
-      </>
-    );
     const items: Array<ContextMenuItem | 'sep'> = [
       { id: 'new', label: t('agents.new.title'), run: () => onQuickNew(p.id) },
       ...moveItems(r),
@@ -1008,7 +991,7 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
       { id: 'remove', label: t('agents.remove'), danger: true, run: () => void confirmRemove(p) },
     ];
     const label = r.suffix ? `${p.name} · ${r.suffix}` : p.name;
-    return nodeRow(r, projectNodeKey(r.node), label, tip, p.id === selectedProjectId && (selectedNode === undefined || selectedNode === r.node), select, extra, items, projectLead);
+    return nodeRow(r, projectNodeKey(r.node), label, tip, p.id === selectedProjectId && (selectedNode === undefined || selectedNode === r.node), select, extra, items, null);
   };
 
   // ---- Section cards (spec S5): collapse, hide, restore and reorder; state in localStorage.
@@ -1197,32 +1180,5 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
       }} onClose={() => setPicker(undefined)} />}
       {dialogs.element}
     </nav>
-  );
-}
-
-/** '⇡' / '⇣' / '✱' when any visible session of the project is ahead, behind or dirty; nothing without git data. */
-function GitBadge({ list, git }: { list: AgentSessionView[]; git: GitStatusMap }) {
-  const b = projectGitBadge(list, git);
-  if (!b || (!b.ahead && !b.behind && !b.dirty)) return null;
-  const tip = [b.ahead > 0 && t('agents.git.ahead', { n: b.ahead }), b.behind > 0 && t('agents.git.behind', { n: b.behind }), b.dirty > 0 && t('agents.git.dirty', { n: b.dirty })].filter(Boolean).join(' · ');
-  return (
-    <span className="agents-git-badge" title={tip} aria-label={tip}>
-      {b.ahead > 0 && <span className="ahead">⇡</span>}
-      {b.behind > 0 && <span className="behind">⇣</span>}
-      {b.dirty > 0 && <span className="dirty">✱</span>}
-    </span>
-  );
-}
-
-/** '(count)', then a working and a waiting dot with their counts, only when non-zero, after a folder or project name. */
-function GroupCounts({ list }: { list: AgentSessionView[] }) {
-  const running = list.filter((s) => s.status === 'running' || s.status === 'starting').length;
-  const waiting = list.filter((s) => s.status === 'needs-you').length;
-  return (
-    <span className="agents-group-counts">
-      <span className="agents-group-count">({list.length})</span>
-      {running > 0 && <span className="agents-group-stat" title={t('agents.status.running')}><StatusDot status="running" size={6} />{running}</span>}
-      {waiting > 0 && <span className="agents-group-stat" title={t('agents.status.needs-you')}><StatusDot status="needs-you" size={6} />{waiting}</span>}
-    </span>
   );
 }

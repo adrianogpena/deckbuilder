@@ -594,7 +594,6 @@ export function AgentsScreen({ usageSettings, dnd = false, onDnd }: { resumeOnSe
           usage={usage}
           usageSettings={usageSettings}
           onOpenUsage={() => setUsageOpen(true)}
-          git={git}
           selectedId={selectedId}
           onSelect={(id) => void select(id)}
           selectedProjectId={summaryFor}
