@@ -1,5 +1,5 @@
 export { type AgentsMessageKey } from './i18n';
-export { type AgentsMode, type AgentsSettings, type AgentsViewSettings, agentsSettingDefs } from './settings';
+export { type AgentsSettings, type AgentsViewSettings, agentsSettingDefs } from './settings';
 export { agentsView, type AgentsViewOptions } from './view';
 export { NewSession, type NewSessionProps, type NewSessionProject } from './web/NewSession';
 export { startSession, terminalOf } from './web/api';
@@ -7,5 +7,4 @@ export { Sidebar, statusLabel, type SidebarProps } from './web/Sidebar';
 export { useAgentSessions } from './web/useAgentSessions';
 export { listAgentSessions, markSeen, type AgentSessionView, type AgentStatus } from './web/api';
 export { AgentsScreen } from './web/AgentsScreen';
-export { ChatPane, type ChatPaneProps } from './web/chat/ChatPane';
 export { agentsCommands } from './commands';

@@ -14,7 +14,6 @@ import { categoryOf } from './filters';
 import { clampWidth, focusMemory, type FocusRegion, PANEL_W, parseWidths, type PaneWidths, regionOf, SIDEBAR_W, WIDTHS_KEY } from './navigation';
 import { displayName, needsYouCount, nextWaiting } from './attention';
 import { StatusStrip } from './StatusStrip';
-import { ChatPane } from './chat/ChatPane';
 import { ExternalPane } from './ExternalPane';
 import { NewSession } from './NewSession';
 import { activeDirOf } from './AccountPicker';
@@ -45,15 +44,6 @@ interface Attached {
   sessionId: string;
   terminal: string;
 }
-
-/** A mounted chat. `target` is fixed at open (a changing target would reopen the socket); `id` is the session id once known. */
-interface ChatEntry {
-  key: string;
-  target: { sessionId?: string; cwd?: string; accountId?: string };
-  id?: string;
-}
-
-const entryId = (c: ChatEntry) => c.id ?? c.target.sessionId ?? c.key;
 
 const readHidden = () => {
   try {
@@ -117,7 +107,7 @@ function Sash({ edge, width, onWidth, onDone, onReset }: { edge: 'start' | 'end'
 }
 
 /** Agents screen: the sessions sidebar and the selected session's terminal. */
-export function AgentsScreen({ mode = 'terminal', usageSettings, dnd = false, onDnd }: { mode?: 'terminal' | 'chat'; resumeOnSelect?: boolean; usageSettings?: UsageSettings; dnd?: boolean; onDnd?: (on: boolean) => void }) {
+export function AgentsScreen({ usageSettings, dnd = false, onDnd }: { resumeOnSelect?: boolean; usageSettings?: UsageSettings; dnd?: boolean; onDnd?: (on: boolean) => void }) {
   const { sessions, usage, git } = useAgentsFeed();
   const toast = useToast();
   const dialogs = useDialogs();
@@ -181,7 +171,6 @@ export function AgentsScreen({ mode = 'terminal', usageSettings, dnd = false, on
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [usageOpen, setUsageOpen] = useState(false);
   const [skillsOpen, setSkillsOpen] = useState(false);
-  const [chats, setChats] = useState<ChatEntry[]>([]);
   const [viewing, setViewing] = useState<string>();
   const [preview, setPreview] = useState<string>();
   /** Sessions the user stopped (exit bar reads "Session stopped") and sessions whose resume bar was dismissed. */
@@ -253,12 +242,6 @@ export function AgentsScreen({ mode = 'terminal', usageSettings, dnd = false, on
     setPool((p) => [a, ...p.filter((x) => x.sessionId !== a.sessionId)].slice(0, POOL_SIZE));
   }, []);
 
-  const openChat = useCallback((target: ChatEntry['target']) => {
-    const key = `pending-${crypto.randomUUID()}`;
-    setChats((c) => [...c, { key, target }]);
-    return key;
-  }, []);
-
   const select = useCallback(
     async (sessionId: string) => {
       setNewFor(undefined);
@@ -272,11 +255,9 @@ export function AgentsScreen({ mode = 'terminal', usageSettings, dnd = false, on
       const stopped = sessions.find((x) => x.id === sessionId);
       if (stopped && categoryOf(stopped) === 'stopped') {
         setPool((p) => p.filter((x) => x.sessionId !== sessionId));
-        setChats((c) => c.filter((x) => entryId(x) !== sessionId));
         setPreview(sessionId);
         return;
       }
-      if (chats.some((c) => entryId(c) === sessionId)) return;
       if (pool.some((x) => x.sessionId === sessionId)) {
         setPool((p) => [p.find((x) => x.sessionId === sessionId)!, ...p.filter((x) => x.sessionId !== sessionId)]);
         return;
@@ -292,7 +273,7 @@ export function AgentsScreen({ mode = 'terminal', usageSettings, dnd = false, on
         setError(errorOf(e).message);
       }
     },
-    [pool, chats, sessions, attach],
+    [pool, sessions, attach],
   );
 
   const jumpWaiting = useCallback(() => {
@@ -313,12 +294,8 @@ export function AgentsScreen({ mode = 'terminal', usageSettings, dnd = false, on
       setError('');
       for (const [n, x] of items.entries()) {
         if (n > 0 && x.auto) await new Promise((r) => setTimeout(r, 100));
-        if (chats.some((c) => entryId(c) === x.id) || pool.some((p) => p.sessionId === x.id)) continue;
+        if (pool.some((p) => p.sessionId === x.id)) continue;
         try {
-          if (x.mode === 'chat') {
-            openChat({ sessionId: x.id });
-            continue;
-          }
           const live = await terminalOf(x.id);
           if (live) attach({ sessionId: x.id, terminal: live });
           else attach({ sessionId: x.id, terminal: (await startSession({ account: x.account, dir: x.cwd, sessionId: x.id })).session });
@@ -328,7 +305,7 @@ export function AgentsScreen({ mode = 'terminal', usageSettings, dnd = false, on
       }
       setSelectedId(items[0]?.id);
     },
-    [chats, pool, attach, openChat, dismissBanner],
+    [pool, attach, dismissBanner],
   );
   autoResume.current = resume;
 
@@ -360,7 +337,6 @@ export function AgentsScreen({ mode = 'terminal', usageSettings, dnd = false, on
       const r = await stopSession(s.id);
       setUserStopped((u) => new Set(u).add(s.id));
       setPool((p) => p.filter((x) => x.sessionId !== s.id));
-      setChats((c) => c.filter((x) => entryId(x) !== s.id));
       if (r.removed) setSelectedId((cur) => (cur === s.id ? undefined : cur));
       else if (selectedId === s.id) {
         setViewing(undefined);
@@ -376,12 +352,6 @@ export function AgentsScreen({ mode = 'terminal', usageSettings, dnd = false, on
       setNewFor(undefined);
       setError('');
       try {
-        if (chats.some((c) => entryId(c) === s.id)) {
-          await stopSession(s.id);
-          setChats((c) => c.filter((x) => entryId(x) !== s.id));
-          openChat({ sessionId: s.id });
-          return;
-        }
         const r = await restartSession(s.id);
         setUserStopped((u) => {
           const n = new Set(u);
@@ -394,7 +364,7 @@ export function AgentsScreen({ mode = 'terminal', usageSettings, dnd = false, on
         setError(errorOf(e).message);
       }
     },
-    [chats, openChat],
+    [],
   );
 
   const startBackground = useCallback(async (s: AgentSessionView) => {
@@ -408,27 +378,20 @@ export function AgentsScreen({ mode = 'terminal', usageSettings, dnd = false, on
 
   // An exited pane stays (screen kept, Exited overlay) until the session is started again; keep the selection valid.
   useEffect(() => {
-    if (selectedId && !sessions.some((s) => s.id === selectedId) && !pool.some((x) => x.sessionId === selectedId) && !chats.some((c) => entryId(c) === selectedId)) setSelectedId(undefined);
-  }, [sessions, selectedId, pool, chats]);
+    if (selectedId && !sessions.some((s) => s.id === selectedId) && !pool.some((x) => x.sessionId === selectedId)) setSelectedId(undefined);
+  }, [sessions, selectedId, pool]);
 
   const selected = sessions.find((s) => s.id === selectedId);
   const summaryProject = summaryFor !== undefined && !selectedId ? projects.find((p) => p.id === summaryFor) : undefined;
   const inExternal = selectedId !== undefined && viewing === selectedId && selected !== undefined;
-  const inChat = selectedId !== undefined && chats.some((c) => entryId(c) === selectedId);
   const inTerminal = selectedId !== undefined && pool.some((x) => x.sessionId === selectedId);
-  const inPreview = selectedId !== undefined && preview === selectedId && !inTerminal && !inChat && !inExternal;
+  const inPreview = selectedId !== undefined && preview === selectedId && !inTerminal && !inExternal;
 
   const startPreview = async () => {
     const s = sessions.find((x) => x.id === selectedId);
     if (!s) return;
     setError('');
     try {
-      if (mode === 'chat') {
-        setPreview(undefined);
-        openChat({ sessionId: s.id });
-        void focusSoon();
-        return;
-      }
       const r = await startSession({ account: s.account, dir: s.cwd, sessionId: s.id });
       setPreview(undefined);
       attach({ sessionId: s.id, terminal: r.session });
@@ -449,11 +412,7 @@ export function AgentsScreen({ mode = 'terminal', usageSettings, dnd = false, on
     try {
       if (!(await takeOverSession(s.id)).ok) return setError(t('agents.external.takeoverFailed'));
       setViewing(undefined);
-      if (mode === 'chat') {
-        openChat({ sessionId: s.id });
-      } else {
-        attach({ sessionId: s.id, terminal: (await startSession({ account: s.account, dir: s.cwd, sessionId: s.id })).session });
-      }
+      attach({ sessionId: s.id, terminal: (await startSession({ account: s.account, dir: s.cwd, sessionId: s.id })).session });
       void focusSoon();
     } catch (e) {
       setError(errorOf(e).message);
@@ -518,7 +477,7 @@ export function AgentsScreen({ mode = 'terminal', usageSettings, dnd = false, on
       .catch(() => undefined);
   }, [linked, sessions, select]);
 
-  // Per session id: how to insert text into its terminal or chat composer (the Notes tab's Send to session).
+  // Per session id: how to insert text into its terminal (the Notes tab's Send to session).
   const inserters = useRef(new Map<string, (text: string) => void>());
   const submitters = useRef(new Map<string, (text: string) => void>());
   const sendToSession = useCallback((text: string) => {
@@ -559,7 +518,7 @@ export function AgentsScreen({ mode = 'terminal', usageSettings, dnd = false, on
   useCommand(agentsCommands()[5]!, clearContext);
 
   const focusInput = useCallback(() => {
-    const inputs = document.querySelectorAll<HTMLElement>('.agents-main .xterm-helper-textarea, .agents-main .chat-input textarea');
+    const inputs = document.querySelectorAll<HTMLElement>('.agents-main .xterm-helper-textarea');
     const visible = [...inputs].find((el) => el.offsetParent !== null && !(el as HTMLTextAreaElement).disabled);
     visible?.focus();
     return visible !== undefined && document.activeElement === visible;
@@ -608,8 +567,8 @@ export function AgentsScreen({ mode = 'terminal', usageSettings, dnd = false, on
   useCommand(agentsCommands()[49]!, () => void runCommand('app.settings'));
 
   const newKey = useMemo(() => (keys ? effectiveKeys(keys.defs, keys.keymap).get('agents.newSession')?.[0] : undefined), [keys]);
-  const showSession = selected !== undefined && newFor === undefined && (inTerminal || inChat || inExternal || inPreview);
-  const exitedHere = showSession && !inChat && !inExternal && (selected.lifecycle === 'exited' || (inPreview && (selected.status === 'exited' || userStopped.has(selected.id))));
+  const showSession = selected !== undefined && newFor === undefined && (inTerminal || inExternal || inPreview);
+  const exitedHere = showSession && !inExternal && (selected.lifecycle === 'exited' || (inPreview && (selected.status === 'exited' || userStopped.has(selected.id))));
   const resumeHere = showSession && inPreview && !exitedHere && !selected.external && !resumeDismissed.has(selected.id);
   const projectName = selected ? (projects.find((p) => p.id === selected.project)?.name ?? selected.cwd.split(/[\\/]/).filter(Boolean).pop() ?? selected.cwd) : '';
   const appKeys = useMemo(() => terminalAppKeys('agents', keys?.defs ?? [], ['agents.toggleSidebar', 'agents.togglePanel', 'agents.focusList']), [keys?.defs]);
@@ -675,11 +634,6 @@ export function AgentsScreen({ mode = 'terminal', usageSettings, dnd = false, on
             projects={projects}
             projectId={newFor}
             lastAccount={lastAccount}
-            mode={mode}
-            onChat={(r) => {
-              setNewFor(undefined);
-              setSelectedId(openChat({ cwd: r.cwd, accountId: r.account }));
-            }}
             onCancel={() => setNewFor(undefined)}
             onStarted={(r) => {
               setNewFor(undefined);
@@ -691,7 +645,7 @@ export function AgentsScreen({ mode = 'terminal', usageSettings, dnd = false, on
         {showSession && (
           <SessionHead
             session={selected}
-            mode={inChat ? 'chat' : inExternal ? 'external' : 'terminal'}
+            mode={inExternal ? 'external' : 'terminal'}
             project={projectName}
             git={git[selected.cwd]}
             onRename={(name) => void patchSessionState(selected.id, { name }).catch((e) => setError(errorOf(e).message))}
@@ -717,27 +671,6 @@ export function AgentsScreen({ mode = 'terminal', usageSettings, dnd = false, on
                     inserters.current.delete(a.sessionId);
                     submitters.current.delete(a.sessionId);
                   }
-                }}
-              />
-            </div>
-          ))}
-          {chats.map((c) => (
-            <div key={c.key} className="agents-pane" hidden={entryId(c) !== selectedId || newFor !== undefined}>
-              <ChatPane
-                {...c.target}
-                session={sessions.find((x) => x.id === entryId(c))}
-                branch={git[sessions.find((x) => x.id === entryId(c))?.cwd ?? '']?.branch}
-                insertRef={(fn) => {
-                  if (fn) inserters.current.set(entryId(c), fn);
-                  else inserters.current.delete(entryId(c));
-                }}
-                submitRef={(fn) => {
-                  if (fn) submitters.current.set(entryId(c), fn);
-                  else submitters.current.delete(entryId(c));
-                }}
-                onSession={(id) => {
-                  setChats((l) => l.map((x) => (x.key === c.key ? { ...x, id } : x)));
-                  setSelectedId((cur) => (cur === c.key ? id : cur));
                 }}
               />
             </div>
@@ -788,7 +721,7 @@ export function AgentsScreen({ mode = 'terminal', usageSettings, dnd = false, on
               />
             </div>
           )}
-          {!summaryProject && !folderFor && !inTerminal && !inChat && !inExternal && !inPreview && newFor === undefined && (
+          {!summaryProject && !folderFor && !inTerminal && !inExternal && !inPreview && newFor === undefined && (
             <EmptyState newKey={newKey} onNewSession={projects[0] ? () => setNewFor(projects[0]!.id) : () => setAdding(true)} />
           )}
         </div>
@@ -807,7 +740,7 @@ export function AgentsScreen({ mode = 'terminal', usageSettings, dnd = false, on
           }}
         />
       )}
-      {!panelHidden && <SidePanel focused={region === 'panel'} onClose={togglePanel} tab={panelTab} onTabChange={setPanelTab} trajectory={<TrajectoryTab sessionId={selected?.id} available={!!selected && selected.lifecycle !== 'starting'} onClose={togglePanel} />} notes={<NotesTab project={selected?.project} canSend={(inTerminal || inChat) && newFor === undefined} onSend={sendToSession} />} changes={<ChangesTab root={projects.find((p) => p.id === selected?.project)?.path ?? selected?.cwd} status={selected?.status} />} />}
+      {!panelHidden && <SidePanel focused={region === 'panel'} onClose={togglePanel} tab={panelTab} onTabChange={setPanelTab} trajectory={<TrajectoryTab sessionId={selected?.id} available={!!selected && selected.lifecycle !== 'starting'} onClose={togglePanel} />} notes={<NotesTab project={selected?.project} canSend={inTerminal && newFor === undefined} onSend={sendToSession} />} changes={<ChangesTab root={projects.find((p) => p.id === selected?.project)?.path ?? selected?.cwd} status={selected?.status} />} />}
       </div>
       <StatusStrip sessions={sessions} dnd={dnd} onJumpWaiting={jumpWaiting} onToggleDnd={toggleDnd} />
     </div>

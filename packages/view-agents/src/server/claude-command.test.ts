@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
 import { join } from 'node:path';
 import { createClaudeCommand, type CommandDeps, resolveClaudeCommand } from './claude-command.ts';
-import { claudeEnv, SCRUBBED_ENV } from './chat/process.ts';
+import { claudeEnv, SCRUBBED_ENV } from './claude-env.ts';
 
 const SHIM_DIR = 'C:/npm';
 const SHIM = `${SHIM_DIR}/claude.cmd`;

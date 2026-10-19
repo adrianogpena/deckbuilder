@@ -40,7 +40,7 @@ export function RecoveryBanner({ items, onResume, onDismiss }: RecoveryBannerPro
             <li key={x.id}>
               <label>
                 <input type="checkbox" checked={chosen.has(x.id)} onChange={() => toggle(x.id)} />
-                {x.title || x.id} ({t(`agents.mode.${x.mode}`)})
+                {x.title || x.id}
               </label>
             </li>
           ))}

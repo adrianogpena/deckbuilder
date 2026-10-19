@@ -25,7 +25,6 @@ export class CapDeclined extends Error {}
 export function lifecycleMessage(r: { error?: AgentLifecycleError; cwd?: string }): string {
   if (r.error === 'cwdMissing') return t('agents.cwdMissing', { cwd: r.cwd ?? '' });
   if (r.error === 'external') return t('agents.openElsewhere');
-  if (r.error === 'busy') return t('agents.mode.busy');
   return t('agents.startFailed');
 }
 
@@ -117,8 +116,6 @@ export const listExplorerProjects = () => request<Array<{ id: string; name: stri
 /** Explorer projects not added yet (hidden ones included: adding one back un-hides it). */
 export const listProjectSuggestions = () => request<Array<{ name: string; path: string }>>('GET', '/api/agents/projects/suggestions');
 
-/** Stops the chat process of a session before it resumes in a terminal; `busy` while a turn is running. */
-export const stopChat = (sessionId: string) => request<{ ok: boolean; busy: boolean }>('POST', '/api/agents/chat/stop', {}, { sessionId });
 
 /** Sessions the previous run left live and that are not live now. */
 export const listRecovery = () => request<AgentRunning[]>('GET', '/api/agents/recovery');

@@ -16,8 +16,8 @@ afterEach(() => {
 
 const all = () => true;
 const two = [
-  { id: 's1', account: 'a', mode: 'terminal' as const },
-  { id: 's2', account: 'a', mode: 'chat' as const, project: 'p' },
+  { id: 's1', account: 'a' },
+  { id: 's2', account: 'a', project: 'p' },
 ];
 
 test('the next run restores what the last one left, minus the live ones', () => {

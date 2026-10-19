@@ -1,9 +1,8 @@
 import { bool, groupField, num, oneOf, str, type SettingDef } from '@deckbuilderkit/ui';
-import type { AgentsMode, AgentsRestore, AgentsSettings, AgentsUsagePosition } from './settings-types';
+import type { AgentsRestore, AgentsSettings, AgentsUsagePosition } from './settings-types';
 
-export type { AgentsMode, AgentsRestore, AgentsSettings, AgentsUsagePosition };
+export type { AgentsRestore, AgentsSettings, AgentsUsagePosition };
 
-const AGENTS_MODES: readonly AgentsMode[] = ['terminal', 'chat'];
 export const RESTORE_MODES: readonly AgentsRestore[] = ['ask', 'always', 'never'];
 export const USAGE_POSITIONS: readonly AgentsUsagePosition[] = ['top', 'bottom'];
 
@@ -34,7 +33,6 @@ const claudeArgsDef: SettingDef<AgentsViewSettings> = {
 };
 
 export const agentsSettingDefs: SettingDef<AgentsViewSettings>[] = [
-  groupField<AgentsViewSettings, 'agents'>('agents', 'mode', 10, oneOf('terminal', AGENTS_MODES)),
   groupField<AgentsViewSettings, 'agents'>('agents', 'restoreSessions', 12, oneOf('ask', RESTORE_MODES)),
   groupField<AgentsViewSettings, 'agents'>('agents', 'softCap', 20, num(12, 1, 100)),
   groupField<AgentsViewSettings, 'agents'>('agents', 'resumeOnSelect', 15, bool(false)),

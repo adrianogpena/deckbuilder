@@ -1,5 +1,4 @@
 /** How a session runs: in a terminal (pty) or in the chat UI. */
-export type AgentsMode = 'terminal' | 'chat';
 
 /** Session restore after a restart: ask (banner), resume silently, or skip. */
 export type AgentsRestore = 'ask' | 'always' | 'never';
@@ -9,11 +8,9 @@ export type AgentsUsagePosition = 'top' | 'bottom';
 
 /** The stored Agents settings. */
 export interface AgentsSettings {
-  /** Mode for new sessions and for opening stopped ones; terminal when omitted. */
-  mode?: AgentsMode;
   /** What to do with the sessions the previous run left live; ask when omitted. */
   restoreSessions?: AgentsRestore;
-  /** Live ptys + chat processes at which starting a session warns; 12 when omitted. */
+  /** Live ptys at which starting a session warns; 12 when omitted. */
   softCap?: number;
   /** Selecting a stopped session resumes it; off (default) shows the stopped-session card instead. */
   resumeOnSelect?: boolean;

@@ -1,6 +1,6 @@
 import { isUuid, type Launcher } from '@deckbuilderkit/terminal/server';
 import type { AgentAccount } from './accounts.ts';
-import { claudeEnv } from './chat/process.ts';
+import { claudeEnv } from './claude-env.ts';
 import { claudeCommand } from './claude-command.ts';
 
 export const CLAUDE_LAUNCHER_ID = 'claude';

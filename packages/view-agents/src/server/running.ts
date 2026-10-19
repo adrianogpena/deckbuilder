@@ -3,7 +3,7 @@ import { dirname } from 'node:path';
 import type { AgentRunning } from '../protocol.ts';
 import type { AgentsRestore } from '../settings-types.ts';
 
-export type RunningRecord = Pick<AgentRunning, 'id' | 'account' | 'mode' | 'project'>;
+export type RunningRecord = Pick<AgentRunning, 'id' | 'account' | 'project'>;
 
 export interface RunningStore {
   /** Records the sessions live now plus those still queued for restore (written only when the set changed; never while quitting or before the restore decision). */
@@ -19,7 +19,7 @@ export interface RunningStore {
 
 const valid = (r: unknown): r is RunningRecord => {
   const x = r as RunningRecord | null;
-  return !!x && typeof x.id === 'string' && typeof x.account === 'string' && (x.mode === 'terminal' || x.mode === 'chat');
+  return !!x && typeof x.id === 'string' && typeof x.account === 'string';
 };
 
 export const pidAlive = (pid: number): boolean => {
@@ -36,7 +36,7 @@ export interface RunningOptions {
   alive?: (pid: number) => boolean;
 }
 
-/** `file` holds `{pid, sessions: {id, account, mode, project?}[]}` (a bare array from older versions is read too); what it held at creation is the "was running" list. */
+/** `file` holds `{pid, sessions: {id, account, project?}[]}` (a bare array from older versions is read too); what it held at creation is the "was running" list. */
 export function createRunningStore(file: string, opts: RunningOptions = {}): RunningStore {
   const ownPid = opts.pid ?? process.pid;
   const alive = opts.alive ?? pidAlive;

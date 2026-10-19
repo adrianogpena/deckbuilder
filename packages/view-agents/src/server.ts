@@ -5,9 +5,8 @@ import { join } from 'node:path';
 import { createToaster } from '@deckbuilderkit/platform';
 import { defineServerView, ndjson, socketTickets, validGroup, type SocketData, type SocketRoutes } from '@deckbuilderkit/server-core';
 import type { ServerWebSocket } from 'bun';
-import { CHAT_SOCKET_PATH, type ChatClientFrame, type ChatServerFrame } from './chat-protocol.ts';
 import type { AgentLocal, AgentSkill, AgentActiveAccountResult, AgentActiveAccountSet, AgentLaunch, AgentRunning, AgentSessionView, AgentsCapWarn, AgentsFrame, AgentStopResult } from './protocol.ts';
-import type { AgentsMode, AgentsSettings, AgentsUsagePosition } from './settings-types.ts';
+import type { AgentsSettings, AgentsUsagePosition } from './settings-types.ts';
 import { type AgentAccount, accountByDir, createAccountRegistry, detectAccounts, resolveActiveAccount } from './server/accounts.ts';
 import { createAlerts } from './server/alerts.ts';
 import { createGitPoller } from './server/git-status.ts';
@@ -15,14 +14,11 @@ import { createHooks } from './server/hooks.ts';
 import { createNotifier, createTransitions, NOTIFY_LABEL } from './server/notify.ts';
 import { CLAUDE_LAUNCHER_ID, claudeLauncher } from './server/launcher.ts';
 import { claudeCommand } from './server/claude-command.ts';
-import { type ChatManager, type ChatSession, type ChatSubscriber, createChatManager } from './server/chat/manager.ts';
 import { findSessionFile, loadHistory } from './server/chat/normalize.ts';
 import { createTailer, type Tailer } from './server/tail.ts';
 import { lastResponse } from './server/last-response.ts';
 import { readTrace } from './server/trace.ts';
 import { listAgents, listSkills } from './server/skills.ts';
-import { CHAT_MCP_PATH } from './server/chat/permission-mcp.ts';
-import type { SpawnFn } from './server/chat/process.ts';
 import { capPerProject, createSessionScanner, matchProject } from './server/discovery.ts';
 import { createLifecycle, cwdProblem, planRestart, stopOutcome, type TermInfo } from './server/lifecycle.ts';
 import { detectScreenError } from './server/screen-errors.ts';
@@ -51,10 +47,9 @@ export interface AgentsServerSettings {
 }
 
 /** A copy of `raw` when it is a well-formed Agents settings group, else null. */
-const AGENTS_MODES: AgentsMode[] = ['terminal', 'chat'];
 const USAGE_POSITIONS: AgentsUsagePosition[] = ['top', 'bottom'];
 
-const AGENTS_SPEC = { mode: AGENTS_MODES, restoreSessions: ['ask', 'always', 'never'] as const, softCap: [1, 100], notifyNeedsYou: 'boolean', notifyDone: 'boolean', notifyError: 'boolean', doNotDisturb: 'boolean', autoSettle: 'boolean', gitStatus: 'boolean', ctl: 'boolean', resumeOnSelect: 'boolean', 'accounts.activeAccount': 'string', 'accounts.showAllSessions': 'boolean', 'accounts.shareProjects': 'boolean', 'accounts.showOwner': 'boolean', 'usage.show': 'boolean', 'usage.position': USAGE_POSITIONS, 'usage.compact': 'boolean', 'usage.use24HourClock': 'boolean', 'usage.showAccount': 'boolean', 'usage.showModel': 'boolean', 'usage.showCache': 'boolean', 'usage.showContext': 'boolean', 'usage.showFiveHour': 'boolean', 'usage.showSevenDay': 'boolean', 'usage.showCost': 'boolean', maxSessionsPerProject: [1, 10000], trashRetentionDays: [1, 3650], claudeCommand: 'string', 'hooks.onRunning': 'string', 'hooks.onWaiting': 'string', 'hooks.onDone': 'string', 'hooks.onError': 'string' } as const;
+const AGENTS_SPEC = { restoreSessions: ['ask', 'always', 'never'] as const, softCap: [1, 100], notifyNeedsYou: 'boolean', notifyDone: 'boolean', notifyError: 'boolean', doNotDisturb: 'boolean', autoSettle: 'boolean', gitStatus: 'boolean', ctl: 'boolean', resumeOnSelect: 'boolean', 'accounts.activeAccount': 'string', 'accounts.showAllSessions': 'boolean', 'accounts.shareProjects': 'boolean', 'accounts.showOwner': 'boolean', 'usage.show': 'boolean', 'usage.position': USAGE_POSITIONS, 'usage.compact': 'boolean', 'usage.use24HourClock': 'boolean', 'usage.showAccount': 'boolean', 'usage.showModel': 'boolean', 'usage.showCache': 'boolean', 'usage.showContext': 'boolean', 'usage.showFiveHour': 'boolean', 'usage.showSevenDay': 'boolean', 'usage.showCost': 'boolean', maxSessionsPerProject: [1, 10000], trashRetentionDays: [1, 3650], claudeCommand: 'string', 'hooks.onRunning': 'string', 'hooks.onWaiting': 'string', 'hooks.onDone': 'string', 'hooks.onError': 'string' } as const;
 
 /** Told on every valid Agents config edit (the running view's git poller). */
 let agentsConfigListener: ((group: AgentsSettings) => void) | undefined;
@@ -101,8 +96,6 @@ export interface AgentsServerViewOptions {
   link?: () => ((path: string) => string) | undefined;
   /** Toast sink (tests); defaults to the Windows toaster. */
   toast?: (toast: { title: string; body: string; launch: string }) => void;
-  /** Chat engine overrides (tests): how the `claude` process is spawned, its command and base environment. */
-  chat?: { spawn?: SpawnFn; claudeCmd?: string; env?: Record<string, string | undefined>; idleMs?: number };
   /** Statusline installer overrides (tests). */
   statusline?: { execPath?: string; platform?: NodeJS.Platform };
 }
@@ -122,10 +115,6 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
   const tracker = createStatusTracker();
   const life = createLifecycle();
   const tickets = socketTickets<true>();
-  const chatTickets = socketTickets<true>();
-  const chatBindings = new WeakMap<ServerWebSocket<SocketData>, { session?: ChatSession; sub: ChatSubscriber }>();
-  let chat: ChatManager | undefined;
-  let baseUrl = 'http://127.0.0.1';
   const clients = new Set<ServerWebSocket<SocketData>>();
   let watchers: FSWatcher[] = [];
   let timer: ReturnType<typeof setInterval> | undefined;
@@ -216,17 +205,16 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
     broadcast({ type: 'tail', sessionId: id, events: tail.tailer.events() });
   };
 
-  /** The live sessions (terminal ptys and chat processes) with the account and project the scan knows. */
+  /** The live sessions (terminal ptys) with the account and project the scan knows. */
   const liveRecords = async (): Promise<RunningRecord[]> => {
     const { sessions } = await compute();
     const byId = new Map(sessions.map((x) => [x.id, x]));
     const out: RunningRecord[] = [];
-    const add = (id: string, mode: RunningRecord['mode']) => {
+    const add = (id: string) => {
       const x = byId.get(id);
-      if (x && !out.some((r) => r.id === id)) out.push({ id, account: x.account, mode, project: x.project });
+      if (x && !out.some((r) => r.id === id)) out.push({ id, account: x.account, project: x.project });
     };
-    for (const id of liveTerminalIds()) add(id, 'terminal');
-    for (const id of chat?.live().ids ?? []) add(id, 'chat');
+    for (const id of liveTerminalIds()) add(id);
     return out;
   };
   /** The restore check (until decided; policy from the settings), then the write of the live set. */
@@ -237,7 +225,7 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
       const { sessions } = await compute();
       const listed = new Set(sessions.map((x) => `${x.id}|${x.account}`));
       const policy = (await loadSettings().catch(() => ({}) as AgentsServerSettings)).agents?.restoreSessions ?? 'ask';
-      const liveIds = [...liveTerminalIds(), ...(chat?.live().ids ?? [])];
+      const liveIds = liveTerminalIds();
       running.decide(policy, liveIds, (r) => listed.has(`${r.id}|${r.account}`));
       running.sync(l);
     } catch {
@@ -245,10 +233,10 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
     }
   };
 
-  /** Set when live ptys + chat processes reached the soft cap; the start is never blocked. */
+  /** Set when live ptys reached the soft cap; the start is never blocked. */
   const capWarn = async (): Promise<AgentsCapWarn | undefined> => {
     const cap = (await loadSettings().catch(() => ({}) as AgentsServerSettings)).agents?.softCap ?? DEFAULT_SOFT_CAP;
-    const live = liveTerminalIds().length + (chat?.live().count ?? 0);
+    const live = liveTerminalIds().length;
     return live >= cap ? { live, cap } : undefined;
   };
 
@@ -300,11 +288,8 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
     const lc = lifecycleStep(pids);
     const s = loadSeen();
     const statuses = tracker.update(pids, screenErrors, { seen: s, starting: lc.starting, exited: lc.exited.keys() });
-    // A live chat process writes no pid file: it counts as idle (never stopped, even when its last state was done).
-    const chatIds = new Set(chat?.live().ids ?? []);
-    for (const id of chatIds) if (!statuses.has(id)) statuses.set(id, 'idle');
     const statusOf = (id: string): AgentStatus => statuses.get(id) ?? tracker.offline(id, s);
-    const external = externalIds(pids, [...liveTerminalIds(), ...chatIds]);
+    const external = externalIds(pids, liveTerminalIds());
     const usage = usageReader.read(accs, ownerView.active?.id);
     sevenDayHistory.observe(usage.accounts);
     const views: AgentSessionView[] = applyAccountView(scanner
@@ -431,7 +416,6 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
       pruneUsage(usageDir);
       // Next to the usage folder, not inside it: the recursive usage watcher would refresh on each history write.
       historyFile = join(ctx.dataDir, 'agents', 'seven-day-history.json');
-      chat = createChatManager({ ...opts.chat, dir: join(ctx.dataDir, 'agents', 'chat'), accounts, baseUrl: () => baseUrl });
       const store = createProjectsStore(join(ctx.dataDir, 'agents', 'projects.json'));
       projects = store;
       const states = createSessionStateStore(join(ctx.dataDir, 'agents', 'session-state.json'));
@@ -603,7 +587,7 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
           }
           return ndjson(req, (emit, signal) => searchSessions(files, q, emit, signal));
         },
-        // Read-only transcript of a session (external sessions open it instead of a terminal or chat).
+        // Read-only transcript of a session (external sessions open it instead of a terminal).
         'GET /api/agents/history': ({ url }) => {
           const id = url?.searchParams.get('sessionId') ?? '';
           for (const a of accounts()) {
@@ -640,7 +624,7 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
           const auto = ((await loadSettings().catch(() => ({}) as AgentsServerSettings)).agents?.restoreSessions ?? 'ask') === 'always';
           const { sessions } = await compute();
           const byId = new Map(sessions.map((x) => [x.id, x]));
-          const live = [...liveTerminalIds(), ...(chat?.live().ids ?? [])];
+          const live = liveTerminalIds();
           return (running?.recovery(live) ?? []).flatMap((r): AgentRunning[] => {
             const x = byId.get(r.id);
             return x ? [{ ...r, project: x.project, title: x.title, cwd: x.cwd, ...(auto ? { auto: true } : {}) }] : [];
@@ -679,8 +663,6 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
           const b = await json<{ sessionId?: unknown }>();
           if (typeof b.sessionId !== 'string' || !b.sessionId) return { ok: false, error: 'unknownSession' };
           acknowledge(b.sessionId);
-          const r = chat?.stop(b.sessionId) ?? 'none';
-          if (r === 'busy') return { ok: false, error: 'busy' };
           killTerminals(b.sessionId);
           void refresh(true);
           return { ok: true, ...stopOutcome(hasTranscript(b.sessionId)) };
@@ -694,7 +676,7 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
           const views = (await compute()).sessions;
           for (const raw of new Set(ids)) {
             const id = typeof raw === 'string' ? raw : '';
-            const runningNow = id !== '' && (liveTerminalIds().includes(id) || (chat?.live().ids ?? []).includes(id) || pids.some((p) => p.sessionId === id));
+            const runningNow = id !== '' && (liveTerminalIds().includes(id) || pids.some((p) => p.sessionId === id));
             if (runningNow) {
               out.skipped.push({ id, error: 'running' });
               continue;
@@ -714,7 +696,6 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
             }
             clearStatusFiles(id);
             killTerminals(id);
-            chat?.stop(id);
             undoStack.push(id);
             out.deleted.push(id);
           }
@@ -748,13 +729,6 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
           if (bad) return { ok: false, ...bad };
           killTerminals(id);
           return { ...(await launchOf(found.account, plan.resume ? plan.sessionId : undefined)), cwd: found.cwd };
-        },
-        // Mode switch to Terminal: stops the session's chat process; `busy` while a turn is running.
-        'POST /api/agents/chat/stop': async ({ json }) => {
-          const b = await json<{ sessionId?: unknown }>();
-          if (typeof b.sessionId !== 'string' || !b.sessionId) return { ok: false, busy: false };
-          const r = chat?.stop(b.sessionId) ?? 'none';
-          return { ok: r !== 'busy', busy: r === 'busy' };
         },
         // Take over: ends the other terminal's Claude process (its pid file) so the session can resume here.
         'POST /api/agents/session/takeover': async ({ json }) => {
@@ -806,20 +780,8 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
           return { ok: true };
         },
         'POST /api/agents/socket-ticket': () => ({ ticket: tickets.issue(true) }),
-        'POST /api/agents/chat/socket-ticket': async ({ url }) => {
-          if (url) baseUrl = url.origin;
-          return { ticket: chatTickets.issue(true), warn: await capWarn() };
-        },
       };
     },
-    // The CLI's permission prompt tool calls back here; the per-chat token in the path is its credential.
-    unauthenticated: () => ({
-      [`POST ${CHAT_MCP_PATH}*`]: async ({ url, json }) => {
-        const res = await chat?.mcp(url.pathname.slice(CHAT_MCP_PATH.length), await json());
-        return res ?? new Response('Not ready', { status: 503 });
-      },
-      [`GET ${CHAT_MCP_PATH}*`]: () => new Response(null, { status: 405 }),
-    }),
     sockets: (): SocketRoutes => ({
       [AGENTS_SOCKET_PATH]: {
         tickets,
@@ -846,43 +808,9 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
           }
         },
       },
-      [CHAT_SOCKET_PATH]: {
-        tickets: chatTickets,
-        open(ws) {
-          const sub: ChatSubscriber = { send: (f: ChatServerFrame) => ws.send(JSON.stringify(f)) };
-          chatBindings.set(ws, { sub });
-        },
-        message(ws, msg) {
-          const bound = chatBindings.get(ws);
-          const sendError = (code: string, message: string) => bound?.sub.send({ type: 'error', code, message });
-          if (!bound || !chat || typeof msg !== 'string') return void sendError('badFrame', 'Expected a JSON text frame.');
-          let frame: ChatClientFrame;
-          try {
-            frame = JSON.parse(msg) as ChatClientFrame;
-          } catch {
-            return void sendError('badFrame', 'Invalid JSON.');
-          }
-          if (frame?.type === 'open') {
-            if (bound.session) return void sendError('alreadyOpen', 'This socket already has a chat.');
-            const r = chat.open(frame);
-            if ('error' in r) return void sendError(r.error.code, r.error.message);
-            bound.session = r.session;
-            r.session.subscribe(bound.sub);
-          } else if (!bound.session) sendError('notOpen', 'Send an open frame first.');
-          else {
-            const bad = chat.handle(bound.session, frame);
-            if (bad) sendError(bad, 'Unknown frame.');
-          }
-        },
-        close(ws) {
-          const bound = chatBindings.get(ws);
-          chatBindings.delete(ws);
-          bound?.session?.unsubscribe(bound.sub);
-        },
-      },
     }),
     quitGuard() {
-      const live = new Set([...liveTerminalIds(), ...(chat?.live().ids ?? [])]);
+      const live = new Set(liveTerminalIds());
       const count = tracker.busy().filter((id) => live.has(id)).length;
       return count > 0 ? t('agents.quit.confirm', { count }) : undefined;
     },
@@ -892,7 +820,6 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
       clearInterval(runningTimer);
       clearInterval(lifeTimer);
       for (const x of claudeTerms()) opts.terminals?.close(x.id);
-      chat?.closeAll();
     },
   });
 }

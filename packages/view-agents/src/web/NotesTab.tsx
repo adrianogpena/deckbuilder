@@ -7,7 +7,7 @@ const SAVE_DELAY_MS = 600;
 export interface NotesTabProps {
   /** Project of the selected session; no project, no notes. */
   project?: string;
-  /** A terminal or chat is open for the selected session. */
+  /** A terminal is open for the selected session. */
   canSend: boolean;
   /** Inserts text into the selected session without pressing Enter. */
   onSend(text: string): void;

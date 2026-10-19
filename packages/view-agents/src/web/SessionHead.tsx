@@ -8,7 +8,7 @@ import { StatusDot } from './StatusDot';
 import { statusSince } from './status-text';
 import './main.css';
 
-export type SessionMode = 'terminal' | 'chat' | 'external';
+export type SessionMode = 'terminal' | 'external';
 
 /** Status badge of the head strip: kind and label (spec S7). */
 export function headBadge(s: Pick<AgentSessionView, 'status' | 'lifecycle' | 'exitCode'>): { kind: BadgeKind; label: string } {

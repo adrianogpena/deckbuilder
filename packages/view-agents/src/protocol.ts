@@ -250,7 +250,7 @@ export interface AgentSessionView extends AgentSession {
 }
 
 /** Why a session start / restart / stop was refused. */
-export type AgentLifecycleError = 'cwdMissing' | 'external' | 'unknownSession' | 'unknownAccount' | 'busy';
+export type AgentLifecycleError = 'cwdMissing' | 'external' | 'unknownSession' | 'unknownAccount';
 
 /** Reply of `POST /api/agents/session/restart` and (with `dir`) `POST /api/agents/terminal/prepare`: the launcher args for `POST /api/terminal/open`. */
 export type AgentLaunch =
@@ -342,7 +342,6 @@ export interface AgentProject {
 export interface AgentRunning {
   id: string;
   account: string;
-  mode: 'terminal' | 'chat';
   project?: string;
   title: string;
   cwd: string;

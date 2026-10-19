@@ -157,7 +157,7 @@ export function createStatusTracker(now: () => number = Date.now) {
   };
 }
 
-/** Session ids with a live pid file that none of our terminals or chat processes runs: Claude in another terminal. */
+/** Session ids with a live pid file that none of our terminals runs: Claude in another terminal. */
 export function externalIds(entries: PidEntry[], ours: Iterable<string>): Set<string> {
   const mine = new Set(ours);
   return new Set(entries.filter((e) => !mine.has(e.sessionId)).map((e) => e.sessionId));

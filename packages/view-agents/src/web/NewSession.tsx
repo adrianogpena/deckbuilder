@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { errorOf } from '@deckbuilderkit/ui';
 import { t } from '../i18n';
-import { type AgentAccount, type AgentsCapWarn, CapDeclined, capWarning, listAccounts, startSession } from './api';
+import { type AgentAccount, type AgentsCapWarn, CapDeclined, listAccounts, startSession } from './api';
 
 export interface NewSessionProject {
   id: string;
@@ -17,14 +17,11 @@ export interface NewSessionProps {
   lastAccount?: (projectId: string) => string | undefined;
   /** Called with the Claude session id, the terminal session id and its socket ticket. */
   onStarted(r: { sessionId: string; terminal: string; ticket: string; account: string; projectId: string }): void;
-  /** Mode for the new session; `chat` calls `onChat` instead of starting a terminal. */
-  mode?: 'terminal' | 'chat';
-  onChat?(r: { account: string; projectId: string; cwd: string }): void;
   onCancel?(): void;
 }
 
 /** Starts a new `claude` session in the project as soon as the active account is known; shows only errors and the cap prompt. */
-export function NewSession({ projects, projectId, lastAccount, mode, onChat, onStarted, onCancel }: NewSessionProps) {
+export function NewSession({ projects, projectId, lastAccount, onStarted, onCancel }: NewSessionProps) {
   const [accounts, setAccounts] = useState<AgentAccount[]>([]);
   const [project] = useState(projectId ?? projects[0]?.id ?? '');
   const [account, setAccount] = useState('');
@@ -45,11 +42,6 @@ export function NewSession({ projects, projectId, lastAccount, mode, onChat, onS
   const start = async () => {
     if (!dir || !account) return;
     const confirmCap = (warn: AgentsCapWarn) => new Promise<boolean>((answer) => setAsk({ warn, answer: (ok) => { setAsk(undefined); answer(ok); } }));
-    if (mode === 'chat' && onChat) {
-      const warn = await capWarning().catch(() => undefined);
-      if (warn && !(await confirmCap(warn))) return;
-      return onChat({ account, projectId: project, cwd: dir });
-    }
     setBusy(true);
     setError('');
     try {

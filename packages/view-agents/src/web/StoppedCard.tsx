@@ -46,7 +46,7 @@ export interface StoppedCardProps {
   onBackground?(): void;
   onRestart?(): void;
   onClear?(): void;
-  /** Info only (chat view): no action line, no keys, no focus. */
+  /** Info only: no action line, no keys, no focus. */
   readOnly?: boolean;
   /** Digest of the loaded history; absent while it loads. */
   summary?: SessionSummary;
