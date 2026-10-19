@@ -1,0 +1,91 @@
+/* Agents view design primitives (spec S2-S4, S11): tokens, fonts, micro-label, focus, scrollbars,
+   status dot, badge. Scoped to `.view-agents`; other views keep the app fonts. */
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/500.css';
+@import '@fontsource/jetbrains-mono/600.css';
+
+.view-agents {
+  --font-sans: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
+  --agents-working: #a78bfa;
+  --agents-fast: 120ms;
+  --agents-normal: 200ms;
+  --agents-focus-tint: color-mix(in srgb, var(--accent) 12%, transparent);
+  --agents-dot-size: 8px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+}
+:root[data-theme='light'] .view-agents { --agents-working: #7c4ddb; }
+
+/* Micro-label: section headers, badges, strip. */
+.view-agents .agents-label {
+  font-family: var(--font-mono); font-size: 11px; font-weight: 500; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--text-3);
+}
+
+/* Focus */
+.view-agents :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.view-agents [role='treeitem']:focus-visible, .view-agents [role='option']:focus-visible, .view-agents .agents-row:focus-visible {
+  outline: none; box-shadow: inset 0 0 0 2px var(--accent); background-color: var(--agents-focus-tint);
+}
+
+/* Scrollbars: 10px, border-coloured thumb, transparent track, 2px inset. */
+.view-agents ::-webkit-scrollbar { width: 10px; height: 10px; }
+.view-agents ::-webkit-scrollbar-track { background: transparent; }
+.view-agents ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; border: 2px solid transparent; background-clip: padding-box; }
+.view-agents ::-webkit-scrollbar-corner { background: transparent; }
+
+/* Status dot (StatusDot.tsx) */
+.agents-dot {
+  position: relative; display: inline-block; flex: none; box-sizing: border-box;
+  width: var(--agents-dot-size, 8px); height: var(--agents-dot-size, 8px); border-radius: 50%;
+}
+.agents-dot--none { visibility: hidden; }
+.agents-dot--idle { border: 1.5px solid var(--text-3); }
+.agents-dot--ok { background: var(--ok); }
+.agents-dot--error { background: var(--err); animation: agents-flash 0.8s ease-out 1; }
+.agents-dot--attention { background: var(--warn); }
+.agents-dot--attention::after {
+  content: ''; position: absolute; inset: 0; border-radius: 50%; background: var(--warn);
+  animation: agents-ring 1.2s ease-out infinite;
+}
+.agents-dot--working { background: var(--agents-working); animation: agents-breathe 1.6s ease-in-out infinite; }
+.agents-dot--working::after {
+  content: ''; position: absolute; inset: -3px; border-radius: 50%;
+  border: 1.5px solid transparent; border-top-color: var(--agents-working);
+  animation: agents-spin 1s linear infinite;
+}
+
+/* Badge (Badge.tsx) */
+.agents-badge {
+  --badge-c: var(--text-3);
+  display: inline-flex; align-items: center; gap: 4px; height: 16px; padding: 0 5px; box-sizing: border-box;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 500; line-height: 1; text-transform: uppercase;
+  letter-spacing: 0.04em; white-space: nowrap; border-radius: 4px;
+  color: var(--badge-c); border: 1px solid color-mix(in srgb, var(--badge-c) 45%, transparent);
+  background: color-mix(in srgb, var(--badge-c) 10%, transparent);
+}
+.agents-badge--working { --badge-c: var(--agents-working); }
+.agents-badge--waiting { --badge-c: var(--warn); }
+.agents-badge--danger { --badge-c: var(--err); }
+.agents-badge--ok { --badge-c: var(--ok); }
+.agents-badge--neutral { --badge-c: var(--text-2); }
+.agents-badge-dot {
+  width: 5px; height: 5px; border-radius: 50%; background: var(--badge-c); flex: none;
+  animation: agents-breathe 1.6s ease-in-out infinite;
+}
+
+@keyframes agents-breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+@keyframes agents-spin { to { transform: rotate(360deg); } }
+@keyframes agents-ring { from { transform: scale(1); opacity: 0.7; } to { transform: scale(1.8); opacity: 0; } }
+@keyframes agents-flash { 0%, 100% { opacity: 1; } 25%, 75% { opacity: 0.2; } 50% { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .agents-dot, .agents-dot::after, .agents-badge-dot { animation: none !important; }
+  .agents-dot--attention::after, .agents-dot--working::after { display: none; }
+}
+:root[data-reduce-motion='true'] .agents-dot, :root[data-reduce-motion='true'] .agents-dot::after, :root[data-reduce-motion='true'] .agents-badge-dot { animation: none !important; }
+:root[data-reduce-motion='true'] .agents-dot--attention::after, :root[data-reduce-motion='true'] .agents-dot--working::after { display: none; }

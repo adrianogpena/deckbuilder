@@ -13,7 +13,9 @@
     "@deckbuilderkit/platform": "workspace:*",
     "@deckbuilderkit/server-core": "workspace:*",
     "@deckbuilderkit/terminal": "workspace:*",
-    "@deckbuilderkit/ui": "workspace:*"
+    "@deckbuilderkit/ui": "workspace:*",
+    "@fontsource/inter": "^5.1.0",
+    "@fontsource/jetbrains-mono": "^5.1.0"
   },
   "peerDependencies": {
     "react": "^18.3.1",

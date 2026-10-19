@@ -27,6 +27,7 @@ import { GroupSummary } from './GroupSummary';
 import { Sidebar } from './Sidebar';
 import { useAgentsFeed } from './useAgentSessions';
 import '../styles.css';
+import './ui.css';
 
 const SIDEBAR_KEY = 'deckbuilder.agents.sidebarHidden';
 const PANEL_KEY = 'deckbuilder.agents.panelHidden';

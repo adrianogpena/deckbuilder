@@ -237,6 +237,8 @@ export interface AgentSessionView extends AgentSession {
   lifecycle?: 'starting' | 'exited';
   /** Exit code when `lifecycle` is `exited` (null = no code). */
   exitCode?: number | null;
+  /** Time (ms epoch) the current status began; the UI falls back to `updatedAt`. */
+  statusSince?: number;
 }
 
 /** Why a session start / restart / stop was refused. */

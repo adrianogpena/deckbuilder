@@ -59,4 +59,6 @@ export const agentsCommands = (): CommandDef[] => [
   { id: 'agents.help', scope: 'agents', label: t('keys.agents.help'), keys: ['Shift+?'], focus: L },
   { id: 'agents.config', scope: 'agents', label: t('keys.agents.config'), keys: ['Shift+C'], focus: L },
   { id: 'agents.focusList', scope: 'agents', label: t('keys.agents.focusList'), keys: ['Ctrl+Q'] },
+  { id: 'agents.reopenSections', scope: 'agents', label: t('keys.agents.reopenSections'), keys: [] },
+  { id: 'agents.toggleDnd', scope: 'agents', label: t('keys.agents.toggleDnd'), keys: [] },
 ];
