@@ -67,10 +67,14 @@ export async function run(args: string[], mounts: Record<string, string>, cwd?: 
   }
   if (cwd) m.FS.chdir(cwd);
   let code = 0;
+  // The emscripten runtime copies 7z's exit status into process.exitCode; keep the host's own.
+  const hostExitCode = process.exitCode;
   try {
     m.callMain(args);
   } catch (e) {
     code = (e as { status?: number }).status ?? 1;
+  } finally {
+    process.exitCode = hostExitCode;
   }
   return capped ? { out, err, code, capped } : { out, err, code };
 }
