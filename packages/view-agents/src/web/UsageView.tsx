@@ -90,10 +90,8 @@ export function usageSample(now: number = Date.now()): UsageViewData {
 
 /** Picks the active account (the selected session's, else the freshest with data) and its label when there are several accounts. */
 export function usageViewData(session: UsageSession | undefined, accounts: AgentAccountUsage[], accountIds: Iterable<string>, counts?: UsageViewData['counts']): UsageViewData {
-  const flagged = accounts.some((a) => a.active !== undefined);
-  const usage = (flagged
-    ? accounts.find((a) => a.active)
-    : session ? accounts.find((a) => a.account === session.account) : undefined)
+  const usage = (session ? accounts.find((a) => a.account === session.account) : undefined)
+    ?? accounts.find((a) => a.active)
     ?? [...accounts].sort((a, b) => b.updatedAt - a.updatedAt)[0];
   const ids = new Set(accountIds);
   for (const a of accounts) ids.add(a.account);
@@ -145,7 +143,7 @@ function Metric({ label, metric, percent, stale, note, title }: { label: string;
 }
 
 /** One account: header, today's cost with the trend vs yesterday, 5-hour and weekly limits; the selected session's context, model and cache in its account's group. */
-function AccountGroup({ acc, name, session, show, now, use24h }: { acc?: AgentAccountUsage; name?: string; session?: UsageSession; show: (k: keyof UsageItems) => boolean; now: number; use24h: boolean }) {
+function AccountGroup({ acc, name, session, own, show, now, use24h }: { acc?: AgentAccountUsage; name?: string; session?: UsageSession; own: boolean; show: (k: keyof UsageItems) => boolean; now: number; use24h: boolean }) {
   const cost = acc?.cost;
   const trend = costTrend(cost?.today, cost?.yesterday);
   const staleOf = (l: AgentRateLimit) => isStale(l.updatedAt ?? acc?.updatedAt, now);
@@ -177,7 +175,7 @@ function AccountGroup({ acc, name, session, show, now, use24h }: { acc?: AgentAc
           )}
         </span>
       )}
-      {session && ((show('model') && model) || (show('cache') && cache)) && (
+      {session && own && ((show('model') && model) || (show('cache') && cache)) && (
         <span className="agents-ucard-meta">
           {show('model') && model && (
             <span className="agents-ucard-model" title={session.claudeVersion ? `${model} · v${session.claudeVersion}` : model}>
@@ -229,10 +227,9 @@ export function UsageView({ session, usage, accountLabel, items = {}, compact = 
       </span>
     );
   } else {
-    const inActive = !usage || !session || session.account === usage.account;
     body = (
       <span className="agents-ucard">
-        <AccountGroup acc={usage} name={usage?.label ?? accountLabel ?? session?.account} session={inActive ? session : undefined} show={show} now={now} use24h={use24h} />
+        <AccountGroup acc={usage} name={usage?.label ?? accountLabel ?? session?.account} session={session} own={!usage || !session || session.account === usage.account} show={show} now={now} use24h={use24h} />
       </span>
     );
   }

@@ -622,7 +622,7 @@ export function AgentsScreen({ usageSettings, dnd = false, onDnd }: { resumeOnSe
         />
       )}
       {alertsOpen && <AlertsPanel projects={projects} onClose={() => setAlertsOpen(false)} />}
-      {usageOpen && <UsageTab usage={usage} activeAccount={usageViewData(sessions.find((s) => s.id === selectedId), usage, []).usage?.account} use24h={usageSettings?.use24h} onClose={() => setUsageOpen(false)} />}
+      {usageOpen && <UsageTab usage={usage} sessions={sessions}activeAccount={usageViewData(sessions.find((s) => s.id === selectedId), usage, []).usage?.account} use24h={usageSettings?.use24h} onClose={() => setUsageOpen(false)} />}
       {skillsOpen && <SkillsPanel onClose={() => setSkillsOpen(false)} />}
       {adding && <AddProject added={projects} onAdded={(p) => setProjects((l) => [...l, p])} onClose={() => setAdding(false)} />}
       <section className={`agents-main${region === 'main' ? ' focused' : ''}`}>

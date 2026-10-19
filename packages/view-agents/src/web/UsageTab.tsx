@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Empty, Modal, request } from '@deckbuilderkit/ui';
 import { t } from '../i18n';
-import type { AgentAccountUsage, AgentRateLimit, AgentSevenDayHistory } from '../protocol.ts';
+import type { AgentAccountUsage, AgentRateLimit, AgentSession, AgentSevenDayHistory } from '../protocol.ts';
 import { barCells, historyRows, isStale, liveLimit, resetLabel, severity, shortDuration, shownPercent } from './usage-format';
 
 /** Cells of the Usage tab bars. */
@@ -14,6 +14,8 @@ export interface UsageTabProps {
   /** Account of the selected session (else the freshest reading's): marked '(active)'. */
   activeAccount?: string;
   use24h?: boolean;
+  /** Sessions whose context % is listed under their account. */
+  sessions?: Array<Pick<AgentSession, 'id' | 'account' | 'cwd' | 'title' | 'name' | 'contextPercent'>>;
   onClose(): void;
 }
 
@@ -43,7 +45,7 @@ function Limit({ metric, limit, fallbackAt, use24h, now }: { metric: 'fiveHour' 
 }
 
 /** Usage tab: per Claude account its 5h / 7d windows and the 7d spend of the last 5 days; Escape closes. */
-export function UsageTab({ usage, activeAccount, use24h = false, onClose }: UsageTabProps) {
+export function UsageTab({ usage, activeAccount, use24h = false, sessions, onClose }: UsageTabProps) {
   const [history, setHistory] = useState<AgentSevenDayHistory>({});
   const now = Date.now();
   useEffect(() => {
@@ -67,6 +69,13 @@ export function UsageTab({ usage, activeAccount, use24h = false, onClose }: Usag
               <span className="agents-usage-text" title={a.email ?? a.label}>{a.email ?? a.label}</span>
               {a.account === activeAccount && <span className="agents-usage-tab-active">{t('agents.usage.active')}</span>}
             </header>
+            {(sessions ?? []).filter((s) => s.account === a.account && s.contextPercent !== undefined).map((s) => (
+              <div key={s.id} className={`agents-usage-tab-row sev-${severity('context', s.contextPercent!)}`}>
+                <span className="mono-label">{t('agents.usage.context')}</span>
+                <span className="agents-usage-text" title={s.cwd}>{s.name ?? s.title}</span>
+                <span className="agents-usage-pct">{shownPercent(s.contextPercent!)}%</span>
+              </div>
+            ))}
             <Limit metric="fiveHour" limit={liveLimit(a.fiveHour, now)} fallbackAt={a.updatedAt} use24h={use24h} now={now} />
             <Limit metric="sevenDay" limit={liveLimit(a.sevenDay, now)} fallbackAt={a.updatedAt} use24h={use24h} now={now} />
             <div className="mono-label agents-usage-tab-caption">{t('agents.usage.daily')}</div>
