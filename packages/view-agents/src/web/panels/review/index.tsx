@@ -49,7 +49,7 @@ function FileBlock({
   root,
   path,
   files,
-  tick,
+  pollMs,
   viewed,
   comments,
   onViewed,
@@ -59,7 +59,7 @@ function FileBlock({
   root: string;
   path: string;
   files: GitFile[];
-  tick: number;
+  pollMs: number;
   viewed: boolean;
   comments: Comment[];
   onViewed(on: boolean): void;
@@ -69,7 +69,7 @@ function FileBlock({
   const [open, setOpen] = useState(!viewed);
   const [draftAt, setDraftAt] = useState<string | undefined>();
   const [draft, setDraft] = useState('');
-  const lines = useAsync(() => loadDiff(root, files[0]!, files), [root, path, tick, files.map((f) => f.group).join()]);
+  const lines = useAsync(() => loadDiff(root, files[0]!, files), [root, path, files.map((f) => f.group).join()], pollMs);
   const byLine = useMemo(() => {
     const m = new Map<string, Comment[]>();
     for (const c of comments) m.set(c.removed ? `-${c.line}` : String(c.line), [...(m.get(c.removed ? `-${c.line}` : String(c.line)) ?? []), c]);
@@ -150,7 +150,6 @@ const POLL_MS = 4000;
 function ReviewPanel({ project, api, visible }: PanelProps) {
   const host = useAgentsHost();
   const [state, setState] = useState<State | undefined>();
-  const [tick, setTick] = useState(0);
   const [target, setTarget] = useState('');
   const timer = useRef<ReturnType<typeof setTimeout>>();
   const pending = useRef<State>();
@@ -172,12 +171,6 @@ function ReviewPanel({ project, api, visible }: PanelProps) {
     };
   }, [project, flush]);
 
-  useEffect(() => {
-    if (!visible) return;
-    const id = setInterval(() => setTick((n) => n + 1), POLL_MS);
-    return () => clearInterval(id);
-  }, [visible]);
-
   const change = (next: State) => {
     setState(next);
     pending.current = next;
@@ -185,7 +178,8 @@ function ReviewPanel({ project, api, visible }: PanelProps) {
     timer.current = setTimeout(flush, SAVE_DELAY_MS);
   };
 
-  const status = useAsync(() => gitClient.gitStatus(project), [project, tick]);
+  const pollMs = visible ? POLL_MS : 0;
+  const status = useAsync(() => gitClient.gitStatus(project), [project], pollMs);
   const byPath = useMemo(() => {
     const m = new Map<string, GitFile[]>();
     for (const f of status.data?.files ?? []) m.set(f.path, [...(m.get(f.path) ?? []), f]);
@@ -215,7 +209,7 @@ function ReviewPanel({ project, api, visible }: PanelProps) {
             root={project}
             path={path}
             files={files}
-            tick={tick}
+            pollMs={pollMs}
             viewed={state.viewed.includes(path)}
             comments={state.comments.filter((c) => c.path === path)}
             onViewed={(on) => change({ ...state, viewed: on ? [...state.viewed, path] : state.viewed.filter((p) => p !== path) })}

@@ -58,6 +58,7 @@
 .view-agents .agents-dock { display: flex; flex: 1; flex-direction: row; min-width: 0; min-height: 0; }
 .view-agents .agents-dock-main { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; }
 .view-agents .agents-dock-side { display: flex; flex: none; flex-direction: column; width: 340px; min-width: 0; min-height: 0; border-left: 1px solid var(--border); }
+.view-agents .agents-dock-side-add { margin: var(--space-4); }
 .view-agents .agents-dock-side-item { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; }
 .view-agents .agents-dock-side-item + .agents-dock-side-item { border-top: 1px solid var(--border); }
 .view-agents .agents-dock-view { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; }

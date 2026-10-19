@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { GitFile } from '@deckbuilderkit/server-core/protocol';
 import { errorOf, ErrorBanner, PanelLoading, useAsync, useDialogs, useToast } from '@deckbuilderkit/ui';
 import { t } from '../../../i18n';
@@ -31,17 +31,11 @@ interface ChangesViewProps {
 function ChangesView({ project, api, visible }: ChangesViewProps) {
   const toast = useToast();
   const dialogs = useDialogs();
-  const [tick, setTick] = useState(0);
   const [message, setMessage] = useState('');
   const [amend, setAmend] = useState(false);
   const [busy, setBusy] = useState(false);
-  const refresh = useCallback(() => setTick((n) => n + 1), []);
-  useEffect(() => {
-    if (!visible) return;
-    const id = setInterval(refresh, POLL_MS);
-    return () => clearInterval(id);
-  }, [visible, refresh]);
-  const status = useAsync(() => gitClient.gitStatus(project), [project, tick]);
+  const status = useAsync(() => gitClient.gitStatus(project), [project], visible ? POLL_MS : 0);
+  const refresh = status.reload;
   const branches = useAsync(() => listBranches(project), [project, status.data?.branch]);
 
   const run = async (action: string, body?: Record<string, unknown>, done?: () => void) => {

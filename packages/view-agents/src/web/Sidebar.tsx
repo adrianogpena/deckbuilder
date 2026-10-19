@@ -25,8 +25,8 @@ import { SessionDot } from './StatusIcon';
 import { statusSince } from './status-text';
 import { activityStatus, projectActivity } from './project-activity';
 import { SectionButton, SidebarSection } from './SidebarSection';
-import { hideSection, isDockable, loadSections, moveSection, restoreAll, restoreSection, saveSections, SECTIONS_EVENT, type SectionId, type SectionsState, sectionOrder, toggleSection, toolKind } from './sidebar-sections';
-import { PANELS, panelOf } from './workspace/registry';
+import { hideSection, loadSections, moveWithin, restoreAll, restoreSection, saveSections, SECTIONS_EVENT, type SectionId, type SectionsState, sectionOrder, isTreeSection, toggleSection, toolKind } from './sidebar-sections';
+import { panelOf } from './workspace/registry';
 import type { PanelKind, WorkspaceApi } from './workspace/types';
 
 const CORE_TITLE = {
@@ -1029,32 +1029,30 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
 
   // ---- Section cards (spec S5): collapse, hide, restore and reorder; state in localStorage.
   const order = sectionOrder(sections, usageTop);
-  const moveSectionTo = (id: SectionId, to: number) => setSections((s) => moveSection(s, id, to, usageTop));
+  const groupOf = (id: SectionId) => order.filter((x) => isTreeSection(x) === isTreeSection(id));
+  const moveSectionTo = (id: SectionId, to: number) => setSections((s) => moveWithin(s, id, to, usageTop));
   const toWorkspace = (id: SectionId) => {
     const kind = toolKind(id) ?? id;
     setSections((st) => hideSection(st, id));
     getWorkspace?.()?.api.moveToSide(kind as PanelKind);
   };
   const sectionMenu = (id: SectionId) => (e: MouseEvent) => {
-    const at = order.indexOf(id);
+    const group = groupOf(id);
+    const at = group.indexOf(id);
     setMenu({ at: { x: e.clientX, y: e.clientY }, items: [
       { id: 'moveUp', label: t('agents.tree.moveUp'), disabled: at <= 0, run: () => moveSectionTo(id, at - 1) },
-      { id: 'moveDown', label: t('agents.tree.moveDown'), disabled: at >= order.length - 1, run: () => moveSectionTo(id, at + 1) },
+      { id: 'moveDown', label: t('agents.tree.moveDown'), disabled: at >= group.length - 1, run: () => moveSectionTo(id, at + 1) },
       'sep',
       ...(toolKind(id) !== undefined || id === 'changes' || id === 'files' ? [{ id: 'toWorkspace', label: t('agents.section.toWorkspace'), icon: 'panel-right' as const, disabled: !getWorkspace?.(), run: () => toWorkspace(id) }] : []),
       { id: 'hide', label: t('agents.section.hide'), run: () => setSections((st) => hideSection(st, id)) },
     ] });
   };
-  const dockable = PANELS.filter((p) => isDockable(p) && p.kind !== 'changes' && p.kind !== 'files' && p.kind !== 'usage' && !sections.tools.includes(p.kind));
+  const restorable: SectionId[] = sections.hidden.filter((id) => id !== 'changes' && id !== 'files');
   const addSectionMenu = (e: MouseEvent) => {
     const box = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const hiddenItems = sections.hidden.map((id): ContextMenuItem => ({ id: `restore-${id}`, label: sectionTitle(id), run: () => setSections((st) => restoreSection(st, id)) }));
-    const toolItems = dockable.map((p): ContextMenuItem => ({ id: `dock-${p.kind}`, label: t(p.titleKey), icon: p.icon, run: () => setSections((st) => restoreSection(st, `tool:${p.kind}`)) }));
     setMenu({ at: { x: box.left, y: box.bottom }, items: [
-      ...hiddenItems,
-      ...(hiddenItems.length > 0 && toolItems.length > 0 ? ['sep' as const] : []),
-      ...toolItems,
-      ...(hiddenItems.length > 1 ? ['sep' as const, { id: 'reopenAll', label: t('agents.section.reopen'), run: () => setSections(restoreAll) }] : []),
+      ...restorable.map((id): ContextMenuItem => ({ id: `restore-${id}`, label: sectionTitle(id), run: () => setSections((st) => restoreSection(st, id)) })),
+      ...(restorable.length > 1 ? ['sep' as const, { id: 'reopenAll', label: t('agents.section.reopen'), run: () => setSections((st) => ({ ...st, hidden: st.hidden.filter((x) => !restorable.includes(x)) })) }] : []),
     ] });
   };
   const section = (id: SectionId, body: ReactNode, opts: { count?: number; note?: ReactNode; actions?: ReactNode; forceOpen?: boolean; className?: string } = {}) => (
@@ -1076,7 +1074,8 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
         const from = sectionDrag;
         setSectionDrag(undefined);
         if (!from) return;
-        const rest = order.filter((x) => x !== from);
+        if (isTreeSection(from) !== isTreeSection(target)) return;
+        const rest = groupOf(from).filter((x) => x !== from);
         moveSectionTo(from, rest.indexOf(target) + (after ? 1 : 0));
       }}
       onMenu={sectionMenu(id)}
@@ -1223,15 +1222,17 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
     >
       {usageTop && renderSection('usage')}
       <div className="agents-sidebar-scroll">
-        {order.filter((id) => id !== 'usage').map(renderSection)}
-        {(sections.hidden.length > 0 || dockable.length > 0) && (
+        {order.filter(isTreeSection).map(renderSection)}
+        {restorable.length > 0 && (
           <button type="button" className="agents-section-add" title={t('agents.section.add')} aria-label={t('agents.section.add')} aria-haspopup="menu" onClick={addSectionMenu}>
             <Icon name="plus" size={14} />
             <span className="agents-label">{t('agents.section.add')}</span>
           </button>
         )}
       </div>
-      {!usageTop && renderSection('usage')}
+      <div className="agents-sidebar-islands">
+        {order.filter((id) => !isTreeSection(id) && !(usageTop && id === 'usage')).map(renderSection)}
+      </div>
       {checking && <BatchBar count={checked.size} actions={batchActions} onClear={() => clearBatch(true)} />}
       {menu && <ContextMenu at={menu.at} items={menu.items} onClose={() => setMenu(undefined)} />}
       {trashOpen && <TrashPanel onRestored={restored} onRefused={(message) => toast({ message, kind: 'error' })} onClose={() => setTrashOpen(false)} />}

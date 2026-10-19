@@ -9,10 +9,10 @@ const DiffView = lazy(() => import('@deckbuilderkit/editor').then((m) => ({ defa
 
 const problemOf = (side?: GitFileContent) => (side?.binary ? t('agents.changes.binary') : side?.tooLarge ? t('agents.changes.tooLarge') : undefined);
 
-/** DiffView of one changed file; reloads when `tick` changes. */
-export function FileDiff({ root, file, tick }: { root: string; file: GitFile; tick: number }) {
+/** DiffView of one changed file; refetches in the background every `pollMs` (0 = never). */
+export function FileDiff({ root, file, pollMs }: { root: string; file: GitFile; pollMs: number }) {
   const [mode, setMode] = useState<DiffMode>('split');
-  const sides = useAsync(() => sidesOf(root, file), [root, file.path, file.group, file.index, file.worktree, tick]);
+  const sides = useAsync(() => sidesOf(root, file), [root, file.path, file.group, file.index, file.worktree], pollMs);
   if (sides.error) return <ErrorBanner error={sides.error} onRetry={sides.reload} />;
   if (!sides.data) return <PanelLoading />;
   const { original, modified } = sides.data;

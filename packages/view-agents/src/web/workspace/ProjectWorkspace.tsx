@@ -1,12 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ContextMenu } from '@deckbuilderkit/ui';
+import { type MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ContextMenu, type ContextMenuItem, Icon } from '@deckbuilderkit/ui';
 import { t } from '../../i18n';
 import { EmptyCard } from './EmptyCard';
 import { useAgentsHost } from './host';
 import { MissingPanel } from './MissingPanel';
 import { PanelBoundary } from './PanelBoundary';
 import { isDockable, setDocked } from '../sidebar-sections';
-import { panelOf } from './registry';
+import { PANELS, panelOf } from './registry';
 import type { OpenOptions, PanelKind, PanelParams, PanelProps, WorkspaceApi } from './types';
 
 /** What the screen can do to one project's workspace. */
@@ -49,7 +49,8 @@ export function ProjectWorkspace({ project, hidden, register, onFocusedAgent }: 
   const [agent, setAgent] = useState<AgentView>();
   const [tools, setTools] = useState<Tool[]>([]);
   const [side, setSide] = useState<PanelKind[]>([]);
-  const [sideMenu, setSideMenu] = useState<{ at: { x: number; y: number }; kind: PanelKind }>();
+  const [sideOpen, setSideOpen] = useState(false);
+  const [sideMenu, setSideMenu] = useState<{ at: { x: number; y: number }; items: ContextMenuItem[] }>();
   const nonce = useRef(0);
   const tool = tools[tools.length - 1];
 
@@ -80,8 +81,11 @@ export function ProjectWorkspace({ project, hidden, register, onFocusedAgent }: 
     () => ({
       open,
       close: (id) => setTools((cur) => cur.filter((x) => x.kind !== id)),
-      toggleSide: () => setSide((cur) => (cur.includes('changes') ? cur.filter((k) => k !== 'changes') : [...cur, 'changes'])),
-      moveToSide: (kind) => setSide((cur) => (cur.includes(kind) ? cur : [...cur, kind])),
+      toggleSide: () => setSideOpen((o) => !o),
+      moveToSide: (kind) => {
+        setSideOpen(true);
+        setSide((cur) => (cur.includes(kind) ? cur : [...cur, kind]));
+      },
       sendToSession: (sessionId, text) => hostRef.current.sendToSession(sessionId, text),
       activeProject: project,
     }),
@@ -123,6 +127,15 @@ export function ProjectWorkspace({ project, hidden, register, onFocusedAgent }: 
   const panelProps = (kind: string, params: PanelParams, active: boolean, update: PanelProps['update']): PanelProps => ({ project, params, api, tabId: kind, visible: active && !hidden, focused: active && !hidden, update });
   const agentMod = panelOf('agent');
   const toolMod = tool ? panelOf(tool.kind) : undefined;
+  const addToSide = (kind: PanelKind) => {
+    setDocked(kind, false);
+    setSide((cur) => (cur.includes(kind) ? cur : [...cur, kind]));
+  };
+  const addMenu = (e: MouseEvent) => {
+    const box = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const items = PANELS.filter((p) => isDockable(p) && !side.includes(p.kind)).map((p): ContextMenuItem => ({ id: `add-${p.kind}`, label: t(p.titleKey), icon: p.icon, run: () => addToSide(p.kind) }));
+    setSideMenu({ at: { x: box.left, y: box.bottom }, items });
+  };
   const moveToLeft = (kind: PanelKind) => {
     setSide((cur) => cur.filter((k) => k !== kind));
     setDocked(kind, true);
@@ -148,19 +161,23 @@ export function ProjectWorkspace({ project, hidden, register, onFocusedAgent }: 
         </div>
       )}
       </div>
-      {side.length > 0 && (
+      {sideOpen && (
         <aside className="agents-dock-side">
+          <button type="button" className="agents-section-add agents-dock-side-add" title={t('agents.section.add')} aria-label={t('agents.section.add')} aria-haspopup="menu" onClick={addMenu}>
+            <Icon name="plus" size={14} />
+            <span className="agents-label">{t('agents.section.add')}</span>
+          </button>
           {side.map((kind) => {
             const mod = panelOf(kind);
             return (
-              <section key={kind} className="agents-dock-side-item" onContextMenu={(e) => { e.preventDefault(); setSideMenu({ at: { x: e.clientX, y: e.clientY }, kind }); }}>
+              <section key={kind} className="agents-dock-side-item" onContextMenu={(e) => { e.preventDefault(); setSideMenu({ at: { x: e.clientX, y: e.clientY }, items: [{ id: 'toLeft', label: t('agents.section.toLeft'), run: () => moveToLeft(kind) }] }); }}>
                 <PanelBoundary>{mod ? <mod.Panel {...panelProps(kind, {}, true, () => undefined)} /> : <MissingPanel kind={kind} />}</PanelBoundary>
               </section>
             );
           })}
         </aside>
       )}
-      {sideMenu && <ContextMenu at={sideMenu.at} items={[{ id: 'toLeft', label: t('agents.section.toLeft'), run: () => moveToLeft(sideMenu.kind) }]} onClose={() => setSideMenu(undefined)} />}
+      {sideMenu && <ContextMenu at={sideMenu.at} items={sideMenu.items} onClose={() => setSideMenu(undefined)} />}
     </div>
   );
 }

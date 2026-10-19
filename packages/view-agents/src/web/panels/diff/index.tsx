@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import { ErrorBanner, PanelLoading, useAsync } from '@deckbuilderkit/ui';
 import { t } from '../../../i18n';
 import type { PanelModule, PanelProps } from '../../workspace/types';
@@ -12,13 +11,8 @@ const POLL_MS = 3000;
 function DiffPanel({ project, params, visible }: PanelProps) {
   const path = String(params.path ?? '');
   const group = String(params.group ?? '');
-  const [tick, setTick] = useState(0);
-  useEffect(() => {
-    if (!visible) return;
-    const id = setInterval(() => setTick((n) => n + 1), POLL_MS);
-    return () => clearInterval(id);
-  }, [visible]);
-  const status = useAsync(() => gitClient.gitStatus(project), [project, tick]);
+  const pollMs = visible ? POLL_MS : 0;
+  const status = useAsync(() => gitClient.gitStatus(project), [project], pollMs);
   const files = status.data?.files ?? [];
   const file = files.find((f) => f.path === path && f.group === group) ?? files.find((f) => f.path === path);
 
@@ -37,7 +31,7 @@ function DiffPanel({ project, params, visible }: PanelProps) {
         <p className="agents-empty agents-placeholder">{t('panel.diff.unchanged')}</p>
       ) : (
         <div className="agents-diff-body">
-          <FileDiff root={project} file={file} tick={tick} />
+          <FileDiff root={project} file={file} pollMs={pollMs} />
         </div>
       )}
     </div>

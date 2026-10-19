@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { DEFAULT_SECTIONS, dockTool, hideSection, loadSections, moveSection, normalizeSections, restoreAll, restoreSection, saveSections, sectionOrder, SECTIONS_KEY, toggleSection } from './sidebar-sections';
+import { DEFAULT_SECTIONS, dockTool, hideSection, isTreeSection, loadSections, moveSection, moveWithin, normalizeSections, restoreAll, restoreSection, saveSections, sectionOrder, SECTIONS_KEY, toggleSection } from './sidebar-sections';
 
 const memory = () => {
   const m = new Map<string, string>();
@@ -16,8 +16,8 @@ describe('sidebar sections', () => {
 
   test('hide, restore one, restore all', () => {
     const a = hideSection(hideSection(DEFAULT_SECTIONS, 'tags'), 'usage');
-    expect(a.hidden).toEqual(['tags', 'usage']);
-    expect(restoreSection(a, 'tags').hidden).toEqual(['usage']);
+    expect(a.hidden).toEqual(['changes', 'files', 'tags', 'usage']);
+    expect(restoreSection(a, 'tags').hidden).toEqual(['changes', 'files', 'usage']);
     expect(restoreAll(a).hidden).toEqual([]);
   });
 
@@ -27,6 +27,12 @@ describe('sidebar sections', () => {
     const a = moveSection(DEFAULT_SECTIONS, 'usage', 0);
     expect(a.order).toEqual(['usage', 'sessions', 'changes', 'files', 'tags', 'archived']);
     expect(moveSection(a, 'usage', 99).order).toEqual(['sessions', 'changes', 'files', 'tags', 'archived', 'usage']);
+  });
+
+  test('moveWithin keeps the tree and island areas apart', () => {
+    const a = moveWithin(DEFAULT_SECTIONS, 'tags', 0);
+    expect(sectionOrder(a).filter(isTreeSection)).toEqual(['tags', 'sessions', 'archived']);
+    expect(sectionOrder(a).filter((x) => !isTreeSection(x))).toEqual(['changes', 'files', 'usage']);
   });
 
   test('normalize drops unknown ids and completes the order', () => {
@@ -39,7 +45,7 @@ describe('sidebar sections', () => {
     expect(a.tools).toEqual(['json']);
     expect(sectionOrder(a).at(-1)).toBe('tool:json');
     expect(hideSection(moveSection(a, 'tool:json', 0), 'tool:json')).toEqual({ ...DEFAULT_SECTIONS, order: sectionOrder(DEFAULT_SECTIONS) });
-    expect(dockTool(hideSection(DEFAULT_SECTIONS, 'changes'), 'changes').hidden).toEqual([]);
+    expect(dockTool(DEFAULT_SECTIONS, 'changes').hidden).toEqual(['files']);
     expect(normalizeSections({ collapsed: [], hidden: [] }).tools).toEqual([]);
     expect(normalizeSections({ tools: ['json', 'bogus'], order: ['tool:json', 'tool:task'] }).order?.[0]).toBe('tool:json');
     expect(normalizeSections({ tools: ['json'], order: ['tool:task'] }).order).not.toContain('tool:task');

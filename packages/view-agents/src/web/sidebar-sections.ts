@@ -21,7 +21,8 @@ export interface SectionsState {
   tools: string[];
 }
 
-export const DEFAULT_SECTIONS: SectionsState = { collapsed: ['archived'], hidden: [], tools: [] };
+/** Changes and Files start on the right side panel, not as left cards. */
+export const DEFAULT_SECTIONS: SectionsState = { collapsed: ['archived'], hidden: ['changes', 'files'], tools: [] };
 
 /** Tool kinds that are core cards instead of `tool:` cards. */
 const CORE_OF_KIND: Record<string, CoreSectionId> = { changes: 'changes', files: 'files', usage: 'usage' };
@@ -47,7 +48,7 @@ export function normalizeSections(raw: unknown): SectionsState {
   return {
     ...(order ? { order: [...order, ...CORE_IDS.filter((id) => !order.includes(id))] } : {}),
     collapsed: 'collapsed' in r ? ids(r.collapsed) : DEFAULT_SECTIONS.collapsed,
-    hidden: ids(r.hidden).filter(isCore),
+    hidden: 'hidden' in r ? ids(r.hidden).filter(isCore) : DEFAULT_SECTIONS.hidden,
     tools,
   };
 }
@@ -100,6 +101,19 @@ export function moveSection(s: SectionsState, id: SectionId, to: number, usageTo
   const order = sectionOrder(s, usageTop).filter((x) => x !== id);
   order.splice(Math.max(0, Math.min(to, order.length)), 0, id);
   return { ...s, order };
+}
+
+/** The cards of the scrolling tree area; every other card (Usage, docked panels) is in the island below it. */
+export const isTreeSection = (id: SectionId): boolean => id === 'sessions' || id === 'tags' || id === 'archived';
+
+/** Like `moveSection`, but `to` is an index among the cards of the same area (tree or island), and the other area keeps its order. */
+export function moveWithin(s: SectionsState, id: SectionId, to: number, usageTop = false): SectionsState {
+  const order = sectionOrder(s, usageTop);
+  const same = (x: SectionId) => isTreeSection(x) === isTreeSection(id);
+  const group = order.filter((x) => same(x) && x !== id);
+  group.splice(Math.max(0, Math.min(to, group.length)), 0, id);
+  let i = 0;
+  return { ...s, order: order.map((x) => (same(x) ? group[i++]! : x)) };
 }
 
 type Store = Pick<Storage, 'getItem' | 'setItem'>;

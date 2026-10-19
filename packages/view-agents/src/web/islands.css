@@ -15,6 +15,8 @@
 :root[data-layout='islands'] .view-agents .agents-sidebar .agents-section-body { padding: 0 8px 8px; }
 :root[data-layout='islands'] .view-agents .agents-sidebar .agents-section-head { border-radius: 0; padding: 0 var(--space-4); }
 
+:root[data-layout='islands'] .view-agents .agents-sidebar .agents-sidebar-islands { gap: 8px; }
+
 /* ---- session pane and side panel */
 :root[data-layout='islands'] .view-agents .agents-main,
 :root[data-layout='islands'] .view-agents .agents-panel {
