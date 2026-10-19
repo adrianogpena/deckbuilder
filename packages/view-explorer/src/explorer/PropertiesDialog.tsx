@@ -74,7 +74,7 @@ export function PropertiesDialog({ root, path, onClose }: { root: string; path: 
       title={t('explorer.properties')}
       onClose={onClose}
       footer={
-        <button className="btn" onClick={onClose}>
+        <button className="btn" onClick={onClose} title={t('explorer.props.close')}>
           {t('explorer.props.close')}
         </button>
       }
@@ -87,7 +87,7 @@ export function PropertiesDialog({ root, path, onClose }: { root: string; path: 
             t('explorer.props.path'),
             <span style={ROW}>
               <span style={WRAP}>{info.fullPath}</span>
-              <button className="btn btn-sm" onClick={() => copy(info.fullPath)}>
+              <button className="btn btn-sm" onClick={() => copy(info.fullPath)} title={t('explorer.props.copy')}>
                 {t('explorer.props.copy')}
               </button>
             </span>,
@@ -104,11 +104,11 @@ export function PropertiesDialog({ root, path, onClose }: { root: string; path: 
                     </span>
                   )}
                   {counting ? (
-                    <button className="btn btn-sm" onClick={cancel}>
+                    <button className="btn btn-sm" onClick={cancel} title={t('explorer.props.cancel')}>
                       {t('explorer.props.cancel')}
                     </button>
                   ) : (
-                    <button className="btn btn-sm" onClick={count}>
+                    <button className="btn btn-sm" onClick={count} title={t('explorer.props.calcSize')}>
                       {t('explorer.props.calcSize')}
                     </button>
                   )}
@@ -126,12 +126,12 @@ export function PropertiesDialog({ root, path, onClose }: { root: string; path: 
                 {hash ? (
                   <>
                     <code style={WRAP}>{hash}</code>
-                    <button className="btn btn-sm" onClick={() => copy(hash)}>
+                    <button className="btn btn-sm" onClick={() => copy(hash)} title={t('explorer.props.copy')}>
                       {t('explorer.props.copy')}
                     </button>
                   </>
                 ) : (
-                  <button className="btn btn-sm" disabled={hashing} onClick={hashIt}>
+                  <button className="btn btn-sm" disabled={hashing} onClick={hashIt} title={t('explorer.props.sha256')}>
                     {hashing ? t('explorer.props.hashing') : t('explorer.props.sha256')}
                   </button>
                 )}

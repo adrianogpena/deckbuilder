@@ -17,9 +17,9 @@ export function PermissionCard({ request, onAnswer }: { request: PermissionReque
         <pre className="chat-tool-input">{JSON.stringify(request.input, null, 2)}</pre>
       </details>
       <div className="chat-permission-actions">
-        <button type="button" className="primary" onClick={() => answer('allow')}>{t('agents.chat.permission.allow')}</button>
+        <button type="button" className="primary" title={t('agents.chat.permission.allow')} onClick={() => answer('allow')}>{t('agents.chat.permission.allow')}</button>
         <button type="button" onClick={() => answer('always')} title={t('agents.chat.permission.always.hint')}>{t('agents.chat.permission.always')}</button>
-        <button type="button" className="danger" onClick={() => answer('deny')}>{t('agents.chat.permission.deny')}</button>
+        <button type="button" className="danger" title={t('agents.chat.permission.deny')} onClick={() => answer('deny')}>{t('agents.chat.permission.deny')}</button>
       </div>
     </div>
   );

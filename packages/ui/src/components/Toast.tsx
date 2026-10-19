@@ -96,7 +96,7 @@ function Toast({ entry, paused, defaultTimeout, onClose }: { entry: Entry; pause
       <Icon name={error ? 'alert' : 'check'} size={14} />
       <span className="toast-text">{entry.message}</span>
       {entry.action && (
-        <button className="btn btn-ghost btn-sm" onClick={() => { entry.action!.run(); onClose(); }}>{entry.action.label}</button>
+        <button title={entry.action.label} className="btn btn-ghost btn-sm" onClick={() => { entry.action!.run(); onClose(); }}>{entry.action.label}</button>
       )}
       <button className="btn btn-ghost btn-sm toast-close btn-icon" onClick={onClose} aria-label={t('common.close')} title={t('common.close')}>
         <Icon name="close" size={12} />

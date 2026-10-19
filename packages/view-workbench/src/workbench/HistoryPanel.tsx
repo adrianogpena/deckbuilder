@@ -79,7 +79,7 @@ export function HistoryPanel({ client, connection, refresh, connectionName, onIn
       <div className="wb-schema-head">
         <span className="mono-label">{t('workbench.history')}</span>
         {loading && <Spinner small />}
-        <button className="btn btn-ghost btn-sm" onClick={clear} disabled={entries.length === 0}>{t('workbench.history.clear')}</button>
+        <button className="btn btn-ghost btn-sm" onClick={clear} disabled={entries.length === 0} title={t('workbench.history.clear')}>{t('workbench.history.clear')}</button>
       </div>
       <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('workbench.history.search')} aria-label={t('workbench.history.search')} />
       <ul className="wb-history-list">

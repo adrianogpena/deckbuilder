@@ -46,8 +46,8 @@ export function AddProject({ added, onAdded, onClose }: { added: AgentProject[];
       onClose={onClose}
       footer={
         <>
-          <button type="button" onClick={onClose}>{t('agents.new.cancel')}</button>
-          <button type="button" disabled={!path} onClick={() => void add({ name: name.trim() || undefined, path })}>{t('agents.add.confirm')}</button>
+          <button type="button" title={t('agents.new.cancel')} onClick={onClose}>{t('agents.new.cancel')}</button>
+          <button type="button" title={t('agents.add.confirm')} disabled={!path} onClick={() => void add({ name: name.trim() || undefined, path })}>{t('agents.add.confirm')}</button>
         </>
       }
     >
@@ -72,7 +72,7 @@ export function AddProject({ added, onAdded, onClose }: { added: AgentProject[];
         <h4>{t('agents.add.folder')}</h4>
         <div className="agents-add-folder">
           <input readOnly value={path} placeholder={t('agents.add.noFolder')} aria-label={t('agents.add.folder')} />
-          <button type="button" onClick={() => void browse()}>{t('agents.add.browse')}</button>
+          <button type="button" title={t('agents.add.browse')} onClick={() => void browse()}>{t('agents.add.browse')}</button>
         </div>
         <label>
           {t('agents.add.name')}

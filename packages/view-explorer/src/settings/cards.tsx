@@ -80,7 +80,7 @@ function ReadingWidthField({ value, onChange }: { value: MarkdownStored['reading
         <span className="mono-label">{t('settings.explorer.markdownReadingWidth')}</span>
         <div className="chips">
           {['comfortable', 'full', 'chars'].map((k) => (
-            <button key={k} className={`chip${kind === k ? ' chip-on' : ''}`} onClick={() => pick(k)}>
+            <button key={k} className={`chip${kind === k ? ' chip-on' : ''}`} onClick={() => pick(k)} title={t(`settings.explorer.markdownReadingWidth.${k}` as 'settings.explorer.markdownReadingWidth.chars')}>
               {t(`settings.explorer.markdownReadingWidth.${k}` as 'settings.explorer.markdownReadingWidth.chars')}
             </button>
           ))}

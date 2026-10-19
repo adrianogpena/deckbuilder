@@ -177,7 +177,14 @@ export function githubSource(opts: { repo: string; tagPrefix: string; token?: st
     if (res.status >= 300 && res.status < 400) {
       const location = res.headers.get('location');
       if (!location) throw new SourceError(false, `GitHub redirected ${asset.name} without a location`);
-      res = await doFetch(location, { headers: { 'User-Agent': 'deckbuilder' }, signal });
+      let next: URL;
+      try {
+        next = new URL(location, asset.url);
+      } catch {
+        throw new SourceError(false, `GitHub redirected ${asset.name} to an invalid location`);
+      }
+      if (next.protocol !== 'https:') throw new SourceError(false, `GitHub redirected ${asset.name} to a non-https location`);
+      res = await doFetch(next.href, { headers: { 'User-Agent': 'deckbuilder' }, signal });
     }
     if (!res.ok) throw new SourceError(false, `GitHub answered ${res.status} for ${asset.name}`);
     return res;

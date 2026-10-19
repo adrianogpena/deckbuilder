@@ -1,5 +1,5 @@
 import { useEffect, useState, type KeyboardEvent } from 'react';
-import { Icon, type IconName } from '@deckbuilderkit/ui';
+import { Icon, type IconName, useShortcutTip } from '@deckbuilderkit/ui';
 import type { AgentSessionView } from '../protocol.ts';
 import { t } from '../i18n';
 import { displayName } from './attention';
@@ -38,9 +38,10 @@ export interface SessionHeadProps {
   onTogglePanel(): void;
 }
 
-function HeadButton({ icon, label, onClick }: { icon: IconName; label: string; onClick(): void }) {
+function HeadButton({ icon, label, onClick, command }: { icon: IconName; label: string; onClick(): void; command?: string }) {
+  const tip = useShortcutTip();
   return (
-    <button type="button" className="agents-head-btn" title={label} aria-label={label} onClick={onClick}>
+    <button type="button" className="agents-head-btn" title={tip(label, command)} aria-label={label} onClick={onClick}>
       <Icon name={icon} size={14} />
     </button>
   );
@@ -94,10 +95,10 @@ export function SessionHead({ session: s, mode, project, git, onRename, onStop, 
       )}
       {s.contextPercent != null && <span className="agents-head-ctx">{Math.round(s.contextPercent)}%</span>}
       <span className="agents-head-actions">
-        {running ? <HeadButton icon="square" label={t('agents.head.stop')} onClick={onStop} /> : <HeadButton icon="rotate-ccw" label={t('agents.head.restart')} onClick={onRestart} />}
-        <HeadButton icon="copy" label={t('agents.head.copyResponse')} onClick={onCopy} />
-        <HeadButton icon="plan" label={t('agents.head.trajectory')} onClick={onTrajectory} />
-        <HeadButton icon="panel-right" label={t('agents.head.togglePanel')} onClick={onTogglePanel} />
+        {running ? <HeadButton command="agents.stop" icon="square" label={t('agents.head.stop')} onClick={onStop} /> : <HeadButton command="agents.restart" icon="rotate-ccw" label={t('agents.head.restart')} onClick={onRestart} />}
+        <HeadButton command="agents.copyResponse" icon="copy" label={t('agents.head.copyResponse')} onClick={onCopy} />
+        <HeadButton command="agents.trajectory" icon="plan" label={t('agents.head.trajectory')} onClick={onTrajectory} />
+        <HeadButton command="agents.togglePanel" icon="panel-right" label={t('agents.head.togglePanel')} onClick={onTogglePanel} />
       </span>
     </div>
   );

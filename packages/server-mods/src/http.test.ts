@@ -70,6 +70,36 @@ test('redirects are followed by default and kept as 302 when disabled', async ()
   expect(manual.status).toBe(302);
 });
 
+test('secret headers are dropped when a followed redirect leaves the origin', async () => {
+  const other = Bun.serve({
+    port: 0,
+    hostname: '127.0.0.1',
+    fetch: (req) => {
+      const path = new URL(req.url).pathname;
+      if (path === '/away') return new Response(null, { status: 302, headers: { location: `${base}/echo` } });
+      if (path === '/same') return new Response(null, { status: 307, headers: { location: '/away' } });
+      return new Response('nope', { status: 404 });
+    },
+  });
+  try {
+    const headers: Array<[string, string]> = [['X-Api-Key', 'k'], ['Authorization', 'Bearer s'], ['x-plain', 'p']];
+    const res = await httpExecutor().send({
+      ...validateRequest({ method: 'POST', url: `http://127.0.0.1:${other.port}/same`, headers, body: 'b' }),
+      secretHeaderNames: ['X-Api-Key'],
+    });
+    expect(res.status).toBe(200);
+    expect(res.redirected).toBe(true);
+    expect(res.url).toBe(`${base}/echo`);
+    const echoed = JSON.parse(res.text!);
+    expect(echoed.method).toBe('GET');
+    expect(echoed.headers).not.toHaveProperty('x-api-key');
+    expect(echoed.headers).not.toHaveProperty('authorization');
+    expect(echoed.headers['x-plain']).toBe('p');
+  } finally {
+    other.stop(true);
+  }
+});
+
 test('a binary body has no text', async () => {
   const res = await httpExecutor().send(spec('/bin'));
   expect(res.binary).toBe(true);

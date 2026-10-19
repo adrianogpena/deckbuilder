@@ -35,8 +35,16 @@ export interface KeptBody {
   url: string;
 }
 
+/** A request as the executor gets it: `secretHeaderNames` lists headers added from a secret, dropped when a redirect leaves the origin. */
+export interface HttpExecSpec extends HttpRequestSpec {
+  secretHeaderNames?: string[];
+}
+
+const MAX_REDIRECTS = 10;
+const CROSS_ORIGIN_DROP = ['authorization', 'cookie', 'proxy-authorization'];
+
 export interface HttpExecutor {
-  send(spec: HttpRequestSpec, signal?: AbortSignal): Promise<HttpResponseInfo>;
+  send(spec: HttpExecSpec, signal?: AbortSignal): Promise<HttpResponseInfo>;
   body(id: string): KeptBody | undefined;
 }
 
@@ -306,28 +314,57 @@ export function httpExecutor(opts: HttpExecutorOptions = {}): HttpExecutor {
           }
         }
       }
+      const follow = spec.followRedirects !== false;
+      // With secret headers, redirects are followed by hand so the secrets never reach another origin.
+      const manualFollow = follow && (spec.secretHeaderNames?.length ?? 0) > 0;
+      const secretNames = new Set((spec.secretHeaderNames ?? []).map((n) => n.toLowerCase()));
+      const fetchSignal = signal ? AbortSignal.any([signal, timeout]) : timeout;
       try {
-        const res = await fetchImpl(spec.url, {
-          method: spec.method,
-          headers,
-          body,
-          redirect: spec.followRedirects === false ? 'manual' : 'follow',
-          signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
-          tls: { rejectUnauthorized: !spec.insecure },
-        });
+        let url = spec.url;
+        let method: string = spec.method;
+        let hops = 0;
+        const origin = new URL(spec.url).origin;
+        let res: Response;
+        for (;;) {
+          res = await fetchImpl(url, {
+            method,
+            headers,
+            body,
+            redirect: follow && !manualFollow ? 'follow' : 'manual',
+            signal: fetchSignal,
+            tls: { rejectUnauthorized: !spec.insecure },
+          });
+          const location = res.headers.get('location');
+          if (!manualFollow || res.status < 300 || res.status >= 400 || res.status === 304 || !location) break;
+          if (hops >= MAX_REDIRECTS) throw invalid('httpFailed', 'Too many redirects.');
+          hops++;
+          await res.body?.cancel().catch(() => {});
+          const next = new URL(location, url);
+          if (next.protocol !== 'http:' && next.protocol !== 'https:') throw invalid('httpFailed', 'A redirect went to an unsupported URL.');
+          if (res.status === 303 ? method !== 'HEAD' : (res.status === 301 || res.status === 302) && method === 'POST') {
+            method = 'GET';
+            body = undefined;
+            headers = headers.filter(([name]) => !['content-type', 'content-length'].includes(name.toLowerCase()));
+          }
+          if (next.origin !== origin) {
+            headers = headers.filter(([name]) => !secretNames.has(name.toLowerCase()) && !CROSS_ORIGIN_DROP.includes(name.toLowerCase()));
+          }
+          url = next.href;
+        }
         const ms = Math.round(performance.now() - started);
         const { bytes, truncated } = await read(res);
         const totalMs = Math.round(performance.now() - started);
         const contentType = res.headers.get('content-type') ?? '';
         const id = crypto.randomUUID();
-        kept.set(id, { bytes, contentType, url: res.url });
+        const finalUrl = res.url || url;
+        kept.set(id, { bytes, contentType, url: finalUrl });
         while (kept.size > keep) kept.delete(kept.keys().next().value as string);
         const info: HttpResponseInfo = {
           id,
           status: res.status,
           statusText: res.statusText,
-          url: res.url,
-          redirected: res.redirected,
+          url: finalUrl,
+          redirected: res.redirected || hops > 0,
           headers: [...res.headers],
           ms,
           totalMs,
@@ -386,8 +423,9 @@ export function httpRoutes(executor: HttpExecutor, opts: HttpRoutesOptions = {})
     const vars = variableResolver(values);
     const request = resolveRequest(body.request, vars);
     vars.check();
-    const spec = validateRequest(request);
+    const spec: HttpExecSpec = validateRequest(request);
     if (typeof body.secretRef === 'string' && secretHeaders) {
+      const added: string[] = [];
       const have = new Set(spec.headers.map(([name]) => name.toLowerCase()));
       const loose = variableResolver(values);
       for (const [name, raw] of await secretHeaders(body.secretRef, spec.url, loose.resolve)) {
@@ -397,7 +435,9 @@ export function httpRoutes(executor: HttpExecutor, opts: HttpRoutesOptions = {})
         if (HEADER_VALUE_BAD.test(value)) throw invalid('badHeader', 'A header name or value is not valid.');
         have.add(name.toLowerCase());
         spec.headers.push([name, value]);
+        added.push(name);
       }
+      if (added.length > 0) spec.secretHeaderNames = added;
     }
     return executor.send(spec, signal);
   }

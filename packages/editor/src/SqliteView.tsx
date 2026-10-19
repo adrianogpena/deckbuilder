@@ -41,7 +41,7 @@ export function SqliteView({ content, load }: { content: SqliteContent; load(tab
       <div className="sqlite-tables">
         <div className="sqlite-heading">{t('preview.sqliteTables')}</div>
         {current.tables.map((tb) => (
-          <button key={tb.name} className={`sqlite-table${tb.name === current.table ? ' active' : ''}`} onClick={() => void go(tb.name, 0)} disabled={busy}>
+          <button title={tb.name} key={tb.name} className={`sqlite-table${tb.name === current.table ? ' active' : ''}`} onClick={() => void go(tb.name, 0)} disabled={busy}>
             <Icon name={tb.view ? 'search' : 'table'} size={14} /> <span>{tb.name}</span>
           </button>
         ))}
@@ -50,10 +50,10 @@ export function SqliteView({ content, load }: { content: SqliteContent; load(tab
         <div className="file-preview-bar archive-bar">
           <span className="archive-summary">{t('preview.sqliteRows', { from, to, total: current.total })}</span>
           <span>
-            <button className="btn btn-ghost btn-sm" disabled={busy || current.offset === 0} onClick={() => void go(current.table!, Math.max(0, current.offset - PAGE))}>
+            <button title={t('preview.previous')} className="btn btn-ghost btn-sm" disabled={busy || current.offset === 0} onClick={() => void go(current.table!, Math.max(0, current.offset - PAGE))}>
               {t('preview.previous')}
             </button>
-            <button className="btn btn-ghost btn-sm" disabled={busy || to >= current.total} onClick={() => void go(current.table!, current.offset + PAGE)}>
+            <button title={t('preview.next')} className="btn btn-ghost btn-sm" disabled={busy || to >= current.total} onClick={() => void go(current.table!, current.offset + PAGE)}>
               {t('preview.next')}
             </button>
           </span>

@@ -74,6 +74,7 @@ function StatuslineSection() {
                 <button
                   type="button"
                   className="agents-statusline-btn"
+                  title={t(s.installed ? 'settings.agents.statusline.uninstall' : 'settings.agents.statusline.install')}
                   disabled={busy !== undefined || blocked}
                   onClick={() => void run(s)}
                 >

@@ -1,5 +1,5 @@
 import { useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
-import { Icon, ProjectPicker, type ProjectPickerProps, useCommand } from '@deckbuilderkit/ui';
+import { Icon, ProjectPicker, type ProjectPickerProps, useCommand, useShortcutTip } from '@deckbuilderkit/ui';
 import type { Project, SearchHit } from '../client';
 import { explorerCommandById as commandById } from '../commands';
 import { nodeId } from '../explorer-paths';
@@ -61,12 +61,14 @@ export function TreePane({ focused, showHidden = false, onFocus, exclude, sort, 
     document.addEventListener('mousedown', away);
     return () => document.removeEventListener('mousedown', away);
   }, [moreOpen]);
+  const tip = useShortcutTip();
   const item = (icon: string, label: string, act: () => void, checked?: boolean) => (
     <button
       type="button"
       className="menu-item"
       role={checked === undefined ? 'menuitem' : 'menuitemcheckbox'}
       aria-checked={checked}
+      title={label}
       onClick={() => {
         setMoreOpen(false);
         act();
@@ -147,7 +149,7 @@ export function TreePane({ focused, showHidden = false, onFocus, exclude, sort, 
             <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={() => own.current?.newFile()} title={t('explorer.newFile')} aria-label={t('explorer.newFile')}>
               <Icon name="file-plus" />
             </button>
-            <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={toggleAll} title={t(collapsible ? 'explorer.collapseAll' : 'explorer.expandAll')} aria-label={t(collapsible ? 'explorer.collapseAll' : 'explorer.expandAll')}>
+            <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={toggleAll} title={tip(t(collapsible ? 'explorer.collapseAll' : 'explorer.expandAll'), collapsible ? 'explorer.collapseAll' : undefined)} aria-label={t(collapsible ? 'explorer.collapseAll' : 'explorer.expandAll')}>
               <Icon name={collapsible ? 'collapse-all' : 'expand-all'} />
             </button>
             <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={onGoToFile} disabled={!onGoToFile} title={t('explorer.goToFile')} aria-label={t('explorer.goToFile')}>

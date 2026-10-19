@@ -94,7 +94,7 @@ export function KeybindingsEditor({ defs, keymap, onChange, scopeLabel }: Keybin
     <div className="keys">
       <div className="keys-bar">
         <input value={filter} placeholder={t('keys.filter')} aria-label={t('keys.filter')} onChange={(e) => setFilter(e.target.value)} />
-        <button
+        <button title={finding ? t('keys.finding') : t('keys.find')}
           className={`btn btn-sm${finding ? ' btn-primary' : ''}`}
           data-keys-search
           onClick={() => {
@@ -116,7 +116,7 @@ export function KeybindingsEditor({ defs, keymap, onChange, scopeLabel }: Keybin
           </span>
         )}
         <span className="spacer" />
-        <button className="btn btn-sm" disabled={Object.keys(keymap).length === 0} onClick={resetAll}>
+        <button title={t('keys.resetAll')} className="btn btn-sm" disabled={Object.keys(keymap).length === 0} onClick={resetAll}>
           <Icon name="refresh" /> {t('keys.resetAll')}
         </button>
       </div>
@@ -267,8 +267,8 @@ function ChordRecorder({ def, defs, keymap, chords, index, scopeLabel, labelOf, 
       <span className="keys-press">{candidate ? <kbd>{candidate}</kbd> : <span className="muted">{t('keys.press')}</span>}</span>
       {problems.map((p) => <span key={p} className="tone-err small">{p}</span>)}
       <span className="spacer" />
-      <button className="btn btn-sm" onClick={onCancel}>{t('dialog.cancel')}</button>
-      <button className="btn btn-sm btn-primary" disabled={!candidate || problems.length > 0} onClick={() => candidate && onSave(withCandidate(candidate))}>
+      <button title={t('dialog.cancel')} className="btn btn-sm" onClick={onCancel}>{t('dialog.cancel')}</button>
+      <button title={t('resource.save')} className="btn btn-sm btn-primary" disabled={!candidate || problems.length > 0} onClick={() => candidate && onSave(withCandidate(candidate))}>
         {t('resource.save')}
       </button>
     </div>

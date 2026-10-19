@@ -24,9 +24,9 @@ export function CurlDialog({ curl, onClose }: { curl: string; onClose: () => voi
 
   const footer = (
     <>
-      <button className="btn" onClick={onClose}>{t('rest.import.close')}</button>
-      <button className="btn" onClick={save}>{t('rest.code.save')}</button>
-      <button className="btn btn-primary" onClick={copy}>{copied ? t('rest.code.copied') : t('rest.code.copy')}</button>
+      <button className="btn" onClick={onClose} title={t('rest.import.close')}>{t('rest.import.close')}</button>
+      <button className="btn" onClick={save} title={t('rest.code.save')}>{t('rest.code.save')}</button>
+      <button className="btn btn-primary" onClick={copy} title={copied ? t('rest.code.copied') : t('rest.code.copy')}>{copied ? t('rest.code.copied') : t('rest.code.copy')}</button>
     </>
   );
 

@@ -19,7 +19,7 @@ export function ExternalPane({ sessionId, external, onTakeOver }: { sessionId: s
     <div className="agents-external">
       <div className="agents-external-bar">
         <span>{t('agents.external.note')}</span>
-        <button type="button" title={external ? t('agents.external.takeoverHint') : undefined} onClick={onTakeOver}>
+        <button type="button" title={external ? t('agents.external.takeoverHint') : t('agents.external.takeover')} onClick={onTakeOver}>
           {t('agents.external.takeover')}
         </button>
       </div>

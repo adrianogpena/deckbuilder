@@ -52,12 +52,12 @@ export function ErrorBanner({ error, onRetry, compact }: { error: ApiError; onRe
         </div>
         <div className="error-actions">
           {error.detail && (
-            <button className="btn btn-ghost btn-sm" onClick={() => setOpen(!open)}>
+            <button title={open ? t('common.hideDetails') : t('common.details')} className="btn btn-ghost btn-sm" onClick={() => setOpen(!open)}>
               {open ? t('common.hideDetails') : t('common.details')}
             </button>
           )}
           {onRetry && (
-            <button className="btn btn-sm" onClick={onRetry}>
+            <button title={t('common.retry')} className="btn btn-sm" onClick={onRetry}>
               <Icon name="refresh" /> {t('common.retry')}
             </button>
           )}
@@ -238,8 +238,8 @@ function ConfirmDialog({ opts, onDone }: { opts: ConfirmOptions; onDone: (ok: bo
       onClose={() => onDone(false)}
       footer={
         <>
-          <button className="btn" onClick={() => onDone(false)} autoFocus={opts.danger}>{t('dialog.cancel')}</button>
-          <button className={`btn ${opts.danger ? 'btn-danger' : 'btn-primary'}`} onClick={() => onDone(true)} autoFocus={!opts.danger}>
+          <button title={t('dialog.cancel')} className="btn" onClick={() => onDone(false)} autoFocus={opts.danger}>{t('dialog.cancel')}</button>
+          <button title={opts.okLabel ?? t('dialog.ok')} className={`btn ${opts.danger ? 'btn-danger' : 'btn-primary'}`} onClick={() => onDone(true)} autoFocus={!opts.danger}>
             {opts.okLabel ?? t('dialog.ok')}
           </button>
         </>
@@ -258,9 +258,9 @@ function ChoiceDialog({ opts, onDone }: { opts: ChoiceOptions; onDone: (id: stri
       onClose={() => onDone(null)}
       footer={
         <>
-          <button className="btn" onClick={() => onDone(null)}>{t('dialog.cancel')}</button>
+          <button title={t('dialog.cancel')} className="btn" onClick={() => onDone(null)}>{t('dialog.cancel')}</button>
           {opts.choices.map((c, i) => (
-            <button key={c.id} className={`btn ${c.danger ? 'btn-danger' : i === 0 ? 'btn-primary' : ''}`} onClick={() => onDone(c.id)} autoFocus={i === 0}>
+            <button title={c.label} key={c.id} className={`btn ${c.danger ? 'btn-danger' : i === 0 ? 'btn-primary' : ''}`} onClick={() => onDone(c.id)} autoFocus={i === 0}>
               {c.label}
             </button>
           ))}
@@ -297,8 +297,8 @@ function PromptDialog({ opts, onDone }: { opts: PromptOptions; onDone: (value: s
       onClose={() => onDone(null)}
       footer={
         <>
-          <button className="btn" onClick={() => onDone(null)}>{t('dialog.cancel')}</button>
-          <button type="submit" form={id} className="btn btn-primary" disabled={message !== null}>{t('dialog.ok')}</button>
+          <button title={t('dialog.cancel')} className="btn" onClick={() => onDone(null)}>{t('dialog.cancel')}</button>
+          <button title={t('dialog.ok')} type="submit" form={id} className="btn btn-primary" disabled={message !== null}>{t('dialog.ok')}</button>
         </>
       }
     >

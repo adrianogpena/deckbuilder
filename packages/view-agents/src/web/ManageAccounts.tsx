@@ -108,7 +108,7 @@ export function ManageAccounts({ mode, onAdded, onChanged, onClose }: ManageAcco
       <Modal
         title={t('agents.accounts.addTitle')}
         onClose={onClose}
-        footer={<button type="button" className="btn btn-primary" disabled={busy || !name.trim()} onClick={() => void create()}>{t('agents.accounts.create')}</button>}
+        footer={<button type="button" className="btn btn-primary" title={t('agents.accounts.create')} disabled={busy || !name.trim()} onClick={() => void create()}>{t('agents.accounts.create')}</button>}
       >
         <form className="agents-acct-form" onSubmit={(e) => { e.preventDefault(); if (name.trim()) void create(); }}>
           <label className="agents-acct-field">
@@ -130,8 +130,8 @@ export function ManageAccounts({ mode, onAdded, onChanged, onClose }: ManageAcco
         onClose={onClose}
         footer={
           <>
-            <button type="button" className="btn" onClick={() => { setError(''); setView({ kind: 'list' }); }}>{t('agents.accounts.back')}</button>
-            <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void apply(view.folder)}>{t('agents.accounts.apply')}</button>
+            <button type="button" className="btn" title={t('agents.accounts.back')} onClick={() => { setError(''); setView({ kind: 'list' }); }}>{t('agents.accounts.back')}</button>
+            <button type="button" className="btn btn-primary" title={t('agents.accounts.apply')} disabled={busy} onClick={() => void apply(view.folder)}>{t('agents.accounts.apply')}</button>
           </>
         }
       >
@@ -159,8 +159,8 @@ export function ManageAccounts({ mode, onAdded, onChanged, onClose }: ManageAcco
               <span className="agents-acct-note">{t('agents.accounts.defaultNote')}</span>
             ) : (
               <span className="agents-acct-actions">
-                <button type="button" className="btn btn-sm" disabled={busy} onClick={() => void openEdit(a.id)}>{t('agents.accounts.edit')}</button>
-                <button type="button" className="btn btn-sm btn-danger" disabled={busy} onClick={() => void remove(a.id)}>{t('agents.accounts.delete')}</button>
+                <button type="button" className="btn btn-sm" title={t('agents.accounts.edit')} disabled={busy} onClick={() => void openEdit(a.id)}>{t('agents.accounts.edit')}</button>
+                <button type="button" className="btn btn-sm btn-danger" title={t('agents.accounts.delete')} disabled={busy} onClick={() => void remove(a.id)}>{t('agents.accounts.delete')}</button>
               </span>
             )}
           </div>

@@ -395,15 +395,30 @@ test('save-new writes the text to the dialog target', async () => {
   expect(await readFile(join(t.outside, 'note.md'), 'utf8')).toBe('# hi\n');
 });
 
-test('save-new with a path writes there without the dialog and refuses relative paths', async () => {
-  const t = await tailSetup('', async () => {
-    throw new Error('no dialog');
+test('save-new with a path a dialog returned writes there without the dialog and refuses relative paths', async () => {
+  const seen: unknown[] = [];
+  const t = await tailSetup('', async (o) => {
+    seen.push(o);
+    return seen.length === 1 ? join(t.outside, 'kept.txt') : null;
   });
   const target = join(t.outside, 'kept.txt');
+  expect(await t.call('POST /api/fs/save-new', { text: 'v1', suggestedName: 'untitled.txt' })).toEqual({ path: target });
   expect(await t.call('POST /api/fs/save-new', { text: 'v2', path: target })).toEqual({ path: target });
   expect(await readFile(target, 'utf8')).toBe('v2');
+  expect(seen).toHaveLength(1);
   expect(await t.fail('POST /api/fs/save-new', { text: 'x', path: 'rel.txt' })).toMatchObject({ code: 'badRequest' });
-  expect(await t.fail('POST /api/fs/save-new', { text: 'x', path: t.outside })).toMatchObject({ code: 'notAFile' });
+});
+
+test('save-new with a path no dialog returned asks again from that file and never writes it', async () => {
+  const seen: unknown[] = [];
+  const t = await tailSetup('', async (o) => {
+    seen.push(o);
+    return null;
+  });
+  const elsewhere = join(t.outside, 'sub', 'evil.txt');
+  expect(await t.call('POST /api/fs/save-new', { text: 'x', path: elsewhere })).toEqual({ path: null });
+  expect(seen[0]).toMatchObject({ suggestedName: 'evil.txt', start: join(t.outside, 'sub') });
+  expect(await readFile(elsewhere, 'utf8').catch(() => null)).toBeNull();
 });
 
 const uploader = (t: Awaited<ReturnType<typeof setup>>) => (query: string, body = 'x', headers: Record<string, string> = {}) =>

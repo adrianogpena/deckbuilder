@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import type { DiffMode, DiffViewHandle } from '@deckbuilderkit/editor';
 import type { GitFile, GitRepoInfo, GitStatus } from '@deckbuilderkit/server-core/protocol';
-import { type ApiError, copyText, Empty, ErrorBanner, errorMessage, errorOf, Explorer, fileIconOf, Icon, ProjectPicker, statusOf, useCommand, useDebouncedSave, useRovingList, useToast, useViewLink } from '@deckbuilderkit/ui';
+import { type ApiError, copyText, useShortcutTip, Empty, ErrorBanner, errorMessage, errorOf, Explorer, fileIconOf, Icon, ProjectPicker, statusOf, useCommand, useDebouncedSave, useRovingList, useToast, useViewLink } from '@deckbuilderkit/ui';
 import { type GitProject as Project, gitApi as api } from './client';
 import { gitCommands } from './commands';
 import { t } from './i18n';
@@ -87,6 +87,7 @@ export function GitScreen({ settings, onSave }: { settings: GitViewSettings; onS
   const list = useRef<HTMLDivElement>(null);
   const seq = useRef(0);
   const toast = useToast();
+  const tip = useShortcutTip();
   useRovingList(list, '.git-row');
 
   const persist = useDebouncedSave((v: View) =>
@@ -290,7 +291,7 @@ export function GitScreen({ settings, onSave }: { settings: GitViewSettings; onS
     return () => document.removeEventListener('mousedown', away);
   }, [moreOpen]);
   const item = (icon: 'copy' | 'file' | 'locate', label: string, act: () => void, disabled: boolean) => (
-    <button
+    <button title={label}
       type="button"
       className="menu-item"
       role="menuitem"
@@ -306,14 +307,14 @@ export function GitScreen({ settings, onSave }: { settings: GitViewSettings; onS
   );
 
   const tree = view.view === 'tree';
-  const iconButton = (icon: 'refresh' | 'list-flat' | 'list-tree' | 'collapse-all' | 'expand-all', label: string, act: () => void, disabled = false) => (
-    <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={act} disabled={disabled} title={label} aria-label={label}>
+  const iconButton = (icon: 'refresh' | 'list-flat' | 'list-tree' | 'collapse-all' | 'expand-all', label: string, act: () => void, disabled = false, commandId?: string) => (
+    <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={act} disabled={disabled} title={tip(label, commandId)} aria-label={label}>
       <Icon name={icon} />
     </button>
   );
   const actions = (
     <>
-      {iconButton('refresh', t('git.refresh'), () => void refresh(), loading)}
+      {iconButton('refresh', t('git.refresh'), () => void refresh(), loading, 'git.refresh')}
       {tree
         ? iconButton('list-flat', t('git.viewList'), () => update((v) => ({ ...v, view: 'list' })))
         : iconButton('list-tree', t('git.viewTree'), () => update((v) => ({ ...v, view: 'tree' })))}
@@ -356,7 +357,7 @@ export function GitScreen({ settings, onSave }: { settings: GitViewSettings; onS
             const open = !view.closed.includes(s.id);
             return (
               <div key={s.id} className="git-section" role="group">
-                <button type="button" className="tree-row git-row git-section-head" aria-expanded={open} onClick={() => toggleSection(s.id)} onKeyDown={openKeys(open, () => toggleSection(s.id))}>
+                <button title={t(`git.section.${s.id}`)} type="button" className="tree-row git-row git-section-head" aria-expanded={open} onClick={() => toggleSection(s.id)} onKeyDown={openKeys(open, () => toggleSection(s.id))}>
                   <span className={`tree-chevron${open ? ' open' : ''}`}><Icon name="chevron" size={12} /></span>
                   <span className="tree-label">{t(`git.section.${s.id}`)}</span>
                   <span className="git-count">{s.files.length}</span>

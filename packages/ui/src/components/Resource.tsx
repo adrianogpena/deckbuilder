@@ -36,7 +36,7 @@ export function ResourceList<T extends { id: string }>({ items, titleOf, subtitl
     <div className="resource-list">
       {element}
       <div className="resource-head">
-        <button className="btn btn-primary btn-sm" onClick={onAdd}>
+        <button title={t('resource.add')} className="btn btn-primary btn-sm" onClick={onAdd}>
           <Icon name="plus" /> {t('resource.add')}
         </button>
       </div>
@@ -49,7 +49,7 @@ export function ResourceList<T extends { id: string }>({ items, titleOf, subtitl
             const icon = iconOf?.(item);
             return (
               <li key={item.id} className="resource-row">
-                <button className="resource-open" onClick={() => onOpen(item)}>
+                <button title={titleOf(item)} className="resource-open" onClick={() => onOpen(item)}>
                   {icon && <Icon name={icon} />}
                   <span className="resource-text">
                     <span className="resource-title">{titleOf(item)}</span>
@@ -158,7 +158,7 @@ export function ResourceForm({ fields, value, onSubmit, onCancel, onBrowse, erro
               <div className="row">
                 <input {...common} type="text" readOnly={!!onBrowse} />
                 {onBrowse && (
-                  <button type="button" className="btn btn-sm" onClick={async () => {
+                  <button title={t('resource.browse')} type="button" className="btn btn-sm" onClick={async () => {
                     try {
                       const picked = await onBrowse(f.key);
                       setBrowseError(undefined);
@@ -175,7 +175,7 @@ export function ResourceForm({ fields, value, onSubmit, onCancel, onBrowse, erro
               <div className="row">
                 <input {...common} type="password" autoComplete="new-password" />
                 {saved && (
-                  <button type="button" className="btn btn-sm" onClick={() => set(f.key, '')}>
+                  <button title={t('resource.clear')} type="button" className="btn btn-sm" onClick={() => set(f.key, '')}>
                     {t('resource.clear')}
                   </button>
                 )}
@@ -189,8 +189,8 @@ export function ResourceForm({ fields, value, onSubmit, onCancel, onBrowse, erro
       })}
       <div className="resource-actions">
         {actions?.(values)}
-        {onCancel && <button type="button" className="btn" onClick={onCancel}>{t('resource.cancel')}</button>}
-        <button type="submit" className="btn btn-primary">{t('resource.save')}</button>
+        {onCancel && <button title={t('resource.cancel')} type="button" className="btn" onClick={onCancel}>{t('resource.cancel')}</button>}
+        <button title={t('resource.save')} type="submit" className="btn btn-primary">{t('resource.save')}</button>
       </div>
     </form>
   );

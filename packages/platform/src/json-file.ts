@@ -1,4 +1,4 @@
-import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { renameWithRetry } from './rename-retry.ts';
 
@@ -16,13 +16,23 @@ function enqueue<T>(file: string, job: () => Promise<T>): Promise<T> {
   return run;
 }
 
+export interface WriteAtomicOptions {
+  /** File mode for the written file (e.g. 0o600 for user data); the default follows the umask. */
+  mode?: number;
+}
+
 /** Writes `data` to a temp file beside `file`, then renames it over the target; a crash never leaves a half-written file. */
-export function writeFileAtomic(file: string, data: string | Uint8Array | Blob | ReadableStream<Uint8Array>): Promise<void> {
+export function writeFileAtomic(
+  file: string,
+  data: string | Uint8Array | Blob | ReadableStream<Uint8Array>,
+  opts: WriteAtomicOptions = {},
+): Promise<void> {
+  const { mode } = opts;
   return enqueue(file, async () => {
     await mkdir(dirname(file), { recursive: true });
     const tmp = `${file}.${process.pid}.${crypto.randomUUID().slice(0, 8)}.tmp`;
     try {
-      if (typeof data === 'string' || data instanceof Uint8Array) await writeFile(tmp, data);
+      if (typeof data === 'string' || data instanceof Uint8Array) await writeFile(tmp, data, mode === undefined ? undefined : { mode });
       else {
         // Bun.write(path, blob) copies a sliced file whole; the writer streams just the slice.
         const out = Bun.file(tmp).writer();
@@ -33,6 +43,7 @@ export function writeFileAtomic(file: string, data: string | Uint8Array | Blob |
           throw err;
         }
         await out.end();
+        if (mode !== undefined) await chmod(tmp, mode);
       }
       await renameWithRetry(tmp, file);
     } catch (err) {
@@ -43,8 +54,8 @@ export function writeFileAtomic(file: string, data: string | Uint8Array | Blob |
 }
 
 /** `JSON.stringify(value, null, 2)` plus a newline, written atomically. */
-export function writeJsonAtomic(file: string, value: unknown): Promise<void> {
-  return writeFileAtomic(file, `${JSON.stringify(value, null, 2)}\n`);
+export function writeJsonAtomic(file: string, value: unknown, opts?: WriteAtomicOptions): Promise<void> {
+  return writeFileAtomic(file, `${JSON.stringify(value, null, 2)}\n`, opts);
 }
 
 /**

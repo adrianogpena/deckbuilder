@@ -19,7 +19,7 @@ export function EnvView({ text }: { text: string }) {
   return (
     <div className="file-preview">
       <div className="file-preview-bar">
-        <button className="btn btn-ghost btn-sm" onClick={() => setShown(allShown ? new Set() : new Set(keys))}>
+        <button title={allShown ? t('preview.hideAll') : t('preview.revealAll')} className="btn btn-ghost btn-sm" onClick={() => setShown(allShown ? new Set() : new Set(keys))}>
           {allShown ? t('preview.hideAll') : t('preview.revealAll')}
         </button>
       </div>

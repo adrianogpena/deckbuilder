@@ -57,7 +57,7 @@ export function settingsStore<T extends BaseSettings>(opts: SettingsOptions<T>):
     if (typeof patch.language === 'string' && /^[a-z]{2}(-[A-Z]{2})?$/.test(patch.language)) next.language = patch.language;
     opts.apply?.(patch, next);
     cache = next;
-    await writeJsonAtomic(file, next);
+    await writeJsonAtomic(file, next, { mode: 0o600 });
     opts.onChange?.(next, prev);
     return next;
   }

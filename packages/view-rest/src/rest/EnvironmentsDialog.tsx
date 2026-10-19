@@ -125,8 +125,8 @@ export function EnvironmentsDialog({ environments, onChanged, onDeleted, onClose
 
   const footer = (
     <>
-      <button className="btn" onClick={() => void close()}>{t('rest.import.close')}</button>
-      <button className="btn btn-primary" disabled={busy || !env || !dirty} onClick={() => void save()}>{t('rest.save')}</button>
+      <button className="btn" onClick={() => void close()} title={t('rest.import.close')}>{t('rest.import.close')}</button>
+      <button className="btn btn-primary" disabled={busy || !env || !dirty} onClick={() => void save()} title={t('rest.save')}>{t('rest.save')}</button>
     </>
   );
 
@@ -137,12 +137,12 @@ export function EnvironmentsDialog({ environments, onChanged, onDeleted, onClose
         <aside className="rest-env-list">
           <div className="rest-list-head">
             <span className="mono-label">{t('rest.env.list')}</span>
-            <button className="btn btn-sm" disabled={busy} onClick={() => void add()}><Icon name="plus" /> {t('rest.new')}</button>
+            <button className="btn btn-sm" disabled={busy} onClick={() => void add()} title={t('rest.new')}><Icon name="plus" /> {t('rest.new')}</button>
           </div>
           {environments?.length === 0 && <p className="muted">{t('rest.env.empty')}</p>}
           {environments?.map((e) => (
             <div key={e.id} className={`rest-item${e.id === selected ? ' active' : ''}`}>
-              <button className="rest-item-main" onClick={() => void select(e.id)}>
+              <button className="rest-item-main" onClick={() => void select(e.id)} title={e.name}>
                 <span className="rest-item-name">{e.name}</span>
               </button>
               {e.id === selected && (
@@ -183,7 +183,7 @@ export function EnvironmentsDialog({ environments, onChanged, onDeleted, onClose
                       {r.secret && !r.replace ? (
                         <span className="row">
                           <span className="muted">{r.set ? t('rest.env.var.set') : t('rest.env.var.notSet')}</span>
-                          <button className="btn btn-ghost btn-sm" onClick={() => patch(i, { replace: true, value: '' })}>{t('rest.env.var.replace')}</button>
+                          <button className="btn btn-ghost btn-sm" onClick={() => patch(i, { replace: true, value: '' })} title={t('rest.env.var.replace')}>{t('rest.env.var.replace')}</button>
                         </span>
                       ) : (
                         <input
@@ -215,7 +215,7 @@ export function EnvironmentsDialog({ environments, onChanged, onDeleted, onClose
               </tbody>
             </table>
             <div>
-              <button className="btn btn-sm" onClick={() => setRows([...rows, blank()])}><Icon name="plus" /> {t('rest.env.var.add')}</button>
+              <button className="btn btn-sm" onClick={() => setRows([...rows, blank()])} title={t('rest.env.var.add')}><Icon name="plus" /> {t('rest.env.var.add')}</button>
             </div>
             <p className="muted">{t('rest.env.hint')}</p>
           </div>

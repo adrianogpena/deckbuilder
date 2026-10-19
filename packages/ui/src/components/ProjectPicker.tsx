@@ -80,7 +80,7 @@ export function ProjectPicker<P extends PickerProject>({ projects, current, onPi
         {open && box && createPortal(
           <div ref={list} className="menu xp-picker-menu" role="menu" onKeyDown={(e) => e.key === 'Escape' && setOpen(false)} style={{ position: 'fixed', right: 'auto', overflowY: 'auto', ...box }}>
             {projects.map((p) => (
-              <button key={p.id} type="button" className="menu-item" role="menuitemradio" aria-checked={p.id === current?.id} onClick={close(() => onPick(p))}>
+              <button title={p.name} key={p.id} type="button" className="menu-item" role="menuitemradio" aria-checked={p.id === current?.id} onClick={close(() => onPick(p))}>
                 <span className="menu-icon">{p.id === current?.id && <Icon name="check" size={14} />}</span>
                 <span className="xp-picker-item">
                   <span className="menu-label">{p.name}</span>
@@ -90,18 +90,18 @@ export function ProjectPicker<P extends PickerProject>({ projects, current, onPi
             ))}
             {projects.length > 0 && onAdd && <div className="menu-sep" />}
             {onAdd && (
-              <button type="button" className="menu-item" role="menuitem" onClick={close(onAdd)}>
+              <button title={t('picker.addProjectItem')} type="button" className="menu-item" role="menuitem" onClick={close(onAdd)}>
                 <span className="menu-icon"><Icon name="plus" size={14} /></span>
                 <span className="menu-label">{t('picker.addProjectItem')}</span>
               </button>
             )}
             {current && onEdit && onRemove && (
               <>
-                <button type="button" className="menu-item" role="menuitem" onClick={close(() => onEdit(current))}>
+                <button title={t('picker.editProjectItem', { name: current.name })} type="button" className="menu-item" role="menuitem" onClick={close(() => onEdit(current))}>
                   <span className="menu-icon"><Icon name="edit" size={14} /></span>
                   <span className="menu-label">{t('picker.editProjectItem', { name: current.name })}</span>
                 </button>
-                <button type="button" className="menu-item danger" role="menuitem" onClick={close(() => void remove(current))}>
+                <button title={t('picker.removeProjectItem', { name: current.name })} type="button" className="menu-item danger" role="menuitem" onClick={close(() => void remove(current))}>
                   <span className="menu-icon"><Icon name="trash" size={14} /></span>
                   <span className="menu-label">{t('picker.removeProjectItem', { name: current.name })}</span>
                 </button>

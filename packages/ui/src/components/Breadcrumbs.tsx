@@ -94,7 +94,7 @@ export function Breadcrumbs({ root, path, icon, list, onPick, focusSignal, title
         {segments.map((s, i) => (
           <Fragment key={i}>
             {i > 0 && <span className="breadcrumbs-sep" aria-hidden="true"><Icon name="chevron" size={12} /></span>}
-            <button
+            <button title={s.label}
               type="button"
               className={`breadcrumbs-seg${s.file ? ' file' : ''}${open === i ? ' open' : ''}`}
               tabIndex={i === roving ? 0 : -1}
@@ -232,13 +232,13 @@ function Picker({ anchor, bar, start, current, list, onPick, onClose }: {
         </button>
       )}
       {listing.status === 'loading' && (
-        <button className="menu-item" role="menuitem" disabled><span className="menu-icon" /><span className="menu-label">{t('common.loading')}</span></button>
+        <button title={t('common.loading')} className="menu-item" role="menuitem" disabled><span className="menu-icon" /><span className="menu-label">{t('common.loading')}</span></button>
       )}
       {listing.status === 'error' && (
-        <button className="menu-item danger" role="menuitem" disabled><span className="menu-icon"><Icon name="alert" size={15} /></span><span className="menu-label">{listing.message}</span></button>
+        <button title={listing.message} className="menu-item danger" role="menuitem" disabled><span className="menu-icon"><Icon name="alert" size={15} /></span><span className="menu-label">{listing.message}</span></button>
       )}
       {listing.status === 'ready' && listing.entries.length === 0 && (
-        <button className="menu-item" role="menuitem" disabled><span className="menu-icon" /><span className="menu-label">{t('breadcrumbs.empty')}</span></button>
+        <button title={t('breadcrumbs.empty')} className="menu-item" role="menuitem" disabled><span className="menu-icon" /><span className="menu-label">{t('breadcrumbs.empty')}</span></button>
       )}
       {listing.status === 'ready' && listing.entries.map((entry) => {
         const on = entry.path === current || current.startsWith(`${entry.path}/`);

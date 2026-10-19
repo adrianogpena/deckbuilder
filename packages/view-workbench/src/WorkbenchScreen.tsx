@@ -12,6 +12,7 @@ import {
   SplitView,
   useAsync,
   useCommand,
+  useShortcutTip,
   useDebouncedSave,
   useDialogs,
   useToast,
@@ -140,6 +141,7 @@ export function WorkbenchScreen({ settings, onSave, client }: { settings: Workbe
   const run = () => runner.run(editor.current?.getRunText() ?? query, 'statement');
   const runAll = () => runner.run(query, 'all');
   const format = () => editor.current?.format(withWorkbenchDefaults(settings.workbench).format);
+  const tip = useShortcutTip();
   useCommand(commandById('workbench.format'), format);
   const explain = () => void runner.explain(editor.current?.getRunText() ?? query);
   useCommand(commandById('workbench.explain'), explain);
@@ -242,26 +244,26 @@ ${sql}` : sql);
           <button className="btn btn-sm" onClick={() => setManaging(true)} title={t('workbench.source.manage')} aria-label={t('workbench.source.manage')}>
             <Icon name="database" /> {t('workbench.conn.button')}
           </button>
-          <button className="btn btn-primary btn-sm" data-run onClick={run} disabled={busy}>
+          <button className="btn btn-primary btn-sm" data-run onClick={run} disabled={busy} title={t('workbench.run')}>
             <Icon name="play" /> {t('workbench.run')}
           </button>
           <button className="btn btn-sm" onClick={runAll} disabled={busy} title={t('workbench.runAll.title')}>
             <Icon name="play" /> {t('workbench.runAll')}
           </button>
-          <button className="btn btn-sm" onClick={explain} disabled={!db || busy || runner.explaining} title={t('workbench.explain.title')}>
+          <button className="btn btn-sm" onClick={explain} disabled={!db || busy || runner.explaining} title={tip(t('workbench.explain.title'), 'workbench.explain')}>
             <Icon name="plan" /> {t('workbench.explain')}
           </button>
-          <button className="btn btn-sm" onClick={format}>{t('workbench.format')}</button>
-          {runner.running && <button className="btn btn-sm" onClick={runner.cancel}>{t('workbench.cancel')}</button>}
+          <button className="btn btn-sm" onClick={format} title={tip(t('workbench.format'), 'workbench.format')}>{t('workbench.format')}</button>
+          {runner.running && <button className="btn btn-sm" onClick={runner.cancel} title={t('workbench.cancel')}>{t('workbench.cancel')}</button>}
           {db && (
             <>
-              <button className="btn btn-sm" onClick={() => update((cur) => ({ schema: !cur.schema }))} aria-pressed={!!state.schema}>
+              <button className="btn btn-sm" onClick={() => update((cur) => ({ schema: !cur.schema }))} aria-pressed={!!state.schema} title={t('workbench.schema')}>
                 <Icon name="table" /> {t('workbench.schema')}
               </button>
               {status?.pending && <Badge tone="warn">{t('workbench.tx.pending')}</Badge>}
-              <button className="btn btn-sm" onClick={runner.commit} disabled={!status?.connected || starting}>{t('workbench.tx.commit')}</button>
-              <button className="btn btn-sm" onClick={runner.rollback} disabled={!status?.connected || starting}>{t('workbench.tx.rollback')}</button>
-              <button className="btn btn-sm" onClick={disconnect} disabled={!status?.connected || starting}>{t('workbench.tx.disconnect')}</button>
+              <button className="btn btn-sm" onClick={runner.commit} disabled={!status?.connected || starting} title={t('workbench.tx.commit')}>{t('workbench.tx.commit')}</button>
+              <button className="btn btn-sm" onClick={runner.rollback} disabled={!status?.connected || starting} title={t('workbench.tx.rollback')}>{t('workbench.tx.rollback')}</button>
+              <button className="btn btn-sm" onClick={disconnect} disabled={!status?.connected || starting} title={t('workbench.tx.disconnect')}>{t('workbench.tx.disconnect')}</button>
             </>
           )}
           <button className="btn btn-sm" onClick={() => update((cur) => ({ steps: !cur.steps }))} aria-pressed={!!state.steps} title={t('workbench.steps.title')}>
@@ -270,10 +272,10 @@ ${sql}` : sql);
               <span className="sqlsteps-count is-error wb-steps-badge" title={t('workbench.steps.errors', { count: lintErrors })}>{lintErrors}</span>
             )}
           </button>
-          <button className="btn btn-sm" onClick={() => update((cur) => ({ history: !cur.history }))} aria-pressed={!!state.history}>
+          <button className="btn btn-sm" onClick={() => update((cur) => ({ history: !cur.history }))} aria-pressed={!!state.history} title={t('workbench.history')}>
             <Icon name="history" /> {t('workbench.history')}
           </button>
-          <button className="btn btn-sm" onClick={openExportMenu} disabled={tableRows.length === 0} aria-haspopup="menu" aria-expanded={!!exportMenu}>{t('workbench.export')}</button>
+          <button className="btn btn-sm" onClick={openExportMenu} disabled={tableRows.length === 0} aria-haspopup="menu" aria-expanded={!!exportMenu} title={t('workbench.export')}>{t('workbench.export')}</button>
           {exportMenu && (
             <ContextMenu
               at={exportMenu}
@@ -284,11 +286,11 @@ ${sql}` : sql);
               ]}
             />
           )}
-          <button className="btn btn-sm" onClick={runner.copy} disabled={tableRows.length === 0}>{t(selection.length > 0 ? 'workbench.copySelected' : 'workbench.copy')}</button>
+          <button className="btn btn-sm" onClick={runner.copy} disabled={tableRows.length === 0} title={t(selection.length > 0 ? 'workbench.copySelected' : 'workbench.copy')}>{t(selection.length > 0 ? 'workbench.copySelected' : 'workbench.copy')}</button>
           {doc.kind === 'file' && (
             <>
               <span className="muted" title={doc.path}>{t('workbench.doc.file', { name: docName })}</span>
-              <button className="btn btn-sm" onClick={() => update(() => ({ doc: { kind: 'default' } }))}>{t('workbench.doc.default')}</button>
+              <button className="btn btn-sm" onClick={() => update(() => ({ doc: { kind: 'default' } }))} title={t('workbench.doc.default')}>{t('workbench.doc.default')}</button>
             </>
           )}
           <span className="muted">{t('workbench.exportHint', { count: EXPORT_ROWS })}</span>

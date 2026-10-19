@@ -104,7 +104,7 @@ export function LogTab({ project, path, focused, logs, onLogsChange, onActions }
     <div className="xp-file">
       {note && <div className="xp-bar muted">{note}</div>}
       {tail.rotated && (
-        <PanelBanner tone="warn" icon="alert" action={<button className="btn btn-sm" onClick={tail.dismissRotated}>{t('explorer.logDismiss')}</button>}>
+        <PanelBanner tone="warn" icon="alert" action={<button className="btn btn-sm" onClick={tail.dismissRotated} title={t('explorer.logDismiss')}>{t('explorer.logDismiss')}</button>}>
           {t('explorer.logRotated')}
         </PanelBanner>
       )}

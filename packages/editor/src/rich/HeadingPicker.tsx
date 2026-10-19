@@ -79,7 +79,7 @@ export function HeadingPicker({ headings, onPick, onClose }: { headings: DocHead
         <div className="pal-list" ref={list}>
           {shown.length === 0 && <div className="pal-empty">{t('explorer.md.noHeadings')}</div>}
           {shown.map((h, i) => (
-            <button key={h.pos} type="button" className={`pal-item${i === index ? ' active' : ''}`} onMouseEnter={() => setIndex(i)} onClick={() => onPick(h)}>
+            <button title={h.text} key={h.pos} type="button" className={`pal-item${i === index ? ' active' : ''}`} onMouseEnter={() => setIndex(i)} onClick={() => onPick(h)}>
               <span className="pal-label" style={{ paddingLeft: (h.level - 1) * 12 }}>{h.text}</span>
               <span className="pal-hint">H{h.level}</span>
             </button>

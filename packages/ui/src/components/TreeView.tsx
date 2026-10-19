@@ -590,7 +590,7 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
                 <div className="tree-status tree-error" style={{ paddingLeft: INDENT + 4 }}>
                   <Icon name="alert" size={14} />
                   <span className="tree-label" title={entry.error.detail}>{errorMessage(entry.error)}</span>
-                  <button className="btn btn-ghost btn-sm" onClick={() => load(root, id)}>
+                  <button title={t('common.retry')} className="btn btn-ghost btn-sm" onClick={() => load(root, id)}>
                     {t('common.retry')}
                   </button>
                 </div>
@@ -733,7 +733,7 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
               <div className="tree-status tree-error" style={statusIndent}>
                 <Icon name="alert" size={14} />
                 <span className="tree-label" title={entry.error.detail}>{errorMessage(entry.error)}</span>
-                <button className="btn btn-ghost btn-sm" onClick={() => load(node, id)}>
+                <button title={t('common.retry')} className="btn btn-ghost btn-sm" onClick={() => load(node, id)}>
                   {t('common.retry')}
                 </button>
               </div>

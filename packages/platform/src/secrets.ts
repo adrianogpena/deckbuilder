@@ -86,7 +86,7 @@ function dpapiStore(appId: string, dir: string): SecretStore {
   }
 
   async function commit(next: Map<string, string>): Promise<void> {
-    await writeJsonAtomic(file, { version: 1, items: Object.fromEntries(next) } satisfies SecretsFile);
+    await writeJsonAtomic(file, { version: 1, items: Object.fromEntries(next) } satisfies SecretsFile, { mode: 0o600 });
     items = next;
   }
 

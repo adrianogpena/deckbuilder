@@ -31,7 +31,7 @@ import {
 } from '../tabs';
 import { useLayout } from '../layout';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
-import { useCommand, useKeybindings } from './Keybindings';
+import { useCommand, useKeybindings, withChord } from './Keybindings';
 import { SplitView } from './SplitView';
 import { Icon, type IconName, type Tone, useDialogs } from './ui';
 
@@ -74,7 +74,7 @@ const actionKey = (list: TabAction[]) =>
     .map((a) => [a.id, a.label, a.group, a.icon, a.hint, a.checked, a.radio, a.disabled, a.section, a.value, a.options?.map((o) => `${o.value}=${o.label}`).join('\u0003')].join('\u0001'))
     .join('\u0002');
 
-const withHint = (label: string, hint?: string) => (hint ? `${label} (${hint})` : label);
+const withHint = withChord;
 
 export interface TabBarProps<R> {
   pane: Pane<R>;

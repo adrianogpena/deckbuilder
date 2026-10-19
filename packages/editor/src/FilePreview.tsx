@@ -72,7 +72,7 @@ function MarkdownPreview({ text, resolveImage, toc }: { text: string; resolveIma
   return (
     <>
       <div className="file-preview-bar">
-        <button className="btn btn-ghost btn-sm" onClick={() => setSource(!source)} aria-pressed={source}>
+        <button title={source ? t('preview.rendered') : t('preview.source')} className="btn btn-ghost btn-sm" onClick={() => setSource(!source)} aria-pressed={source}>
           {source ? t('preview.rendered') : t('preview.source')}
         </button>
       </div>

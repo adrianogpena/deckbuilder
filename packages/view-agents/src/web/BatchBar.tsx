@@ -21,9 +21,9 @@ export function BatchBar({ count, actions, onClear }: BatchBarProps) {
       <span className="agents-batch-count">{t('agents.note.selected', { count: String(count) })}</span>
       <span className="agents-batch-actions">
         {actions.map((a) => (
-          <button key={a.id} type="button" className={`btn btn-sm${a.danger ? ' danger' : ''}`} onClick={a.run}>{a.label}</button>
+          <button key={a.id} type="button" title={a.label} className={`btn btn-sm${a.danger ? ' danger' : ''}`} onClick={a.run}>{a.label}</button>
         ))}
-        <button type="button" className="btn btn-sm" onClick={onClear}>{t('agents.batch.clear')}</button>
+        <button type="button" title={t('agents.batch.clear')} className="btn btn-sm" onClick={onClear}>{t('agents.batch.clear')}</button>
       </span>
     </div>
   );

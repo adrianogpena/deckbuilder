@@ -233,9 +233,9 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
   const canReset = pageDefs.some((d) => !deepEqual(valueOf(d, draft), d.default));
   const footer = selected?.key === 'keyboard.shortcuts' && !searching ? undefined : (
     <>
-      <button className="btn btn-sm" disabled={!canReset} onClick={() => change(defaultsPatch(pageDefs, draft))}>{t('settings.footer.reset')}</button>
-      <button className="btn btn-sm" disabled={!dirty} onClick={apply}>{t('settings.footer.apply')}</button>
-      <button
+      <button title={t('settings.footer.reset')} className="btn btn-sm" disabled={!canReset} onClick={() => change(defaultsPatch(pageDefs, draft))}>{t('settings.footer.reset')}</button>
+      <button title={t('settings.footer.apply')} className="btn btn-sm" disabled={!dirty} onClick={apply}>{t('settings.footer.apply')}</button>
+      <button title={t('settings.footer.ok')}
         className="btn btn-sm btn-primary"
         onClick={requestClose}
       >
@@ -308,7 +308,7 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
             const isOpen = searching || expanded.has(f.key);
             const active = !searching && section === f.key;
             return (
-              <button
+              <button title={t('settings.row.modified')}
                 key={f.key}
                 className={`settings-nav-item${active ? ' active' : ''}`}
                 style={{ '--depth': f.depth } as CSSProperties}
@@ -364,7 +364,7 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
           {searching && hits.size === 0 && (
             <div className="settings-empty">
               <span className="muted">{t('settings.search.none')}</span>
-              <button className="btn btn-sm" onClick={() => setQuery('')}>{t('settings.search.clear')}</button>
+              <button title={t('settings.search.clear')} className="btn btn-sm" onClick={() => setQuery('')}>{t('settings.search.clear')}</button>
             </div>
           )}
         </div>
@@ -376,9 +376,9 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
           onClose={() => setAsking(false)}
           footer={
             <>
-              <button className="btn" onClick={() => setAsking(false)} autoFocus>{t('settings.unsaved.cancel')}</button>
-              <button className="btn" onClick={onClose}>{t('settings.unsaved.discard')}</button>
-              <button
+              <button title={t('settings.unsaved.cancel')} className="btn" onClick={() => setAsking(false)} autoFocus>{t('settings.unsaved.cancel')}</button>
+              <button title={t('settings.unsaved.discard')} className="btn" onClick={onClose}>{t('settings.unsaved.discard')}</button>
+              <button title={t('settings.unsaved.save')}
                 className="btn btn-primary"
                 onClick={() => {
                   apply();
@@ -503,7 +503,7 @@ function GeneralCard({ onQuit }: { onQuit: () => void }) {
       <div className="card form">
         <div className="field">
           <div className="row">
-            <button className="btn btn-sm btn-danger" disabled={busy} onClick={quit}>
+            <button title={t('settings.quit')} className="btn btn-sm btn-danger" disabled={busy} onClick={quit}>
               {t('settings.quit')}
             </button>
           </div>
@@ -544,11 +544,11 @@ function FileTypesCard({ value, onChange }: { value: FileAssociation[]; onChange
               {!ASSOCIATION_TARGETS.includes(row.as as never) && <option value={row.as}>{targetLabel(row.as)}</option>}
               {ASSOCIATION_TARGETS.map((as) => <option key={as} value={as}>{targetLabel(as)}</option>)}
             </select>
-            <button className="btn btn-sm" onClick={() => update(rows.filter((_, j) => j !== i))}>{t('settings.files.remove')}</button>
+            <button title={t('settings.files.remove')} className="btn btn-sm" onClick={() => update(rows.filter((_, j) => j !== i))}>{t('settings.files.remove')}</button>
           </div>
         ))}
         <div className="row">
-          <button className="btn btn-sm" onClick={() => setRows([...rows, { pattern: '', as: 'log' }])}>{t('settings.files.add')}</button>
+          <button title={t('settings.files.add')} className="btn btn-sm" onClick={() => setRows([...rows, { pattern: '', as: 'log' }])}>{t('settings.files.add')}</button>
         </div>
       </div>
     </section>
@@ -585,11 +585,11 @@ function EditorsCard() {
               <Fragment key={editor.id}>
                 <span className="mono-label">{editor.name}</span>
                 <span className="mono editor-path">{editor.path ?? t('settings.editors.notFound')}</span>
-                <button className="btn btn-sm" disabled={busy} onClick={() => run(() => api.pickEditor(editor.id))}>
+                <button title={t('settings.editors.choose')} className="btn btn-sm" disabled={busy} onClick={() => run(() => api.pickEditor(editor.id))}>
                   {t('settings.editors.choose')}
                 </button>
                 {editor.custom ? (
-                  <button className="btn btn-sm" disabled={busy} onClick={() => run(() => api.resetEditor(editor.id))}>
+                  <button title={t('settings.editors.reset')} className="btn btn-sm" disabled={busy} onClick={() => run(() => api.resetEditor(editor.id))}>
                     {t('settings.editors.reset')}
                   </button>
                 ) : (
@@ -645,7 +645,7 @@ function UpdatesCard({ folder, onFolder }: { folder: string; onFolder: (folder: 
           <label className="mono-label" htmlFor="update-folder">{t('settings.updateFolder')}</label>
           <div className="row">
             <input id="update-folder" value={folder} placeholder={t('settings.updateFolder.none')} readOnly />
-            <button
+            <button title={t('settings.updateFolder.browse')}
               className="btn btn-sm"
               disabled={busy}
               onClick={() => run(async () => {
@@ -656,7 +656,7 @@ function UpdatesCard({ folder, onFolder }: { folder: string; onFolder: (folder: 
               {t('settings.updateFolder.browse')}
             </button>
             {folder && (
-              <button className="btn btn-sm" disabled={busy} onClick={() => onFolder('')}>
+              <button title={t('settings.updateFolder.clear')} className="btn btn-sm" disabled={busy} onClick={() => onFolder('')}>
                 {t('settings.updateFolder.clear')}
               </button>
             )}
@@ -674,11 +674,11 @@ function UpdatesCard({ folder, onFolder }: { folder: string; onFolder: (folder: 
             {u.available && u.notes && <pre className="mono muted">{u.notes}</pre>}
             {u.available && !u.canApply && <span className="muted">{t('settings.update.fromSource')}</span>}
             <div className="row">
-              <button className="btn btn-sm" disabled={busy || !u.source} onClick={() => run(() => api.checkUpdate().then(() => state.reload()))}>
+              <button title={t('settings.update.check')} className="btn btn-sm" disabled={busy || !u.source} onClick={() => run(() => api.checkUpdate().then(() => state.reload()))}>
                 {t('settings.update.check')}
               </button>
               {u.available && u.canApply && (
-                <button
+                <button title={t('settings.update.apply')}
                   className="btn btn-sm btn-primary"
                   disabled={busy || restarting !== null}
                   onClick={() => run(async () => setRestarting((await api.applyUpdate()).version))}
@@ -741,25 +741,25 @@ function BackupCard({ onSettings }: { onSettings: (settings: Settings) => void }
           <div className="field">
             <span className="mono-label">{t('settings.backup.parts')}</span>
             <div className="chips">
-              <button className={`chip${settings ? ' chip-on' : ''}`} onClick={() => setSettings(!settings)}>
+              <button title={t('settings.backup.settings')} className={`chip${settings ? ' chip-on' : ''}`} onClick={() => setSettings(!settings)}>
                 {t('settings.backup.settings')}
               </button>
               {parts.data.stores.map((name) => (
-                <button key={name} className={`chip${chosen.includes(name) ? ' chip-on' : ''}`} onClick={() => setStores(toggled(chosen, name))}>
+                <button key={name} title={storeLabel(name)} className={`chip${chosen.includes(name) ? ' chip-on' : ''}`} onClick={() => setStores(toggled(chosen, name))}>
                   {storeLabel(name)}
                 </button>
               ))}
             </div>
             <span className="muted">{t('settings.backup.hint')}</span>
             <div className="row">
-              <button
+              <button title={t('settings.backup.export')}
                 className="btn btn-sm"
                 disabled={busy || (!settings && chosen.length === 0)}
                 onClick={() => run(async () => setSaved((await api.exportBackup(settings, chosen)).path))}
               >
                 {t('settings.backup.export')}
               </button>
-              <button
+              <button title={t('settings.backup.import')}
                 className="btn btn-sm"
                 disabled={busy}
                 onClick={() => run(async () => {
@@ -803,11 +803,11 @@ function ImportDialog({ info, onSettings, onClose }: { info: Inspected; onSettin
   };
 
   const footer = result ? (
-    <button className="btn btn-primary" onClick={onClose}>{t('settings.backup.close')}</button>
+    <button title={t('settings.backup.close')} className="btn btn-primary" onClick={onClose}>{t('settings.backup.close')}</button>
   ) : (
     <>
-      <button className="btn" onClick={onClose}>{t('dialog.cancel')}</button>
-      <button className="btn btn-primary" disabled={busy || (!settings && stores.length === 0)} onClick={start}>
+      <button title={t('dialog.cancel')} className="btn" onClick={onClose}>{t('dialog.cancel')}</button>
+      <button title={t('settings.backup.importNow')} className="btn btn-primary" disabled={busy || (!settings && stores.length === 0)} onClick={start}>
         {t('settings.backup.importNow')}
       </button>
     </>
@@ -826,7 +826,7 @@ function ImportDialog({ info, onSettings, onClose }: { info: Inspected; onSettin
               <span className="mono-label">{t('settings.backup.parts')}</span>
               <div className="chips">
                 {info.settings && (
-                  <button className={`chip${settings ? ' chip-on' : ''}`} onClick={() => setSettings(!settings)}>
+                  <button title={t('settings.backup.settings')} className={`chip${settings ? ' chip-on' : ''}`} onClick={() => setSettings(!settings)}>
                     {t('settings.backup.settings')}
                   </button>
                 )}
@@ -848,7 +848,7 @@ function ImportDialog({ info, onSettings, onClose }: { info: Inspected; onSettin
               <span className="mono-label">{t('settings.backup.mode')}</span>
               <div className="chips">
                 {(['merge', 'replace'] as const).map((m) => (
-                  <button key={m} className={`chip${mode === m ? ' chip-on' : ''}`} onClick={() => setMode(m)}>
+                  <button key={m} title={t(m === 'merge' ? 'settings.backup.merge' : 'settings.backup.replace')} className={`chip${mode === m ? ' chip-on' : ''}`} onClick={() => setMode(m)}>
                     {t(m === 'merge' ? 'settings.backup.merge' : 'settings.backup.replace')}
                   </button>
                 ))}

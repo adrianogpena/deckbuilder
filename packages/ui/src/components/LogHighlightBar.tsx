@@ -33,7 +33,7 @@ export function LogHighlightBar({ highlights, onHighlightsChange }: LogHighlight
         }}
       >
         <input value={term} placeholder={t('log.highlightPlaceholder')} aria-label={t('log.highlightPlaceholder')} spellCheck={false} maxLength={MAX_HIGHLIGHT_CHARS} disabled={full} onChange={(e) => setTerm(e.target.value)} />
-        <button type="submit" className="btn btn-ghost btn-sm" disabled={!term.trim() || full}>
+        <button title={t('log.highlightAdd')} type="submit" className="btn btn-ghost btn-sm" disabled={!term.trim() || full}>
           <Icon name="plus" size={14} /> {t('log.highlightAdd')}
         </button>
       </form>

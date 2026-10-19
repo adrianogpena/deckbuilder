@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { draftToSpec, hasAuthHeader, type HttpRequestDraft, type ImportedRequest, RequestEditor, ResponseView, toCurl } from '@deckbuilderkit/editor';
 import type { HttpResponseInfo, RestEnvVar } from '@deckbuilderkit/server-core/protocol';
-import { type ApiError, ErrorBanner, errorOf, Icon, PageHead, SplitView, useAsync, useCommand, useDebouncedSave, useDialogs, useViewRequest } from '@deckbuilderkit/ui';
+import { type ApiError, ErrorBanner, errorOf, Icon, PageHead, SplitView, useAsync, useCommand, useDebouncedSave, useDialogs, useShortcutTip, useViewRequest } from '@deckbuilderkit/ui';
 import { restCommands } from './commands';
 import { restApi as api } from './client';
 import type { RestSettings, RestViewSettings, SavedRequest } from './settings';
@@ -116,6 +116,7 @@ export function RestScreen({ settings, onSave }: { settings: RestViewSettings; o
     }
   };
   useCommand(restCommands()[0]!, () => void save(false));
+  const tip = useShortcutTip();
 
   const remove = async (item: SavedRequest) => {
     if (!(await confirm({ title: t('rest.deleteTitle', { name: item.name }), okLabel: t('rest.delete'), danger: true }))) return;
@@ -193,10 +194,10 @@ export function RestScreen({ settings, onSave }: { settings: RestViewSettings; o
     <div className="content screen-edges">
       <PageHead title={t('nav.rest')}>
         <div className="row">
-          <button className="btn btn-sm" onClick={() => setImporting(true)}>{t('rest.import')}</button>
-          <button className="btn btn-sm" onClick={() => void showCurl()}>{t('rest.code')}</button>
-          <button className="btn btn-sm" onClick={() => save(false)}>{t('rest.save')}</button>
-          <button className="btn btn-sm" onClick={() => save(true)}>{t('rest.saveAs')}</button>
+          <button className="btn btn-sm" onClick={() => setImporting(true)} title={t('rest.import')}>{t('rest.import')}</button>
+          <button className="btn btn-sm" onClick={() => void showCurl()} title={t('rest.code')}>{t('rest.code')}</button>
+          <button className="btn btn-sm" onClick={() => save(false)} title={tip(t('rest.save'), 'rest.save')}>{t('rest.save')}</button>
+          <button className="btn btn-sm" onClick={() => save(true)} title={t('rest.saveAs')}>{t('rest.saveAs')}</button>
         </div>
       </PageHead>
       {actionError && <ErrorBanner error={actionError} compact />}
@@ -205,7 +206,7 @@ export function RestScreen({ settings, onSave }: { settings: RestViewSettings; o
         <aside className="rest-list">
           <div className="rest-list-head">
             <span className="mono-label">{t('rest.saved')}</span>
-            <button className="btn btn-sm" onClick={restTabs.newTab}><Icon name="plus" /> {t('rest.new')}</button>
+            <button className="btn btn-sm" onClick={restTabs.newTab} title={t('rest.new')}><Icon name="plus" /> {t('rest.new')}</button>
           </div>
           {saved.error && <ErrorBanner error={saved.error} onRetry={saved.reload} compact />}
           {saved.data?.length === 0 && <p className="muted">{t('rest.none')}</p>}

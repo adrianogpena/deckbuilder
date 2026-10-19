@@ -127,7 +127,7 @@ export function useExplorerCurl({ name, active, draft, sql }: Options) {
             <div className="xp-bar">
               <Icon name="send" size={12} />
               <span className="spacer" />
-              {sending && <button className="btn btn-sm" onClick={cancel}>{t('explorer.shared.cancel')}</button>}
+              {sending && <button className="btn btn-sm" onClick={cancel} title={t('explorer.shared.cancel')}>{t('explorer.shared.cancel')}</button>}
               <button className="btn btn-ghost btn-sm btn-icon" onClick={() => setOpen(false)} title={t('explorer.curl.close')} aria-label={t('explorer.curl.close')}>
                 <Icon name="close" />
               </button>

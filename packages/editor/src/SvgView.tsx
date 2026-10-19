@@ -142,15 +142,15 @@ export function SvgView({ url, source, name, onInfo }: { url: string; source?: s
         <button className="btn btn-ghost btn-sm" onClick={() => zoomAt(1 / 1.25, 0, 0)} aria-label={t('pdf.zoomOut')} title={t('pdf.zoomOut')}>−</button>
         <span className="svg-zoom">{Math.round(shownView.zoom * 100)}%</span>
         <button className="btn btn-ghost btn-sm" onClick={() => zoomAt(1.25, 0, 0)} aria-label={t('pdf.zoomIn')} title={t('pdf.zoomIn')}>+</button>
-        <button className="btn btn-ghost btn-sm" onClick={toggle}>{fit ? '100%' : t('svg.actual')}</button>
-        <button className="btn btn-ghost btn-sm" onClick={() => setLight(!light)} aria-pressed={light}>{light ? t('svg.bgLight') : t('svg.bgDark')}</button>
+        <button title={fit ? '100%' : t('svg.actual')} className="btn btn-ghost btn-sm" onClick={toggle}>{fit ? '100%' : t('svg.actual')}</button>
+        <button title={light ? t('svg.bgLight') : t('svg.bgDark')} className="btn btn-ghost btn-sm" onClick={() => setLight(!light)} aria-pressed={light}>{light ? t('svg.bgLight') : t('svg.bgDark')}</button>
         {parsed && parsed.layers.length > 0 && (
-          <button className="btn btn-ghost btn-sm" onClick={() => setShowLayers(!showLayers)} aria-pressed={showLayers}>
+          <button title={t('pdf.layers')} className="btn btn-ghost btn-sm" onClick={() => setShowLayers(!showLayers)} aria-pressed={showLayers}>
             {t('pdf.layers')} ({parsed.layers.length})
           </button>
         )}
         {source !== undefined && (
-          <button className="btn btn-ghost btn-sm" onClick={() => setShowSource(!showSource)} aria-pressed={showSource}>
+          <button title={showSource ? t('svg.image') : t('svg.source')} className="btn btn-ghost btn-sm" onClick={() => setShowSource(!showSource)} aria-pressed={showSource}>
             {showSource ? t('svg.image') : t('svg.source')}
           </button>
         )}

@@ -177,8 +177,8 @@ export function PdfView({ data }: { data: Uint8Array }) {
         <button className="btn btn-ghost btn-sm btn-icon" onClick={() => setZoom(clampZoom(scale * ZOOM_STEP))} title={t('pdf.zoomIn')} aria-label={t('pdf.zoomIn')}>
           <Icon name="plus" />
         </button>
-        <button className="btn btn-ghost btn-sm" onClick={() => setZoom('fit')} aria-pressed={zoom === 'fit'}>{t('pdf.fit')}</button>
-        <button className="btn btn-ghost btn-sm" onClick={() => setShowLayers(!showLayers)} aria-pressed={showLayers}>
+        <button title={t('pdf.fit')} className="btn btn-ghost btn-sm" onClick={() => setZoom('fit')} aria-pressed={zoom === 'fit'}>{t('pdf.fit')}</button>
+        <button title={t('pdf.layers')} className="btn btn-ghost btn-sm" onClick={() => setShowLayers(!showLayers)} aria-pressed={showLayers}>
           {t('pdf.layers')}{layers.length > 0 && ` (${layers.length})`}
         </button>
       </div>

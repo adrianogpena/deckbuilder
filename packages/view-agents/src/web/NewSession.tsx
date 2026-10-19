@@ -75,13 +75,13 @@ export function NewSession({ projects, projectId, lastAccount, mode, onChat, onS
       {ask && (
         <div role="alert" className="agents-cap-warn">
           {t('agents.cap.warn', { live: ask.warn.live, cap: ask.warn.cap })}
-          <button type="button" onClick={() => ask.answer(false)}>{t('agents.new.cancel')}</button>
-          <button type="button" onClick={() => ask.answer(true)}>{t('agents.cap.confirm')}</button>
+          <button type="button" title={t('agents.new.cancel')} onClick={() => ask.answer(false)}>{t('agents.new.cancel')}</button>
+          <button type="button" title={t('agents.cap.confirm')} onClick={() => ask.answer(true)}>{t('agents.cap.confirm')}</button>
         </div>
       )}
       <div className="agents-new-session-actions">
-        {onCancel && <button type="button" onClick={onCancel}>{t('agents.new.cancel')}</button>}
-        {error && <button type="button" disabled={busy || !!ask || !dir || !account} onClick={() => void start()}>{t('agents.new.start')}</button>}
+        {onCancel && <button type="button" title={t('agents.new.cancel')} onClick={onCancel}>{t('agents.new.cancel')}</button>}
+        {error && <button type="button" title={t('agents.new.start')} disabled={busy || !!ask || !dir || !account} onClick={() => void start()}>{t('agents.new.start')}</button>}
       </div>
     </div>
   );

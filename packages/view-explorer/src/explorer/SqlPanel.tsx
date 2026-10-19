@@ -50,8 +50,8 @@ function ParamsDialog({ params, initial, onSubmit, onClose }: { params: SqlParam
       onClose={onClose}
       footer={(
         <>
-          <button className="btn" onClick={onClose}>{t('explorer.shared.cancel')}</button>
-          <button className="btn btn-primary" onClick={submit}>{t('explorer.sql.paramsRun')}</button>
+          <button className="btn" onClick={onClose} title={t('explorer.shared.cancel')}>{t('explorer.shared.cancel')}</button>
+          <button className="btn btn-primary" onClick={submit} title={t('explorer.sql.paramsRun')}>{t('explorer.sql.paramsRun')}</button>
         </>
       )}
     >
@@ -195,10 +195,10 @@ export function useExplorerSql({ project, name, asSql, active, focused, draft, s
               <span>{connection?.name}</span>
               {status?.pending && <Badge tone="warn">{t('explorer.shared.txPending')}</Badge>}
               <span className="spacer" />
-              {runner.running && <button className="btn btn-sm" onClick={runner.cancel}>{t('explorer.shared.cancel')}</button>}
-              <button className="btn btn-sm" onClick={runner.copy} disabled={runner.tableRows.length === 0}>{t(runner.selection.length > 0 ? 'explorer.shared.copySelected' : 'explorer.shared.copy')}</button>
-              <button className="btn btn-sm" onClick={runner.commit} disabled={!status?.connected || starting}>{t('explorer.shared.txCommit')}</button>
-              <button className="btn btn-sm" onClick={runner.rollback} disabled={!status?.connected || starting}>{t('explorer.shared.txRollback')}</button>
+              {runner.running && <button className="btn btn-sm" onClick={runner.cancel} title={t('explorer.shared.cancel')}>{t('explorer.shared.cancel')}</button>}
+              <button className="btn btn-sm" onClick={runner.copy} disabled={runner.tableRows.length === 0} title={t(runner.selection.length > 0 ? 'explorer.shared.copySelected' : 'explorer.shared.copy')}>{t(runner.selection.length > 0 ? 'explorer.shared.copySelected' : 'explorer.shared.copy')}</button>
+              <button className="btn btn-sm" onClick={runner.commit} disabled={!status?.connected || starting} title={t('explorer.shared.txCommit')}>{t('explorer.shared.txCommit')}</button>
+              <button className="btn btn-sm" onClick={runner.rollback} disabled={!status?.connected || starting} title={t('explorer.shared.txRollback')}>{t('explorer.shared.txRollback')}</button>
               <button className="btn btn-ghost btn-sm btn-icon" onClick={() => setOpen(false)} title={t('explorer.sql.close')} aria-label={t('explorer.sql.close')}>
                 <Icon name="close" />
               </button>

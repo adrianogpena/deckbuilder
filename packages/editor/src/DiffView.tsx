@@ -127,7 +127,7 @@ export const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffV
       {onModeChange && (
         <div className="diff-view-bar" role="group">
           {(['split', 'inline'] as const).map((m) => (
-            <button key={m} type="button" className={m === mode ? 'active' : undefined} aria-pressed={m === mode} onClick={() => onModeChange(m)}>
+            <button title={modeLabels[m]} key={m} type="button" className={m === mode ? 'active' : undefined} aria-pressed={m === mode} onClick={() => onModeChange(m)}>
               {modeLabels[m]}
             </button>
           ))}

@@ -118,7 +118,7 @@ export function CommandPalette({ items, onClose, initialQuery = '' }: { items: P
           {fileMode && fileRows.map((row, i) => {
             const at = row.file.path.lastIndexOf('/') + 1;
             return (
-              <button
+              <button title={row.file.path}
                 key={row.file.id}
                 className={`pal-item${i === index ? ' active' : ''}`}
                 onMouseEnter={() => setIndex(i)}
@@ -133,7 +133,7 @@ export function CommandPalette({ items, onClose, initialQuery = '' }: { items: P
             );
           })}
           {!fileMode && results.map((item, i) => (
-            <button
+            <button title={item.label}
               key={item.id}
               className={`pal-item${i === index ? ' active' : ''}`}
               onMouseEnter={() => setIndex(i)}

@@ -461,14 +461,14 @@ function TextFileTab({ project, projectName, projectPath, path, focused, preview
       {conflict ? (
         <PanelBanner tone="err" icon="alert" action={
           <>
-            <button className="btn btn-sm" onClick={reload}>{t('explorer.reload')}</button>
-            <button className="btn btn-sm" onClick={overwrite}>{t('explorer.overwrite')}</button>
+            <button className="btn btn-sm" onClick={reload} title={t('explorer.reload')}>{t('explorer.reload')}</button>
+            <button className="btn btn-sm" onClick={overwrite} title={t('explorer.overwrite')}>{t('explorer.overwrite')}</button>
           </>
         }>
           {t('explorer.staleSave', { name })}
         </PanelBanner>
       ) : lockedFile ? (
-        <PanelBanner tone="err" icon="lock" action={<button className="btn btn-sm" onClick={() => void save({ unlock: true })}>{t('explorer.makeWritable')}</button>}>
+        <PanelBanner tone="err" icon="lock" action={<button className="btn btn-sm" onClick={() => void save({ unlock: true })} title={t('explorer.makeWritable')}>{t('explorer.makeWritable')}</button>}>
           {t('explorer.readOnlySave', { name })}
         </PanelBanner>
       ) : saveError && <ErrorBanner error={saveError} compact />}

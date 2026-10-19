@@ -1,5 +1,5 @@
 import { type CSSProperties, type DragEvent, type MouseEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { ContextMenu, type ContextMenuItem, fuzzyScore, highlightRuns, Icon, KEY_SCOPE_ATTR, useCommand, useDialogs, useRovingList, useRunCommand, useToast } from '@deckbuilderkit/ui';
+import { ContextMenu, type ContextMenuItem, fuzzyScore, highlightRuns, Icon, KEY_SCOPE_ATTR, useCommand, useDialogs, useRovingList, useRunCommand, useShortcutTip, useToast } from '@deckbuilderkit/ui';
 import './sidebar.css';
 import { AGENTS_LIST_SCOPE, agentsCommands } from '../commands';
 import { t } from '../i18n';
@@ -161,6 +161,7 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
   });
   const toast = useToast();
   const runCommand = useRunCommand();
+  const tip = useShortcutTip();
   const { tree, patch } = useAgentTree();
   const [drag, setDrag] = useState<DragNode>();
   const [query, setQuery] = useState('');
@@ -868,6 +869,7 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
       <button
         key={s.id}
         type="button"
+        title={name}
         className={`agents-session${s.id === selectedId ? ' selected' : ''}${pin ? ' pinned' : ''}${tone}${s.foreign ? ' other-account' : ''}${r && drag?.id === s.id ? ' dragging' : ''}`}
         style={r && depthStyle(r.depth)}
         {...(r ? dragProps(r) : {})}
@@ -1086,7 +1088,7 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
           <span className="agents-sidebar-empty-icon" aria-hidden="true"><Icon name="folder-plus" size={20} /></span>
           <p className="agents-sidebar-empty-title">{t('agents.empty')}</p>
           <p className="agents-sidebar-empty-desc">{t('agents.emptyHint')}</p>
-          <button type="button" className="btn btn-primary btn-sm agents-sidebar-empty-btn" onClick={() => void runCommand('agents.addProject')}>{t('keys.agents.addProject')}</button>
+          <button type="button" title={tip(t('keys.agents.addProject'), 'agents.addProject')} className="btn btn-primary btn-sm agents-sidebar-empty-btn" onClick={() => void runCommand('agents.addProject')}>{t('keys.agents.addProject')}</button>
         </div>
       )}
       {projects.length > 0 && sessions.length === 0 && <p className="agents-empty">{t('agents.filter.noSessions')}</p>}
@@ -1096,8 +1098,8 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
   );
   const sessionsActions = (
     <>
-      <SectionButton icon="folder-plus" label={t('keys.agents.addProject')} onClick={() => void runCommand('agents.addProject')} />
-      {projects.length > 0 && <SectionButton icon="plus" label={t('agents.new.title')} onClick={() => void runCommand('agents.newSession')} />}
+      <SectionButton icon="folder-plus" command="agents.addProject" label={t('keys.agents.addProject')} onClick={() => void runCommand('agents.addProject')} />
+      {projects.length > 0 && <SectionButton icon="plus" command="agents.newSession" label={t('agents.new.title')} onClick={() => void runCommand('agents.newSession')} />}
       {sessions.length > 0 && (
         <SectionButton
           icon="search"
@@ -1111,7 +1113,7 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
           }}
         />
       )}
-      {sessions.length > 0 && <SectionButton icon="archive" label={t('keys.agents.toggleArchived')} pressed={archivedView} onClick={toggleArchivedView} />}
+      {sessions.length > 0 && <SectionButton icon="archive" command="agents.toggleArchived" label={t('keys.agents.toggleArchived')} pressed={archivedView} onClick={toggleArchivedView} />}
     </>
   );
   const tagsBody = tags.map(({ tag, count }) => {

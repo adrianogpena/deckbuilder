@@ -68,7 +68,7 @@ export function ProjectSearch({ project, exclude, onOpenFile, onClose, focusSign
             }}
           />
         </form>
-        <button type="button" className={`chip${content ? ' chip-on' : ''}`} onClick={toggleContent} aria-pressed={content}>
+        <button type="button" className={`chip${content ? ' chip-on' : ''}`} onClick={toggleContent} aria-pressed={content} title={t('explorer.search.content')}>
           {t('explorer.search.content')}
         </button>
         <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={close} title={t('explorer.search.close')} aria-label={t('explorer.search.close')}>

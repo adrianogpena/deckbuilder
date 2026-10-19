@@ -188,7 +188,7 @@ function JsonNode({ label, value, path, depth, initialDepth, onCopyPath }: NodeP
     <>
       <div ref={row} className={isCurrent ? 'json-row current' : 'json-row'} style={indent}>
         {container ? (
-          <button className={open ? 'json-toggle open' : 'json-toggle'} onClick={() => setOpen(!open)} aria-expanded={open}>
+          <button title={open ? t('json.collapse') : t('json.expand')} className={open ? 'json-toggle open' : 'json-toggle'} onClick={() => setOpen(!open)} aria-expanded={open}>
             <Icon name="chevron" size={12} />
           </button>
         ) : (
@@ -229,7 +229,7 @@ function JsonNode({ label, value, path, depth, initialDepth, onCopyPath }: NodeP
       {open && entries.length > shown && (
         <div className="json-row" style={{ paddingLeft: (depth + 1) * 16 }}>
           <span className="json-toggle" />
-          <button className="btn btn-ghost btn-sm" onClick={() => setShown(shown + PAGE)}>
+          <button title={t('json.showMore', { n: Math.min(PAGE, entries.length - shown), total: entries.length - shown })} className="btn btn-ghost btn-sm" onClick={() => setShown(shown + PAGE)}>
             {t('json.showMore', { n: Math.min(PAGE, entries.length - shown), total: entries.length - shown })}
           </button>
         </div>
@@ -246,7 +246,7 @@ function JsonValue({ value }: { value: unknown }) {
     return (
       <span className="json-str">
         "<Mark text={cut ? value.slice(0, LONG_STRING) : value} />{cut ? '…' : ''}"
-        {cut && <button className="json-more" onClick={() => setFull(true)}>{t('json.more')}</button>}
+        {cut && <button title={t('json.more')} className="json-more" onClick={() => setFull(true)}>{t('json.more')}</button>}
       </span>
     );
   }

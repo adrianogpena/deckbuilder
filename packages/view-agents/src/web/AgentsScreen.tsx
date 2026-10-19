@@ -362,10 +362,14 @@ export function AgentsScreen({ mode = 'terminal', usageSettings, dnd = false, on
       setPool((p) => p.filter((x) => x.sessionId !== s.id));
       setChats((c) => c.filter((x) => entryId(x) !== s.id));
       if (r.removed) setSelectedId((cur) => (cur === s.id ? undefined : cur));
+      else if (selectedId === s.id) {
+        setViewing(undefined);
+        setPreview(s.id);
+      }
     } catch (e) {
       setError(errorOf(e).message);
     }
-  }, []);
+  }, [selectedId]);
 
   const restart = useCallback(
     async (s: AgentSessionView) => {

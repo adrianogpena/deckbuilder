@@ -203,7 +203,7 @@ function TableDetails({ table, entry, onDdl, onJump }: {
               );
             })}
           </ul>
-          <button className="btn btn-ghost btn-sm wb-schema-ddl" onClick={onDdl}>
+          <button className="btn btn-ghost btn-sm wb-schema-ddl" onClick={onDdl} title={t('workbench.schema.showDdl')}>
             <Icon name="code" /> {t('workbench.schema.showDdl')}
           </button>
         </>

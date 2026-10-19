@@ -98,7 +98,7 @@ export function ChangesTab({ root, status }: ChangesTabProps) {
           ↻
         </button>
         {openGit && (
-          <button type="button" className="agents-changes-open" onClick={() => openGit()}>
+          <button type="button" title={t('agents.changes.openGit')} className="agents-changes-open" onClick={() => openGit()}>
             {t('agents.changes.openGit')}
           </button>
         )}

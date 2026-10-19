@@ -22,7 +22,7 @@ export function SkillsPanel({ onClose }: SkillsPanelProps) {
       <div className="agents-skills">
         <div className="agents-skills-tabs" role="tablist">
           {(['skills', 'agents'] as const).map((k) => (
-            <button key={k} type="button" role="tab" aria-selected={tab === k} className="agents-skills-tab" onClick={() => setTab(k)}>
+            <button key={k} type="button" role="tab" title={t(`agents.skills.tab.${k}`)} aria-selected={tab === k} className="agents-skills-tab" onClick={() => setTab(k)}>
               {t(`agents.skills.tab.${k}`)}
             </button>
           ))}

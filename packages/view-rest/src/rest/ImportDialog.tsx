@@ -77,18 +77,18 @@ export function ImportDialog({ onLoad, onSaveMany, onClose }: Props) {
   const loadedOne = parsed !== undefined && parsed.length === 1;
   const footer = several ? (
     <>
-      <button className="btn" onClick={onClose}>{t('dialog.cancel')}</button>
-      <button className="btn btn-primary" disabled={busy || !checked.some(Boolean)} onClick={saveSelected}>
+      <button className="btn" onClick={onClose} title={t('dialog.cancel')}>{t('dialog.cancel')}</button>
+      <button className="btn btn-primary" disabled={busy || !checked.some(Boolean)} onClick={saveSelected} title={t('rest.import.saveSelected')}>
         {t('rest.import.saveSelected')}
       </button>
     </>
   ) : loadedOne ? (
-    <button className="btn btn-primary" onClick={onClose}>{t('rest.import.close')}</button>
+    <button className="btn btn-primary" onClick={onClose} title={t('rest.import.close')}>{t('rest.import.close')}</button>
   ) : (
     <>
-      <button className="btn" onClick={onClose}>{t('dialog.cancel')}</button>
-      <button className="btn" onClick={openFile}>{t('rest.import.openFile')}</button>
-      <button className="btn btn-primary" disabled={text.trim() === ''} onClick={() => parse(text)}>{t('rest.import.parse')}</button>
+      <button className="btn" onClick={onClose} title={t('dialog.cancel')}>{t('dialog.cancel')}</button>
+      <button className="btn" onClick={openFile} title={t('rest.import.openFile')}>{t('rest.import.openFile')}</button>
+      <button className="btn btn-primary" disabled={text.trim() === ''} onClick={() => parse(text)} title={t('rest.import.parse')}>{t('rest.import.parse')}</button>
     </>
   );
   const warnings = parsed?.flatMap((r) => r.warnings.map((w) => (several ? `${requestLabel(r)}: ${warningText(w)}` : warningText(w)))) ?? [];

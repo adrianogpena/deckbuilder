@@ -50,10 +50,10 @@ export function PlanView({ rows, onClose }: Props) {
     <div className="wb-plan">
       <div className="row wb-plan-bar">
         <span className="mono-label">{t('workbench.plan.title')}</span>
-        <button className="btn btn-sm" onClick={copy} disabled={rows.length === 0}>
+        <button title={t('workbench.plan.copy')} className="btn btn-sm" onClick={copy} disabled={rows.length === 0}>
           <Icon name="copy" /> {t('workbench.plan.copy')}
         </button>
-        {onClose && <button className="btn btn-sm" onClick={onClose}>{t('workbench.plan.close')}</button>}
+        {onClose && <button title={t('workbench.plan.close')} className="btn btn-sm" onClick={onClose}>{t('workbench.plan.close')}</button>}
       </div>
       {rows.length === 0 ? (
         <p className="muted wb-plan-empty">{t('workbench.plan.empty')}</p>

@@ -62,7 +62,7 @@ export function LogBookmarkMenu({ bookmarks, onBookmarksChange, lines, endOffset
 
   return (
     <div className="menu-wrap" ref={wrap}>
-      <button className="btn btn-sm" aria-expanded={open} onClick={() => setOpen(!open)}>
+      <button title={t('log.bookmarks')} className="btn btn-sm" aria-expanded={open} onClick={() => setOpen(!open)}>
         {t('log.bookmarks')} <span className="log-level-count">{bookmarks.length}</span> <Icon name="chevron-down" size={12} />
       </button>
       {open && (
@@ -80,16 +80,16 @@ export function LogBookmarkMenu({ bookmarks, onBookmarksChange, lines, endOffset
                 </div>
                 {stale ? <div className="log-bm-hint">{t('log.stale')}</div> : b.preview && <div className="log-bm-preview">{b.preview}</div>}
                 <div className="log-bm-actions">
-                  <button className="btn btn-ghost btn-sm" disabled={hidden} onClick={() => { setOpen(false); onGoTo(b); }}>
+                  <button title={t('log.goTo')} className="btn btn-ghost btn-sm" disabled={hidden} onClick={() => { setOpen(false); onGoTo(b); }}>
                     <Icon name="forward" size={14} /> {t('log.goTo')}
                   </button>
                   {onCopyFrom && (
-                    <button className="btn btn-ghost btn-sm" disabled={stale} onClick={() => onCopyFrom(b)}>
+                    <button title={t('log.copyToEnd')} className="btn btn-ghost btn-sm" disabled={stale} onClick={() => onCopyFrom(b)}>
                       <Icon name="copy" size={14} /> {t('log.copyToEnd')}
                     </button>
                   )}
                   {onSaveFrom && (
-                    <button className="btn btn-ghost btn-sm" disabled={stale} onClick={() => onSaveFrom(b)}>
+                    <button title={t('log.saveToEnd')} className="btn btn-ghost btn-sm" disabled={stale} onClick={() => onSaveFrom(b)}>
                       <Icon name="download" size={14} /> {t('log.saveToEnd')}
                     </button>
                   )}

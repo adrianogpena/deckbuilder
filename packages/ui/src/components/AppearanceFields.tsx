@@ -33,7 +33,7 @@ export function AppearanceFields({ value, onChange }: Props) {
       <div className="field">
         <div className="chips">
           {PREFERENCES.map((theme) => (
-            <button key={theme} className={`chip${value.theme === theme ? ' chip-on' : ''}`} onClick={() => onChange({ theme })}>
+            <button title={t(`theme.${theme}`)} key={theme} className={`chip${value.theme === theme ? ' chip-on' : ''}`} onClick={() => onChange({ theme })}>
               {t(`theme.${theme}`)}
             </button>
           ))}
@@ -142,7 +142,7 @@ export function LayoutIconField({ value, onChange }: Props) {
       <div className="field">
         <span className="mono-label">{t('settings.appearance.layoutIcon')}</span>
         <div className="chips">
-          <button className={`chip${!value.layoutIcon ? ' chip-on' : ''}`} onClick={() => onChange({ layoutIcon: '' })}>
+          <button title={t('settings.appearance.layoutIconFollow', { name: name(own.id) })} className={`chip${!value.layoutIcon ? ' chip-on' : ''}`} onClick={() => onChange({ layoutIcon: '' })}>
             {t('settings.appearance.layoutIconFollow', { name: name(own.id) })}
           </button>
           {LAYOUT_MARK_IDS.map((id) => (

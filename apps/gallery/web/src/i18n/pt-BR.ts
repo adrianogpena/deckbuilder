@@ -44,6 +44,7 @@ export const ptBR: Messages<typeof en> = {
   'tabs.notes.hint': 'O texto fica ao trocar de aba',
   'tabs.notes.placeholder': 'Digite algo…',
   'tabs.counter.hint': 'A contagem fica ao trocar de aba',
+  'tabs.counter.increment': 'Somar um',
   'tabs.info.hint': 'Rota desta aba',
 
   'grid.save': 'Salvar',

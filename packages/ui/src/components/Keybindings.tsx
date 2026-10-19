@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, type MutableRefObject, type ReactNode } from 'react';
 import { isDesktop } from '../api';
 import { isTyping } from '../hooks';
-import { chordOf, firesInInput, inFocusScope, ownsKey, resolve, startsOf, type CommandDef, type Keymap } from '../keybindings';
+import { chordOf, effectiveKeys, firesInInput, inFocusScope, ownsKey, resolve, startsOf, type CommandDef, type Keymap } from '../keybindings';
 import { isModalOpen } from './ui';
 
 interface Handler {
@@ -155,6 +155,27 @@ export function useCommand(def: CommandDef, run: () => void, { enabled = true }:
 export function useKeybindings(): KeybindingsValue | null {
   const ctx = useContext(Ctx);
   return useMemo(() => (ctx ? { defs: ctx.defs, keymap: ctx.keymap, scope: ctx.scope } : null), [ctx]);
+}
+
+/** `label (chord)`: a button tooltip with the first chord of its command, or just `label` when the command has none. */
+export function withChord(label: string, chord?: string): string {
+  return chord ? `${label} (${chord})` : label;
+}
+
+/**
+ * Tooltip builder for buttons that run a command: `tip(label, id)` adds the command's current first
+ * chord (keymap first, then `defs`' keys); without a `KeybindingProvider` or a bound chord, the label.
+ */
+export function useShortcutTip(): (label: string, commandId?: string) => string {
+  const ctx = useContext(Ctx);
+  return useMemo(() => {
+    const keys = ctx ? effectiveKeys(ctx.defs, ctx.keymap) : undefined;
+    const desktopOnly = new Set(ctx?.defs.filter((d) => d.desktopOnly).map((d) => d.id));
+    return (label, commandId) => {
+      if (!commandId || !keys || (!isDesktop && desktopOnly.has(commandId))) return label;
+      return withChord(label, keys.get(commandId)?.[0]);
+    };
+  }, [ctx?.defs, ctx?.keymap]);
 }
 
 /** Runs the newest enabled handler of a command by id (true when one ran); a no-op without a `KeybindingProvider`. */

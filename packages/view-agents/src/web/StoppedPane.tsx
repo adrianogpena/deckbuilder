@@ -30,7 +30,7 @@ export function StoppedPane(props: StoppedCardProps) {
     <div className="agents-external">
       <StoppedCard {...props} summary={events ? summary : undefined} />
       <div className="agents-external-bar">
-        <button type="button" className="chat-more" onClick={() => setFull((f) => !f)}>{full ? t('agents.stopped.compact') : t('agents.stopped.showFull')}</button>
+        <button type="button" className="chat-more" title={full ? t('agents.stopped.compact') : t('agents.stopped.showFull')} onClick={() => setFull((f) => !f)}>{full ? t('agents.stopped.compact') : t('agents.stopped.showFull')}</button>
       </div>
       {full ? <Transcript events={list} /> : <CompactTranscript events={list} limit={limit} onMore={() => setLimit((n) => n + PAGE)} resetKey={sessionId} />}
     </div>

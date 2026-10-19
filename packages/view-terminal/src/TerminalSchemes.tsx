@@ -133,8 +133,8 @@ function ImportModal({ schemes, onImport, onClose }: { schemes: ColorScheme[]; o
       onClose={onClose}
       footer={
         <>
-          <button className="btn" onClick={onClose}>{t('settings.terminal.schemes.importCancel')}</button>
-          <button className="btn btn-primary" disabled={!found || found.length === 0 || room <= 0} onClick={() => found && onImport(found.slice(0, room))}>{t('settings.terminal.schemes.importAction')}</button>
+          <button title={t('settings.terminal.schemes.importCancel')} className="btn" onClick={onClose}>{t('settings.terminal.schemes.importCancel')}</button>
+          <button title={t('settings.terminal.schemes.importAction')} className="btn btn-primary" disabled={!found || found.length === 0 || room <= 0} onClick={() => found && onImport(found.slice(0, room))}>{t('settings.terminal.schemes.importAction')}</button>
         </>
       }
     >
@@ -184,7 +184,7 @@ function SchemesField({ schemes, selected, onChange }: { schemes: ColorScheme[];
             <span className="profile-name">{builtinName(id)}</span>
             <span className="muted profile-shell">{t('settings.terminal.schemes.builtin')}</span>
             <span className="profile-actions">
-              <button className="btn btn-sm" disabled={full} onClick={() => add(builtinName(id), colorsOfTheme(id, []))}>{t('settings.terminal.schemes.duplicate')}</button>
+              <button title={t('settings.terminal.schemes.duplicate')} className="btn btn-sm" disabled={full} onClick={() => add(builtinName(id), colorsOfTheme(id, []))}>{t('settings.terminal.schemes.duplicate')}</button>
             </span>
           </div>
         ))}
@@ -196,9 +196,9 @@ function SchemesField({ schemes, selected, onChange }: { schemes: ColorScheme[];
               <span className="profile-name">{s.name}</span>
               <span className="muted profile-shell">{t('settings.terminal.schemes.custom')}</span>
               <span className="profile-actions">
-                <button className="btn btn-sm" aria-expanded={open} onClick={() => setEditing(open ? undefined : s.id)}>{t(open ? 'settings.terminal.profiles.done' : 'settings.terminal.profiles.edit')}</button>
-                <button className="btn btn-sm" disabled={full} onClick={() => add(s.name, colorsOfTheme(s.id, schemes))}>{t('settings.terminal.schemes.duplicate')}</button>
-                <button className="btn btn-sm" onClick={() => { if (editing === s.id) setEditing(undefined); onChange(schemes.filter((x) => x.id !== s.id)); }}>{t('settings.terminal.profiles.delete')}</button>
+                <button title={t(open ? 'settings.terminal.profiles.done' : 'settings.terminal.profiles.edit')} className="btn btn-sm" aria-expanded={open} onClick={() => setEditing(open ? undefined : s.id)}>{t(open ? 'settings.terminal.profiles.done' : 'settings.terminal.profiles.edit')}</button>
+                <button title={t('settings.terminal.schemes.duplicate')} className="btn btn-sm" disabled={full} onClick={() => add(s.name, colorsOfTheme(s.id, schemes))}>{t('settings.terminal.schemes.duplicate')}</button>
+                <button title={t('settings.terminal.profiles.delete')} className="btn btn-sm" onClick={() => { if (editing === s.id) setEditing(undefined); onChange(schemes.filter((x) => x.id !== s.id)); }}>{t('settings.terminal.profiles.delete')}</button>
               </span>
               {open && <SchemeEditor scheme={s} onChange={(patch) => onChange(schemes.map((x) => (x.id === s.id ? clean({ ...x, ...patch }) : x)))} />}
             </div>
@@ -206,8 +206,8 @@ function SchemesField({ schemes, selected, onChange }: { schemes: ColorScheme[];
         })}
       </div>
       <div className="row">
-        <button className="btn btn-sm" disabled={full} onClick={() => add(selectedName, colorsOfTheme(selected, schemes))}>{t('settings.terminal.schemes.new')}</button>
-        <button className="btn btn-sm" disabled={full} onClick={() => setImporting(true)}>{t('settings.terminal.schemes.import')}</button>
+        <button title={t('settings.terminal.schemes.new')} className="btn btn-sm" disabled={full} onClick={() => add(selectedName, colorsOfTheme(selected, schemes))}>{t('settings.terminal.schemes.new')}</button>
+        <button title={t('settings.terminal.schemes.import')} className="btn btn-sm" disabled={full} onClick={() => setImporting(true)}>{t('settings.terminal.schemes.import')}</button>
       </div>
       {importing && (
         <ImportModal

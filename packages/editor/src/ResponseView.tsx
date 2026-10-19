@@ -33,13 +33,13 @@ function ResponseBody({ response, sending, onSave }: { response: HttpResponseInf
         <span className="spacer" />
         {sending && <Spinner small />}
         {onSave && (
-          <button className="btn btn-sm" onClick={onSave}><Icon name="download" /> {t('http.save')}</button>
+          <button title={t('http.save')} className="btn btn-sm" onClick={onSave}><Icon name="download" /> {t('http.save')}</button>
         )}
       </div>
       {response.truncated && <PanelBanner tone="warn" icon="alert">{t('http.truncated', { size: formatBytes(response.size) })}</PanelBanner>}
       <div className="req-tabs" role="tablist">
         {(['body', 'headers'] as const).map((id) => (
-          <button key={id} role="tab" aria-selected={tab === id} className={`req-tab${tab === id ? ' active' : ''}`} onClick={() => setTab(id)}>
+          <button title={t(`http.tab.${id}`)} key={id} role="tab" aria-selected={tab === id} className={`req-tab${tab === id ? ' active' : ''}`} onClick={() => setTab(id)}>
             {t(`http.tab.${id}`)}
             {id === 'headers' && <span className="req-tab-count">{response.headers.length}</span>}
           </button>
@@ -60,7 +60,7 @@ function BodyPane({ response }: { response: HttpResponseInfo }) {
   return (
     <>
       <div className="file-preview-bar">
-        <button className="btn btn-ghost btn-sm" onClick={() => setRaw(!raw)} aria-pressed={raw}>{raw ? t('http.tree') : t('http.raw')}</button>
+        <button title={raw ? t('http.tree') : t('http.raw')} className="btn btn-ghost btn-sm" onClick={() => setRaw(!raw)} aria-pressed={raw}>{raw ? t('http.tree') : t('http.raw')}</button>
         <CopyButton text={view.pretty} />
       </div>
       <div className="resp-body">

@@ -51,6 +51,11 @@ export function chatErrorText(e: ChatError): string {
   return key ? t(key) : e.message;
 }
 
+/** Most transcript events kept; older ones drop off the front (a tool result whose use dropped shows as an orphan). */
+const MAX_EVENTS = 5000;
+
+const capEvents = (events: ChatEvent[]): ChatEvent[] => (events.length > MAX_EVENTS ? events.slice(-MAX_EVENTS) : events);
+
 /** Opens a chat socket for `target` and keeps its transcript and state. Reopens when the target changes. */
 export function useChat(target: ChatTarget, onSession?: (sessionId: string) => void) {
   const [events, setEvents] = useState<ChatEvent[]>([]);
@@ -99,10 +104,10 @@ export function useChat(target: ChatTarget, onSession?: (sessionId: string) => v
             if (f.sessionId) sessionCb.current?.(f.sessionId);
             break;
           case 'history':
-            setEvents((prev) => f.events.reduce(applyEvent, [] as ChatEvent[]).concat(prev));
+            setEvents((prev) => capEvents(f.events.reduce(applyEvent, [] as ChatEvent[]).concat(prev)));
             break;
           case 'event':
-            setEvents((prev) => applyEvent(prev, f.event));
+            setEvents((prev) => capEvents(applyEvent(prev, f.event)));
             if (f.event.type === 'init') sessionCb.current?.(f.event.sessionId);
             break;
           case 'state': {

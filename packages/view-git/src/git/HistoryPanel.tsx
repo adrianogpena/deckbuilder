@@ -173,7 +173,7 @@ export function HistoryPanel({ root, tick, open, size, onToggle, onResize, selec
   return (
     <div ref={panel} className={`git-history${open ? ' open' : ''}`} style={open ? { flexBasis: `${size * 100}%` } : undefined}>
       {open && <div className="git-history-sash" onPointerDown={startResize} role="separator" aria-orientation="horizontal" />}
-      <button type="button" className="tree-row git-row git-section-head" aria-expanded={open} onClick={onToggle} onKeyDown={openKeys(open, onToggle)}>
+      <button title={t('git.history')} type="button" className="tree-row git-row git-section-head" aria-expanded={open} onClick={onToggle} onKeyDown={openKeys(open, onToggle)}>
         <span className={`tree-chevron${open ? ' open' : ''}`}><Icon name="chevron" size={12} /></span>
         <span className="tree-label">{t('git.history')}</span>
       </button>
@@ -214,7 +214,7 @@ export function HistoryPanel({ root, tick, open, size, onToggle, onResize, selec
             );
           })}
           {more && (
-            <button type="button" className="tree-row git-row git-more" onClick={loadMore} disabled={loading}>
+            <button title={t('git.loadMore')} type="button" className="tree-row git-row git-more" onClick={loadMore} disabled={loading}>
               <span className="tree-label">{t('git.loadMore')}</span>
             </button>
           )}

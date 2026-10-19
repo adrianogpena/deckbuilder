@@ -777,7 +777,7 @@ function Welcome({ projects, onOpen }: { projects: Project[]; onOpen: (id: strin
         {projects.length > 0 && (
           <div className="chips">
             {projects.map((p) => (
-              <button key={p.id} className="chip" onClick={() => onOpen(p.id)}>{p.name}</button>
+              <button key={p.id} className="chip" onClick={() => onOpen(p.id)} title={p.name}>{p.name}</button>
             ))}
           </div>
         )}

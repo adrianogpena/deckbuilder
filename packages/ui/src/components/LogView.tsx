@@ -248,7 +248,7 @@ export function LogView({
         <button className="btn btn-ghost btn-sm log-icon-btn btn-icon" title={t('log.next')} aria-label={t('log.next')} disabled={!hits.length} onClick={() => step(1)}><Icon name="chevron-down" size={14} /></button>
         <div className="log-levels" role="group" aria-label={t('log.levels')}>
           {LOG_LEVELS.map((level) => (
-            <button key={level} className={`chip log-level lvl-${level}${levels.has(level) ? ' chip-on' : ''}`} aria-pressed={levels.has(level)} onClick={() => toggleLevel(level)}>
+            <button title={t(`log.level.${level}`)} key={level} className={`chip log-level lvl-${level}${levels.has(level) ? ' chip-on' : ''}`} aria-pressed={levels.has(level)} onClick={() => toggleLevel(level)}>
               {t(`log.level.${level}`)} <span className="log-level-count">{counts[level]}</span>
             </button>
           ))}

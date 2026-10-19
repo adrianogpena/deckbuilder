@@ -77,7 +77,7 @@ function ProblemList({ problems, text, outline, filter, onClearFilter, onJump }:
     <>
       <div className="sqlsteps-chips">
         {SQL_SEVERITIES.map((s) => (
-          <button key={s} className={`sqlsteps-chip is-${s}`} aria-pressed={!hidden.has(s)} onClick={() => toggle(s)} disabled={counts[s] === 0}>
+          <button title={t(`sqlSteps.severity.${s}`)} key={s} className={`sqlsteps-chip is-${s}`} aria-pressed={!hidden.has(s)} onClick={() => toggle(s)} disabled={counts[s] === 0}>
             <SeverityIcon severity={s} /> {t(`sqlSteps.severity.${s}`)} <span className="sqlsteps-chip-count">{counts[s]}</span>
           </button>
         ))}
@@ -85,7 +85,7 @@ function ProblemList({ problems, text, outline, filter, onClearFilter, onJump }:
       {filter && (
         <div className="sqlsteps-infilter">
           <span className="muted">{t('sqlSteps.problems.inStep', { step: filter.step || t('sqlSteps.main') })}</span>
-          <button className="sqlsteps-feed" onClick={onClearFilter}>{t('sqlSteps.problems.showAll')}</button>
+          <button title={t('sqlSteps.problems.showAll')} className="sqlsteps-feed" onClick={onClearFilter}>{t('sqlSteps.problems.showAll')}</button>
         </div>
       )}
       <div className="sqlsteps-list">
@@ -127,7 +127,7 @@ function ParamList({ params, text, cursor, onJump, values, onValue }: { params: 
         const open = selected === p.n;
         return (
           <div key={p.n} className="sqlsteps-param">
-            <button
+            <button title={t('sqlSteps.params.uses', { count: p.count })}
               className="sqlsteps-problem"
               aria-expanded={open}
               onClick={() => {
@@ -338,7 +338,7 @@ export function SqlSteps({ text, onJump, cursor, onClose, tab: tabProp, onTab, w
       <div className="sqlsteps-head">
         <div className="sqlsteps-tabs" role="tablist">
           {TABS.map((id) => (
-            <button key={id} role="tab" className="sqlsteps-tab" aria-selected={tab === id} onClick={() => { if (id === 'problems') setProblemFilter(undefined); setTab(id); }}>
+            <button title={t(`sqlSteps.tab.${id}`)} key={id} role="tab" className="sqlsteps-tab" aria-selected={tab === id} onClick={() => { if (id === 'problems') setProblemFilter(undefined); setTab(id); }}>
               {t(`sqlSteps.tab.${id}`)}
               {id === 'params' && params.length > 0 && <span className="sqlsteps-count">{params.length}</span>}
               {id === 'problems' && problems.length > 0 && <span className={`sqlsteps-count is-${worst}`}>{problems.length}</span>}
@@ -459,7 +459,7 @@ export function SqlSteps({ text, onJump, cursor, onClose, tab: tabProp, onTab, w
                     {step.feeds.length > 0 && (
                       <Row label={t('sqlSteps.feeds')}>
                         {step.feeds.map((name) => (
-                          <button
+                          <button title={name === MAIN ? t('sqlSteps.main') : name}
                             key={name}
                             className="sqlsteps-feed"
                             onClick={(e) => {

@@ -183,8 +183,8 @@ export class ChatSession {
       old.kill();
     }
     this.stale = false;
-    mkdirSync(this.cfg.dir, { recursive: true });
-    writeFileSync(this.mcpFile(), permissionMcpConfig(`${this.cfg.baseUrl()}${CHAT_MCP_PATH}${this.token}`));
+    mkdirSync(this.cfg.dir, { recursive: true, mode: 0o700 });
+    writeFileSync(this.mcpFile(), permissionMcpConfig(`${this.cfg.baseUrl()}${CHAT_MCP_PATH}${this.token}`), { mode: 0o600 });
     const cmd = [
       this.cfg.claudeCmd ?? defaultClaudeCommand(),
       ...buildChatArgs({ resume: this.sessionId, permissionMode: this.mode, mcpConfig: this.mcpFile(), model: this.model }),

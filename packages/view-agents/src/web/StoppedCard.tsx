@@ -87,7 +87,7 @@ function Files({ files, cwd }: { files: string[]; cwd: string }) {
         {shown.map((f) => <li key={f} title={f}>{shortPath(f, cwd)}</li>)}
       </ul>
       {files.length > FILES_SHOWN && (
-        <button type="button" className="chat-more" onClick={() => setAll(!all)}>
+        <button type="button" className="chat-more" title={all ? t('agents.stopped.showLess') : t('agents.stopped.showMore', { n: files.length - FILES_SHOWN })} onClick={() => setAll(!all)}>
           {all ? t('agents.stopped.showLess') : t('agents.stopped.showMore', { n: files.length - FILES_SHOWN })}
         </button>
       )}

@@ -9,7 +9,7 @@ export function Home() {
   return (
     <div className="content">
       <PageHead title={t('home.title')}>
-        <button className="btn btn-sm" onClick={info.reload}><Icon name="refresh" /> {t('common.retry')}</button>
+        <button title={t('common.retry')} className="btn btn-sm" onClick={info.reload}><Icon name="refresh" /> {t('common.retry')}</button>
       </PageHead>
       <div className="scroll">
         {info.error && <ErrorBanner error={info.error} onRetry={info.reload} />}
@@ -75,7 +75,7 @@ function ToastCard() {
       <div className="card">
         <p className="muted small">{t('home.toastHint')}</p>
         <div className="row">
-          <button className="btn" disabled={busy} onClick={() => void send()}>
+          <button title={t('home.toastSend')} className="btn" disabled={busy} onClick={() => void send()}>
             {busy ? <Spinner small /> : <Icon name="send" />} {t('home.toastSend')}
           </button>
         </div>
@@ -112,7 +112,7 @@ function EchoCard() {
         <p className="muted small">{t('home.echoHint')}</p>
         <form className="row" onSubmit={(e) => { e.preventDefault(); void send(); }}>
           <input value={text} onChange={(e) => setText(e.target.value)} placeholder={t('home.echoPlaceholder')} />
-          <button className="btn btn-primary" disabled={busy}>
+          <button title={t('home.send')} className="btn btn-primary" disabled={busy}>
             {busy ? <Spinner small /> : <Icon name="send" />} {t('home.send')}
           </button>
         </form>

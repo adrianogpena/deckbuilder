@@ -48,7 +48,7 @@ export function OutputPanel({ lines, onClear, maxLines = 5000 }: { lines: Output
           onChange={(e) => setFilter(e.target.value)}
         />
         <CopyButton text={shown.map(lineText).join('\n')} label={t('output.copyAll')} />
-        {onClear && <button className="btn btn-ghost btn-sm" onClick={onClear}>{t('output.clear')}</button>}
+        {onClear && <button title={t('output.clear')} className="btn btn-ghost btn-sm" onClick={onClear}>{t('output.clear')}</button>}
       </div>
       <div
         ref={scroller}
@@ -66,7 +66,7 @@ export function OutputPanel({ lines, onClear, maxLines = 5000 }: { lines: Output
         ))}
       </div>
       {!following && (
-        <button className="btn btn-sm output-jump" onClick={() => { setFollowing(true); toBottom(); }}>
+        <button title={t('output.jumpToLatest')} className="btn btn-sm output-jump" onClick={() => { setFollowing(true); toBottom(); }}>
           <Icon name="chevron-down" />
           <span>{t('output.jumpToLatest')}</span>
         </button>

@@ -72,6 +72,7 @@ function TabPage({ tab, ctx }: { tab: Tab<Route>; ctx: TabContext<Route> }) {
           {PAGES.map((page) => (
             <button
               key={page}
+              title={t(`tabs.page.${page}`)}
               className={`chip${page === route.page ? ' chip-on' : ''}`}
               onClick={() => ctx.navigate({ page, n: route.n })}
             >
@@ -91,7 +92,7 @@ function TabPage({ tab, ctx }: { tab: Tab<Route>; ctx: TabContext<Route> }) {
           <section className="section">
             <h4 className="mono-label">{t('tabs.counter.hint')}</h4>
             <div className="row">
-              <button className="btn btn-primary" onClick={() => setCount(count + 1)}>+1</button>
+              <button className="btn btn-primary" title={t('tabs.counter.increment')} onClick={() => setCount(count + 1)}>+1</button>
               <span className="mono">{count}</span>
             </div>
           </section>

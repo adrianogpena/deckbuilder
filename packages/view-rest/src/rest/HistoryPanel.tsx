@@ -40,7 +40,7 @@ export function HistoryPanel({ refresh, confirm, onClose }: { refresh: number; c
       <div className="rest-history-head">
         <span className="mono-label">{t('rest.history.title')}</span>
         <span className="spacer" />
-        <button className="btn btn-sm" onClick={() => void clear()} disabled={!history.data?.length}>{t('rest.history.clear')}</button>
+        <button className="btn btn-sm" onClick={() => void clear()} disabled={!history.data?.length} title={t('rest.history.clear')}>{t('rest.history.clear')}</button>
         <button className="btn btn-ghost btn-sm btn-icon" onClick={onClose} title={t('rest.history.close')} aria-label={t('rest.history.close')}>
           <Icon name="close" />
         </button>

@@ -56,7 +56,7 @@ function ProjectsField({ projects, error, onRetry, value, onChange }: {
       {allowed.map((p) => (
         <div key={p.id} className="check-row">
           <span>{p.name}</span>
-          <button className="btn btn-sm" onClick={() => onChange(value.filter((id) => id !== p.id))}>{t('settings.workbench.projects.remove')}</button>
+          <button className="btn btn-sm" onClick={() => onChange(value.filter((id) => id !== p.id))} title={t('settings.workbench.projects.remove')}>{t('settings.workbench.projects.remove')}</button>
         </div>
       ))}
       {projects && projects.length > allowed.length && (adding ? (
@@ -65,7 +65,7 @@ function ProjectsField({ projects, error, onRetry, value, onChange }: {
           <div className="project-add-list">
             {candidates.length === 0 && <span className="muted">{t('settings.workbench.projects.noMatch')}</span>}
             {candidates.map((p) => (
-              <button key={p.id} className="menu-item" onClick={() => add(p.id)}>
+              <button key={p.id} className="menu-item" onClick={() => add(p.id)} title={p.path}>
                 <span className="menu-label">{p.name}</span>
                 <span className="muted">{p.path}</span>
               </button>
@@ -73,7 +73,7 @@ function ProjectsField({ projects, error, onRetry, value, onChange }: {
           </div>
         </>
       ) : (
-        <button className="btn btn-sm" style={{ alignSelf: 'flex-start' }} onClick={() => setAdding(true)}>{t('settings.workbench.projects.add')}</button>
+        <button className="btn btn-sm" style={{ alignSelf: 'flex-start' }} onClick={() => setAdding(true)} title={t('settings.workbench.projects.add')}>{t('settings.workbench.projects.add')}</button>
       ))}
       <span className="muted">{t('settings.workbench.projects.hint')}</span>
     </div>

@@ -1,5 +1,5 @@
 import { type DragEvent, type MouseEvent, type ReactNode, useState } from 'react';
-import { Icon, type IconName } from '@deckbuilderkit/ui';
+import { Icon, type IconName, useShortcutTip } from '@deckbuilderkit/ui';
 import { t } from '../i18n';
 import type { SectionId } from './sidebar-sections';
 
@@ -7,12 +7,13 @@ import type { SectionId } from './sidebar-sections';
 export const SECTION_DRAG_TYPE = 'application/x-agents-section';
 
 /** One icon button in a section header; hidden until the header is hovered or focused, unless pressed. */
-export function SectionButton({ icon, label, onClick, pressed }: { icon: IconName; label: string; onClick(): void; pressed?: boolean }) {
+export function SectionButton({ icon, label, onClick, pressed, command }: { icon: IconName; label: string; onClick(): void; pressed?: boolean; command?: string }) {
+  const tip = useShortcutTip();
   return (
     <button
       type="button"
       className="agents-section-btn"
-      title={label}
+      title={tip(label, command)}
       aria-label={label}
       aria-pressed={pressed}
       onClick={(e) => {

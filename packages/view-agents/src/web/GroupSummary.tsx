@@ -57,7 +57,7 @@ export function GroupSummary({ kind, name, path, sessions, projectCount, onSelec
           const title = displayName(s);
           return (
             <li key={s.id}>
-              <button type="button" className="agents-summary-row" onClick={() => onSelect(s.id)}>
+              <button type="button" className="agents-summary-row" title={title} onClick={() => onSelect(s.id)}>
                 <StatusDot status={s.status} title={label} />
                 <span className="agents-summary-title" title={title}>{title}</span>
                 <span className="agents-summary-time">{since(s.updatedAt)}</span>

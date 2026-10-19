@@ -9,7 +9,7 @@ export function Home() {
   return (
     <div className="content">
       <PageHead title={t('home.title')}>
-        <button className="btn btn-sm" onClick={info.reload}><Icon name="refresh" /> {t('common.retry')}</button>
+        <button title={t('common.retry')} className="btn btn-sm" onClick={info.reload}><Icon name="refresh" /> {t('common.retry')}</button>
       </PageHead>
       <div className="scroll">
         {info.error && <ErrorBanner error={info.error} onRetry={info.reload} />}

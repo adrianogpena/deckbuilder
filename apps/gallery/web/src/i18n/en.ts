@@ -42,6 +42,7 @@ export const en = {
   'tabs.notes.hint': 'Text stays when you switch tabs',
   'tabs.notes.placeholder': 'Type something…',
   'tabs.counter.hint': 'The count stays when you switch tabs',
+  'tabs.counter.increment': 'Add one',
   'tabs.info.hint': 'Route of this tab',
 
   'grid.add': 'Add panel',

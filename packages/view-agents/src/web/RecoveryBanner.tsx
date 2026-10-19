@@ -22,13 +22,13 @@ export function RecoveryBanner({ items, onResume, onDismiss }: RecoveryBannerPro
     });
   const actions = picking ? (
     <>
-      <button type="button" className="agents-bar-btn is-primary" disabled={chosen.size === 0} onClick={() => onResume(items.filter((x) => chosen.has(x.id)))}>{t('agents.recovery.resume')}</button>
-      <button type="button" className="agents-bar-btn" onClick={() => setPicking(false)}>{t('agents.recovery.back')}</button>
+      <button type="button" className="agents-bar-btn is-primary" title={t('agents.recovery.resume')} disabled={chosen.size === 0} onClick={() => onResume(items.filter((x) => chosen.has(x.id)))}>{t('agents.recovery.resume')}</button>
+      <button type="button" className="agents-bar-btn" title={t('agents.recovery.back')} onClick={() => setPicking(false)}>{t('agents.recovery.back')}</button>
     </>
   ) : (
     <>
-      <button type="button" className="agents-bar-btn is-primary" onClick={() => onResume(items)}>{t('agents.recovery.resumeAll')}</button>
-      <button type="button" className="agents-bar-btn" onClick={() => setPicking(true)}>{t('agents.recovery.pick')}</button>
+      <button type="button" className="agents-bar-btn is-primary" title={t('agents.recovery.resumeAll')} onClick={() => onResume(items)}>{t('agents.recovery.resumeAll')}</button>
+      <button type="button" className="agents-bar-btn" title={t('agents.recovery.pick')} onClick={() => setPicking(true)}>{t('agents.recovery.pick')}</button>
     </>
   );
   return (

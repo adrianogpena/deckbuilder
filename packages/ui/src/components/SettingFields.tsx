@@ -130,7 +130,7 @@ export function EnumField<V extends string | number>({ label, hint, value, value
       <span className="mono-label">{label}</span>
       <div className="chips">
         {values.map((v) => (
-          <button key={String(v)} className={`chip${value === v ? ' chip-on' : ''}`} onClick={() => onChange(v)}>
+          <button title={optionLabel ? optionLabel(v) : String(v)} key={String(v)} className={`chip${value === v ? ' chip-on' : ''}`} onClick={() => onChange(v)}>
             {optionLabel ? optionLabel(v) : String(v)}
           </button>
         ))}

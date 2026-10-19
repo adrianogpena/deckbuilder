@@ -91,7 +91,7 @@ export function ContextMenu({ at, items, onClose }: { at: { x: number; y: number
         item === 'sep' ? (
           <div key={`sep-${i}`} className="menu-sep" role="separator" />
         ) : (
-          <button
+          <button title={item.label}
             key={item.id}
             className={`menu-item${item.danger ? ' danger' : ''}`}
             role={item.checked === undefined ? 'menuitem' : item.radio ? 'menuitemradio' : 'menuitemcheckbox'}

@@ -374,6 +374,9 @@ export function rootedFs(opts: RootedFsOptions): RootedFs {
   const maxReadBytes = opts.maxReadBytes ?? 5_000_000;
   const trash = opts.trash ?? moveToTrash;
   const saveAs = opts.saveAs ?? saveFileAs;
+  /** Targets the user picked in a save dialog; `save-new` writes a given `path` only when it is one of these. */
+  const savedTargets = new Set<string>();
+  const targetKey = (p: string) => (process.platform === 'win32' ? resolve(p).toLowerCase() : resolve(p));
   // The OS fetches a dragged-out file with no headers, so the URL carries a ticket instead of the session token.
   const downloads = socketTickets<{ file: string; name: string }>({ ttlMs: 60_000 });
 
@@ -612,32 +615,42 @@ export function rootedFs(opts: RootedFsOptions): RootedFs {
         filters: [{ name: 'Log', patterns: ['*.log'] }],
       }).catch(fromPlatform);
       if (target === null) return { path: null };
+      savedTargets.add(targetKey(target));
       await writeFileAtomic(target, Bun.file(loc.real).slice(from, size));
       return { path: target, bytes: size - from };
     },
 
     // An untitled tab: without `path` asks where with the save dialog (any folder), else writes to
-    // `path`, the absolute target an earlier save of the same tab returned.
+    // `path` when an earlier save dialog of this server returned it. Any other `path` (say a tab
+    // restored after a restart) asks again, starting at that file.
     'POST /api/fs/save-new': async ({ json }) => {
       const b = await body(json);
       if (typeof b.text !== 'string') throw badRequest();
       const text = b.text;
       let target: string | null;
+      let suggested = typeof b.suggestedName === 'string' ? basename(b.suggestedName) : 'untitled.txt';
+      let start = typeof b.start === 'string' && isAbsolute(b.start) ? b.start : undefined;
       if (b.path !== undefined) {
         if (typeof b.path !== 'string' || !isAbsolute(b.path)) throw badRequest();
         target = resolve(b.path);
-        const st = await stat(target).catch(() => null);
-        if (st?.isDirectory()) throw notAFile();
-      } else {
-        const suggestedName = typeof b.suggestedName === 'string' ? basename(b.suggestedName) : 'untitled.txt';
-        const ext = extname(suggestedName).slice(1);
+        if (!savedTargets.has(targetKey(target))) {
+          suggested = basename(target);
+          start = dirname(target);
+          target = null;
+        }
+      } else target = null;
+      if (target === null) {
+        const ext = extname(suggested).slice(1);
         target = await saveAs({
-          suggestedName,
-          ...(typeof b.start === 'string' && isAbsolute(b.start) && { start: b.start }),
+          suggestedName: suggested,
+          ...(start && { start }),
           filters: [...(ext ? [{ name: ext.toUpperCase(), patterns: [`*.${ext}`] }] : []), { name: 'All files', patterns: ['*.*'] }],
         }).catch(fromPlatform);
         if (target === null) return { path: null };
+        savedTargets.add(targetKey(target));
       }
+      const st = await stat(target).catch(() => null);
+      if (st?.isDirectory()) throw notAFile();
       await writeFileAtomic(target, text);
       return { path: target };
     },

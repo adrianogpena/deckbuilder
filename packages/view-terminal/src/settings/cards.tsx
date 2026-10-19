@@ -184,9 +184,9 @@ function ProfilesField({ value, terminal, onChange }: { value: TerminalProfile[]
                 {' · '}{builtin ? t('settings.terminal.profiles.builtin') : t('settings.terminal.profiles.custom')}
               </span>
               <span className="profile-actions">
-                {builtin && <button className="btn btn-sm" onClick={() => update(p.id, { hidden: !p.hidden })}>{t(p.hidden ? 'settings.terminal.profiles.show' : 'settings.terminal.profiles.hide')}</button>}
-                <button className="btn btn-sm" aria-expanded={open} onClick={() => setEditing(open ? undefined : p.id)}>{t(open ? 'settings.terminal.profiles.done' : 'settings.terminal.profiles.edit')}</button>
-                {!builtin && <button className="btn btn-sm" onClick={() => remove(p.id)}>{t('settings.terminal.profiles.delete')}</button>}
+                {builtin && <button title={t(p.hidden ? 'settings.terminal.profiles.show' : 'settings.terminal.profiles.hide')} className="btn btn-sm" onClick={() => update(p.id, { hidden: !p.hidden })}>{t(p.hidden ? 'settings.terminal.profiles.show' : 'settings.terminal.profiles.hide')}</button>}
+                <button title={t(open ? 'settings.terminal.profiles.done' : 'settings.terminal.profiles.edit')} className="btn btn-sm" aria-expanded={open} onClick={() => setEditing(open ? undefined : p.id)}>{t(open ? 'settings.terminal.profiles.done' : 'settings.terminal.profiles.edit')}</button>
+                {!builtin && <button title={t('settings.terminal.profiles.delete')} className="btn btn-sm" onClick={() => remove(p.id)}>{t('settings.terminal.profiles.delete')}</button>}
               </span>
               {open && (
                 <ProfileEditor
@@ -203,7 +203,7 @@ function ProfilesField({ value, terminal, onChange }: { value: TerminalProfile[]
         })}
       </div>
       <div className="row">
-        <button className="btn btn-sm" disabled={value.length >= MAX_PROFILES} onClick={add}>{t('settings.terminal.profiles.add')}</button>
+        <button title={t('settings.terminal.profiles.add')} className="btn btn-sm" disabled={value.length >= MAX_PROFILES} onClick={add}>{t('settings.terminal.profiles.add')}</button>
       </div>
       {pickingRow && (
         <IconPicker
@@ -284,8 +284,8 @@ function ProfileEditor({ profile: p, terminal, builtin, onChange, onPickIcon, on
         <div className="field">
           <span className="mono-label">{t('settings.terminal.profiles.changeIcon')}</span>
           <div className="row">
-            <button className="btn btn-sm" onClick={onPickIcon}><Icon name={iconOf(p)} size={16} /> {iconOf(p)}</button>
-            <button className="btn btn-sm" disabled={!p.icon} onClick={() => onChange({ icon: undefined })}>{t('settings.terminal.profiles.defaultIcon')}</button>
+            <button title={iconOf(p)} className="btn btn-sm" onClick={onPickIcon}><Icon name={iconOf(p)} size={16} /> {iconOf(p)}</button>
+            <button title={t('settings.terminal.profiles.defaultIcon')} className="btn btn-sm" disabled={!p.icon} onClick={() => onChange({ icon: undefined })}>{t('settings.terminal.profiles.defaultIcon')}</button>
           </div>
         </div>
       ))}
@@ -301,7 +301,7 @@ function ProfileEditor({ profile: p, terminal, builtin, onChange, onPickIcon, on
         </label>
       ))}
       <ProfileAppearanceFields value={p.appearance} terminal={terminal} onChange={(appearance) => onChange({ appearance })} />
-      {onReset && <div className="row"><button className="btn btn-sm" onClick={onReset}>{t('settings.terminal.profiles.reset')}</button></div>}
+      {onReset && <div className="row"><button title={t('settings.terminal.profiles.reset')} className="btn btn-sm" onClick={onReset}>{t('settings.terminal.profiles.reset')}</button></div>}
     </div>
   );
 }

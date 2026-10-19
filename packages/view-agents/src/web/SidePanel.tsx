@@ -1,4 +1,5 @@
 import { type ReactNode, useState } from 'react';
+import { useShortcutTip } from '@deckbuilderkit/ui';
 import { t } from '../i18n';
 
 export type SidePanelTab = 'changes' | 'notes' | 'trajectory';
@@ -42,6 +43,7 @@ export interface SidePanelProps {
 
 /** Right side panel of the Agents view: Changes / Notes / Trajectory tabs, the active one remembered. */
 export function SidePanel({ changes, notes, trajectory, tab: controlled, onTabChange, onClose, focused = false }: SidePanelProps) {
+  const tip = useShortcutTip();
   const [own, setOwn] = useState(readPanelTab);
   const tab = controlled ?? own;
   const pick = (next: SidePanelTab) => {
@@ -60,6 +62,7 @@ export function SidePanel({ changes, notes, trajectory, tab: controlled, onTabCh
               key={id}
               type="button"
               role="tab"
+              title={t(`agents.panel.${id}`)}
               id={`agents-panel-tab-${id}`}
               aria-selected={tab === id}
               aria-controls="agents-panel-body"
@@ -69,7 +72,7 @@ export function SidePanel({ changes, notes, trajectory, tab: controlled, onTabCh
             </button>
           ))}
         </div>
-        <button type="button" className="agents-toggle" title={t('agents.panel.close')} aria-label={t('agents.panel.close')} onClick={onClose}>
+        <button type="button" className="agents-toggle" title={tip(t('agents.panel.close'), 'agents.togglePanel')} aria-label={t('agents.panel.close')} onClick={onClose}>
           ×
         </button>
       </header>

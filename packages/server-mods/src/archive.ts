@@ -42,11 +42,25 @@ export interface SevenZipResult {
   code: number;
 }
 
-export async function run(args: string[], mounts: Record<string, string>, cwd?: string): Promise<SevenZipResult> {
+/**
+ * Runs 7z. With `maxPaths`, stdout stops being kept once it holds that many `Path = ` lines (a
+ * listing's entries), so a huge archive can't fill memory; `capped` then says more were printed.
+ */
+export async function run(args: string[], mounts: Record<string, string>, cwd?: string, maxPaths?: number): Promise<SevenZipResult & { capped?: boolean }> {
   wasm ??= Bun.file(wasmFile).arrayBuffer();
   const out: string[] = [];
   const err: string[] = [];
-  const m = await SevenZip({ wasmBinary: await wasm, print: (s) => out.push(s), printErr: (s) => err.push(s) });
+  let paths = 0;
+  let capped = false;
+  const print = (s: string) => {
+    if (capped) return;
+    if (maxPaths !== undefined && s.includes('Path = ') && ++paths > maxPaths) {
+      capped = true;
+      return;
+    }
+    out.push(s);
+  };
+  const m = await SevenZip({ wasmBinary: await wasm, print, printErr: (s) => { if (err.length < 1000) err.push(s); } });
   for (const [point, root] of Object.entries(mounts)) {
     m.FS.mkdir(point);
     m.FS.mount(m.NODEFS, { root }, point);
@@ -58,7 +72,7 @@ export async function run(args: string[], mounts: Record<string, string>, cwd?: 
   } catch (e) {
     code = (e as { status?: number }).status ?? 1;
   }
-  return { out, err, code };
+  return capped ? { out, err, code, capped } : { out, err, code };
 }
 
 /** Parses `7z l -slt -ba`: blocks of `Key = value` lines; the first key's line may carry progress text before it. */
@@ -95,29 +109,30 @@ export function parseListing(lines: string[]): ArchiveEntry[] {
   return entries;
 }
 
-async function list(abs: string, extra: string[] = []): Promise<ArchiveEntry[]> {
-  const { out, err, code } = await run(['l', '-slt', '-ba', '-bd', ...extra, `/host/${basename(abs)}`], { '/host': dirname(abs) });
+async function list(abs: string, extra: string[] = [], max = MAX_ENTRIES): Promise<{ entries: ArchiveEntry[]; truncated: boolean }> {
+  const { out, err, code, capped } = await run(['l', '-slt', '-ba', '-bd', ...extra, `/host/${basename(abs)}`], { '/host': dirname(abs) }, undefined, Number.isFinite(max) ? max : undefined);
   const entries = parseListing(out);
   if (entries.length === 0 && (code !== 0 || err.length > 0)) {
     throw invalid('badArchive', err.find((l) => l.trim()) ?? 'This file is not a supported archive.');
   }
-  return entries;
+  return { entries: entries.slice(0, max), truncated: capped === true || entries.length > max };
 }
 
 /** Lists an archive (7z, rar, zip, tar, gz, xz, bz2, iso, cab, ...), looking inside a lone .tar as well. */
 export async function listArchive(abs: string): Promise<ArchiveListing> {
-  let entries = await list(abs);
+  let listing = await list(abs);
+  const { entries } = listing;
   const only = entries.length === 1 ? entries[0]! : undefined;
   if (only && !only.dir && /\.tar$/i.test(only.path) && only.size <= MAX_NESTED_TAR_BYTES) {
     const dir = await mkdtemp(join(tmpdir(), 'deckbuilder-arc-'));
     try {
       const { code } = await run(['e', '-y', '-bd', `-o/out`, `/host/${basename(abs)}`], { '/host': dirname(abs), '/out': dir });
-      if (code === 0 && (await stat(join(dir, basename(only.path))).catch(() => null))) entries = await list(join(dir, basename(only.path)));
+      if (code === 0 && (await stat(join(dir, basename(only.path))).catch(() => null))) listing = await list(join(dir, basename(only.path)));
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
   }
-  return { entries: entries.slice(0, MAX_ENTRIES), truncated: entries.length > MAX_ENTRIES };
+  return listing;
 }
 
 /**
@@ -157,7 +172,8 @@ function check(r: SevenZipResult): void {
 
 /** Lists `abs` for extraction: encrypted entries or entry names leading out are refused. */
 async function checkedList(abs: string): Promise<ArchiveEntry[]> {
-  const entries = await list(abs, [NO_PASSWORD]).catch((err) => {
+  // Uncapped: every entry must pass the checks before extracting.
+  const { entries } = await list(abs, [NO_PASSWORD], Infinity).catch((err) => {
     throw wrongPassword([(err as Error).message ?? '']) ? encrypted() : err;
   });
   if (entries.some((e) => e.encrypted)) throw encrypted();

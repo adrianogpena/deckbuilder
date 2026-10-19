@@ -93,7 +93,7 @@ export function backupRoutes(opts: BackupRoutesOptions): Routes {
           counts[name] = file.records[name].length;
         }
       }
-      await writeJsonAtomic(path, file);
+      await writeJsonAtomic(path, file, { mode: 0o600 });
       return { path, counts };
     },
 

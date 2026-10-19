@@ -121,7 +121,7 @@ export function MarkdownToc({ headings, content }: { headings: TocHeading[]; con
           <ul>
             {headings.map((h, i) => (
               <li key={i}>
-                <button type="button" className={'md-toc-item' + (i === active ? ' active' : '')} aria-current={i === active ? 'location' : undefined}
+                <button title={h.text} type="button" className={'md-toc-item' + (i === active ? ' active' : '')} aria-current={i === active ? 'location' : undefined}
                   style={{ paddingLeft: 10 + (h.level - 1) * 12 }} onClick={() => jump(h)}>
                   {h.text}
                 </button>

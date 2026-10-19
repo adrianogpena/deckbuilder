@@ -204,9 +204,9 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
   const canReset = pageDefs.some((d) => !deepEqual(d.get(draft), d.default));
   const footer = selected?.key === 'keyboard.shortcuts' && !searching ? undefined : (
     <>
-      <button className="btn btn-sm" disabled={!canReset} onClick={() => change(defaultsPatch(pageDefs, draft))}>{t('settings.footer.reset')}</button>
-      <button className="btn btn-sm" disabled={!dirty} onClick={apply}>{t('settings.footer.apply')}</button>
-      <button
+      <button title={t('settings.footer.reset')} className="btn btn-sm" disabled={!canReset} onClick={() => change(defaultsPatch(pageDefs, draft))}>{t('settings.footer.reset')}</button>
+      <button title={t('settings.footer.apply')} className="btn btn-sm" disabled={!dirty} onClick={apply}>{t('settings.footer.apply')}</button>
+      <button title={t('settings.footer.ok')}
         className="btn btn-sm btn-primary"
         onClick={requestClose}
       >
@@ -279,7 +279,7 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
             const isOpen = searching || expanded.has(f.key);
             const active = !searching && section === f.key;
             return (
-              <button
+              <button title={t('settings.row.modified')}
                 key={f.key}
                 className={`settings-nav-item${active ? ' active' : ''}`}
                 style={{ '--depth': f.depth } as CSSProperties}
@@ -335,7 +335,7 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
           {searching && hits.size === 0 && (
             <div className="settings-empty">
               <span className="muted">{t('settings.search.none')}</span>
-              <button className="btn btn-sm" onClick={() => setQuery('')}>{t('settings.search.clear')}</button>
+              <button title={t('settings.search.clear')} className="btn btn-sm" onClick={() => setQuery('')}>{t('settings.search.clear')}</button>
             </div>
           )}
         </div>
@@ -347,9 +347,9 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
           onClose={() => setAsking(false)}
           footer={
             <>
-              <button className="btn" onClick={() => setAsking(false)} autoFocus>{t('settings.unsaved.cancel')}</button>
-              <button className="btn" onClick={onClose}>{t('settings.unsaved.discard')}</button>
-              <button
+              <button title={t('settings.unsaved.cancel')} className="btn" onClick={() => setAsking(false)} autoFocus>{t('settings.unsaved.cancel')}</button>
+              <button title={t('settings.unsaved.discard')} className="btn" onClick={onClose}>{t('settings.unsaved.discard')}</button>
+              <button title={t('settings.unsaved.save')}
                 className="btn btn-primary"
                 onClick={() => {
                   apply();
@@ -435,7 +435,7 @@ function GeneralCard({ onQuit }: { onQuit: () => void }) {
       <div className="card form">
         <div className="field">
           <div className="row">
-            <button className="btn btn-sm btn-danger" disabled={busy} onClick={quit}>
+            <button title={t('settings.quit')} className="btn btn-sm btn-danger" disabled={busy} onClick={quit}>
               {t('settings.quit')}
             </button>
           </div>
@@ -487,7 +487,7 @@ function UpdatesCard({ folder, onFolder }: { folder: string; onFolder: (folder: 
           <label className="mono-label" htmlFor="update-folder">{t('settings.updateFolder')}</label>
           <div className="row">
             <input id="update-folder" value={folder} placeholder={t('settings.updateFolder.none')} readOnly />
-            <button
+            <button title={t('settings.updateFolder.browse')}
               className="btn btn-sm"
               disabled={busy}
               onClick={() => run(async () => {
@@ -498,7 +498,7 @@ function UpdatesCard({ folder, onFolder }: { folder: string; onFolder: (folder: 
               {t('settings.updateFolder.browse')}
             </button>
             {folder && (
-              <button className="btn btn-sm" disabled={busy} onClick={() => onFolder('')}>
+              <button title={t('settings.updateFolder.clear')} className="btn btn-sm" disabled={busy} onClick={() => onFolder('')}>
                 {t('settings.updateFolder.clear')}
               </button>
             )}
@@ -516,11 +516,11 @@ function UpdatesCard({ folder, onFolder }: { folder: string; onFolder: (folder: 
             {u.available && u.notes && <pre className="mono muted">{u.notes}</pre>}
             {u.available && !u.canApply && <span className="muted">{t('settings.update.fromSource')}</span>}
             <div className="row">
-              <button className="btn btn-sm" disabled={busy || !u.source} onClick={() => run(() => api.checkUpdate().then(() => state.reload()))}>
+              <button title={t('settings.update.check')} className="btn btn-sm" disabled={busy || !u.source} onClick={() => run(() => api.checkUpdate().then(() => state.reload()))}>
                 {t('settings.update.check')}
               </button>
               {u.available && u.canApply && (
-                <button
+                <button title={t('settings.update.apply')}
                   className="btn btn-sm btn-primary"
                   disabled={busy || restarting !== null}
                   onClick={() => run(async () => setRestarting((await api.applyUpdate()).version))}

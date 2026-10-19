@@ -31,8 +31,8 @@ function QueuedRow({ item, onEdit, onRemove }: { item: QueuedMessage; onEdit(tex
             else if (e.key === 'Escape') setDraft(null);
           }}
         />
-        <button type="button" onClick={save}>{t('agents.chat.queue.save')}</button>
-        <button type="button" onClick={() => setDraft(null)}>{t('agents.new.cancel')}</button>
+        <button type="button" title={t('agents.chat.queue.save')} onClick={save}>{t('agents.chat.queue.save')}</button>
+        <button type="button" title={t('agents.new.cancel')} onClick={() => setDraft(null)}>{t('agents.new.cancel')}</button>
       </li>
     );
   }
@@ -87,7 +87,7 @@ export function Composer({ running, disabled, queue, onSend, onInterrupt, onEdit
         />
         <div className="chat-actions">
           {running && <button type="button" className="chat-interrupt" onClick={onInterrupt} title={t('agents.chat.interrupt.hint')}>{t('agents.chat.interrupt')}</button>}
-          <button type="button" className="primary" disabled={disabled || !text.trim()} onClick={submit}>
+          <button type="button" className="primary" title={running ? t('agents.chat.queueSend') : t('agents.chat.send')} disabled={disabled || !text.trim()} onClick={submit}>
             {running ? t('agents.chat.queueSend') : t('agents.chat.send')}
           </button>
         </div>

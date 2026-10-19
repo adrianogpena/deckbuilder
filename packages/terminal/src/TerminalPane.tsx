@@ -550,7 +550,7 @@ export function TerminalPane(props: TerminalPaneProps) {
 function overlayOf(status: Status, preview: boolean, controller: { current: Controller | null }) {
   const action = (label: string, run: (c: Controller) => void) =>
     preview ? null : (
-      <button type="button" className="btn btn-sm" onClick={() => controller.current && run(controller.current)}>
+      <button title={label} type="button" className="btn btn-sm" onClick={() => controller.current && run(controller.current)}>
         {label}
       </button>
     );
