@@ -1,4 +1,4 @@
-import { useEffect, useRef, type KeyboardEvent } from 'react';
+import type { KeyboardEvent } from 'react';
 import type { AgentSessionView } from '../protocol.ts';
 import { t } from '../i18n';
 import { since } from './AlertsPanel';
@@ -22,11 +22,6 @@ export interface GroupSummaryProps {
 
 /** Summary of a project or folder row: kind and name, counts, a hint and one line per session, newest first. */
 export function GroupSummary({ kind, name, path, sessions, projectCount, onSelect, onNewSession }: GroupSummaryProps) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    ref.current?.focus();
-  }, [kind, name]);
-
   const c = statusCounts(sessions);
   const meta = [
     t(sessions.length === 1 ? 'agents.summary.session' : 'agents.summary.sessions', { n: sessions.length }),
@@ -45,7 +40,7 @@ export function GroupSummary({ kind, name, path, sessions, projectCount, onSelec
   };
 
   return (
-    <div className="agents-card agents-summary" tabIndex={0} ref={ref} onKeyDown={onKeyDown}>
+    <div className="agents-card agents-summary" tabIndex={0} onKeyDown={onKeyDown}>
       <div className={`agents-card-name agents-summary-name ${kind}`}>
         {t(kind === 'folder' ? 'agents.summary.folder' : 'agents.summary.projectKind')} · {name}
       </div>
