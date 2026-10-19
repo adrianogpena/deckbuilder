@@ -11,7 +11,7 @@ Base for local-first desktop apps. A Bun workspace of shared packages plus thin 
 
 ![Agents, dark](docs/agents.png)
 
-The Agents view (`view-agents`): Claude Code sessions per project, with live status, terminal/chat, usage, attention and side panels.
+The Agents view (`view-agents`): Claude Code sessions per project, with live status, terminal/chat, usage, attention and dockable tool panels (changes, files, review, run, tasks, usage) in a per-project tab workspace.
 
 - Projects are any picked folder. The sidebar is a tree of folders and tags with clean rows. Sessions can be archived (and shown in an archived view) or moved to the trash.
 - Each project shows at most `agents.maxSessionsPerProject` sessions (default 10); live sessions are always shown and counted first. New sessions go on top. Sort: manual, recent or needs attention.

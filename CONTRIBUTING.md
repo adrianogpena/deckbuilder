@@ -527,6 +527,13 @@ Atom packs are compiled into `packages/ui/src/icons.ts` by `bun scripts/build-ma
 `bun scripts/build-atom-icons.ts`; each reads the pack's `mapping.json`. Rerun the script after
 changing a pack or its mapping.
 
+## Adding an Agents panel
+A tool in the Agents view is a panel module:
+- Create `packages/view-agents/src/web/panels/<kind>/` with `index.tsx` exporting `panel: PanelModule` (contract in `web/workspace/types.ts`), `i18n.ts` (`en` and `ptBR`) and `style.css`.
+- Register it: one import in `web/workspace/registry.ts` and one in `web/panels/i18n.ts`.
+- Server routes, if any: `packages/view-agents/src/server/panels/<kind>.ts` exporting `routes(ctx)` (`PanelCtx` in `server/panels/ctx.ts`), added in `server/panels/index.ts`.
+- Optional `Section` makes the panel dockable as a sidebar card; `commands` adds shortcuts.
+
 ## Adding a layout
 
 Add `packages/ui/src/layouts/<id>.css`, scoped under `:root[data-layout='<id>']`, and an entry
