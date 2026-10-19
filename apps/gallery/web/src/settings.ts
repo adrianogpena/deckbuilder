@@ -66,6 +66,7 @@ settingsRegistry.registerSettings([
 
   groupField('general', 'confirmCloseDirty', 100, bool(true)),
   groupField('general', 'toastDuration', 110, num(4000, 1000, 60_000)),
+  groupField('general', 'browser', 115, str('')),
 
   groupField('keyboard', 'chordTimeout', 100, num(1500, 500, 10_000)),
 
@@ -141,4 +142,5 @@ export const generalSettingsOf = (s: Settings): Required<GeneralSettings> => ({
   confirmCloseDirty: s.general?.confirmCloseDirty ?? settingDefault<boolean>('general.confirmCloseDirty'),
   toastDuration: s.general?.toastDuration ?? settingDefault<number>('general.toastDuration'),
   startScreen: s.general?.startScreen ?? settingDefault<string>('general.startScreen'),
+  browser: s.general?.browser ?? settingDefault<string>('general.browser'),
 });

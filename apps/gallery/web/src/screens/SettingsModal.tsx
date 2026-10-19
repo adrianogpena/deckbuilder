@@ -474,6 +474,7 @@ function GeneralSection({ settings, onChange, onQuit }: Props) {
         <Row id="general.rememberSettingsPage" settings={settings} onChange={onChange} />
         <Row id="general.confirmCloseDirty" settings={settings} onChange={onChange} />
         <Row id="general.toastDuration" settings={settings} onChange={onChange} />
+        <Row id="general.browser" settings={settings} onChange={onChange} />
         <Row id="general.startScreen" settings={settings} onChange={onChange} />
       </div>
       {(!isDesktop || settings.closeToTray) && <GeneralCard onQuit={onQuit} />}

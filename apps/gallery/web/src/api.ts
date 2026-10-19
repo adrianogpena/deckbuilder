@@ -93,6 +93,8 @@ export interface GeneralSettings {
   /** Milliseconds a toast stays, 1000 to 60 000; errors stay longer. */
   toastDuration?: number;
   startScreen?: string;
+  /** Browser for links the app opens (Run panel URLs, --browser mode): edge, chrome, firefox or an executable path; blank = system default. */
+  browser?: string;
 }
 
 export interface KeyboardSettings {

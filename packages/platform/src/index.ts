@@ -1,5 +1,6 @@
 // OS-specific code lives here, so apps and the other packages stay portable.
 import { basename } from 'node:path';
+import { resolveBrowser } from './browser.ts';
 export * from './browser.ts';
 export * from './dialogs.ts';
 export * from './editors.ts';
@@ -109,11 +110,20 @@ export function setWindowIconFromExe(hwnd: import('bun:ffi').Pointer | null): vo
   }
 }
 
-/** Opens a URL in the default browser; best-effort, failures are ignored. */
+let chosenBrowser: string | undefined;
+
+/** Browser `openExternal` uses (a name from `NAMED_BROWSERS` or an executable path); blank or undefined = the system default. */
+export function setBrowser(spec: string | undefined): void {
+  chosenBrowser = spec;
+}
+
+/** Opens a URL in the chosen browser (`setBrowser`), else the default one; best-effort, failures are ignored. */
 export function openExternal(url: string): void {
   if (!/^https?:\/\//.test(url)) return;
-  const cmd =
-    process.platform === 'win32'
+  const browser = resolveBrowser(chosenBrowser);
+  const cmd = browser
+    ? [browser, url]
+    : process.platform === 'win32'
       ? ['rundll32', 'url.dll,FileProtocolHandler', url]
       : process.platform === 'darwin'
         ? ['open', url]

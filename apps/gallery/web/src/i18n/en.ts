@@ -189,6 +189,8 @@ export const en = {
   'settings.general.confirmCloseDirty.hint': 'Ask before closing tabs with unsaved changes. When off, they are saved first.',
   'settings.general.toastDuration': 'Notification duration',
   'settings.general.toastDuration.hint': 'Milliseconds a notification stays, 1000 to 60 000. Errors stay 10 seconds.',
+  'settings.general.browser': 'Browser',
+  'settings.general.browser.hint': 'Opens links the app starts (Run panel URLs, --browser mode). Blank = system default; edge, chrome or firefox; or the path of an executable.',
   'settings.general.startScreen': 'Start screen',
   'settings.general.startScreen.hint': 'The screen the app opens on when the address has none.',
   'settings.general.startScreen.home': 'Home',

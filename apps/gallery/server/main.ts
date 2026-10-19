@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { appHome, confirmNo, createAutostart, pickFolder } from '@deckbuilderkit/platform';
+import { appHome, confirmNo, createAutostart, pickFolder, setBrowser } from '@deckbuilderkit/platform';
 import { applyViewSettings, checkViewSettings, type FieldSpec, mountViews, updatePublicKey, validGroup } from '@deckbuilderkit/server-core';
 import {
   backupRoutes,
@@ -106,11 +106,13 @@ const GENERAL_SPEC: Record<string, FieldSpec> = {
   confirmCloseDirty: 'boolean',
   toastDuration: [1000, 60_000],
   startScreen: ['home', 'tabs', 'grid', 'explorer', 'workbench', 'rest', 'terminal', 'git', 'agents'],
+  browser: 'string',
 };
 const KEYBOARD_SPEC: Record<string, FieldSpec> = {
   chordTimeout: [500, 10_000],
 };
 const dataDir = appHome(APP.id);
+const browserOf = (s: Settings) => (typeof s.general?.browser === 'string' ? s.general.browser : undefined);
 const autostart = createAutostart({ name: APP.name });
 /** The folder the update-folder dialog returned; `apply` takes it once. */
 const pickedUpdateFolder = pickedPaths({ max: 1 });
@@ -156,6 +158,7 @@ const settings = settingsStore<Settings>({
     if (next.autostart !== prev.autostart) void autostart.set(next.autostart);
     stores.sqlHistory.setMax(historySizeOf(next));
     stores.restHistory.setMax(restHistorySizeOf(next));
+    setBrowser(browserOf(next));
     if (next.updateFolder !== prev.updateFolder) void updater.check();
   },
 });
@@ -170,6 +173,7 @@ const updater = createUpdater({
 });
 
 const { closeToTray } = await settings.load();
+setBrowser(browserOf(await settings.load()));
 stores.sqlHistory.setMax(historySizeOf(await settings.load()));
 stores.restHistory.setMax(restHistorySizeOf(await settings.load()));
 

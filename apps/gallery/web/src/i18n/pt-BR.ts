@@ -191,6 +191,8 @@ export const ptBR: Messages<typeof en> = {
   'settings.general.confirmCloseDirty.hint': 'Pergunta antes de fechar abas com alterações não salvas. Desligado, elas são salvas antes.',
   'settings.general.toastDuration': 'Duração das notificações',
   'settings.general.toastDuration.hint': 'Milissegundos que uma notificação fica, de 1000 a 60 000. Erros ficam 10 segundos.',
+  'settings.general.browser': 'Navegador',
+  'settings.general.browser.hint': 'Abre os links que o app inicia (URLs do painel Executar, modo --browser). Em branco = padrão do sistema; edge, chrome ou firefox; ou o caminho de um executável.',
   'settings.general.startScreen': 'Tela inicial',
   'settings.general.startScreen.hint': 'A tela em que o app abre quando o endereço não indica nenhuma.',
   'settings.general.startScreen.home': 'Início',

@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { appBrowserArgv, findAppBrowser } from './browser.ts';
+import { appBrowserArgv, findAppBrowser, resolveBrowser } from './browser.ts';
 
 const env = { 'ProgramFiles(x86)': 'C:\\PF86', ProgramFiles: 'C:\\PF', LOCALAPPDATA: 'C:\\Users\\me\\AppData\\Local' };
 const EDGE = 'C:\\PF86\\Microsoft\\Edge\\Application\\msedge.exe';
@@ -40,4 +40,17 @@ test('argv opens an app window with its own profile', () => {
     '--no-default-browser-check',
     '--window-size=1280,820',
   ]);
+});
+
+test('resolveBrowser maps a name to its install and a path to itself', () => {
+  const store = 'C:\\Users\\me\\AppData\\Local\\Microsoft\\WindowsApps\\firefox.exe';
+  const win = (spec: string, installed: string[]) => resolveBrowser(spec, { platform: 'win32', env, exists: (p) => installed.includes(p) });
+  expect(win('Edge', [EDGE, CHROME])).toBe(EDGE);
+  expect(win('chrome', [EDGE, CHROME])).toBe(CHROME);
+  expect(win('firefox', [store])).toBe(store);
+  expect(win('firefox', [])).toBeNull();
+  expect(win('D:\\b\\brave.exe', ['D:\\b\\brave.exe'])).toBe('D:\\b\\brave.exe');
+  expect(win('D:\\b\\gone.exe', [])).toBeNull();
+  expect(win('  ', [EDGE])).toBeNull();
+  expect(resolveBrowser(undefined)).toBeNull();
 });
