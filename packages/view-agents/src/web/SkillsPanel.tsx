@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Empty, ErrorBanner, Modal, Spinner, useAsync, useRovingList } from '@deckbuilderkit/ui';
+import { Empty, ErrorBanner, Icon, Spinner, useAsync, useRovingList } from '@deckbuilderkit/ui';
 import { t } from '../i18n';
 import type { AgentSkillState } from '../protocol';
 import { listSkills } from './api';
@@ -10,7 +10,7 @@ export interface SkillsPanelProps {
   onClose(): void;
 }
 
-/** Skills and Agents of the active account; Escape closes. */
+/** Skills and Agents of the active account, as a scrolling page in the center. */
 export function SkillsPanel({ onClose }: SkillsPanelProps) {
   const [tab, setTab] = useState<'skills' | 'agents'>('skills');
   const state = useAsync(listSkills, []);
@@ -18,7 +18,13 @@ export function SkillsPanel({ onClose }: SkillsPanelProps) {
   useRovingList(listRef, '.agents-skills-row');
   const data = state.data;
   return (
-    <Modal title={t('agents.skills')} onClose={onClose}>
+    <div className="agents-skills-page">
+      <div className="agents-skills-bar">
+        <h3>{t('agents.skills')}</h3>
+        <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={onClose} title={t('common.close')} aria-label={t('common.close')}>
+          <Icon name="close" />
+        </button>
+      </div>
       <div className="agents-skills">
         <div className="agents-skills-tabs" role="tablist">
           {(['skills', 'agents'] as const).map((k) => (
@@ -71,6 +77,6 @@ export function SkillsPanel({ onClose }: SkillsPanelProps) {
           </div>
         )}
       </div>
-    </Modal>
+    </div>
   );
 }

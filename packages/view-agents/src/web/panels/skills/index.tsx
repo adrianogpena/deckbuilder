@@ -11,7 +11,7 @@ export const panel: PanelModule = {
   kind: 'skills',
   titleKey: 'panel.skills.title',
   icon: 'bookmark',
-  placement: 'both',
+  placement: 'center',
   single: true,
   Panel: SkillsTab,
 };

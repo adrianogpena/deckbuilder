@@ -368,7 +368,10 @@
 .agents-usage-tab .sev-err { color: var(--err); }
 .agents-usage-tab .stale .agents-usage-cells > span.on, .agents-usage-tab .stale .agents-usage-pct { color: var(--text-3); }
 
-.agents-skills { display: flex; flex-direction: column; gap: var(--space-8); min-width: 0; }
+.agents-skills-page { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; }
+.agents-skills-bar { display: flex; flex: none; align-items: center; justify-content: space-between; height: var(--header-h); padding: 0 var(--space-6) 0 14px; border-bottom: 1px solid var(--border); }
+.agents-skills-bar h3 { margin: 0; font-size: var(--fs-sm); font-weight: 600; }
+.agents-skills { display: flex; flex: 1; flex-direction: column; gap: var(--space-8); min-width: 0; min-height: 0; overflow-y: auto; padding: var(--space-8) 14px; }
 .agents-skills-tabs { display: flex; gap: var(--space-4); }
 .agents-skills-tab { padding: var(--space-4) var(--space-8); border: 1px solid var(--border); border-radius: var(--radius-md); background: transparent; color: var(--text-2); font: inherit; cursor: pointer; }
 .agents-skills-tab[aria-selected='true'] { color: var(--text); background: var(--selected); }
