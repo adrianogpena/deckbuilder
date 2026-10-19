@@ -53,6 +53,35 @@ export type AgentAccountApplyResult = ({ ok: true; folder: string } & AgentShare
 /** Reply of `POST /api/agents/accounts/delete` `{folder}`; `wasActive` = the active choice was cleared. */
 export type AgentAccountDeleteResult = { ok: true; folder: string; wasActive: boolean } | { ok: false; error: AgentAccountAdminError };
 
+/** Statuses whose icon an account can change: running (working), waiting (needs you), idle, stopped (exited). */
+export const ACCOUNT_STATUS_KEYS = ['running', 'waiting', 'idle', 'stopped'] as const;
+export type AccountStatusKey = (typeof ACCOUNT_STATUS_KEYS)[number];
+
+/** Curated icon ids per status; the first is the built-in default (what an account without an override shows). */
+export const ACCOUNT_STATUS_ICONS: Record<AccountStatusKey, readonly string[]> = {
+  running: ['dot', 'diamond', 'play', 'spinner', 'box', 'lozenge', 'bars'],
+  waiting: ['dot', 'diamond', 'bang', 'triangle', 'box', 'lozenge'],
+  idle: ['ring', 'pause', 'dash', 'lozenge', 'box', 'diamond', 'dot'],
+  stopped: ['square', 'cross', 'check', 'dash', 'diamond', 'box', 'dot'],
+};
+
+/** Usage keys an account can override (same meaning as the global `usage.*` settings, without the prefix). */
+export const ACCOUNT_USAGE_BOOL_KEYS = ['show', 'compact', 'use24HourClock', 'showAccount', 'showModel', 'showCache', 'showContext', 'showFiveHour', 'showSevenDay', 'showCost'] as const;
+export type AccountUsageBoolKey = (typeof ACCOUNT_USAGE_BOOL_KEYS)[number];
+
+/** Per-account usage overrides; an unset key inherits the global setting. */
+export type AccountUsagePrefs = { [K in AccountUsageBoolKey]?: boolean } & { position?: 'top' | 'bottom' };
+
+/** One account's overrides; only overrides are stored (unset = default / global). */
+export interface AccountPrefs {
+  usage?: AccountUsagePrefs;
+  icons?: { [K in AccountStatusKey]?: string };
+}
+/** Prefs by account id (the config folder name, `.claude-work`). */
+export type AccountPrefsMap = Record<string, AccountPrefs>;
+/** Reply of `PUT /api/agents/accounts/prefs` `{prefs}` (the whole map): the stored map, or `invalid` (unknown account, key or icon id; nothing changed). */
+export type AccountPrefsSetResult = { ok: true; prefs: AccountPrefsMap } | { ok: false; error: 'invalid' };
+
 /** One project node of the sidebar: with `shareProjects` off a project has one per account, adjacent and sorted by `suffix`. */
 export interface AgentProjectNode {
   /** Node key: the project id, or `<project id>\u0000<account id>` when split. Collapse state is per node; folders / order use `project`. */
@@ -298,6 +327,7 @@ export type AgentsFrame =
   | { type: 'status'; status: Record<string, AgentStatus> }
   | { type: 'usage'; accounts: AgentAccountUsage[] }
   | { type: 'git'; status: Record<string, GitStatus> }
+  | { type: 'accountPrefs'; prefs: AccountPrefsMap }
   | { type: 'tail'; sessionId: string; events: import('./chat-protocol.ts').ChatEvent[] };
 
 /** One step of a session trace (user prompt, assistant reply or tool call with its result). */

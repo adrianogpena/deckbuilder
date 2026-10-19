@@ -7,7 +7,7 @@ import { displayName } from './attention';
 import { shortPath, type SessionSummary } from './session-summary';
 import { Badge } from './Badge';
 import { headBadge } from './SessionHead';
-import { StatusDot } from './StatusDot';
+import { SessionDot } from './StatusIcon';
 
 export function cardStatus(s: AgentStatus): string {
   switch (s) {
@@ -120,7 +120,7 @@ export function StoppedCard({ session: s, screenError, onStart, onBackground, on
     <div ref={ref} className="agents-card" tabIndex={readOnly ? -1 : 0} onKeyDown={onKeyDown}>
       {!noName && <div className="agents-card-name">{displayName(s)}</div>}
       <div className={`agents-card-meta${screenError ? ' is-error' : ''}`}>
-        <StatusDot status={s.status} title={cardStatus(s.status)} />
+        <SessionDot status={s.status} account={s.account} title={cardStatus(s.status)} />
         {screenError ? <span>{screenError}</span> : <Badge kind={badge.kind}>{badge.label}</Badge>}
         <span>{meta.join(' · ')}</span>
       </div>

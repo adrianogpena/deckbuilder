@@ -4,7 +4,7 @@ import type { AgentSessionView } from '../protocol.ts';
 import { t } from '../i18n';
 import { displayName } from './attention';
 import { Badge, type BadgeKind } from './Badge';
-import { StatusDot } from './StatusDot';
+import { SessionDot } from './StatusIcon';
 import { statusSince } from './status-text';
 import './main.css';
 
@@ -76,7 +76,7 @@ export function SessionHead({ session: s, mode, project, git, onRename, onStop, 
 
   return (
     <div className="agents-head">
-      <StatusDot status={s.status} title={statusSince(s, now, t).text} />
+      <SessionDot status={s.status} account={s.account} title={statusSince(s, now, t).text} />
       {editing ? (
         <input className="agents-head-rename" aria-label={t('agents.head.rename')} value={draft} autoFocus onChange={(e) => setDraft(e.target.value)} onKeyDown={onKey} onBlur={commit} />
       ) : (

@@ -1,0 +1,23 @@
+/* Curated status icons (StatusIcon.tsx): static shapes drawn in --ic inside the 8px dot slot. */
+.view-agents.agents-icon-host { display: inline-flex; flex: none; align-items: center; min-width: 0; min-height: 0; }
+.agents-icon-c--working { --ic: var(--agents-working, #a78bfa); }
+.agents-icon-c--attention { --ic: var(--warn); }
+.agents-icon-c--idle, .agents-icon-c--stopped { --ic: var(--text-3); }
+.agents-icon { background: var(--ic); border-radius: 0; border: 0; opacity: 1; transform: none; animation: none; }
+.agents-icon--dot { border-radius: 50%; }
+.agents-icon--ring { background: none; border-radius: 50%; border: 1.5px solid var(--ic); }
+.agents-icon--square { border-radius: 2px; transform: scale(0.85); }
+.agents-icon--box { background: none; border-radius: 1px; border: 1.5px solid var(--ic); }
+.agents-icon--diamond { clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+.agents-icon--lozenge { clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%, 50% 0, 50% 24%, 24% 50%, 50% 76%, 76% 50%, 50% 24%); }
+.agents-icon--play { clip-path: polygon(15% 0, 100% 50%, 15% 100%); }
+.agents-icon--triangle { clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.agents-icon--spinner { background: none; border-radius: 50%; border: 1.5px solid color-mix(in srgb, var(--ic) 30%, transparent); border-top-color: var(--ic); animation: agents-spin 1s linear infinite; }
+.agents-icon--bars { background: linear-gradient(to right, var(--ic) 0 25%, transparent 25% 37.5%, var(--ic) 37.5% 62.5%, transparent 62.5% 75%, var(--ic) 75% 100%); }
+.agents-icon--pause { background: linear-gradient(to right, var(--ic) 0 33%, transparent 33% 67%, var(--ic) 67% 100%); }
+.agents-icon--dash { clip-path: inset(37% 0); }
+.agents-icon--bang { background: linear-gradient(to bottom, var(--ic) 0 55%, transparent 55% 72%, var(--ic) 72% 100%); clip-path: inset(0 33%); }
+.agents-icon--cross { clip-path: polygon(20% 0, 50% 30%, 80% 0, 100% 20%, 70% 50%, 100% 80%, 80% 100%, 50% 70%, 20% 100%, 0 80%, 30% 50%, 0 20%); }
+.agents-icon--check { clip-path: polygon(0 55%, 15% 40%, 38% 62%, 85% 10%, 100% 25%, 38% 92%); }
+@media (prefers-reduced-motion: reduce) { .agents-icon--spinner { animation: none; } }
+:root[data-reduce-motion='true'] .agents-icon--spinner { animation: none; }

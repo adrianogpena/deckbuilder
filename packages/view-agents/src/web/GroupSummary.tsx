@@ -5,7 +5,7 @@ import { since } from './AlertsPanel';
 import { displayName, statusCounts } from './attention';
 import { statusLabel } from './Sidebar';
 import { shortCwd } from './StoppedCard';
-import { StatusDot } from './StatusDot';
+import { SessionDot } from './StatusIcon';
 import './main.css';
 
 export interface GroupSummaryProps {
@@ -58,7 +58,7 @@ export function GroupSummary({ kind, name, path, sessions, projectCount, onSelec
           return (
             <li key={s.id}>
               <button type="button" className="agents-summary-row" title={title} onClick={() => onSelect(s.id)}>
-                <StatusDot status={s.status} title={label} />
+                <SessionDot status={s.status} account={s.account} title={label} />
                 <span className="agents-summary-title" title={title}>{title}</span>
                 <span className="agents-summary-time">{since(s.updatedAt)}</span>
               </button>

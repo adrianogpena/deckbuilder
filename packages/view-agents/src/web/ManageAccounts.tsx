@@ -22,6 +22,13 @@ const errorText = (e: AgentAccountAdminError | string): string => (e === 'invali
 export const skippedSuffix = (r: Pick<AgentShareReport, 'skipped' | 'skippedDevMode'>): string =>
   (r.skipped ? t('agents.accounts.skipped', { n: String(r.skipped) }) : '') + (r.skippedDevMode ? t('agents.accounts.skippedDevMode', { n: String(r.skippedDevMode) }) : '');
 
+/** The confirm dialog of Delete account; resolves true when confirmed. */
+export const confirmDeleteAccount = (dialogs: ReturnType<typeof useDialogs>, folder: string): Promise<boolean> =>
+  dialogs.confirm({ title: t('agents.accounts.deleteOk'), body: t('agents.accounts.deleteConfirm', { folder }), okLabel: t('agents.accounts.deleteOk'), danger: true });
+
+/** The toast text after a delete. */
+export const deletedMessage = (r: { folder: string; wasActive: boolean }): string => t(r.wasActive ? 'agents.accounts.deletedActive' : 'agents.accounts.deleted', { folder: r.folder });
+
 function ShareChecklist({ value, onChange }: { value: ReadonlySet<AgentShareEntry>; onChange(next: Set<AgentShareEntry>): void }) {
   const toggle = (e: AgentShareEntry) => {
     const next = new Set(value);
@@ -94,11 +101,10 @@ export function ManageAccounts({ mode, onAdded, onChanged, onClose }: ManageAcco
     setView({ kind: 'list' });
   };
   const remove = async (folder: string) => {
-    const ok = await dialogs.confirm({ title: t('agents.accounts.deleteOk'), body: t('agents.accounts.deleteConfirm', { folder }), okLabel: t('agents.accounts.deleteOk'), danger: true });
-    if (!ok) return;
+    if (!(await confirmDeleteAccount(dialogs, folder))) return;
     const r = await run(() => deleteAccount(folder));
     if (!r?.ok) return;
-    toast({ message: t(r.wasActive ? 'agents.accounts.deletedActive' : 'agents.accounts.deleted', { folder }) });
+    toast({ message: deletedMessage(r) });
     onChanged();
     load();
   };

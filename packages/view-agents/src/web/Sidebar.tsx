@@ -12,14 +12,16 @@ import { type AgentFilters, categoryOf, clearFilters, isFiltering, matchesFilter
 import { type FolderPick, MoveToFolder } from './MoveToFolder';
 import { AccountPicker, activeDirOf } from './AccountPicker';
 import { type AddedAccount, ManageAccounts, type ManageAccountsMode } from './ManageAccounts';
-import { setActiveAccount } from './api';
+import { listAccounts, setActiveAccount } from './api';
+import { resolveUsage } from './account-prefs';
+import { useAccountPrefs } from './useAccountPrefs';
 import { focusMemory, pruneBatch, rowKey, shownOrders, startedCandidates, stepStarted, trackPrevious, reselect, type PreviousState } from './navigation';
 import { TrashPanel } from './TrashPanel';
 import { buildRows, folderName, folderNodeKey, leftAction, nextPin, parseTags, projectKey, projectNodeKey, rightAction, rowToSelectable, sessionNodeKey, tagCounts, type TreeRow } from './tree';
 import { useAgentTree } from './useAgentSessions';
 import { type UsageSettings, UsageView, usageViewData } from './UsageView';
 import { severity } from './usage-format';
-import { StatusDot } from './StatusDot';
+import { SessionDot } from './StatusIcon';
 import { statusSince } from './status-text';
 import { activityStatus, projectActivity } from './project-activity';
 import { SectionButton, SidebarSection } from './SidebarSection';
@@ -132,13 +134,18 @@ interface RowMatch {
 /** Projects with their Claude sessions, a status dot and label per session; search, filter pills, pin, rename and archive. */
 export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenUsage, selectedId, onSelect, selectedProjectId, onSelectProject, selectedFolderId, onSelectFolder, onVisibleChange, onNewSession, onQuickNew, onRemoveProject, onStop, onRestart, onStartBackground, expandCollapsedOnActiveJump = false }: SidebarProps) {
   const ref = useRef<HTMLDivElement>(null);
-  const usageBlock = usageSettings?.show && (() => {
+  const { prefs: accountPrefs } = useAccountPrefs();
+  const [accountCount, setAccountCount] = useState<number>();
+  const refreshAccounts = () => void listAccounts().then((a) => setAccountCount(a.length), () => undefined);
+  useEffect(refreshAccounts, []);
+  const usageData = usageSettings && (() => {
     const selected = sessions.find((x) => x.id === selectedId);
     const counts: Partial<Record<AgentCategory, number>> = {};
     for (const x of sessions) counts[categoryOf(x)] = (counts[categoryOf(x)] ?? 0) + 1;
-    const data = usageViewData(selected, usage, sessions.map((x) => x.account), counts);
-    return <UsageView {...data} items={usageSettings.items} compact={usageSettings.compact} use24h={usageSettings.use24h} onOpen={onOpenUsage} className={`pin-${usageSettings.position}`} />;
+    return usageViewData(selected, usage, sessions.map((x) => x.account), counts);
   })();
+  const usageEff = usageSettings && resolveUsage(accountPrefs, usageData?.usage?.account ?? usageData?.session?.account, usageSettings);
+  const usageBlock = usageEff?.show && usageData && <UsageView {...usageData} items={usageEff.items} compact={usageEff.compact} use24h={usageEff.use24h} onOpen={onOpenUsage} className={`pin-${usageEff.position}`} />;
   useRovingList(ref, '.agents-session, .agents-node');
   const focusedList = useRef(false);
   // Letter keys and arrows only work with focus inside the list: put it on the current row once the tree has rows.
@@ -167,7 +174,7 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
   const [archivedView, setArchivedView] = useState(false);
   const [sections, setSectionsState] = useState<SectionsState>(loadSections);
   const [sectionDrag, setSectionDrag] = useState<SectionId>();
-  const usageTop = usageSettings?.position === 'top';
+  const usageTop = usageEff?.position === 'top';
   const setSections = (fn: (s: SectionsState) => SectionsState) => setSectionsState((s) => {
     const next = fn(s);
     saveSections(next);
@@ -829,7 +836,7 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
   ];
 
   const row = ({ s, m }: { s: AgentSessionView; m: RowMatch }, r?: Extract<TreeRow, { kind: 'session' }>) => {
-    const dot = <StatusDot status={s.status} title={dotTitle(s)} />;
+    const dot = <SessionDot status={s.status} account={s.account} title={dotTitle(s)} />;
     const name = displayName(s);
     const connector = r && <span className="agents-connector" aria-hidden="true">{r.last ? '└─' : '├─'}</span>;
     if (renaming === s.id) {
@@ -1066,7 +1073,15 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
           </div>
         </div>
       )}
-      {projects.length === 0 && (
+      {accountCount === 0 && (
+        <div className="agents-sidebar-empty">
+          <span className="agents-sidebar-empty-icon" aria-hidden="true"><Icon name="plus" size={20} /></span>
+          <p className="agents-sidebar-empty-title">{t('agents.noAccount')}</p>
+          <p className="agents-sidebar-empty-desc">{t('agents.noAccountHint')}</p>
+          <button type="button" className="btn btn-primary btn-sm agents-sidebar-empty-btn" onClick={() => setManageOpen('add')}>{t('agents.noAccountAdd')}</button>
+        </div>
+      )}
+      {accountCount !== 0 && projects.length === 0 && (
         <div className="agents-sidebar-empty">
           <span className="agents-sidebar-empty-icon" aria-hidden="true"><Icon name="folder-plus" size={20} /></span>
           <p className="agents-sidebar-empty-title">{t('agents.empty')}</p>
@@ -1173,7 +1188,7 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
       {menu && <ContextMenu at={menu.at} items={menu.items} onClose={() => setMenu(undefined)} />}
       {trashOpen && <TrashPanel onRestored={restored} onRefused={(message) => toast({ message, kind: 'error' })} onClose={() => setTrashOpen(false)} />}
       {accountsOpen && <AccountPicker onAdd={() => setManageOpen('add')} onManage={() => setManageOpen('manage')} onClose={() => setAccountsOpen(false)} />}
-      {manageOpen && <ManageAccounts mode={manageOpen} onAdded={(a) => void accountAdded(a)} onChanged={() => undefined} onClose={() => setManageOpen(undefined)} />}
+      {manageOpen && <ManageAccounts mode={manageOpen} onAdded={(a) => void accountAdded(a)} onChanged={refreshAccounts} onClose={() => { setManageOpen(undefined); refreshAccounts(); }} />}
       {picker && tree && <MoveToFolder name={picker.name} title={picker.title} folders={tree.folders} current={picker.current} onPick={(pick) => {
         if (picker.title) clearBatch();
         void pickFolder(picker.keys, pick);

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { GitStatusMap } from './git';
+import { applyAccountPrefs } from './useAccountPrefs';
 import { type AgentAccountUsage, type AgentSessionView, type AgentTree, type AgentTreePatch, getTree, listAgentSessions, openAgentsSocket, patchTree, type TreePatchResult } from './api';
 
 /** Sessions with live status and per-account plan usage: initial fetch, then socket frames; reconnects after a drop. */
@@ -19,6 +20,7 @@ export function useAgentsFeed(): { sessions: AgentSessionView[]; usage: AgentAcc
           else if (f.type === 'status') setSessions((cur) => cur.map((s) => (f.status[s.id] ? { ...s, status: f.status[s.id] } : s)));
           else if (f.type === 'usage') setUsage(f.accounts);
           else if (f.type === 'git') setGit(f.status);
+          else if (f.type === 'accountPrefs') applyAccountPrefs(f.prefs);
         });
       } catch {
         if (alive) timer = setTimeout(connect, 5000);

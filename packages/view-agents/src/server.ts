@@ -23,6 +23,7 @@ import { capPerProject, createSessionScanner, matchProject } from './server/disc
 import { createLifecycle, cwdProblem, planRestart, stopOutcome, type TermInfo } from './server/lifecycle.ts';
 import { detectScreenError } from './server/screen-errors.ts';
 import { createProjectsStore, projectKey, type ProjectsStore } from './server/projects.ts';
+import { createAccountPrefsStore } from './server/account-prefs.ts';
 import { createRunningStore, type RunningRecord, type RunningStore } from './server/running.ts';
 import { createNotesStore } from './server/notes.ts';
 import { createSessionStateStore, tagCounts, type SessionStateStore } from './server/session-state.ts';
@@ -31,7 +32,7 @@ import { searchSessions } from './server/search.ts';
 import { createStatuslineInstaller } from './server/statusline-install.ts';
 import { addAccount, applyShared, deleteAccount, readShared, shareList } from './server/account-admin.ts';
 import { forgetPendingAccount, markPendingAccount } from './server/accounts.ts';
-import type { AgentAccountAddResult, AgentAccountApplyResult, AgentAccountDeleteResult, AgentAccountSharedResult } from './protocol.ts';
+import type { AccountPrefsSetResult, AgentAccountAddResult, AgentAccountApplyResult, AgentAccountDeleteResult, AgentAccountSharedResult } from './protocol.ts';
 import { type AgentStatus, createStatusTracker, externalIds, isPidAlive, readPidFiles } from './server/status.ts';
 import type { AgentDeleteResult, AgentRestoreResult, AgentTreePatch, AgentTrashEntry } from './protocol.ts';
 import { createTrashStore, isSafeId } from './server/trash.ts';
@@ -56,7 +57,9 @@ let agentsConfigListener: ((group: AgentsSettings) => void) | undefined;
 
 /** Validates the group; a valid one is the saved one, so the cached `claude` resolution is refilled from it. */
 export const validAgents = (raw: unknown): AgentsSettings | null => {
-  const { claudeArgs, ...rest } = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>;
+  const { claudeArgs, ...all } = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>;
+  // Keys no longer in the spec (e.g. the removed `mode`) are dropped, not a reason to reject the whole group.
+  const rest = Object.fromEntries(Object.entries(all).filter(([k]) => Object.hasOwn(AGENTS_SPEC, k)));
   const args = claudeArgs === undefined ? undefined : Array.isArray(claudeArgs) && claudeArgs.length <= 50 && claudeArgs.every((a) => typeof a === 'string' && a.length <= 300) ? (claudeArgs as string[]) : null;
   const group = typeof raw === 'object' && raw !== null && !Array.isArray(raw) && args !== null ? (validGroup(rest, AGENTS_SPEC) as AgentsSettings | null) : null;
   if (!group) return null;
@@ -426,6 +429,7 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
       historyFile = join(ctx.dataDir, 'agents', 'seven-day-history.json');
       const store = createProjectsStore(join(ctx.dataDir, 'agents', 'projects.json'));
       projects = store;
+      const accountPrefs = createAccountPrefsStore(join(ctx.dataDir, 'agents', 'account-prefs.json'));
       const states = createSessionStateStore(join(ctx.dataDir, 'agents', 'session-state.json'));
       sessionState = states;
       const tree = createTreeStore(join(ctx.dataDir, 'agents', 'tree.json'));
@@ -519,12 +523,21 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
           const r = deleteAccount(home, typeof b.folder === 'string' ? b.folder : '');
           if (!r.ok) return r;
           forgetPendingAccount(r.dir);
+          if (accountPrefs.remove(r.folder)) broadcast({ type: 'accountPrefs', prefs: accountPrefs.get() });
           const cur = (await loadSettings().catch(() => ({}) as AgentsServerSettings)).agents ?? {};
           const active = cur['accounts.activeAccount'];
           const wasActive = typeof active === 'string' && active !== '' && accountByDir([{ id: r.folder, dir: r.dir, label: r.folder, isDefault: false }], active) !== undefined;
           if (wasActive) await ctx.settings.save?.({ agents: { ...cur, 'accounts.activeAccount': '' } });
           void refresh(true);
           return { ok: true, folder: r.folder, wasActive };
+        },
+        // Per-account prefs (usage overrides, status icons): the whole map; PUT replaces it (strict validation) and tells open views.
+        'GET /api/agents/accounts/prefs': () => accountPrefs.get(),
+        'PUT /api/agents/accounts/prefs': async ({ json }): Promise<AccountPrefsSetResult> => {
+          const b = await json<{ prefs?: unknown }>();
+          if (!accountPrefs.set(b.prefs, accounts().map((a) => a.id))) return { ok: false, error: 'invalid' };
+          broadcast({ type: 'accountPrefs', prefs: accountPrefs.get() });
+          return { ok: true, prefs: accountPrefs.get() };
         },
         // Usage statusLine per account (Settings): install state, install (backup + chain the previous), uninstall (restore it).
         'GET /api/agents/statusline': () => statusline.statuses(accounts()),

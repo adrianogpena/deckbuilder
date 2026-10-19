@@ -16,6 +16,10 @@ export const readSharedEntries = (folder: string) => request<import('../protocol
 export const applySharedEntries = (folder: string, share: AgentShareEntry[]) => request<import('../protocol.ts').AgentAccountApplyResult>('POST', '/api/agents/accounts/shared/apply', {}, { folder, share });
 /** Deletes `~/.claude-<name>` (links first); clears the active choice when it was active. */
 export const deleteAccount = (folder: string) => request<import('../protocol.ts').AgentAccountDeleteResult>('POST', '/api/agents/accounts/delete', {}, { folder });
+/** Prefs of every account (usage overrides, status icons); only overrides are stored. */
+export const getAccountPrefs = () => request<import('../protocol.ts').AccountPrefsMap>('GET', '/api/agents/accounts/prefs');
+/** Replaces the whole prefs map; the server validates it and tells open views. */
+export const putAccountPrefs = (prefs: import('../protocol.ts').AccountPrefsMap) => request<import('../protocol.ts').AccountPrefsSetResult>('PUT', '/api/agents/accounts/prefs', {}, { prefs });
 type AgentShareEntry = import('../protocol.ts').AgentShareEntry;
 
 /** Thrown by `startSession` when `confirmCap` declined the soft-cap warning. */

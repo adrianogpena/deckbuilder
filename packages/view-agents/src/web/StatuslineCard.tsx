@@ -2,12 +2,24 @@ import { useMemo, useState } from 'react';
 import { ErrorBanner, SettingItem, Spinner, useAsync, type SettingsCardProps } from '@deckbuilderkit/ui';
 import { agentsSettingDefs, type AgentsViewSettings } from '../settings';
 import { t, type AgentsMessageKey } from '../i18n';
+import { AccountsSettings } from './AccountsSettings';
 import { UsageView, usageSample, usageSettingsOf } from './UsageView';
 import { installStatusline, listStatusline, uninstallStatusline, type AgentStatuslineStatus } from './api';
 
 const IDS = agentsSettingDefs.map((d) => d.id);
 const USAGE_IDS = IDS.filter((id) => id.startsWith('agents.usage.'));
-const OTHER_IDS = IDS.filter((id) => !id.startsWith('agents.usage.'));
+const ACCOUNT_IDS = IDS.filter((id) => id.startsWith('agents.accounts.'));
+const OTHER_IDS = IDS.filter((id) => !id.startsWith('agents.usage.') && !id.startsWith('agents.accounts.'));
+
+/** The Agents > Accounts settings page. */
+export function AgentsAccountsCard({ settings, rows }: SettingsCardProps<AgentsViewSettings>) {
+  return (
+    <>
+      {rows(ACCOUNT_IDS)}
+      <AccountsSettings activeAccount={settings.agents?.['accounts.activeAccount'] ?? ''} />
+    </>
+  );
+}
 
 /** The Agents settings page: the schema rows, then the usage status line install per account. */
 export function AgentsSettingsCard({ settings, rows }: SettingsCardProps<AgentsViewSettings>) {
