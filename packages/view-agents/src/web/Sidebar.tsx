@@ -327,7 +327,7 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
     };
     if (!selectedId && !selectedProjectId && !selectedFolderId) {
       if (started.current) return;
-      const first = rows.find((x) => x.kind === 'session');
+      const first = rows.find((x) => x.kind === 'session' && x.session.id === focusMemory.sessionId) ?? rows.find((x) => x.kind === 'session');
       if (first) {
         started.current = true;
         apply(rowKey(first));
@@ -346,6 +346,7 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
   const remembered = useRef<PreviousState>({});
   useEffect(() => {
     remembered.current = trackPrevious(remembered.current, selectedId || undefined);
+    if (selectedId) focusMemory.sessionId = selectedId;
   }, [selectedId]);
   useCommand(agentsCommands()[8]!, () => {
     const p = remembered.current.previous;

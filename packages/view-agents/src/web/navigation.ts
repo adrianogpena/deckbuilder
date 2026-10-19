@@ -82,7 +82,7 @@ export function shownOrders(rows: TreeRow[]): Record<string, string[]> {
 export type FocusRegion = 'tree' | 'main' | 'panel';
 
 /** Where focus was last inside the Agents view (kept across view switches). Unset on the first run. */
-export const focusMemory: { region?: FocusRegion } = {};
+export const focusMemory: { region?: FocusRegion; sessionId?: string } = {};
 
 /** The region an element sits in, from the closest region root; undefined outside them. */
 export function regionOf(el: Element | null): FocusRegion | undefined {
