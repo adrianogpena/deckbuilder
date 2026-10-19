@@ -1,0 +1,2 @@
+.agents-panel-agent { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; }
+.view-agents .agents-panel-agent:focus-within .agents-head { box-shadow: inset 0 -2px 0 var(--accent); }

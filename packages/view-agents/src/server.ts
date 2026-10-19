@@ -3,12 +3,14 @@ import { type FSWatcher, mkdirSync, readdirSync, readFileSync, rmSync, watch, wr
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { confirmDialog, createToaster } from '@deckbuilderkit/platform';
-import { defineServerView, ndjson, socketTickets, validGroup, type SocketData, type SocketRoutes } from '@deckbuilderkit/server-core';
+import { defineServerView, invalid, ndjson, socketTickets, validGroup, type SocketData, type SocketRoutes } from '@deckbuilderkit/server-core';
 import type { ServerWebSocket } from 'bun';
 import type { AgentLocal, AgentSkill, AgentActiveAccountResult, AgentActiveAccountSet, AgentLaunch, AgentRunning, AgentSessionView, AgentsCapWarn, AgentsFrame, AgentStopResult } from './protocol.ts';
 import type { AgentsSettings, AgentsUsagePosition } from './settings-types.ts';
 import { type AgentAccount, accountByDir, createAccountRegistry, detectAccounts, resolveActiveAccount } from './server/accounts.ts';
 import { createAlerts } from './server/alerts.ts';
+import { createLayoutStore } from './server/layouts.ts';
+import { type PanelCtx, panelRoutes } from './server/panels/index.ts';
 import { createGitPoller } from './server/git-status.ts';
 import { checkHookSettings, createHookApprovals, createHooks, type HookConfirm } from './server/hooks.ts';
 import { createNotifier, createTransitions, NOTIFY_LABEL } from './server/notify.ts';
@@ -478,7 +480,26 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
       };
       const statusline = createStatuslineInstaller({ agentsDir: join(ctx.dataDir, 'agents'), ...opts.statusline });
       statusline.refresh();
+      const layouts = createLayoutStore(join(ctx.dataDir, 'agents', 'layouts'));
+      const panelCtx: PanelCtx = {
+        dataDir: ctx.dataDir,
+        agentsDir: join(ctx.dataDir, 'agents'),
+        settings: ctx.settings as PanelCtx['settings'],
+        stores: ctx.stores,
+        projects: () => store.list(),
+        projectRoot: (project) => store.list().find((p) => p.id === project || projectKey(p.path) === projectKey(project))?.path,
+        scanner,
+        notify: (toast) => show({ launch: '', ...toast }),
+      };
       return {
+        ...panelRoutes(panelCtx),
+        // The workspace layout of one project (`?project=<path>`); `layout: null` when none is saved or the file is bad.
+        'GET /api/agents/layout': async ({ query }) => ({ layout: (await layouts.read(query.get('project') ?? '')) ?? null }),
+        'PUT /api/agents/layout': async ({ query, json }) => {
+          const b = await json<{ layout?: unknown }>();
+          if (!(await layouts.write(query.get('project') ?? '', b.layout))) throw invalid('layout', 'Not a workspace layout');
+          return { ok: true };
+        },
         // Rediscovers the accounts; `active` marks the one new sessions launch as.
         'GET /api/agents/accounts': async () => {
           const accs = accounts();

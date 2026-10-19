@@ -1,4 +1,4 @@
-import type { CommandDef } from '@deckbuilderkit/ui';
+import { type CommandDef, tabCommands } from '@deckbuilderkit/ui';
 import { t } from './i18n';
 
 /** Key scope of the sessions list: single-letter commands fire only while focus is inside it (`data-key-scope`). */
@@ -61,4 +61,5 @@ export const agentsCommands = (): CommandDef[] => [
   { id: 'agents.focusList', scope: 'agents', label: t('keys.agents.focusList'), keys: ['Ctrl+Q'] },
   { id: 'agents.reopenSections', scope: 'agents', label: t('keys.agents.reopenSections'), keys: [] },
   { id: 'agents.toggleDnd', scope: 'agents', label: t('keys.agents.toggleDnd'), keys: [] },
+  ...tabCommands('agents'),
 ];

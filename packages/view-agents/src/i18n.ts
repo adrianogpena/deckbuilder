@@ -1,6 +1,10 @@
 import { createT, type Messages } from '@deckbuilderkit/ui';
+import { panelsEn, panelsPtBR } from './web/panels/i18n';
+import * as workspace from './web/workspace/i18n';
 
 export const en = {
+  ...panelsEn,
+  ...workspace.en,
   'nav.agents': 'Agents',
   'settings.section.agents': 'Agents',
   'settings.section.agents.accounts': 'Accounts',
@@ -601,6 +605,8 @@ export const en = {
 };
 
 export const ptBR: Messages<typeof en> = {
+  ...panelsPtBR,
+  ...workspace.ptBR,
   'nav.agents': 'Agents',
   'settings.section.agents': 'Agents',
   'settings.section.agents.accounts': 'Contas',

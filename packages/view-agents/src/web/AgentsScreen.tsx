@@ -1,49 +1,36 @@
-import { type UsageSettings, usageViewData } from './UsageView';
+import { type UsageSettings } from './UsageView';
 import { type CSSProperties, type PointerEvent as ReactPointerEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { effectiveKeys, errorOf, setTitleBadge, useDialogs, setViewTitle, useCommand, useKeybindings, useRunCommand, useToast } from '@deckbuilderkit/ui';
-import { TerminalPane, terminalAppKeys, type TerminalPaneHandle } from '@deckbuilderkit/terminal';
+import { terminalAppKeys } from '@deckbuilderkit/terminal';
 import { closeSession, listSessions } from '@deckbuilderkit/terminal/session';
 import { agentsCommands } from '../commands';
 import { t } from '../i18n';
-import { lastResponse, patchSessionState, type AgentProject, type AgentRunning, type AgentSessionView, dismissRecovery, listAgentProjects, listRecovery, markSeen, removeAgentProject, reportShown, restartSession, startInBackground, startSession, stopSession, takeOverSession, terminalOf } from './api';
+import { type AgentAccount, type AgentsCapWarn, CapDeclined, lastResponse, type AgentProject, type AgentRunning, type AgentSessionView, dismissRecovery, listAccounts, listAgentProjects, listRecovery, markSeen, removeAgentProject, reportShown, restartSession, setActiveAccount, startInBackground, startSession, stopSession, terminalOf } from './api';
 import { AddProject } from './AddProject';
 import { AlertsPanel } from './AlertsPanel';
-import { UsageTab } from './UsageTab';
-import { SkillsPanel } from './SkillsPanel';
 import { categoryOf } from './filters';
-import { clampWidth, focusMemory, type FocusRegion, PANEL_W, parseWidths, type PaneWidths, regionOf, SIDEBAR_W, WIDTHS_KEY } from './navigation';
+import { clampWidth, focusMemory, type FocusRegion, parseWidths, type PaneWidths, regionOf, SIDEBAR_W, WIDTHS_KEY } from './navigation';
 import { displayName, needsYouCount, nextWaiting } from './attention';
 import { StatusStrip } from './StatusStrip';
-import { ExternalPane } from './ExternalPane';
 import { NewSession } from './NewSession';
 import { activeDirOf } from './AccountPicker';
-import { listAccounts, setActiveAccount } from './api';
-import { ChangesTab } from './ChangesTab';
-import { NotesTab } from './NotesTab';
-import { readPanelTab, SidePanel, type SidePanelTab, writePanelTab } from './SidePanel';
-import { TrajectoryTab } from './TrajectoryTab';
-import { StoppedPane } from './StoppedPane';
 import { GroupSummary } from './GroupSummary';
 import { EmptyState } from './EmptyState';
-import { ExitBar } from './ExitBar';
-import { ResumeBar } from './ResumeBar';
-import { SessionHead } from './SessionHead';
 import { Sidebar } from './Sidebar';
 import { useAgentsFeed } from './useAgentSessions';
+import { type AgentsHost, AgentsHostProvider, type TerminalInput } from './workspace/host';
+import { projectPathOf, sameFolder } from './workspace/layout-model';
+import { ProjectWorkspace, type WorkspaceHandle } from './workspace/ProjectWorkspace';
+import type { PanelKind, PanelParams } from './workspace/types';
 import '../styles.css';
 import './ui.css';
 import './chrome.css';
 import './islands.css';
 
 const SIDEBAR_KEY = 'deckbuilder.agents.sidebarHidden';
-const PANEL_KEY = 'deckbuilder.agents.panelHidden';
-/** Attached panes kept mounted (hidden) so switching back is instant; older ones detach. */
-const POOL_SIZE = 3;
-
-interface Attached {
-  sessionId: string;
-  terminal: string;
-}
+const ACTIVE_PROJECT_KEY = 'deckbuilder.agents.activeProject';
+/** Project workspaces kept mounted (hidden) so switching back is instant; older ones detach and are rebuilt from the saved layout. */
+const MAX_MOUNTED = 4;
 
 const readHidden = () => {
   try {
@@ -53,16 +40,14 @@ const readHidden = () => {
   }
 };
 
-/** The side panel is hidden unless the user opened it. */
-const readPanelHidden = () => {
+const readActiveProject = (): string | undefined => {
   try {
-    return localStorage.getItem(PANEL_KEY) !== '0';
+    return localStorage.getItem(ACTIVE_PROJECT_KEY) || undefined;
   } catch {
-    return true;
+    return undefined;
   }
 };
 
-/** The session id of an `#agents/<id>` app link, if the hash is one. */
 /** The session id (and owner account id, if given) of an `#agents/<id>[/<account id>]` app link. */
 const linkedSession = (): { id: string; owner?: string } | undefined => {
   const m = /^#\/?agents\/([\w.-]+)(?:\/([\w.-]+))?\/?$/.exec(window.location.hash);
@@ -106,7 +91,7 @@ function Sash({ edge, width, onWidth, onDone, onReset }: { edge: 'start' | 'end'
   return <div className={`agents-sash${dragging ? ' dragging' : ''}`} aria-hidden="true" onPointerDown={down} onDoubleClick={onReset} />;
 }
 
-/** Agents screen: the sessions sidebar and the selected session's terminal. */
+/** Agents screen: the sessions sidebar and the dock workspace of the selected project (its Claude sessions, shells and tools as tabs). */
 export function AgentsScreen({ usageSettings, dnd = false, onDnd }: { resumeOnSelect?: boolean; usageSettings?: UsageSettings; dnd?: boolean; onDnd?: (on: boolean) => void }) {
   const { sessions, usage, git } = useAgentsFeed();
   const toast = useToast();
@@ -129,53 +114,77 @@ export function AgentsScreen({ usageSettings, dnd = false, onDnd }: { resumeOnSe
     }
   }, []);
   const screenRef = useRef<HTMLDivElement>(null);
-  const panelWidth = (key: 'panel' | 'panelWide') => () => {
-    const stored = widthsRef.current[key];
-    if (stored !== undefined) return stored;
-    return screenRef.current?.querySelector<HTMLElement>('.agents-panel')?.offsetWidth ?? PANEL_W.def;
-  };
   const keys = useKeybindings();
   const runCommand = useRunCommand();
   const [hidden, setHidden] = useState(readHidden);
-  const [panelHidden, setPanelHidden] = useState(readPanelHidden);
-  const [panelTab, setPanelTab] = useState<SidePanelTab>(readPanelTab);
   const [selectedId, setSelectedId] = useState<string>();
   const [newFor, setNewFor] = useState<string>();
-  /** Project row whose summary fills the main pane; cleared when a session gets selected. */
+  /** Project row selected in the tree (its workspace is the shown one); cleared when a session gets selected. */
   const [summaryFor, setSummaryFor] = useState<string>();
   const [visible, setVisible] = useState<AgentSessionView[]>();
-  /** Folder row whose summary fills the main pane (exclusive with `summaryFor`). */
+  /** Folder row whose summary fills the main pane (exclusive with a project workspace). */
   const [folderFor, setFolderFor] = useState<{ id: string; name: string; projectIds: string[] }>();
-  useEffect(() => {
-    if (selectedId) {
-      setSummaryFor(undefined);
-      setFolderFor(undefined);
-    }
-  }, [selectedId]);
-  const selectProject = useCallback((projectId: string) => {
-    setNewFor(undefined);
-    setSelectedId(undefined);
-    setFolderFor(undefined);
-    setSummaryFor(projectId);
-  }, []);
-  const selectFolder = useCallback((folder: { id: string; name: string; projectIds: string[] }) => {
-    setNewFor(undefined);
-    setSelectedId(undefined);
-    setSummaryFor(undefined);
-    setFolderFor(folder);
-  }, []);
-  const [pool, setPool] = useState<Attached[]>([]);
   const [error, setError] = useState('');
   const [projects, setProjects] = useState<AgentProject[]>([]);
+  const [accounts, setAccounts] = useState<AgentAccount[]>([]);
   const [adding, setAdding] = useState(false);
   const [alertsOpen, setAlertsOpen] = useState(false);
-  const [usageOpen, setUsageOpen] = useState(false);
-  const [skillsOpen, setSkillsOpen] = useState(false);
-  const [viewing, setViewing] = useState<string>();
-  const [preview, setPreview] = useState<string>();
   /** Sessions the user stopped (exit bar reads "Session stopped") and sessions whose resume bar was dismissed. */
   const [userStopped, setUserStopped] = useState<ReadonlySet<string>>(new Set());
   const [resumeDismissed, setResumeDismissed] = useState<ReadonlySet<string>>(new Set());
+
+  // The shown project's workspace, and the last MAX_MOUNTED ones used (all mounted, the others hidden).
+  const [activeProject, setActiveProject] = useState(readActiveProject);
+  const [mounted, setMounted] = useState<string[]>(() => {
+    const first = readActiveProject();
+    return first ? [first] : [];
+  });
+  const mountedRef = useRef(mounted);
+  mountedRef.current = mounted;
+  const handles = useRef(new Map<string, WorkspaceHandle>());
+  const queue = useRef(new Map<string, Array<(h: WorkspaceHandle) => void>>());
+
+  /** Shows the project's workspace, mounting it (and detaching the least recently used beyond the limit); returns the path as mounted. */
+  const activate = useCallback((path: string): string => {
+    const known = mountedRef.current.find((p) => sameFolder(p, path)) ?? path;
+    const next = [known, ...mountedRef.current.filter((p) => p !== known)].slice(0, MAX_MOUNTED);
+    mountedRef.current = next;
+    setMounted(next);
+    setActiveProject(known);
+    try {
+      localStorage.setItem(ACTIVE_PROJECT_KEY, known);
+    } catch {
+      /* storage unavailable */
+    }
+    return known;
+  }, []);
+  const registerWorkspace = useCallback((project: string, handle: WorkspaceHandle | null) => {
+    if (!handle) {
+      handles.current.delete(project);
+      return;
+    }
+    handles.current.set(project, handle);
+    const waiting = queue.current.get(project);
+    queue.current.delete(project);
+    for (const fn of waiting ?? []) fn(handle);
+  }, []);
+  /** Runs `fn` on the project's workspace now, or once it has loaded its layout. */
+  const withWorkspace = useCallback((project: string, fn: (h: WorkspaceHandle) => void) => {
+    const handle = handles.current.get(project);
+    if (handle) fn(handle);
+    else queue.current.set(project, [...(queue.current.get(project) ?? []), fn]);
+  }, []);
+  const handleOf = useCallback((path: string) => [...handles.current].find(([k]) => sameFolder(k, path))?.[1], []);
+  const pathOf = useCallback((s: Pick<AgentSessionView, 'project' | 'cwd'>) => projectPathOf(s, projects), [projects]);
+  /** Shows the session's agent tab in its project's workspace. */
+  const showAgent = useCallback(
+    (path: string, sessionId: string, opts?: { terminal?: string; from?: string }) => {
+      const project = activate(path);
+      withWorkspace(project, (h) => h.openAgent(sessionId, opts));
+    },
+    [activate, withWorkspace],
+  );
+  const onFocusedAgent = useCallback((_project: string, sessionId: string | undefined) => setSelectedId((cur) => (cur === sessionId ? cur : sessionId)), []);
 
   const autoResume = useRef<(items: AgentRunning[]) => Promise<void>>();
   useEffect(() => {
@@ -190,9 +199,28 @@ export function AgentsScreen({ usageSettings, dnd = false, onDnd }: { resumeOnSe
 
   useEffect(() => {
     void listAgentProjects().then(setProjects, (e) => setError(errorOf(e).message));
+    void listAccounts().then(setAccounts, () => undefined);
   }, []);
   const removeProject = useCallback((id: string) => {
     void removeAgentProject(id).then(() => setProjects((p) => p.filter((x) => x.id !== id)), (e) => setError(errorOf(e).message));
+  }, []);
+
+  const selectProject = useCallback(
+    (projectId: string) => {
+      setNewFor(undefined);
+      setFolderFor(undefined);
+      setSelectedId(undefined);
+      setSummaryFor(projectId);
+      const path = projects.find((p) => p.id === projectId)?.path;
+      if (path) activate(path);
+    },
+    [projects, activate],
+  );
+  const selectFolder = useCallback((folder: { id: string; name: string; projectIds: string[] }) => {
+    setNewFor(undefined);
+    setSelectedId(undefined);
+    setSummaryFor(undefined);
+    setFolderFor(folder);
   }, []);
 
   const toggleSidebar = useCallback(() => {
@@ -207,28 +235,22 @@ export function AgentsScreen({ usageSettings, dnd = false, onDnd }: { resumeOnSe
   }, []);
   useCommand(agentsCommands()[0]!, toggleSidebar);
 
-  const togglePanel = useCallback(() => {
-    setPanelHidden((h) => {
-      try {
-        localStorage.setItem(PANEL_KEY, h ? '0' : '1');
-      } catch {
-        /* storage unavailable */
-      }
-      return !h;
-    });
-  }, []);
-  useCommand(agentsCommands()[1]!, togglePanel);
-  const showTrajectory = useCallback(() => {
-    setPanelHidden(false);
-    try {
-      localStorage.setItem(PANEL_KEY, '0');
-    } catch {
-      /* storage unavailable */
-    }
-    setPanelTab('trajectory');
-    writePanelTab('trajectory');
-  }, []);
-  useCommand(agentsCommands()[22]!, showTrajectory);
+  const selected = sessions.find((s) => s.id === selectedId);
+  const activeFolder = activeProject ?? (selected ? pathOf(selected) : undefined);
+  /** Opens a tool panel in the shown project's workspace (the selected session's, else the first project's). */
+  const openTool = useCallback(
+    (kind: PanelKind, params?: PanelParams) => {
+      const path = activeFolder ?? projects[0]?.path;
+      if (!path) return;
+      setNewFor(undefined);
+      setFolderFor(undefined);
+      const project = activate(path);
+      withWorkspace(project, (h) => void h.api.open(kind, params));
+    },
+    [activeFolder, projects, activate, withWorkspace],
+  );
+  useCommand(agentsCommands()[1]!, () => openTool('changes'));
+  useCommand(agentsCommands()[22]!, () => openTool('trajectory', selectedId ? { sessionId: selectedId } : undefined));
 
   const waiting = needsYouCount(sessions);
   useEffect(() => {
@@ -238,55 +260,40 @@ export function AgentsScreen({ usageSettings, dnd = false, onDnd }: { resumeOnSe
 
   const lastAccount = useCallback((projectId: string) => sessions.find((s) => s.project === projectId)?.account, [sessions]);
 
-  const attach = useCallback((a: Attached) => {
-    setPool((p) => [a, ...p.filter((x) => x.sessionId !== a.sessionId)].slice(0, POOL_SIZE));
-  }, []);
-
   const select = useCallback(
-    async (sessionId: string) => {
+    (sessionId: string) => {
       setNewFor(undefined);
+      setFolderFor(undefined);
+      setSummaryFor(undefined);
       setSelectedId(sessionId);
       setError('');
       void markSeen(sessionId).catch(() => undefined);
-      const ext = sessions.find((x) => x.id === sessionId)?.external === true;
-      setViewing(ext ? sessionId : undefined);
-      setPreview(undefined);
-      if (ext) return;
-      const stopped = sessions.find((x) => x.id === sessionId);
-      if (stopped && categoryOf(stopped) === 'stopped') {
-        setPool((p) => p.filter((x) => x.sessionId !== sessionId));
-        setPreview(sessionId);
-        return;
-      }
-      if (pool.some((x) => x.sessionId === sessionId)) {
-        setPool((p) => [p.find((x) => x.sessionId === sessionId)!, ...p.filter((x) => x.sessionId !== sessionId)]);
-        return;
-      }
       const s = sessions.find((x) => x.id === sessionId);
-      try {
-        const live = await terminalOf(sessionId);
-        if (live) return attach({ sessionId, terminal: live });
-        if (!s) return;
-        // Selecting never starts a session: show the stopped-session card, started only by Enter / i / s.
-        setPreview(sessionId);
-      } catch (e) {
-        setError(errorOf(e).message);
-      }
+      if (s) showAgent(pathOf(s), sessionId);
     },
-    [pool, sessions, attach],
+    [sessions, showAgent, pathOf],
   );
 
   const jumpWaiting = useCallback(() => {
     const next = nextWaiting(sessions);
-    if (next) void select(next.id);
+    if (next) select(next.id);
     else toast({ message: t('agents.noneWaiting') });
   }, [sessions, select, toast]);
   useCommand(agentsCommands()[2]!, jumpWaiting);
   const toggleDnd = useCallback(() => onDnd?.(!dnd), [onDnd, dnd]);
   useCommand(agentsCommands().find((c) => c.id === 'agents.toggleDnd')!, toggleDnd);
   useCommand(agentsCommands()[3]!, () => setAlertsOpen(true));
-  useCommand(agentsCommands()[20]!, () => setUsageOpen(true));
-  useCommand(agentsCommands()[23]!, () => setSkillsOpen(true));
+  useCommand(agentsCommands()[20]!, () => openTool('usage'));
+  useCommand(agentsCommands()[23]!, () => openTool('skills'));
+
+  /** The project folder a running session record belongs to. */
+  const pathOfRecord = useCallback(
+    (x: AgentRunning) => {
+      const s = sessions.find((y) => y.id === x.id);
+      return s ? pathOf(s) : (projects.find((p) => sameFolder(p.path, x.cwd))?.path ?? x.cwd);
+    },
+    [sessions, projects, pathOf],
+  );
 
   const resume = useCallback(
     async (items: AgentRunning[]) => {
@@ -294,58 +301,40 @@ export function AgentsScreen({ usageSettings, dnd = false, onDnd }: { resumeOnSe
       setError('');
       for (const [n, x] of items.entries()) {
         if (n > 0 && x.auto) await new Promise((r) => setTimeout(r, 100));
-        if (pool.some((p) => p.sessionId === x.id)) continue;
         try {
           const live = await terminalOf(x.id);
-          if (live) attach({ sessionId: x.id, terminal: live });
-          else attach({ sessionId: x.id, terminal: (await startSession({ account: x.account, dir: x.cwd, sessionId: x.id })).session });
+          const terminal = live ?? (await startSession({ account: x.account, dir: x.cwd, sessionId: x.id })).session;
+          showAgent(pathOfRecord(x), x.id, { terminal });
         } catch (e) {
           setError(errorOf(e).message);
         }
       }
-      setSelectedId(items[0]?.id);
+      const first = items[0];
+      if (first) {
+        activate(pathOfRecord(first));
+        setSelectedId(first.id);
+      }
     },
-    [pool, attach, dismissBanner],
+    [dismissBanner, showAgent, activate, pathOfRecord],
   );
   autoResume.current = resume;
 
-  // `/clear` gives the pty a new Claude session id (the server adopts it into the pty's meta): follow it in the pool and the selection.
-  useEffect(() => {
-    if (pool.length === 0) return;
-    let alive = true;
-    void listSessions().then(
-      (all) => {
-        const now = new Map(all.map((x) => [x.id, x.meta?.agentSession]));
-        const moves = pool.flatMap((a): Array<[string, string]> => {
-          const to = now.get(a.terminal);
-          return typeof to === 'string' && to !== a.sessionId ? [[a.sessionId, to]] : [];
-        });
-        if (!alive || moves.length === 0) return;
-        setPool((p) => p.map((a) => ({ ...a, sessionId: moves.find((m) => m[0] === a.sessionId)?.[1] ?? a.sessionId })));
-        setSelectedId((cur) => moves.find((m) => m[0] === cur)?.[1] ?? cur);
-      },
-      () => undefined,
-    );
-    return () => {
-      alive = false;
-    };
-  }, [sessions, pool]);
-
-  const stop = useCallback(async (s: AgentSessionView) => {
-    setError('');
-    try {
-      const r = await stopSession(s.id);
-      setUserStopped((u) => new Set(u).add(s.id));
-      setPool((p) => p.filter((x) => x.sessionId !== s.id));
-      if (r.removed) setSelectedId((cur) => (cur === s.id ? undefined : cur));
-      else if (selectedId === s.id) {
-        setViewing(undefined);
-        setPreview(s.id);
+  const stop = useCallback(
+    async (s: AgentSessionView) => {
+      setError('');
+      try {
+        const r = await stopSession(s.id);
+        setUserStopped((u) => new Set(u).add(s.id));
+        if (r.removed) {
+          handleOf(pathOf(s))?.closeAgent(s.id);
+          setSelectedId((cur) => (cur === s.id ? undefined : cur));
+        }
+      } catch (e) {
+        setError(errorOf(e).message);
       }
-    } catch (e) {
-      setError(errorOf(e).message);
-    }
-  }, [selectedId]);
+    },
+    [pathOf, handleOf],
+  );
 
   const restart = useCallback(
     async (s: AgentSessionView) => {
@@ -358,13 +347,13 @@ export function AgentsScreen({ usageSettings, dnd = false, onDnd }: { resumeOnSe
           n.delete(s.id);
           return n;
         });
-        setPool((p) => [{ sessionId: r.sessionId, terminal: r.session }, ...p.filter((x) => x.sessionId !== s.id && x.sessionId !== r.sessionId)].slice(0, POOL_SIZE));
+        showAgent(pathOf(s), r.sessionId, { terminal: r.session, from: s.id });
         setSelectedId(r.sessionId);
       } catch (e) {
         setError(errorOf(e).message);
       }
     },
-    [],
+    [showAgent, pathOf],
   );
 
   const startBackground = useCallback(async (s: AgentSessionView) => {
@@ -376,51 +365,23 @@ export function AgentsScreen({ usageSettings, dnd = false, onDnd }: { resumeOnSe
     }
   }, []);
 
-  // An exited pane stays (screen kept, Exited overlay) until the session is started again; keep the selection valid.
-  useEffect(() => {
-    if (selectedId && !sessions.some((s) => s.id === selectedId) && !pool.some((x) => x.sessionId === selectedId)) setSelectedId(undefined);
-  }, [sessions, selectedId, pool]);
-
-  const selected = sessions.find((s) => s.id === selectedId);
-  const summaryProject = summaryFor !== undefined && !selectedId ? projects.find((p) => p.id === summaryFor) : undefined;
-  const inExternal = selectedId !== undefined && viewing === selectedId && selected !== undefined;
-  const inTerminal = selectedId !== undefined && pool.some((x) => x.sessionId === selectedId);
-  const inPreview = selectedId !== undefined && preview === selectedId && !inTerminal && !inExternal;
-
-  const startPreview = async () => {
-    const s = sessions.find((x) => x.id === selectedId);
-    if (!s) return;
-    setError('');
-    try {
-      const r = await startSession({ account: s.account, dir: s.cwd, sessionId: s.id });
-      setPreview(undefined);
-      attach({ sessionId: s.id, terminal: r.session });
-      void focusSoon();
-    } catch (e) {
-      setError(errorOf(e).message);
-    }
-  };
-
-  /** Take over an external session: ends the other terminal's process (after a warning unless it is idle), then resumes it here. */
-  const takeOver = async (s: AgentSessionView) => {
-    setError('');
-    if (s.status !== 'idle' && s.status !== 'done') {
-      const status = t(`agents.status.${s.status}`).toLowerCase();
-      const ok = await dialogs.confirm({ title: t('agents.external.takeover'), body: t('agents.external.takeoverBusy', { status }), okLabel: t('agents.external.takeover'), danger: true });
-      if (!ok) return;
-    }
-    try {
-      if (!(await takeOverSession(s.id)).ok) return setError(t('agents.external.takeoverFailed'));
-      setViewing(undefined);
-      attach({ sessionId: s.id, terminal: (await startSession({ account: s.account, dir: s.cwd, sessionId: s.id })).session });
-      void focusSoon();
-    } catch (e) {
-      setError(errorOf(e).message);
-    }
-  };
+  /** Starts (resumes) the session and shows it in its workspace. */
+  const startHere = useCallback(
+    async (s: AgentSessionView) => {
+      setError('');
+      try {
+        const r = await startSession({ account: s.account, dir: s.cwd, sessionId: s.id });
+        showAgent(pathOf(s), s.id, { terminal: r.session });
+        void focusSoon();
+      } catch (e) {
+        setError(errorOf(e).message);
+      }
+    },
+    [showAgent, pathOf],
+  );
 
   /** Clears an exited session: closes its ended terminal so it reads as stopped. */
-  const clearExited = async (sessionId: string) => {
+  const clearExited = useCallback(async (sessionId: string) => {
     setError('');
     setUserStopped((u) => {
       const n = new Set(u);
@@ -433,7 +394,7 @@ export function AgentsScreen({ usageSettings, dnd = false, onDnd }: { resumeOnSe
     } catch (e) {
       setError(errorOf(e).message);
     }
-  };
+  }, []);
 
   // Tells the server which session is on screen (none while the window is unfocused), so it does not toast for it.
   useEffect(() => {
@@ -463,7 +424,7 @@ export function AgentsScreen({ usageSettings, dnd = false, onDnd }: { resumeOnSe
     if (sessions.some((x) => x.id === linked.id)) {
       setLinked(undefined);
       window.history.replaceState(null, '', '#/agents');
-      void select(linked.id);
+      select(linked.id);
       return;
     }
     // Hidden (showAllSessions off, another owner): make its owner the active account; the feed then lists it and the branch above selects it.
@@ -477,12 +438,13 @@ export function AgentsScreen({ usageSettings, dnd = false, onDnd }: { resumeOnSe
       .catch(() => undefined);
   }, [linked, sessions, select]);
 
-  // Per session id: how to insert text into its terminal (the Notes tab's Send to session).
-  const inserters = useRef(new Map<string, (text: string) => void>());
-  const submitters = useRef(new Map<string, (text: string) => void>());
-  const sendToSession = useCallback((text: string) => {
-    if (selectedId) inserters.current.get(selectedId)?.(text);
-  }, [selectedId]);
+  // Per session id: how to insert text into its terminal (the Notes panel's Send to session, /clear).
+  const inputs = useRef(new Map<string, TerminalInput>());
+  const registerTerminal = useCallback((sessionId: string, input: TerminalInput | null) => {
+    if (input) inputs.current.set(sessionId, input);
+    else inputs.current.delete(sessionId);
+  }, []);
+  const sendToSession = useCallback((sessionId: string, text: string) => inputs.current.get(sessionId)?.insert(text), []);
 
   const [notice, setNotice] = useState('');
   useEffect(() => {
@@ -491,17 +453,20 @@ export function AgentsScreen({ usageSettings, dnd = false, onDnd }: { resumeOnSe
     return () => clearTimeout(id);
   }, [notice]);
 
-  const copyResponse = useCallback(async () => {
-    if (!selectedId) return setNotice(t('agents.copy.none'));
-    try {
-      const { text } = await lastResponse(selectedId);
-      if (!text) return setNotice(t('agents.copy.none'));
-      await navigator.clipboard.writeText(text);
-      setNotice(t('agents.copy.done', { n: text.length }));
-    } catch (e) {
-      setError(errorOf(e).message);
-    }
-  }, [selectedId]);
+  const copyResponse = useCallback(
+    async (sessionId: string | undefined = selectedId) => {
+      if (!sessionId) return setNotice(t('agents.copy.none'));
+      try {
+        const { text } = await lastResponse(sessionId);
+        if (!text) return setNotice(t('agents.copy.none'));
+        await navigator.clipboard.writeText(text);
+        setNotice(t('agents.copy.done', { n: text.length }));
+      } catch (e) {
+        setError(errorOf(e).message);
+      }
+    },
+    [selectedId],
+  );
   useCommand(agentsCommands()[4]!, () => void copyResponse());
 
   const clearContext = useCallback(() => {
@@ -510,49 +475,48 @@ export function AgentsScreen({ usageSettings, dnd = false, onDnd }: { resumeOnSe
     if (s.external) return setNotice(t('agents.clear.elsewhere'));
     if (!s.live) return setNotice(t('agents.clear.notRunning'));
     if (s.status !== 'idle' && s.status !== 'done' && s.status !== 'error') return setNotice(t('agents.clear.busy'));
-    const submit = submitters.current.get(selectedId);
-    if (!submit) return setNotice(t('agents.clear.notRunning'));
-    submit('/clear');
+    const input = inputs.current.get(selectedId);
+    if (!input) return setNotice(t('agents.clear.notRunning'));
+    input.submit('/clear');
     setNotice(t('agents.clear.done'));
   }, [sessions, selectedId]);
   useCommand(agentsCommands()[5]!, clearContext);
 
   const focusInput = useCallback(() => {
-    const inputs = document.querySelectorAll<HTMLElement>('.agents-main .xterm-helper-textarea');
-    const visible = [...inputs].find((el) => el.offsetParent !== null && !(el as HTMLTextAreaElement).disabled);
-    visible?.focus();
-    return visible !== undefined && document.activeElement === visible;
+    const els = document.querySelectorAll<HTMLElement>('.agents-main .xterm-helper-textarea');
+    const target = [...els].find((el) => el.offsetParent !== null && !(el as HTMLTextAreaElement).disabled);
+    target?.focus();
+    return target !== undefined && document.activeElement === target;
   }, []);
-  const focusSoon = async () => {
+  const focusSoon = useCallback(async () => {
     for (let i = 0; i < 40; i++) {
       await new Promise((res) => setTimeout(res, 50));
       if (focusInput()) return;
     }
-  };
+  }, [focusInput]);
   useEffect(() => {
     if (focusMemory.region === 'main') void focusSoon();
     else focusMemory.region ??= 'tree';
   }, []);
   const interact = useCallback(async () => {
     if (!selectedId) return setNotice(t('agents.interact.none'));
-    const stopped = selected !== undefined && !selected.external && categoryOf(selected) === 'stopped';
-    if (inPreview || stopped) await startPreview();
+    if (selected && !selected.external && categoryOf(selected) === 'stopped') await startHere(selected);
     for (let i = 0; i < 40; i++) {
       if (focusInput()) return;
       await new Promise((res) => setTimeout(res, 50));
     }
     setNotice(t('agents.interact.none'));
-  }, [selectedId, selected, inPreview, startPreview, focusInput]);
+  }, [selectedId, selected, startHere, focusInput]);
   useCommand(agentsCommands()[24]!, () => void interact());
   const newSessionHere = useCallback(() => {
-    const project = sessions.find((s) => s.id === selectedId)?.project ?? summaryFor ?? folderFor?.projectIds[0];
+    const project = selected?.project ?? summaryFor ?? folderFor?.projectIds[0] ?? projects.find((p) => activeProject !== undefined && sameFolder(p.path, activeProject))?.id;
     if (!project) return;
     setNewFor(project);
-  }, [sessions, selectedId, summaryFor, folderFor]);
+  }, [selected, summaryFor, folderFor, projects, activeProject]);
   useCommand(agentsCommands()[26]!, newSessionHere);
   useCommand(agentsCommands()[27]!, () => setAdding(true));
   useCommand(agentsCommands()[29]!, () => {
-    if (selected && !selected.live && !selected.external) void startPreview();
+    if (selected && !selected.live && !selected.external) void startHere(selected);
   });
   useCommand(agentsCommands()[30]!, () => {
     if (selected) void stop(selected);
@@ -566,10 +530,31 @@ export function AgentsScreen({ usageSettings, dnd = false, onDnd }: { resumeOnSe
   useCommand(agentsCommands()[48]!, () => void runCommand('app.keybindings'));
   useCommand(agentsCommands()[49]!, () => void runCommand('app.settings'));
 
+  /** Starts a new Claude session in the project folder: with `account` right away, else through the start flow (active account). */
+  const newSession = useCallback(
+    (path: string, account?: string) => {
+      const project = projects.find((p) => sameFolder(p.path, path));
+      if (!account) {
+        if (project) setNewFor(project.id);
+        else setError(t('workspace.noProject'));
+        return;
+      }
+      const confirmCap = (w: AgentsCapWarn) => dialogs.confirm({ title: t('agents.cap.warn', { live: w.live, cap: w.cap }), okLabel: t('agents.cap.confirm') });
+      setError('');
+      void startSession({ account, dir: path, confirmCap }).then(
+        (r) => {
+          showAgent(path, r.sessionId, { terminal: r.session });
+          setSelectedId(r.sessionId);
+        },
+        (e) => {
+          if (!(e instanceof CapDeclined)) setError(errorOf(e).message);
+        },
+      );
+    },
+    [projects, dialogs, showAgent],
+  );
+
   const newKey = useMemo(() => (keys ? effectiveKeys(keys.defs, keys.keymap).get('agents.newSession')?.[0] : undefined), [keys]);
-  const showSession = selected !== undefined && newFor === undefined && (inTerminal || inExternal || inPreview);
-  const exitedHere = showSession && !inExternal && (selected.lifecycle === 'exited' || (inPreview && (selected.status === 'exited' || userStopped.has(selected.id))));
-  const resumeHere = showSession && inPreview && !exitedHere && !selected.external && !resumeDismissed.has(selected.id);
   const projectName = selected ? (projects.find((p) => p.id === selected.project)?.name ?? selected.cwd.split(/[\\/]/).filter(Boolean).pop() ?? selected.cwd) : '';
   const appKeys = useMemo(() => terminalAppKeys('agents', keys?.defs ?? [], ['agents.toggleSidebar', 'agents.togglePanel', 'agents.focusList']), [keys?.defs]);
 
@@ -578,170 +563,116 @@ export function AgentsScreen({ usageSettings, dnd = false, onDnd }: { resumeOnSe
   useEffect(() => setViewTitle(viewTitle), [viewTitle]);
   useEffect(() => () => setViewTitle(undefined), []);
 
-  const wide = panelTab === 'trajectory';
-  const sizeVars = {
-    '--agents-sidebar-w': `${widths.sidebar}px`,
-    '--agents-panel-w': `${widths.panel}px`,
-    ...(widths.panelWide === undefined ? {} : { '--agents-panel-wide-w': `${widths.panelWide}px` }),
-  } as CSSProperties;
+  const sizeVars = { '--agents-sidebar-w': `${widths.sidebar}px` } as CSSProperties;
+
+  const host: AgentsHost = {
+    sessions,
+    git,
+    usage,
+    usageSettings,
+    projects,
+    accounts,
+    appKeys,
+    selectedId,
+    userStopped,
+    resumeDismissed,
+    dismissResume: (id) => setResumeDismissed((d) => new Set(d).add(id)),
+    stop: (s) => void stop(s),
+    restart: (s) => void restart(s),
+    startBackground: (s) => void startBackground(s),
+    clearExited: (id) => void clearExited(id),
+    copyResponse: (id) => void copyResponse(id),
+    projectIdOf: (path) => projects.find((p) => sameFolder(p.path, path))?.id,
+    newSession,
+    setError,
+    registerTerminal,
+    sendToSession,
+    focusSoon: () => void focusSoon(),
+  };
+
+  const showWorkspaces = newFor === undefined && folderFor === undefined;
 
   return (
-    <div ref={screenRef} className={`view-agents agents-screen${hidden ? ' sidebar-hidden' : ''}${region ? ` focus-${region}` : ''}`} style={sizeVars} onFocusCapture={onFocusRegion}>
-      <div className="agents-body">
-      {!hidden && <Sidebar
-          projects={projects}
-          sessions={sessions}
-          usage={usage}
-          usageSettings={usageSettings}
-          onOpenUsage={() => setUsageOpen(true)}
-          selectedId={selectedId}
-          onSelect={(id) => void select(id)}
-          selectedProjectId={summaryFor}
-          onSelectProject={selectProject}
-          selectedFolderId={folderFor?.id}
-          onSelectFolder={selectFolder}
-          onVisibleChange={setVisible}
-          onNewSession={setNewFor}
-          onQuickNew={setNewFor}
-          onRemoveProject={removeProject}
-          onStop={(s) => void stop(s)}
-          onRestart={(s) => void restart(s)}
-          onStartBackground={(s) => void startBackground(s)}
-        />
-      }
-      {!hidden && (
-        <Sash
-          edge="end"
-          width={() => widthsRef.current.sidebar}
-          onWidth={(w) => setWidths((v) => ({ ...v, sidebar: clampWidth('sidebar', w) }))}
-          onDone={saveWidths}
-          onReset={() => {
-            setWidths((v) => ({ ...v, sidebar: SIDEBAR_W.def }));
-            setTimeout(saveWidths);
-          }}
-        />
-      )}
-      {alertsOpen && <AlertsPanel projects={projects} onClose={() => setAlertsOpen(false)} />}
-      {usageOpen && <UsageTab usage={usage} sessions={sessions}activeAccount={usageViewData(sessions.find((s) => s.id === selectedId), usage, []).usage?.account} use24h={usageSettings?.use24h} onClose={() => setUsageOpen(false)} />}
-      {skillsOpen && <SkillsPanel onClose={() => setSkillsOpen(false)} />}
-      {adding && <AddProject added={projects} onAdded={(p) => setProjects((l) => [...l, p])} onClose={() => setAdding(false)} />}
-      <section className={`agents-main${region === 'main' ? ' focused' : ''}`}>
-        {error && <div role="alert" className="agents-error">{error}</div>}
-        {notice && <div role="status" className="agents-notice">{notice}</div>}
-        {newFor !== undefined && (
-          <NewSession
-            projects={projects}
-            projectId={newFor}
-            lastAccount={lastAccount}
-            onCancel={() => setNewFor(undefined)}
-            onStarted={(r) => {
-              setNewFor(undefined);
-              setSelectedId(r.sessionId);
-              attach({ sessionId: r.sessionId, terminal: r.terminal });
-            }}
-          />
-        )}
-        {showSession && (
-          <SessionHead
-            session={selected}
-            mode={inExternal ? 'external' : 'terminal'}
-            project={projectName}
-            git={git[selected.cwd]}
-            onRename={(name) => void patchSessionState(selected.id, { name }).catch((e) => setError(errorOf(e).message))}
-            onStop={() => void stop(selected)}
-            onRestart={() => void restart(selected)}
-            onCopy={() => void copyResponse()}
-            onTrajectory={() => void runCommand('agents.trajectory')}
-            onTogglePanel={() => void runCommand('agents.togglePanel')}
-          />
-        )}
-        <div className="agents-panes" hidden={newFor !== undefined}>
-          {pool.map((a) => (
-            <div key={a.terminal} className="agents-pane" hidden={a.sessionId !== selectedId}>
-              <TerminalPane
-                session={a.terminal}
-                appKeys={appKeys}
-                focused={false}
-                handle={(h: TerminalPaneHandle | null) => {
-                  if (h) {
-                    inserters.current.set(a.sessionId, h.insert);
-                    submitters.current.set(a.sessionId, h.submit);
-                  } else {
-                    inserters.current.delete(a.sessionId);
-                    submitters.current.delete(a.sessionId);
-                  }
+    <AgentsHostProvider value={host}>
+      <div ref={screenRef} className={`view-agents agents-screen${hidden ? ' sidebar-hidden' : ''}${region ? ` focus-${region}` : ''}`} style={sizeVars} onFocusCapture={onFocusRegion}>
+        <div className="agents-body">
+          {!hidden && (
+            <Sidebar
+              projects={projects}
+              sessions={sessions}
+              usage={usage}
+              usageSettings={usageSettings}
+              onOpenUsage={() => openTool('usage')}
+              selectedId={selectedId}
+              onSelect={select}
+              selectedProjectId={summaryFor}
+              onSelectProject={selectProject}
+              selectedFolderId={folderFor?.id}
+              onSelectFolder={selectFolder}
+              onVisibleChange={setVisible}
+              onNewSession={setNewFor}
+              onQuickNew={setNewFor}
+              onRemoveProject={removeProject}
+              onStop={(s) => void stop(s)}
+              onRestart={(s) => void restart(s)}
+              onStartBackground={(s) => void startBackground(s)}
+            />
+          )}
+          {!hidden && (
+            <Sash
+              edge="end"
+              width={() => widthsRef.current.sidebar}
+              onWidth={(w) => setWidths((v) => ({ ...v, sidebar: clampWidth('sidebar', w) }))}
+              onDone={saveWidths}
+              onReset={() => {
+                setWidths((v) => ({ ...v, sidebar: SIDEBAR_W.def }));
+                setTimeout(saveWidths);
+              }}
+            />
+          )}
+          {alertsOpen && <AlertsPanel projects={projects} onClose={() => setAlertsOpen(false)} />}
+          {adding && <AddProject added={projects} onAdded={(p) => setProjects((l) => [...l, p])} onClose={() => setAdding(false)} />}
+          <section className={`agents-main${region === 'main' ? ' focused' : ''}`}>
+            {error && <div role="alert" className="agents-error">{error}</div>}
+            {notice && <div role="status" className="agents-notice">{notice}</div>}
+            {newFor !== undefined && (
+              <NewSession
+                projects={projects}
+                projectId={newFor}
+                lastAccount={lastAccount}
+                onCancel={() => setNewFor(undefined)}
+                onStarted={(r) => {
+                  setNewFor(undefined);
+                  setSelectedId(r.sessionId);
+                  const path = projects.find((p) => p.id === r.projectId)?.path;
+                  if (path) showAgent(path, r.sessionId, { terminal: r.terminal });
                 }}
               />
+            )}
+            <div className="agents-workspaces" hidden={!showWorkspaces}>
+              {mounted.map((path) => (
+                <ProjectWorkspace key={path} project={path} hidden={activeProject === undefined || !sameFolder(path, activeProject)} register={registerWorkspace} onFocusedAgent={onFocusedAgent} />
+              ))}
+              {activeProject === undefined && <EmptyState newKey={newKey} onNewSession={projects[0] ? () => setNewFor(projects[0]!.id) : () => setAdding(true)} />}
             </div>
-          ))}
-          {inExternal && newFor === undefined && selected && (
-            <div className="agents-pane">
-              <ExternalPane
-                sessionId={selected.id}
-                updatedAt={selected.updatedAt}
-                external={selected.external === true}
-                onTakeOver={() => void takeOver(selected)}
-              />
-            </div>
-          )}
-          {inPreview && newFor === undefined && selected && (
-            <div className="agents-pane">
-              <StoppedPane
-                session={selected}
-                branch={git[selected.cwd]?.branch}
-                onStart={() => void startPreview()}
-                onBackground={() => void startBackground(selected)}
-                onRestart={() => void restart(selected)}
-                onClear={() => void clearExited(selected.id)}
-                noName
-              />
-            </div>
-          )}
-          {summaryProject && !selectedId && newFor === undefined && (
-            <div className="agents-pane">
-              <GroupSummary
-                kind="project"
-                name={summaryProject.name}
-                path={summaryProject.path}
-                sessions={(hidden || !visible ? sessions.filter((s) => !s.archived) : visible).filter((s) => s.project === summaryProject.id)}
-                onSelect={(id) => void select(id)}
-                onNewSession={() => setNewFor(summaryProject.id)}
-              />
-            </div>
-          )}
-          {folderFor && !summaryProject && !selectedId && newFor === undefined && (
-            <div className="agents-pane">
-              <GroupSummary
-                kind="folder"
-                name={folderFor.name}
-                projectCount={folderFor.projectIds.length}
-                sessions={(hidden || !visible ? sessions.filter((s) => !s.archived) : visible).filter((s) => s.project !== undefined && folderFor.projectIds.includes(s.project))}
-                onSelect={(id) => void select(id)}
-              />
-            </div>
-          )}
-          {!summaryProject && !folderFor && !inTerminal && !inExternal && !inPreview && newFor === undefined && (
-            <EmptyState newKey={newKey} onNewSession={projects[0] ? () => setNewFor(projects[0]!.id) : () => setAdding(true)} />
-          )}
+            {folderFor && newFor === undefined && (
+              <div className="agents-panes">
+                <div className="agents-pane">
+                  <GroupSummary
+                    kind="folder"
+                    name={folderFor.name}
+                    projectCount={folderFor.projectIds.length}
+                    sessions={(hidden || !visible ? sessions.filter((s) => !s.archived) : visible).filter((s) => s.project !== undefined && folderFor.projectIds.includes(s.project))}
+                    onSelect={select}
+                  />
+                </div>
+              </div>
+            )}
+          </section>
         </div>
-        {exitedHere && <ExitBar code={selected.exitCode} userStopped={userStopped.has(selected.id)} onRestart={() => void restart(selected)} onClose={() => void clearExited(selected.id)} />}
-        {resumeHere && <ResumeBar onResume={() => void startPreview()} onDismiss={() => setResumeDismissed((d) => new Set(d).add(selected.id))} />}
-      </section>
-      {!panelHidden && (
-        <Sash
-          edge="start"
-          width={panelWidth(wide ? 'panelWide' : 'panel')}
-          onWidth={(w) => setWidths((v) => ({ ...v, [wide ? 'panelWide' : 'panel']: clampWidth('panel', w) }))}
-          onDone={saveWidths}
-          onReset={() => {
-            setWidths((v) => (wide ? { sidebar: v.sidebar, panel: v.panel } : { ...v, panel: PANEL_W.def }));
-            setTimeout(saveWidths);
-          }}
-        />
-      )}
-      {!panelHidden && <SidePanel focused={region === 'panel'} onClose={togglePanel} tab={panelTab} onTabChange={setPanelTab} trajectory={<TrajectoryTab sessionId={selected?.id} available={!!selected && selected.lifecycle !== 'starting'} onClose={togglePanel} />} notes={<NotesTab project={selected?.project} canSend={inTerminal && newFor === undefined} onSend={sendToSession} />} changes={<ChangesTab root={projects.find((p) => p.id === selected?.project)?.path ?? selected?.cwd} status={selected?.status} />} />}
+        <StatusStrip sessions={sessions} dnd={dnd} onJumpWaiting={jumpWaiting} onToggleDnd={toggleDnd} />
+        {dialogs.element}
       </div>
-      <StatusStrip sessions={sessions} dnd={dnd} onJumpWaiting={jumpWaiting} onToggleDnd={toggleDnd} />
-    </div>
+    </AgentsHostProvider>
   );
 }
