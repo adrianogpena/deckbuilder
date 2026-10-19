@@ -70,6 +70,8 @@ export interface TerminalViewSettings {
 
 const FONT_WEIGHTS = ['normal', 'bold', '100', '200', '300', '400', '500', '600', '700', '800', '900'];
 const MONO_FONT = "'Geist Mono','Cascadia Code',Consolas,monospace";
+// Geist Mono has no ligatures, so with ligatures on the default stack leads with fonts that do.
+const LIGATURE_FONT = "'Cascadia Code','JetBrains Mono','Fira Code',Consolas,monospace";
 
 const field = (key: string, order: number, def: FieldDef, section: string): SettingDef<TerminalViewSettings> =>
   groupField<TerminalViewSettings, 'terminal'>('terminal', key, order, def, ['terminal', section]);
@@ -121,5 +123,7 @@ export const terminalDefault = <V = unknown>(key: string): V => (defaults as Rec
 /** The terminal look and behavior settings (not the shell) with their defaults filled in. */
 export const terminalSettingsOf = (s: TerminalViewSettings): Required<TerminalSettings> => {
   const { shell: _shell, ...fields } = s.terminal ?? {};
-  return { ...defaults, ...fields };
+  const merged = { ...defaults, ...fields };
+  if (merged.ligatures && merged.fontFamily === MONO_FONT) merged.fontFamily = LIGATURE_FONT;
+  return merged;
 };

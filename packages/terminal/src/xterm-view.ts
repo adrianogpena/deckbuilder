@@ -1,5 +1,6 @@
-import { ClipboardAddon, type ClipboardSelectionType } from '@xterm/addon-clipboard';
+import { ClipboardAddon } from '@xterm/addon-clipboard';
 import { FitAddon } from '@xterm/addon-fit';
+import { LigaturesAddon } from '@xterm/addon-ligatures';
 import { SearchAddon } from '@xterm/addon-search';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { WebLinksAddon } from '@xterm/addon-web-links';
@@ -34,7 +35,7 @@ export interface TerminalOptions {
   /** A preset of `themes.ts`; 'app' follows the app palette. */
   theme?: string;
   minimumContrastRatio?: number;
-  /** CSS ligatures; they need the DOM renderer, so `gpuAcceleration: 'auto'` then skips WebGL. */
+  /** Joins pairs like `->` through the ligatures addon on the WebGL renderer; with the DOM renderer (GPU off or failed) only CSS ligatures apply. */
   ligatures?: boolean;
   gpuAcceleration?: 'auto' | 'on' | 'off';
   /** What a bell does in the pane: 'sound'/'both' beep (the tab marker is the app's). */
@@ -140,6 +141,14 @@ function openLink(uri: string) {
   if (/^https?:\/\//i.test(uri)) window.open(uri, '_blank', 'noopener');
 }
 
+// Used when the font's own ligature table can't be read (no local font access in the webview).
+const LIGATURE_FALLBACK = [
+  '<--', '<---', '<<-', '<-', '->', '->>', '-->', '--->', '<==', '<===', '<<=', '<=', '=>', '=>>', '==>', '===>', '>=', '>>=',
+  '<->', '<-->', '<--->', '<---->', '<=>', '<==>', '<===>', '<====>', '::', ':::', '<~~', '</', '</>', '/>', '~~>', '==', '!=',
+  '/=', '~=', '<>', '===', '!==', '!===', '<:', ':=', '*=', '*+', '<*', '<*>', '*>', '<|', '<|>', '|>', '+*', '=*', '=:', ':>',
+  '/*', '*/', '+++', '<!--', '<!---', '|-', '-|', '||', '&&', '..', '...', '++', '--', '##', '###', '####', '>>', '<<', '>>>', '<<<',
+];
+
 export function createXtermView(el: HTMLElement, opts: XtermViewOptions = {}): XtermView {
   let themeId = 'app';
   let schemes: ColorScheme[] | undefined;
@@ -170,8 +179,8 @@ export function createXtermView(el: HTMLElement, opts: XtermViewOptions = {}): X
     // OSC 52: programs may write the clipboard, never read it.
     term.loadAddon(
       new ClipboardAddon(undefined, {
-        readText: (_selection: ClipboardSelectionType) => '',
-        writeText: async (_selection: ClipboardSelectionType, text: string) => {
+        readText: (_selection: string) => '',
+        writeText: async (_selection: string, text: string) => {
           await navigator.clipboard?.writeText(text).catch(() => {});
         },
       }),
@@ -203,8 +212,9 @@ export function createXtermView(el: HTMLElement, opts: XtermViewOptions = {}): X
     webgl?.dispose();
     webgl = null;
   };
-  const setRenderer = (mode: 'auto' | 'on' | 'off', ligatures: boolean) => {
-    const want = mode === 'on' || (mode === 'auto' && !ligatures && !webglFailed);
+  const setRenderer = (mode: 'auto' | 'on' | 'off') => {
+    // The ligatures addon joins glyphs through the WebGL renderer; the DOM renderer's letter-spacing blocks CSS ligatures.
+    const want = mode === 'on' || (mode === 'auto' && !webglFailed);
     if (!want) return dropWebgl();
     if (webgl) return;
     try {
@@ -219,6 +229,18 @@ export function createXtermView(el: HTMLElement, opts: XtermViewOptions = {}): X
       webglFailed = true;
       webgl = null;
     }
+  };
+
+  let ligaturesAddon: LigaturesAddon | null = null;
+  const setLigatures = (on: boolean) => {
+    if (!on) {
+      ligaturesAddon?.dispose();
+      ligaturesAddon = null;
+      return;
+    }
+    if (ligaturesAddon) return;
+    ligaturesAddon = new LigaturesAddon({ fallbackLigatures: LIGATURE_FALLBACK });
+    term.loadAddon(ligaturesAddon);
   };
 
   // Shell integration (OSC 133): a marker per prompt, a gutter dot per command.
@@ -335,7 +357,8 @@ export function createXtermView(el: HTMLElement, opts: XtermViewOptions = {}): X
     el.classList.toggle('scrollbar-hidden', o.scrollbar === 'hidden');
     trimCopy = o.trimCopy ?? true;
     el.classList.toggle('ligatures', !!o.ligatures);
-    setRenderer(o.gpuAcceleration ?? 'auto', !!o.ligatures);
+    setRenderer(o.gpuAcceleration ?? 'auto');
+    setLigatures(!!o.ligatures);
     setDecorations(o.commandDecorations ?? true);
     copyOnSelect = !!o.copyOnSelect;
     rightClickPaste = !!o.rightClickPaste;
@@ -343,7 +366,7 @@ export function createXtermView(el: HTMLElement, opts: XtermViewOptions = {}): X
   };
   if (opts.options) setOptions(opts.options);
   else {
-    setRenderer('auto', false);
+    setRenderer('auto');
     setDecorations(true);
   }
 
