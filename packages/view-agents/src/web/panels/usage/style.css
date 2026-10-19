@@ -1,1 +1,17 @@
-.agents-panel-usage { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; }
+.agents-panel-usage { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; overflow: auto; padding: 12px 16px; gap: 16px; }
+.usage-bar { display: flex; align-items: center; gap: 12px; }
+.usage-bar h2 { margin: 0; font-size: 14px; flex: 1; }
+.usage-totals { display: grid; grid-template-columns: repeat(3, minmax(160px, 1fr)); gap: 8px; }
+.usage-card { border: 1px solid var(--border, #444); border-radius: 6px; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; font-size: 12px; }
+.usage-card strong { font-size: 18px; }
+.usage-days { display: flex; align-items: flex-end; gap: 2px; height: 90px; }
+.usage-days > div { flex: 1; background: var(--accent, #4a8); min-height: 1px; border-radius: 2px 2px 0 0; opacity: 0.85; }
+.usage-tables { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px; }
+.usage-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.usage-table th, .usage-table td { text-align: right; padding: 2px 6px; white-space: nowrap; }
+.usage-table th:first-child, .usage-table td:first-child { text-align: left; max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
+.usage-section h3 { margin: 0 0 6px; font-size: 12px; text-transform: uppercase; opacity: 0.7; }
+.usage-limits { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.usage-budget { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font-size: 12px; flex-wrap: wrap; }
+.usage-budget input { width: 80px; }
+.usage-budget .usage-name { min-width: 140px; }
