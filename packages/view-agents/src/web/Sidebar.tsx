@@ -1,5 +1,6 @@
 import { type CSSProperties, type DragEvent, type MouseEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { ContextMenu, type ContextMenuItem, fuzzyScore, highlightRuns, KEY_SCOPE_ATTR, useCommand, useDialogs, useRovingList, useRunCommand, useToast } from '@deckbuilderkit/ui';
+import { ContextMenu, type ContextMenuItem, fuzzyScore, highlightRuns, Icon, KEY_SCOPE_ATTR, useCommand, useDialogs, useRovingList, useRunCommand, useToast } from '@deckbuilderkit/ui';
+import './sidebar.css';
 import { AGENTS_LIST_SCOPE, agentsCommands } from '../commands';
 import { t } from '../i18n';
 import type { AgentCategory } from '../protocol.ts';
@@ -19,6 +20,18 @@ import { buildRows, folderName, folderNodeKey, leftAction, nextPin, parseTags, p
 import { useAgentTree } from './useAgentSessions';
 import { type UsageSettings, UsageView, usageViewData } from './UsageView';
 import { severity } from './usage-format';
+import { StatusDot } from './StatusDot';
+import { statusSince } from './status-text';
+import { activityStatus, avatarColour, avatarInitial, projectActivity } from './project-activity';
+import { SectionButton, SidebarSection } from './SidebarSection';
+import { hideSection, loadSections, moveSection, restoreAll, restoreSection, saveSections, type SectionId, type SectionsState, sectionOrder, toggleSection } from './sidebar-sections';
+
+const SECTION_TITLE: Record<SectionId, 'agents.section.sessions' | 'agents.section.tags' | 'agents.section.archived' | 'agents.section.usage'> = {
+  sessions: 'agents.section.sessions', tags: 'agents.section.tags', archived: 'agents.section.archived', usage: 'agents.section.usage',
+};
+
+/** Tooltip of a status dot: "Waiting for you · 2 min". */
+const dotTitle = (s: AgentSessionView) => statusSince(s, Date.now(), t).text;
 
 const depthStyle = (depth: number) => ({ '--agents-depth': depth }) as CSSProperties;
 
@@ -88,11 +101,6 @@ export function compactTokens(n: number): string {
   return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
 }
 
-/** The status glyph of a row (sdeck look); its colour comes from the status class. */
-export const STATUS_GLYPH: Record<AgentStatus, string> = {
-  running: '●', 'needs-you': '◐', done: '✓', idle: '○', starting: '⟳', error: '✕', exited: '✕', stopped: '■',
-};
-
 /** The context % of a row and its token breakdown tooltip; undefined when the context is unknown. */
 function sessionUsage(s: AgentSessionView): { line: string; title: string } | undefined {
   if (s.contextPercent === undefined) return undefined;
@@ -158,8 +166,16 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
   const [query, setQuery] = useState('');
   const [fullToggle, setFullToggle] = useState(false);
   const [filters, setFilters] = useState<AgentFilters>(NO_FILTERS);
-  const [archivedOpen, setArchivedOpen] = useState(false);
   const [archivedView, setArchivedView] = useState(false);
+  const [sections, setSectionsState] = useState<SectionsState>(loadSections);
+  const [sectionDrag, setSectionDrag] = useState<SectionId>();
+  const usageTop = usageSettings?.position === 'top';
+  const setSections = (fn: (s: SectionsState) => SectionsState) => setSectionsState((s) => {
+    const next = fn(s);
+    saveSections(next);
+    return next;
+  });
+  useCommand(agentsCommands()[51]!, () => setSections(restoreAll));
   const [menu, setMenu] = useState<{ at: { x: number; y: number }; items: Array<ContextMenuItem | 'sep'> }>();
   const [renaming, setRenaming] = useState<string>();
   const renamingRef = useRef<string | undefined>(undefined);
@@ -815,14 +831,14 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
   ];
 
   const row = ({ s, m }: { s: AgentSessionView; m: RowMatch }, r?: Extract<TreeRow, { kind: 'session' }>) => {
-    const label = statusLabel(s.status);
+    const dot = <StatusDot status={s.status} title={dotTitle(s)} />;
     const name = displayName(s);
     const connector = r && <span className="agents-connector" aria-hidden="true">{r.last ? '└─' : '├─'}</span>;
     if (renaming === s.id) {
       return (
         <div key={s.id} className="agents-session-edit" style={r && depthStyle(r.depth)}>
           {connector}
-          <span className={`agents-glyph ${s.status}`} role="img" title={label} aria-label={label}>{STATUS_GLYPH[s.status]}</span>
+          {dot}
           <input
             className="agents-rename"
             autoFocus
@@ -887,7 +903,7 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
           )}
         </span>
         {connector}
-        <span className={`agents-glyph ${s.status}`} role="img" title={label} aria-label={label}>{STATUS_GLYPH[s.status]}</span>
+        {dot}
         {pin && <span className="agents-mark" role="img" title={pinLabel} aria-label={pinLabel}>{pin === 'top' ? '↑' : '↓'}</span>}
         {s.external && <span className="agents-mark" role="img" title={t('agents.external.note')} aria-label={t('agents.external')}>↗</span>}
         <span className="agents-session-main">
@@ -904,13 +920,13 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
     );
   };
 
-  const nodeRow = (r: Extract<TreeRow, { kind: 'folder' | 'project' }>, nodeKey: string, name: string, title: string, current: boolean, select: (() => void) | undefined, extra: ReactNode, items: Array<ContextMenuItem | 'sep'>) => {
+  const nodeRow = (r: Extract<TreeRow, { kind: 'folder' | 'project' }>, nodeKey: string, name: string, title: string, current: boolean, select: (() => void) | undefined, extra: ReactNode, items: Array<ContextMenuItem | 'sep'>, lead: ReactNode) => {
     const toggle = () => setCollapsed(nodeKey, !r.collapsed);
     const expand = r.collapsed ? t('agents.tree.expand') : t('agents.tree.collapse');
     return (
       <div
         key={nodeKey}
-        className={`${r.kind === 'folder' ? 'agents-folder-row' : 'agents-group-row'}${drag?.id === rowId(r) ? ' dragging' : ''}`}
+        className={`${r.kind === 'folder' ? 'agents-folder-row' : 'agents-group-row'} agents-node-row${current ? ' current' : ''}${drag?.id === rowId(r) ? ' dragging' : ''}`}
         style={depthStyle(r.depth)}
         {...dragProps(r)}
         onContextMenu={(e) => {
@@ -918,7 +934,8 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
           setMenu({ at: { x: e.clientX, y: e.clientY }, items });
         }}
       >
-        <button type="button" className="agents-twisty" tabIndex={-1} aria-expanded={!r.collapsed} title={expand} aria-label={expand} onClick={toggle}>{r.collapsed ? '▸' : '▾'}</button>
+        <button type="button" className={`agents-twisty${r.collapsed ? '' : ' open'}`} tabIndex={-1} aria-expanded={!r.collapsed} title={expand} aria-label={expand} onClick={toggle}><Icon name="chevron" size={12} /></button>
+        {lead}
         <button
           type="button"
           className={`agents-node ${r.kind}`}
@@ -951,7 +968,13 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
         { id: 'renameFolder', label: t('agents.folder.rename'), run: () => void renameFolder(r.id, r.name) },
         { id: 'deleteFolder', label: t('agents.folder.delete'), danger: true, run: () => void deleteFolder(r.id, r.name) },
       ];
-      return nodeRow(r, folderNodeKey(r.id), r.name, r.name, r.id === selectedFolderId, select, null, items);
+      const folderLead = (
+        <>
+          <StatusDot status={activityStatus(projectActivity(r.sessions))} />
+          <span className="agents-folder-icon" aria-hidden="true"><Icon name="folder" size={14} /></span>
+        </>
+      );
+      return nodeRow(r, folderNodeKey(r.id), r.name, r.name, r.id === selectedFolderId, select, null, items, folderLead);
     }
     const p = r.project;
     const select = onSelectProject && (() => {
@@ -959,10 +982,20 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
       onSelectProject(p.id);
     });
     const extra = (
-      <span>
-        <button type="button" className="agents-remove" title={t('agents.remove')} aria-label={t('agents.remove')} onClick={() => void confirmRemove(p)}>x</button>
-        <button type="button" className="agents-new" title={t('agents.new.title')} aria-label={t('agents.new.title')} onClick={() => onQuickNew(p.id)}>+</button>
+      <span className="agents-node-actions">
+        <button type="button" className="agents-new" title={t('agents.new.title')} aria-label={t('agents.new.title')} onClick={() => onQuickNew(p.id)}><Icon name="plus" size={12} /></button>
+        <button type="button" className="agents-remove" title={t('agents.remove')} aria-label={t('agents.remove')} onClick={() => void confirmRemove(p)}><Icon name="close" size={12} /></button>
       </span>
+    );
+    const activity = activityStatus(projectActivity(r.sessions));
+    const path = r.suffix ? `${p.path} · ${r.suffix}` : p.path;
+    const stateLabel = activity === 'none' ? t('agents.since.status.idle') : t(`agents.since.status.${activity}`);
+    const tip = t('agents.project.tooltip', { path, state: stateLabel, count: String(r.sessions.length) });
+    const projectLead = (
+      <>
+        <StatusDot status={activity} />
+        <span className={`agents-avatar agents-avatar--${avatarColour(p.path)}`} aria-hidden="true">{avatarInitial(p.name)}</span>
+      </>
     );
     const items: Array<ContextMenuItem | 'sep'> = [
       { id: 'new', label: t('agents.new.title'), run: () => onQuickNew(p.id) },
@@ -973,10 +1006,140 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
       { id: 'remove', label: t('agents.remove'), danger: true, run: () => void confirmRemove(p) },
     ];
     const label = r.suffix ? `${p.name} · ${r.suffix}` : p.name;
-    return nodeRow(r, projectNodeKey(r.node), label, r.suffix ? `${p.path} · ${r.suffix}` : p.path, p.id === selectedProjectId && (selectedNode === undefined || selectedNode === r.node), select, extra, items);
+    return nodeRow(r, projectNodeKey(r.node), label, tip, p.id === selectedProjectId && (selectedNode === undefined || selectedNode === r.node), select, extra, items, projectLead);
   };
 
-  const archivedShown = archivedOpen || searching;
+  // ---- Section cards (spec S5): collapse, hide, restore and reorder; state in localStorage.
+  const order = sectionOrder(sections, usageTop);
+  const moveSectionTo = (id: SectionId, to: number) => setSections((s) => moveSection(s, id, to, usageTop));
+  const sectionMenu = (id: SectionId) => (e: MouseEvent) => {
+    const at = order.indexOf(id);
+    setMenu({ at: { x: e.clientX, y: e.clientY }, items: [
+      { id: 'moveUp', label: t('agents.tree.moveUp'), disabled: at <= 0, run: () => moveSectionTo(id, at - 1) },
+      { id: 'moveDown', label: t('agents.tree.moveDown'), disabled: at >= order.length - 1, run: () => moveSectionTo(id, at + 1) },
+      'sep',
+      { id: 'hide', label: t('agents.section.hide'), run: () => setSections((s) => hideSection(s, id)) },
+    ] });
+  };
+  const addSectionMenu = (e: MouseEvent) => {
+    const box = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setMenu({ at: { x: box.left, y: box.bottom }, items: [
+      ...sections.hidden.map((id): ContextMenuItem => ({ id: `restore-${id}`, label: t(SECTION_TITLE[id]), run: () => setSections((s) => restoreSection(s, id)) })),
+      'sep',
+      { id: 'reopenAll', label: t('agents.section.reopen'), run: () => setSections(restoreAll) },
+    ] });
+  };
+  const section = (id: SectionId, body: ReactNode, opts: { count?: number; note?: ReactNode; actions?: ReactNode; forceOpen?: boolean; className?: string } = {}) => (
+    <SidebarSection
+      key={id}
+      id={id}
+      title={t(SECTION_TITLE[id])}
+      count={opts.count}
+      note={opts.note}
+      collapsed={sections.collapsed.includes(id) && !opts.forceOpen}
+      onToggle={() => setSections((s) => toggleSection(s, id))}
+      onHide={() => setSections((s) => hideSection(s, id))}
+      actions={opts.actions}
+      className={opts.className}
+      dragging={sectionDrag}
+      onDragStart={setSectionDrag}
+      onDragEnd={() => setSectionDrag(undefined)}
+      onDrop={(target, after) => {
+        const from = sectionDrag;
+        setSectionDrag(undefined);
+        if (!from) return;
+        const rest = order.filter((x) => x !== from);
+        moveSectionTo(from, rest.indexOf(target) + (after ? 1 : 0));
+      }}
+      onMenu={sectionMenu(id)}
+    >{body}</SidebarSection>
+  );
+  const note = titleNote({ selected: checked.size, archived: archivedView, filtered, actionable: tree?.sort === 'actionable', activeOnTop: tree?.view === 'active' }, TITLE_LABELS);
+  const sessionsBody = (
+    <>
+      {sessions.length > 0 && (
+        <div className="agents-find">
+          <div className="agents-search">
+            <input
+              type="search"
+              value={query}
+              placeholder={t('agents.search.placeholder')}
+              aria-label={t('agents.search')}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape' && query) {
+                  e.preventDefault();
+                  setQuery('');
+                }
+              }}
+            />
+          </div>
+          <div className="agents-pills" role="group" aria-label={t('agents.filter')} onContextMenu={pillsMenu}>
+            {tagFilter !== undefined && (
+              pill('tag', true, `# ${tagFilter}`, t('agents.filter.tagClear'), () => setFilters((f) => ({ ...f, tag: undefined })))
+            )}
+          </div>
+        </div>
+      )}
+      {projects.length === 0 && (
+        <div className="agents-sidebar-empty">
+          <span className="agents-sidebar-empty-icon" aria-hidden="true"><Icon name="folder-plus" size={20} /></span>
+          <p className="agents-sidebar-empty-title">{t('agents.empty')}</p>
+          <p className="agents-sidebar-empty-desc">{t('agents.emptyHint')}</p>
+          <button type="button" className="btn btn-primary btn-sm agents-sidebar-empty-btn" onClick={() => void runCommand('agents.addProject')}>{t('keys.agents.addProject')}</button>
+        </div>
+      )}
+      {projects.length > 0 && sessions.length === 0 && <p className="agents-empty">{t('agents.filter.noSessions')}</p>}
+      {sessions.length > 0 && rows.length === 0 && archived.length === 0 && <p className="agents-empty">{t('agents.filter.noMatch')}</p>}
+      {rows.length > 0 && <div className="agents-tree">{rows.map(treeRow)}</div>}
+    </>
+  );
+  const sessionsActions = (
+    <>
+      <SectionButton icon="folder-plus" label={t('keys.agents.addProject')} onClick={() => void runCommand('agents.addProject')} />
+      {projects.length > 0 && <SectionButton icon="plus" label={t('agents.new.title')} onClick={() => void runCommand('agents.newSession')} />}
+      {sessions.length > 0 && (
+        <SectionButton
+          icon="search"
+          label={t('agents.search.fullText')}
+          pressed={full}
+          onClick={() => {
+            if (prefixed) {
+              setQuery(query.replace('?', ''));
+              setFullToggle(false);
+            } else setFullToggle((v) => !v);
+          }}
+        />
+      )}
+      {sessions.length > 0 && <SectionButton icon="archive" label={t('keys.agents.toggleArchived')} pressed={archivedView} onClick={toggleArchivedView} />}
+    </>
+  );
+  const tagsBody = tags.map(({ tag, count }) => {
+    const label = `# ${tag} (${count})`;
+    return (
+      <button
+        key={tag}
+        type="button"
+        className={`agents-tag-row agents-node${tag === tagFilter ? ' active' : ''}`}
+        title={t('agents.tags.filter', { tag })}
+        aria-pressed={tag === tagFilter}
+        onClick={() => setFilters((f) => toggleTag(f, tag))}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          setMenu({ at: { x: e.clientX, y: e.clientY }, items: [{ id: 'removeTag', label: t('agents.tags.removeAll'), danger: true, run: () => void removeTag(tag) }] });
+        }}
+      >
+        <span className="agents-tag-name">{label}</span>
+      </button>
+    );
+  });
+  const renderSection = (id: SectionId) => {
+    if (sections.hidden.includes(id)) return null;
+    if (id === 'sessions') return section(id, sessionsBody, { count: live.length, note: note && <span className="agents-panel-note">{note}</span>, actions: sessionsActions, className: 'agents-section-sessions' });
+    if (id === 'tags') return tags.length > 0 && section(id, <div className="agents-tags">{tagsBody}</div>, { count: tags.length });
+    if (id === 'archived') return archived.length > 0 && section(id, archived.map((x) => row(x)), { count: archived.length, forceOpen: searching, className: 'agents-archived' });
+    return usageBlock && section(id, usageBlock);
+  };
   return (
     <nav
       className={`agents-sidebar${checking ? ' checking' : ''}`}
@@ -1010,94 +1173,13 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
         clearBatch(true);
       }}
     >
-      <h2 className="agents-panel-title">
-        {t('agents.sidebar')}
-        {(() => {
-          const note = titleNote({ selected: checked.size, archived: archivedView, filtered, actionable: tree?.sort === 'actionable', activeOnTop: tree?.view === 'active' }, TITLE_LABELS);
-          return note && <span className="agents-panel-note"> {note}</span>;
-        })()}
-      </h2>
-      {usageSettings?.position === 'top' && usageBlock}
-      {sessions.length > 0 && (
-        <div className="agents-find">
-          <div className="agents-search">
-            <input
-              type="search"
-              value={query}
-              placeholder={t('agents.search.placeholder')}
-              aria-label={t('agents.search')}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape' && query) {
-                  e.preventDefault();
-                  setQuery('');
-                }
-              }}
-            />
-            <button
-              type="button"
-              className="agents-search-mode"
-              aria-pressed={full}
-              title={t('agents.search.fullText')}
-              aria-label={t('agents.search.fullText')}
-              onClick={() => {
-                if (prefixed) {
-                  setQuery(query.replace('?', ''));
-                  setFullToggle(false);
-                } else setFullToggle((v) => !v);
-              }}
-            >?</button>
-          </div>
-          <div className="agents-pills" role="group" aria-label={t('agents.filter')} onContextMenu={pillsMenu}>
-            {tagFilter !== undefined && (
-              pill('tag', true, `# ${tagFilter}`, t('agents.filter.tagClear'), () => setFilters((f) => ({ ...f, tag: undefined })))
-            )}
-          </div>
-        </div>
+      {order.map(renderSection)}
+      {sections.hidden.length > 0 && (
+        <button type="button" className="agents-section-add" title={t('agents.section.add')} aria-label={t('agents.section.add')} aria-haspopup="menu" onClick={addSectionMenu}>
+          <Icon name="plus" size={14} />
+          <span className="agents-label">{t('agents.section.add')}</span>
+        </button>
       )}
-      {projects.length === 0 && (
-        <p className="agents-empty">
-          {t('agents.empty')}. {t('agents.emptyHint')}
-        </p>
-      )}
-      {projects.length > 0 && sessions.length === 0 && <p className="agents-empty">{t('agents.filter.noSessions')}</p>}
-      {sessions.length > 0 && rows.length === 0 && archived.length === 0 && <p className="agents-empty">{t('agents.filter.noMatch')}</p>}
-      {rows.length > 0 && <div className="agents-tree">{rows.map(treeRow)}</div>}
-      {tags.length > 0 && (
-        <div className="agents-tags">
-          <div className="agents-divider" role="separator">{t('agents.tags')}</div>
-          {tags.map(({ tag, count }) => {
-            const label = `# ${tag} (${count})`;
-            return (
-              <button
-                key={tag}
-                type="button"
-                className={`agents-tag-row agents-node${tag === tagFilter ? ' active' : ''}`}
-                title={t('agents.tags.filter', { tag })}
-                aria-pressed={tag === tagFilter}
-                onClick={() => setFilters((f) => toggleTag(f, tag))}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  setMenu({ at: { x: e.clientX, y: e.clientY }, items: [{ id: 'removeTag', label: t('agents.tags.removeAll'), danger: true, run: () => void removeTag(tag) }] });
-                }}
-              >
-                <span className="agents-tag-name">{label}</span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-      {archived.length > 0 && (
-        <section className="agents-project agents-archived">
-          <header className="agents-group-row">
-            <button type="button" className="agents-archived-toggle" aria-expanded={archivedShown} onClick={() => setArchivedOpen((v) => !v)}>
-              <span aria-hidden="true">{archivedShown ? '▾' : '▸'}</span> {t('agents.archived')} ({archived.length})
-            </button>
-          </header>
-          {archivedShown && archived.map((x) => row(x))}
-        </section>
-      )}
-      {usageSettings?.position !== 'top' && usageBlock}
       {checking && <BatchBar count={checked.size} actions={batchActions} onClear={() => clearBatch(true)} />}
       {menu && <ContextMenu at={menu.at} items={menu.items} onClose={() => setMenu(undefined)} />}
       {trashOpen && <TrashPanel onRestored={restored} onRefused={(message) => toast({ message, kind: 'error' })} onClose={() => setTrashOpen(false)} />}
@@ -1126,15 +1208,15 @@ function GitBadge({ list, git }: { list: AgentSessionView[]; git: GitStatusMap }
   );
 }
 
-/** '(count)', then '●R' and '◐W' only when non-zero, after a folder or project name. */
+/** '(count)', then a working and a waiting dot with their counts, only when non-zero, after a folder or project name. */
 function GroupCounts({ list }: { list: AgentSessionView[] }) {
   const running = list.filter((s) => s.status === 'running' || s.status === 'starting').length;
   const waiting = list.filter((s) => s.status === 'needs-you').length;
   return (
     <span className="agents-group-counts">
       <span className="agents-group-count">({list.length})</span>
-      {running > 0 && <span className="agents-glyph running" title={t('agents.status.running')}>●{running}</span>}
-      {waiting > 0 && <span className="agents-glyph needs-you" title={t('agents.status.needs-you')}>◐{waiting}</span>}
+      {running > 0 && <span className="agents-group-stat" title={t('agents.status.running')}><StatusDot status="running" size={6} />{running}</span>}
+      {waiting > 0 && <span className="agents-group-stat" title={t('agents.status.needs-you')}><StatusDot status="needs-you" size={6} />{waiting}</span>}
     </span>
   );
 }
