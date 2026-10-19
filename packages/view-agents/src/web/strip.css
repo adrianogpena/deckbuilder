@@ -1,0 +1,20 @@
+.agents-strip .status-bar,
+.agents-strip .status-item {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-2);
+}
+
+.agents-strip-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.agents-strip .status-action:hover {
+  color: var(--text);
+}
+
+.agents-strip-dnd.is-on {
+  color: var(--warn);
+}

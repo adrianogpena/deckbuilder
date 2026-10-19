@@ -31,3 +31,10 @@ test('shown session, disabled states and new sessions are skipped', async () => 
   await n.observe([sess('a', 'done'), sess('b', 'done'), sess('c', 'error')]);
   expect(toasts).toEqual([]);
 });
+
+test('do not disturb shows no toast', async () => {
+  const { n, toasts } = setup({ doNotDisturb: true });
+  await n.observe([sess('a', 'running')]);
+  await n.observe([sess('a', 'needs-you')]);
+  expect(toasts).toEqual([]);
+});

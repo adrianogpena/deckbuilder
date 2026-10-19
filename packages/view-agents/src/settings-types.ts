@@ -29,6 +29,8 @@ export interface AgentsSettings {
   notifyNeedsYou?: boolean;
   notifyDone?: boolean;
   notifyError?: boolean;
+  /** Do not disturb: no toast while on (alerts and hooks still run); off when omitted. */
+  doNotDisturb?: boolean;
   /** Shell command lines run on a status transition (blank = off). */
   'hooks.onRunning'?: string;
   'hooks.onWaiting'?: string;

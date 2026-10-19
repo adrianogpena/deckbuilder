@@ -83,6 +83,7 @@ export function createStatusTracker(now: () => number = Date.now) {
   const errorAt = new Map<string, number>();
   const errored = new Set<string>();
   const dismissed = new Map<string, string>();
+  const sinceAt = new Map<string, { status: AgentStatus; at: number }>();
   return {
     /**
      * Feed the live pid entries of one poll (all accounts); returns session id -> status (absent = not running, see `offline`).
@@ -140,6 +141,14 @@ export function createStatusTracker(now: () => number = Date.now) {
     /** Timestamp of the session's current error, else its current done; what acknowledging stores as the seen mark. */
     stamp(sessionId: string): number | undefined {
       return errorAt.get(sessionId) ?? doneAt.get(sessionId);
+    },
+    /** When the session got its current status: first sight seeds `fallback`, a change stamps now, an unchanged status keeps its time. */
+    since(sessionId: string, status: AgentStatus, fallback: number): number {
+      const cur = sinceAt.get(sessionId);
+      if (cur && cur.status === status) return cur.at;
+      const at = cur ? now() : fallback;
+      sinceAt.set(sessionId, { status, at });
+      return at;
     },
     /** Writes a fresh done (mark unread on a session with no status). */
     forceDone(sessionId: string) {

@@ -90,3 +90,15 @@ test('live pid sessions that are not ours are external', () => {
   expect([...externalIds(entries, ['a'])].sort()).toEqual(['b', 'c']);
   expect(externalIds(entries, ['a', 'b', 'c']).size).toBe(0);
 });
+
+test('since seeds the fallback, keeps an unchanged status and stamps a change', () => {
+  let clock = 1000;
+  const t = createStatusTracker(() => clock);
+  expect(t.since('a', 'running', 500)).toBe(500);
+  clock = 2000;
+  expect(t.since('a', 'running', 900)).toBe(500);
+  expect(t.since('a', 'needs-you', 900)).toBe(2000);
+  clock = 3000;
+  expect(t.since('a', 'needs-you', 900)).toBe(2000);
+  expect(t.since('a', 'stopped', 900)).toBe(3000);
+});

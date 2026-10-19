@@ -53,7 +53,7 @@ export interface AgentsServerSettings {
 const AGENTS_MODES: AgentsMode[] = ['terminal', 'chat'];
 const USAGE_POSITIONS: AgentsUsagePosition[] = ['float', 'top', 'bottom'];
 
-const AGENTS_SPEC = { mode: AGENTS_MODES, restoreSessions: ['ask', 'always', 'never'] as const, softCap: [1, 100], notifyNeedsYou: 'boolean', notifyDone: 'boolean', notifyError: 'boolean', autoSettle: 'boolean', gitStatus: 'boolean', ctl: 'boolean', resumeOnSelect: 'boolean', 'accounts.activeAccount': 'string', 'accounts.showAllSessions': 'boolean', 'accounts.shareProjects': 'boolean', 'accounts.showOwner': 'boolean', 'usage.show': 'boolean', 'usage.position': USAGE_POSITIONS, 'usage.compact': 'boolean', 'usage.use24HourClock': 'boolean', 'usage.showAccount': 'boolean', 'usage.showModel': 'boolean', 'usage.showCache': 'boolean', 'usage.showContext': 'boolean', 'usage.showFiveHour': 'boolean', 'usage.showSevenDay': 'boolean', maxSessionsPerProject: [1, 10000], trashRetentionDays: [1, 3650], claudeCommand: 'string', 'hooks.onRunning': 'string', 'hooks.onWaiting': 'string', 'hooks.onDone': 'string', 'hooks.onError': 'string' } as const;
+const AGENTS_SPEC = { mode: AGENTS_MODES, restoreSessions: ['ask', 'always', 'never'] as const, softCap: [1, 100], notifyNeedsYou: 'boolean', notifyDone: 'boolean', notifyError: 'boolean', doNotDisturb: 'boolean', autoSettle: 'boolean', gitStatus: 'boolean', ctl: 'boolean', resumeOnSelect: 'boolean', 'accounts.activeAccount': 'string', 'accounts.showAllSessions': 'boolean', 'accounts.shareProjects': 'boolean', 'accounts.showOwner': 'boolean', 'usage.show': 'boolean', 'usage.position': USAGE_POSITIONS, 'usage.compact': 'boolean', 'usage.use24HourClock': 'boolean', 'usage.showAccount': 'boolean', 'usage.showModel': 'boolean', 'usage.showCache': 'boolean', 'usage.showContext': 'boolean', 'usage.showFiveHour': 'boolean', 'usage.showSevenDay': 'boolean', maxSessionsPerProject: [1, 10000], trashRetentionDays: [1, 3650], claudeCommand: 'string', 'hooks.onRunning': 'string', 'hooks.onWaiting': 'string', 'hooks.onDone': 'string', 'hooks.onError': 'string' } as const;
 
 /** Told on every valid Agents config edit (the running view's git poller). */
 let agentsConfigListener: ((group: AgentsSettings) => void) | undefined;
@@ -320,7 +320,7 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
     }
     const everyOwner = views.map((x) => {
       const st = sessionState?.get(x.id);
-      return { ...x, ...st, pinned: st?.pin === 'top' || undefined };
+      return { ...x, ...st, pinned: st?.pin === 'top' || undefined, statusSince: tracker.since(x.id, x.status, x.updatedAt) };
     });
     // The per-project cap counts only listed sessions (the account-filtered feed); new ptys without a transcript are never capped.
     const listed = ownerView.showAllSessions ? everyOwner : applyAccountView(everyOwner, accs, ownerView);

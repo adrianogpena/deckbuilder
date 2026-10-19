@@ -50,6 +50,7 @@ export function createNotifier(opts: NotifierOptions, transitions: Transitions =
       const changed = transitions.diff(sessions).filter((s) => (s.status === 'needs-you' || s.status === 'done' || s.status === 'error') && s.id !== shown);
       if (changed.length === 0) return;
       const cfg = await opts.settings().catch(() => undefined);
+      if (cfg?.doNotDisturb === true) return;
       for (const s of changed) {
         const status = s.status as NotifyStatus;
         if (cfg?.[SETTING_KEY[status]] === false) continue;
