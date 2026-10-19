@@ -1,1 +1,18 @@
-.agents-panel-task { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; }
+.agents-panel-task { display: flex; flex: 1; flex-direction: column; gap: 12px; min-width: 0; min-height: 0; padding: 12px; overflow: auto; }
+.agents-task-new { display: flex; flex-direction: column; gap: 8px; }
+.agents-task-new textarea, .agents-task-revise textarea { min-height: 64px; resize: vertical; font: inherit; color: var(--ink); background: var(--bg-sunken); border: 1px solid var(--border-soft); border-radius: 6px; padding: 6px 8px; }
+.agents-task-row { display: flex; align-items: center; gap: 8px; }
+.agents-task-row.end { justify-content: flex-end; }
+.agents-task-check { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-muted); font-size: var(--fs-sm); }
+.agents-task-list { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.agents-task-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--border-soft); border-radius: 6px; cursor: pointer; }
+.agents-task-item:hover { background: var(--bg-hover); }
+.agents-task-item[aria-current='true'] { border-color: var(--accent); }
+.agents-task-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+.agents-task-state { font-size: var(--fs-sm); color: var(--ink-muted); }
+.agents-task-state[data-state='implementing'], .agents-task-state[data-state='planning'] { color: var(--agents-working); }
+.agents-task-state[data-state='planned'] { color: var(--accent); }
+.agents-task-plan { display: flex; flex-direction: column; gap: 8px; border: 1px solid var(--border-soft); border-radius: 6px; padding: 8px 12px; background: var(--bg); }
+.agents-task-hint { color: var(--ink-muted); font-size: var(--fs-sm); }
+.agents-task-error { color: var(--err); }
+.agents-task-revise { display: flex; flex-direction: column; gap: 6px; }
