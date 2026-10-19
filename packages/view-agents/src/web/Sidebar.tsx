@@ -29,9 +29,6 @@ import { hideSection, isDockable, loadSections, moveSection, restoreAll, restore
 import { PANELS, panelOf } from './workspace/registry';
 import type { PanelKind, WorkspaceApi } from './workspace/types';
 
-/** Drag type of a workspace tab (TabWorkspace); a drop on the sidebar docks the tab as a card. */
-const TAB_DRAG_TYPE = 'application/x-deckbuilder-tab';
-
 const CORE_TITLE = {
   sessions: 'agents.section.sessions', changes: 'agents.section.changes', files: 'agents.section.files', tags: 'agents.section.tags', archived: 'agents.section.archived', usage: 'agents.section.usage',
 } as const;
@@ -63,7 +60,7 @@ export interface SidebarProps {
   usageSettings?: UsageSettings;
   /** A click on the usage section. */
   onOpenUsage?(): void;
-  /** The shown project's workspace (its folder and tab API); undefined when none is shown. */
+  /** The shown project's workspace (its folder and API); undefined when none is shown. */
   getWorkspace?(): { project: string; api: WorkspaceApi } | undefined;
   selectedId?: string;
   onSelect(sessionId: string): void;
@@ -195,7 +192,6 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
     return next;
   });
   useCommand(agentsCommands()[51]!, () => setSections(restoreAll));
-  const [dockOver, setDockOver] = useState(false);
   useEffect(() => {
     const reload = () => setSectionsState(loadSections());
     window.addEventListener(SECTIONS_EVENT, reload);
@@ -1194,28 +1190,11 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
   };
   return (
     <nav
-      className={`agents-sidebar${checking ? ' checking' : ''}${dockOver ? ' dock-over' : ''}`}
-      data-drop-hint={dockOver ? t('agents.section.dropHere') : undefined}
+      className={`agents-sidebar${checking ? ' checking' : ''}`}
       aria-label={t('agents.sidebar')}
       ref={ref}
       tabIndex={-1}
       onFocusCapture={() => { focusMemory.region = 'tree'; }}
-      onDragOver={(e) => {
-        if (!e.dataTransfer.types.includes(TAB_DRAG_TYPE)) return;
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        setDockOver(true);
-      }}
-      onDragLeave={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDockOver(false);
-      }}
-      onDrop={(e) => {
-        setDockOver(false);
-        const id = e.dataTransfer.getData(TAB_DRAG_TYPE);
-        if (!id) return;
-        e.preventDefault();
-        getWorkspace?.()?.api.moveTo(id, 'sidebar');
-      }}
       {...{ [KEY_SCOPE_ATTR]: AGENTS_LIST_SCOPE }}
       onKeyDown={(e) => {
         if (!e.defaultPrevented && !e.ctrlKey && !e.altKey && !e.metaKey && e.target instanceof Element && e.target.matches(ITEMS)) {

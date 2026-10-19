@@ -16,8 +16,8 @@ import './style.css';
 
 const text = (v: unknown) => (typeof v === 'string' && v ? v : undefined);
 
-/** A Claude session: its head strip and terminal, or its stopped / external view; the tab's params are `{ sessionId, terminal? }`. */
-function AgentPanel({ params, api, tabId, update }: PanelProps) {
+/** A Claude session: its head strip and terminal, or its stopped / external view; the panel's params are `{ sessionId, terminal? }`. */
+function AgentPanel({ params, api, update }: PanelProps) {
   const host = useAgentsHost();
   const dialogs = useDialogs();
   const sessionId = text(params.sessionId) ?? '';
@@ -176,9 +176,6 @@ function AgentPanel({ params, api, tabId, update }: PanelProps) {
           <div className="agents-dock-card">
             <h2 className="agents-dock-card-title">{t('workspace.agent.missing')}</h2>
             <p className="agents-dock-card-desc">{t('workspace.agent.missing.desc')}</p>
-            <div className="agents-dock-card-actions">
-              <button type="button" className="agents-empty-btn" title={t('workspace.agent.closeTab')} onClick={() => api.close(tabId)}>{t('workspace.agent.closeTab')}</button>
-            </div>
           </div>
         )}
       </div>
@@ -194,6 +191,5 @@ export const panel: PanelModule = {
   titleKey: 'panel.agent.title',
   icon: 'cube',
   placement: 'center',
-  addMenu: 'agents',
   Panel: AgentPanel,
 };

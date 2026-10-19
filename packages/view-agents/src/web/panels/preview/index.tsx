@@ -73,6 +73,5 @@ export const panel: PanelModule = {
   titleKey: 'panel.preview.title',
   icon: 'preview',
   placement: 'both',
-  addMenu: 'tools',
   Panel: PreviewPanel,
 };

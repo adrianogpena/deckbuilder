@@ -19,7 +19,7 @@ import { EmptyState } from './EmptyState';
 import { Sidebar } from './Sidebar';
 import { useAgentsFeed } from './useAgentSessions';
 import { type AgentsHost, AgentsHostProvider, type TerminalInput } from './workspace/host';
-import { projectPathOf, sameFolder } from './workspace/layout-model';
+import { projectPathOf, sameFolder } from './workspace/project-path';
 import { ProjectWorkspace, type WorkspaceHandle } from './workspace/ProjectWorkspace';
 import type { PanelKind, PanelParams } from './workspace/types';
 import '../styles.css';
@@ -91,7 +91,7 @@ function Sash({ edge, width, onWidth, onDone, onReset }: { edge: 'start' | 'end'
   return <div className={`agents-sash${dragging ? ' dragging' : ''}`} aria-hidden="true" onPointerDown={down} onDoubleClick={onReset} />;
 }
 
-/** Agents screen: the sessions sidebar and the dock workspace of the selected project (its Claude sessions, shells and tools as tabs). */
+/** Agents screen: the sessions sidebar and the dock workspace of the selected project (the selected session, or a tool opened over it). */
 export function AgentsScreen({ usageSettings, dnd = false, onDnd }: { resumeOnSelect?: boolean; usageSettings?: UsageSettings; dnd?: boolean; onDnd?: (on: boolean) => void }) {
   const { sessions, usage, git } = useAgentsFeed();
   const toast = useToast();
@@ -176,9 +176,9 @@ export function AgentsScreen({ usageSettings, dnd = false, onDnd }: { resumeOnSe
   }, []);
   const handleOf = useCallback((path: string) => [...handles.current].find(([k]) => sameFolder(k, path))?.[1], []);
   const pathOf = useCallback((s: Pick<AgentSessionView, 'project' | 'cwd'>) => projectPathOf(s, projects), [projects]);
-  /** Shows the session's agent tab in its project's workspace. */
+  /** Shows the session in its project's workspace. */
   const showAgent = useCallback(
-    (path: string, sessionId: string, opts?: { terminal?: string; from?: string }) => {
+    (path: string, sessionId: string, opts?: { terminal?: string }) => {
       const project = activate(path);
       withWorkspace(project, (h) => h.openAgent(sessionId, opts));
     },
@@ -347,7 +347,7 @@ export function AgentsScreen({ usageSettings, dnd = false, onDnd }: { resumeOnSe
           n.delete(s.id);
           return n;
         });
-        showAgent(pathOf(s), r.sessionId, { terminal: r.session, from: s.id });
+        showAgent(pathOf(s), r.sessionId, { terminal: r.session });
         setSelectedId(r.sessionId);
       } catch (e) {
         setError(errorOf(e).message);

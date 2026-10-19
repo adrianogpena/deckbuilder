@@ -251,7 +251,6 @@ export const panel: PanelModule = {
   icon: 'eye',
   placement: 'center',
   single: true,
-  addMenu: 'tools',
   Panel: ReviewPanel,
   commands: [{ id: 'agents.askAgent', key: 'Ctrl+L', run: (api) => void askAgent(api) }],
 };

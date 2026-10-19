@@ -13,6 +13,5 @@ export const panel: PanelModule = {
   icon: 'bookmark',
   placement: 'both',
   single: true,
-  addMenu: 'tools',
   Panel: SkillsTab,
 };

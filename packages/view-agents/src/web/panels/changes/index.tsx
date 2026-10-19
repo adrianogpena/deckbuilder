@@ -4,7 +4,6 @@ import { errorOf, ErrorBanner, PanelLoading, useAsync, useDialogs, useToast } fr
 import { t } from '../../../i18n';
 import type { PanelModule, PanelProps, SectionProps, WorkspaceApi } from '../../workspace/types';
 import { codeOf, gitClient } from '../diff/git-client';
-import { previewsOf } from '../diff/previews';
 import { gitAction, listBranches } from './git-api';
 import './style.css';
 
@@ -18,10 +17,9 @@ const GROUPS: Array<{ group: Group; key: 'staged' | 'unstaged' | 'untracked' | '
   { group: 'untracked', key: 'untracked' },
 ];
 
-/** Opens the file's diff: a preview tab replacing the previous unpinned one, or a pinned tab (`pin`). */
-function openDiff(api: WorkspaceApi, project: string, file: GitFile, pin: boolean) {
-  if (!pin) for (const id of previewsOf(project)) api.close(id);
-  api.open('diff', { path: file.path, group: file.group, ...(pin ? {} : { preview: true }) });
+/** Opens the file's diff over the changes list. */
+function openDiff(api: WorkspaceApi, file: GitFile) {
+  api.open('diff', { path: file.path, group: file.group });
 }
 
 interface ChangesViewProps {
@@ -195,8 +193,7 @@ function ChangesView({ project, api, visible }: ChangesViewProps) {
                         type="button"
                         className="agents-chg-open"
                         title={f.path}
-                        onClick={() => openDiff(api, project, f, false)}
-                        onDoubleClick={() => openDiff(api, project, f, true)}
+                        onClick={() => openDiff(api, f)}
                       >
                         <span className={`agents-changes-code agents-changes-${f.group}`}>{codeOf(f)}</span>
                         <span className="agents-chg-path">{f.path}</span>
@@ -245,7 +242,6 @@ export const panel: PanelModule = {
   titleKey: 'panel.changes.title',
   icon: 'git-branch',
   placement: 'both',
-  addMenu: 'tools',
   single: true,
   Panel: ChangesPanel,
   Section: ChangesSection,

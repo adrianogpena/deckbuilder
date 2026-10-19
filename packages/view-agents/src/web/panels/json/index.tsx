@@ -66,6 +66,5 @@ export const panel: PanelModule = {
   titleKey: 'panel.json.title',
   icon: 'braces',
   placement: 'both',
-  addMenu: 'tools',
   Panel: JsonPanel,
 };

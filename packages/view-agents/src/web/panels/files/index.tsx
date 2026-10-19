@@ -59,6 +59,5 @@ export const panel: PanelModule = {
   icon: 'folder',
   placement: 'both',
   single: true,
-  addMenu: 'tools',
   Panel: FilesPanel,
 };

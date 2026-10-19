@@ -212,6 +212,5 @@ export const panel: PanelModule = {
   icon: 'database',
   placement: 'both',
   single: true,
-  addMenu: 'tools',
   Panel: UsagePanel,
 };

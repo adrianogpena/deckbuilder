@@ -4,22 +4,15 @@ import { t } from '../../../i18n';
 import type { PanelModule, PanelProps } from '../../workspace/types';
 import { FileDiff } from './FileDiff';
 import { gitClient } from './git-client';
-import { registerPreview, unregisterPreview } from './previews';
 import './style.css';
 
 const POLL_MS = 3000;
 
 /** Live diff of one file (params `path`, `group`): the file is looked up in the project's status again as it changes. */
-function DiffPanel({ project, params, tabId, visible, update }: PanelProps) {
+function DiffPanel({ project, params, visible }: PanelProps) {
   const path = String(params.path ?? '');
   const group = String(params.group ?? '');
-  const preview = params.preview === true;
   const [tick, setTick] = useState(0);
-  useEffect(() => {
-    if (!preview) return;
-    registerPreview(tabId, project);
-    return () => unregisterPreview(tabId);
-  }, [preview, tabId, project]);
   useEffect(() => {
     if (!visible) return;
     const id = setInterval(() => setTick((n) => n + 1), POLL_MS);
@@ -35,11 +28,6 @@ function DiffPanel({ project, params, tabId, visible, update }: PanelProps) {
         <span className="agents-diff-path" title={path}>
           {path}
         </span>
-        {preview && (
-          <button type="button" className="agents-diff-pin" onClick={() => update({ preview: undefined })}>
-            {t('panel.diff.pin')}
-          </button>
-        )}
       </div>
       {status.error && !status.data ? (
         <ErrorBanner error={status.error} onRetry={status.reload} />

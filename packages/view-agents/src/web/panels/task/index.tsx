@@ -259,7 +259,6 @@ export const panel: PanelModule = {
   titleKey: 'panel.task.title',
   icon: 'check',
   placement: 'both',
-  addMenu: 'tools',
   single: true,
   Panel: TaskPanel,
 };

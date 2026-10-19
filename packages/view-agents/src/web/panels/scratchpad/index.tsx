@@ -124,7 +124,6 @@ export const panel: PanelModule = {
   icon: 'edit',
   placement: 'both',
   single: true,
-  addMenu: 'tools',
   Panel: ({ project }: PanelProps) => (
     <div className="agents-panel-scratchpad">
       <ScratchpadBody project={project} />

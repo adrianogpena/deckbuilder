@@ -103,7 +103,6 @@ export const panel: PanelModule = {
   icon: 'play',
   placement: 'both',
   single: true,
-  addMenu: 'tools',
   Panel: ({ project }: PanelProps) => (
     <div className="agents-panel-run">
       <RunBody project={project} />

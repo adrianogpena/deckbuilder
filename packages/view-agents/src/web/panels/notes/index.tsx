@@ -19,6 +19,5 @@ export const panel: PanelModule = {
   titleKey: 'panel.notes.title',
   icon: 'markdown',
   placement: 'both',
-  addMenu: 'tools',
   Panel: NotesPanel,
 };

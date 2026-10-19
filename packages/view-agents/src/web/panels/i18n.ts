@@ -1,4 +1,3 @@
-import * as terminal from './terminal/i18n';
 import * as agent from './agent/i18n';
 import * as changes from './changes/i18n';
 import * as diff from './diff/i18n';
@@ -17,7 +16,6 @@ import * as skills from './skills/i18n';
 
 /** Every panel's messages, spread into `src/i18n.ts`. A panel adds keys to its own `<kind>/i18n.ts`, never here. */
 export const panelsEn = {
-  ...terminal.en,
   ...agent.en,
   ...changes.en,
   ...diff.en,
@@ -36,7 +34,6 @@ export const panelsEn = {
 };
 
 export const panelsPtBR = {
-  ...terminal.ptBR,
   ...agent.ptBR,
   ...changes.ptBR,
   ...diff.ptBR,

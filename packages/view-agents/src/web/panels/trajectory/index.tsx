@@ -20,6 +20,5 @@ export const panel: PanelModule = {
   titleKey: 'panel.trajectory.title',
   icon: 'history',
   placement: 'both',
-  addMenu: 'tools',
   Panel: TrajectoryPanel,
 };
