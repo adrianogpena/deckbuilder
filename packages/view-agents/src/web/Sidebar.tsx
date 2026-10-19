@@ -1033,7 +1033,7 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
   const toWorkspace = (id: SectionId) => {
     const kind = toolKind(id) ?? id;
     setSections((st) => hideSection(st, id));
-    getWorkspace?.()?.api.open(kind as PanelKind);
+    getWorkspace?.()?.api.moveToSide(kind as PanelKind);
   };
   const sectionMenu = (id: SectionId) => (e: MouseEvent) => {
     const at = order.indexOf(id);

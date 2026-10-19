@@ -140,7 +140,7 @@ function AgentPanel({ params, api, update }: PanelProps) {
           onRestart={() => host.restart(session)}
           onCopy={() => host.copyResponse(session.id)}
           onTrajectory={() => api.open('trajectory', { sessionId: session.id })}
-          onTogglePanel={() => api.open('changes')}
+          onTogglePanel={() => api.toggleSide()}
         />
       )}
       <div className="agents-panes">

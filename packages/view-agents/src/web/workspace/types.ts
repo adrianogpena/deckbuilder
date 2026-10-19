@@ -23,6 +23,10 @@ export interface WorkspaceApi {
    * a session is selected; opening an `agent` shows that session. With `placement: 'sidebar'` the sidebar card is shown.
    */
   open(kind: PanelKind, params?: PanelParams, opts?: OpenOptions): string;
+  /** Shows or hides the Changes panel docked at the right of the session view. */
+  toggleSide(): void;
+  /** Docks a panel in the right column (added if not there). */
+  moveToSide(kind: PanelKind): void;
   /** Closes the tool with that id (its kind), going back to the previous tool or the session. */
   close(id: string): void;
   /** Inserts text into the Claude session's terminal (no Enter). */

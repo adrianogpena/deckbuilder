@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ContextMenu } from '@deckbuilderkit/ui';
+import { t } from '../../i18n';
 import { EmptyCard } from './EmptyCard';
 import { useAgentsHost } from './host';
 import { MissingPanel } from './MissingPanel';
@@ -46,6 +48,8 @@ export function ProjectWorkspace({ project, hidden, register, onFocusedAgent }: 
   hostRef.current = host;
   const [agent, setAgent] = useState<AgentView>();
   const [tools, setTools] = useState<Tool[]>([]);
+  const [side, setSide] = useState<PanelKind[]>([]);
+  const [sideMenu, setSideMenu] = useState<{ at: { x: number; y: number }; kind: PanelKind }>();
   const nonce = useRef(0);
   const tool = tools[tools.length - 1];
 
@@ -76,6 +80,8 @@ export function ProjectWorkspace({ project, hidden, register, onFocusedAgent }: 
     () => ({
       open,
       close: (id) => setTools((cur) => cur.filter((x) => x.kind !== id)),
+      toggleSide: () => setSide((cur) => (cur.includes('changes') ? cur.filter((k) => k !== 'changes') : [...cur, 'changes'])),
+      moveToSide: (kind) => setSide((cur) => (cur.includes(kind) ? cur : [...cur, kind])),
       sendToSession: (sessionId, text) => hostRef.current.sendToSession(sessionId, text),
       activeProject: project,
     }),
@@ -117,9 +123,14 @@ export function ProjectWorkspace({ project, hidden, register, onFocusedAgent }: 
   const panelProps = (kind: string, params: PanelParams, active: boolean, update: PanelProps['update']): PanelProps => ({ project, params, api, tabId: kind, visible: active && !hidden, focused: active && !hidden, update });
   const agentMod = panelOf('agent');
   const toolMod = tool ? panelOf(tool.kind) : undefined;
+  const moveToLeft = (kind: PanelKind) => {
+    setSide((cur) => cur.filter((k) => k !== kind));
+    setDocked(kind, true);
+  };
 
   return (
     <div className="agents-dock" hidden={hidden}>
+      <div className="agents-dock-main">
       <div className="agents-dock-view" hidden={tool !== undefined}>
         <PanelBoundary>
           {agent && agentMod ? (
@@ -136,6 +147,20 @@ export function ProjectWorkspace({ project, hidden, register, onFocusedAgent }: 
           </PanelBoundary>
         </div>
       )}
+      </div>
+      {side.length > 0 && (
+        <aside className="agents-dock-side">
+          {side.map((kind) => {
+            const mod = panelOf(kind);
+            return (
+              <section key={kind} className="agents-dock-side-item" onContextMenu={(e) => { e.preventDefault(); setSideMenu({ at: { x: e.clientX, y: e.clientY }, kind }); }}>
+                <PanelBoundary>{mod ? <mod.Panel {...panelProps(kind, {}, true, () => undefined)} /> : <MissingPanel kind={kind} />}</PanelBoundary>
+              </section>
+            );
+          })}
+        </aside>
+      )}
+      {sideMenu && <ContextMenu at={sideMenu.at} items={[{ id: 'toLeft', label: t('agents.section.toLeft'), run: () => moveToLeft(sideMenu.kind) }]} onClose={() => setSideMenu(undefined)} />}
     </div>
   );
 }

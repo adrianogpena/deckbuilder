@@ -129,5 +129,5 @@ export function setDocked(kind: string, on: boolean): void {
   if (typeof window !== 'undefined') window.dispatchEvent(new Event(SECTIONS_EVENT));
 }
 
-/** Tool kinds that can be docked (`placement` sidebar or both, in the "Tools" menu), in menu order. */
-export const isDockable = (m: { kind: string; placement: string; addMenu?: string }): boolean => m.placement !== 'center' && m.addMenu === 'tools';
+/** Tool kinds that can be docked as sidebar cards (`placement` sidebar or both). */
+export const isDockable = (m: { placement: string }): boolean => m.placement !== 'center';
