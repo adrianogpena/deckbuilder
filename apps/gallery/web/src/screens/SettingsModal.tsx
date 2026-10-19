@@ -52,7 +52,7 @@ const PROBLEMS_TAG = '@problems';
 
 /** Takes the `@problems` filter out of a settings search. */
 const splitProblemsTag = (query: string): { problems: boolean; rest: string } => {
-  const tokens = query.split(/s+/).filter(Boolean);
+  const tokens = query.split(/\s+/).filter(Boolean);
   const rest = tokens.filter((tok) => tok.toLowerCase() !== PROBLEMS_TAG);
   return { problems: rest.length !== tokens.length, rest: rest.join(' ') };
 };

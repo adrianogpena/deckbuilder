@@ -14,11 +14,11 @@ export interface AgentsViewSettings {
 /** Splits an argument line on whitespace; double quotes group words. */
 export function parseArgs(line: string): string[] {
   const out: string[] = [];
-  for (const m of line.matchAll(/"([^"]*)"|(S+)/g)) out.push(m[1] ?? m[2]!);
+  for (const m of line.matchAll(/"([^"]*)"|(\S+)/g)) out.push(m[1] ?? m[2]!);
   return out;
 }
 
-export const formatArgs = (args: readonly string[]): string => args.map((a) => (a === '' || /s/.test(a) ? `"${a}"` : a)).join(' ');
+export const formatArgs = (args: readonly string[]): string => args.map((a) => (a === '' || /\s/.test(a) ? `"${a}"` : a)).join(' ');
 
 const claudeArgsDef: SettingDef<AgentsViewSettings> = {
   id: 'agents.claudeArgs',
