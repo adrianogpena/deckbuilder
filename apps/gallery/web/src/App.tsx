@@ -13,7 +13,7 @@ import { views, type ScreenId } from './views';
 // Retrying can't revive a used launch code or a stale token; the user has to open the app again.
 const SESSION_ERRORS = ['invalidCode', 'invalidToken'];
 
-// Settings is a modal over the current screen, not a screen; 'keys' opens it at Keyboard › Shortcuts. App links
+// Settings is a full page in the content area over the current screen (kept mounted), not a screen; 'keys' opens it at Keyboard › Shortcuts. App links
 // (toasts, second instances) still open them with `#/settings` and `#/keys`; `#/settings/<section key>` opens a section.
 type Overlay = 'settings' | 'keys' | `settings/${string}`;
 const overlayOfHash = (): Overlay | null => {
@@ -113,14 +113,19 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
 
   /** A save the server rejected as invalid (e.g. a hook command not allowed); shown once, then the stored settings come back. */
   const [saveError, setSaveError] = useState<ApiError | null>(null);
-  const save = useCallback((patch: Partial<Settings>) => {
+  /** Saves at once; resolves to the error when the server rejected the patch as invalid (the stored settings come back), else null. */
+  const save = useCallback((patch: Partial<Settings>): Promise<ApiError | null> => {
     setSettings((s) => ({ ...s, ...patch }));
-    api.saveSettings(patch).catch((e: unknown) => {
-      const err = errorOf(e);
-      if (err.kind !== 'invalid') return; // preferences are best-effort
-      setSaveError(err);
-      api.settings().then(setSettings, () => {});
-    });
+    return api.saveSettings(patch).then(
+      () => null,
+      (e: unknown) => {
+        const err = errorOf(e);
+        if (err.kind !== 'invalid') return null; // preferences are best-effort
+        setSaveError(err);
+        api.settings().then(setSettings, () => {});
+        return err;
+      },
+    );
   }, []);
 
   const navItems = views.nav.flatMap((s) => s.items);
@@ -191,10 +196,12 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
         tools={footer}
         sidebar={<Sidebar name={APP.name} sections={sections} current={screen} onSelect={go} footer={footer} />}
       >
-        <main className="main">{views.render(screen, { settings, onSave: save, go: go as (id: string) => void })}</main>
-        {overlay && (
-          <SettingsModal key={overlay} settings={settings} onChange={save} onQuit={() => setStopped(true)} onClose={() => setOverlay(null)} initialSection={overlay === 'keys' ? 'keyboard.shortcuts' : overlay.startsWith('settings/') ? overlay.slice('settings/'.length) : undefined} />
-        )}
+        <main className="main">
+          <div className="main-view" hidden={!!overlay}>{views.render(screen, { settings, onSave: save, go: go as (id: string) => void })}</div>
+          {overlay && (
+            <SettingsModal key={overlay} settings={settings} onChange={save} onQuit={() => setStopped(true)} onClose={() => setOverlay(null)} initialSection={overlay === 'keys' ? 'keyboard.shortcuts' : overlay.startsWith('settings/') ? overlay.slice('settings/'.length) : undefined} />
+          )}
+        </main>
         {palette.open && <CommandPalette items={items} initialQuery={palette.initialQuery} onClose={() => palette.setOpen(false)} />}
       </AppFrame>
       </views.Providers>

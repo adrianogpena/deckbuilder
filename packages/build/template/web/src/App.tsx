@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PALETTES } from '@deckbuilderkit/server-core/palettes';
-import { AppFrame, type CommandDef, CommandPalette, detectLanguage, effectiveKeys, ErrorBanner, GLOBAL, Icon, isDesktop, KeybindingProvider, LayoutProvider, paletteCommand, type PaletteItem, setLanguage, setViewTitle, Sidebar, Spinner, useAsync, useCommand, useCommandPalette, useHashRoute, useHeartbeat, useKeybindings, useRunCommand, useTheme, useViewTitle, useZoom } from '@deckbuilderkit/ui';
+import { type ApiError, errorOf, AppFrame, type CommandDef, CommandPalette, detectLanguage, effectiveKeys, ErrorBanner, GLOBAL, Icon, isDesktop, KeybindingProvider, LayoutProvider, paletteCommand, type PaletteItem, setLanguage, setViewTitle, Sidebar, Spinner, useAsync, useCommand, useCommandPalette, useHashRoute, useHeartbeat, useKeybindings, useRunCommand, useTheme, useViewTitle, useZoom } from '@deckbuilderkit/ui';
 import { APP } from '../../app';
 import { api, type Settings } from './api';
 import { type MessageKey, t } from './i18n';
@@ -99,9 +99,18 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
     document.title = viewTitle ? `${viewTitle} — ${APP.name}` : views.has(screen) ? `${views.label(screen)} · ${APP.name}` : APP.name;
   }, [screen, settings.language, viewTitle]);
 
-  const save = useCallback((patch: Partial<Settings>) => {
+  /** Saves at once; resolves to the error when the server rejected the patch as invalid (the stored settings come back), else null. */
+  const save = useCallback((patch: Partial<Settings>): Promise<ApiError | null> => {
     setSettings((s) => ({ ...s, ...patch }));
-    api.saveSettings(patch).catch(() => { /* preferences are best-effort */ });
+    return api.saveSettings(patch).then(
+      () => null,
+      (e: unknown) => {
+        const err = errorOf(e);
+        if (err.kind !== 'invalid') return null; // preferences are best-effort
+        api.settings().then(setSettings, () => {});
+        return err;
+      },
+    );
   }, []);
 
   const navItems = views.nav.flatMap((s) => s.items);
@@ -163,10 +172,12 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
     <LayoutProvider layout={settings.layout} icons={settings.icons} mainMenu={settings.mainMenu} dock={settings.dock} layoutIcon={settings.layoutIcon}>
     <views.Providers settings={settings} go={go as (id: string) => void}>
     <AppFrame tools={footer} sidebar={<Sidebar name={APP.name} sections={sections} current={screen} onSelect={go} footer={footer} />}>
-      <main className="main">{views.render(screen, { settings, onSave: save, go: go as (id: string) => void })}</main>
-      {overlay && (
-        <SettingsModal key={overlay} settings={settings} onChange={save} onQuit={() => setStopped(true)} onClose={() => setOverlay(null)} initialSection={overlay === 'keys' ? 'keyboard.shortcuts' : overlay.startsWith('settings/') ? overlay.slice('settings/'.length) : undefined} />
-      )}
+      <main className="main">
+        <div className="main-view" hidden={!!overlay}>{views.render(screen, { settings, onSave: save, go: go as (id: string) => void })}</div>
+        {overlay && (
+          <SettingsModal key={overlay} settings={settings} onChange={save} onQuit={() => setStopped(true)} onClose={() => setOverlay(null)} initialSection={overlay === 'keys' ? 'keyboard.shortcuts' : overlay.startsWith('settings/') ? overlay.slice('settings/'.length) : undefined} />
+        )}
+      </main>
       {palette.open && <CommandPalette items={items} onClose={() => palette.setOpen(false)} />}
     </AppFrame>
     </views.Providers>

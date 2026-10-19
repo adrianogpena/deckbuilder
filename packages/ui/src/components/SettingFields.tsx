@@ -1,6 +1,6 @@
 import { createContext, Fragment, type ReactNode, type RefObject, useContext, useEffect, useRef, useState } from 'react';
 import { tryT } from '../i18n';
-import { isModified, type SettingDef } from '../settings-schema';
+import { isModified, resetPatch, type SettingDef } from '../settings-schema';
 
 const tr = (key: string): string => tryT(key) ?? key;
 
@@ -86,8 +86,29 @@ export function OnOffField({ label, hint, value, onChange }: { label: string; hi
   );
 }
 
-export function NumberField({ label, value, min, max, onChange }: { label: string; value: number; min: number; max?: number; onChange: (n: number) => void }) {
+/** Row errors by setting id: the server's reason a save was rejected. Shown under the row. */
+export const SettingErrorsContext = createContext<Readonly<Record<string, string>>>({});
+
+/** Whole number in `min..max`, saved on Enter or blur; anything else shows a row error, and Escape or blur puts the saved value back. */
+export function NumberField({ label, value, min, max, onChange, onInvalid }: { label: string; value: number; min: number; max?: number; onChange: (n: number) => void; onInvalid?: (message: string) => void }) {
   const [text, setText] = useState(String(value));
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    setText(String(value));
+    setError(null);
+  }, [value]);
+  const commit = (): boolean => {
+    const n = Number(text);
+    if (text.trim() !== '' && Number.isInteger(n) && n >= min && (max === undefined || n <= max)) {
+      setError(null);
+      if (n !== value) onChange(n);
+      return true;
+    }
+    const message = tryT('settings.number.invalid', { min, max: max ?? '∞' }) ?? `Enter a whole number from ${min} to ${max ?? '∞'}.`;
+    setError(message);
+    onInvalid?.(message);
+    return false;
+  };
   return (
     <label className="field">
       <span className="mono-label">{label}</span>
@@ -96,22 +117,48 @@ export function NumberField({ label, value, min, max, onChange }: { label: strin
         min={min}
         max={max}
         value={text}
-        onChange={(e) => {
-          setText(e.target.value);
-          const n = Number(e.target.value);
-          if (e.target.value !== '' && Number.isInteger(n) && n >= min && (max === undefined || n <= max)) onChange(n);
+        aria-invalid={error ? true : undefined}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') commit();
+          else if (e.key === 'Escape' && (text !== String(value) || error)) {
+            e.stopPropagation();
+            setText(String(value));
+            setError(null);
+          }
         }}
-        onBlur={() => setText(String(value))}
+        onBlur={() => {
+          if (text !== String(value) && !commit()) setText(String(value));
+        }}
       />
+      {error && <span className="setting-error" role="alert">{error}</span>}
     </label>
   );
 }
 
+/** Text saved on Enter or blur; Escape puts the saved value back. */
 export function TextField({ label, value, onChange }: { label: string; value: string; onChange: (text: string) => void }) {
+  const [text, setText] = useState(value);
+  useEffect(() => setText(value), [value]);
+  const commit = () => {
+    if (text !== value) onChange(text);
+  };
   return (
     <label className="field">
       <span className="mono-label">{label}</span>
-      <input value={value} spellCheck={false} onChange={(e) => onChange(e.target.value)} />
+      <input
+        value={text}
+        spellCheck={false}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') commit();
+          else if (e.key === 'Escape' && text !== value) {
+            e.stopPropagation();
+            setText(value);
+          }
+        }}
+      />
     </label>
   );
 }
@@ -148,18 +195,22 @@ export function EnumField<V extends string | number>({ label, hint, value, value
 export function SettingRow<S>({ def, settings, onChange }: { def: SettingDef<S>; settings: S; onChange: (patch: Partial<S>) => void }) {
   if (def.kind === 'custom') return null;
   return (
-    <SettingItem id={def.id} modified={isModified(def, settings)}>
+    <SettingItem id={def.id} modified={isModified(def, settings)} onReset={() => { const p = resetPatch(def, settings); if (p) onChange(p); }}>
       <SettingControl def={def} settings={settings} onChange={onChange} />
     </SettingItem>
   );
 }
 
 /** The frame of one setting row, like VS Code's settings editor: a bar at the left edge while the value differs from its default. */
-export function SettingItem({ id, modified, children }: { id: string; modified: boolean; children: ReactNode }) {
+export function SettingItem({ id, modified, onReset, children }: { id: string; modified: boolean; onReset?: () => void; children: ReactNode }) {
+  const error = useContext(SettingErrorsContext)[id];
+  const resetLabel = tryT('settings.row.reset') ?? 'Reset to default';
   return (
-    <div className={`setting-item${modified ? ' modified' : ''}`} data-setting={id}>
+    <div className={`setting-item${modified ? ' modified' : ''}${error ? ' invalid' : ''}`} data-setting={id}>
       {modified && <span className="setting-modified" title={tryT('settings.row.modified') ?? 'Modified'} />}
       {children}
+      {modified && onReset && <button type="button" className="setting-reset" title={resetLabel} aria-label={resetLabel} onClick={onReset}>↺</button>}
+      {error && <span className="setting-error" role="alert">{error}</span>}
     </div>
   );
 }

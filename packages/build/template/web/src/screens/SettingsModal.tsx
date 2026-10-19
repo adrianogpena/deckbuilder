@@ -1,5 +1,5 @@
-import { type CSSProperties, type ReactNode, useMemo, useRef, useState } from 'react';
-import { AppearanceFields, DockField, IconsField, LayoutIconField, LayoutField, MainMenuField, ZoomField, type ApiError, detectLanguage, ErrorBanner, errorMessage, errorOf, GLOBAL, isDesktop, KeybindingsEditor, LANGUAGES, isModified, resetPatch, Modal, parseSettingsQuery, settingDescriptionText, toggleModifiedFilter, SettingLinksProvider, type SettingLinks, SettingRow, Spinner, useRevealSetting, useRovingList, SETTING_ROW_CONTROLS, useAsync, useKeybindings, type Language, type SettingDef, type SettingsSectionNode, sectionKey } from '@deckbuilderkit/ui';
+import { type CSSProperties, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { AppearanceFields, DockField, IconsField, LayoutIconField, LayoutField, MainMenuField, ZoomField, type ApiError, detectLanguage, ErrorBanner, errorMessage, errorOf, GLOBAL, isDesktop, KeybindingsEditor, LANGUAGES, isModified, parseSettingsQuery, settingDescriptionText, toggleModifiedFilter, SettingLinksProvider, SettingErrorsContext, type SettingLinks, SettingRow, Spinner, useRevealSetting, useRovingList, SETTING_ROW_CONTROLS, useAsync, useKeybindings, type Language, type SettingDef, type SettingsSectionNode, sectionKey } from '@deckbuilderkit/ui';
 import { APP } from '../../../app';
 import { api, type Settings } from '../api';
 import { type MessageKey, t } from '../i18n';
@@ -8,7 +8,8 @@ import { settingsRegistry } from '../settings';
 
 interface Props {
   settings: Settings;
-  onChange: (patch: Partial<Settings>) => void;
+  /** Saves the patch at once; may resolve to the error the server refused it with. */
+  onChange: (patch: Partial<Settings>) => void | Promise<ApiError | null>;
   /** Called once the server accepted the quit. */
   onQuit: () => void;
 }
@@ -61,19 +62,6 @@ function deepEqual(a: unknown, b: unknown): boolean {
 /** Whether the screen can read and reset the setting (custom ones have no generic getter). */
 const handled = (def: SettingDef<Settings>): def is Exclude<SettingDef<Settings>, { kind: 'custom' }> => def.kind !== 'custom';
 
-/** The patch that sets every one of `defs` back to its default, built on `s`. */
-function defaultsPatch(defs: SettingDef<Settings>[], s: Settings): Partial<Settings> {
-  let acc = s;
-  let patch: Partial<Settings> = {};
-  for (const def of defs) {
-    const p = resetPatch(def, acc);
-    if (!p) continue;
-    acc = { ...acc, ...p };
-    patch = { ...patch, ...p };
-  }
-  return patch;
-}
-
 /** A setting's translated label, or the id when it has none. */
 const labelOf = (id: string): string | undefined => {
   const def = settingsRegistry.setting(id);
@@ -113,10 +101,12 @@ function searchSchema(flat: FlatNode[], query: string, settings: Settings): Map<
 }
 
 /**
- * Settings as VS Code opens them: a modal editor over the current screen, closed with Escape or a click outside.
- * The nav is the schema's section tree; a parent shows its own settings and its children's. Keyboard › Shortcuts
+ * Settings as a full page in the app content area (VS Code's settings editor), closed with Escape or the X. Header:
+ * title, search, Open settings.json, close. The nav is the schema's section tree; every section, child ones too, is
+ * its own page showing only its own settings (a parent with none lists links to its children). Keyboard › Shortcuts
  * holds the keybindings editor, which has its own filter; `initialSection` opens a section directly.
- * Changes stay a draft until Apply or Ok; closing with changes asks whether to save them. The Shortcuts page saves at once.
+ * Every change saves at once (text on blur or Enter, Escape reverts); a rejected save leaves the old value and shows
+ * the error on its row.
  */
 export function SettingsModal({ settings, onChange, onQuit, onClose, initialSection }: Props & { onClose: () => void; initialSection?: string }) {
   const flat = useMemo(() => flatten(settingsRegistry.sectionTree()), []);
@@ -127,24 +117,43 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
     return new Set(path.slice(0, -1).map((_, i) => path.slice(0, i + 1).join('.')));
   });
   const [query, setQuery] = useState('');
-  const [pending, setPending] = useState<Partial<Settings>>({});
-  const draft = useMemo<Settings>(() => ({ ...settings, ...pending }), [settings, pending]);
-  const change: Change = (patch) => setPending((p) => ({ ...p, ...patch }));
-  const dirty = Object.keys(pending).length > 0;
-  const apply = () => {
-    if (!dirty) return;
-    onChange(pending);
-    setPending({});
+  const draft = settings;
+  // The server's reason a save was refused, by setting id; shown on the row.
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const change: Change = (patch) => {
+    const next = { ...settings, ...patch };
+    const ids = settingsRegistry.settings().filter((d) => handled(d) && !deepEqual(d.get(settings), d.get(next))).map((d) => d.id);
+    void Promise.resolve(onChange(patch)).then((err) => {
+      if (ids.length === 0) return;
+      setErrors((prev) => {
+        const out = { ...prev };
+        for (const id of ids) {
+          if (err) out[id] = errorMessage(err as ApiError);
+          else delete out[id];
+        }
+        return out;
+      });
+    });
   };
-  // Closing (Ok, X, Escape, backdrop) with unsaved changes asks first.
-  const [asking, setAsking] = useState(false);
-  const requestClose = () => (dirty ? setAsking(true) : onClose());
+  // Escape returns to the previous view, unless a dialog, a toast or a field used the key.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented || document.querySelector('.modal-backdrop, .toasts > *')) return;
+      onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
   const body = useRef<HTMLDivElement>(null);
   const searching = query.trim() !== '';
   const hits = useMemo(() => searchSchema(flat, query, draft), [flat, query, draft]);
   const modifiedOnly = parseSettingsQuery(query).modified;
   const deepCount = (key: string) => [...hits].reduce((n, [k, h]) => (isUnder(k, key) ? n + h.ids.length : n), 0);
   const total = [...hits.values()].reduce((n, h) => n + h.ids.length, 0);
+
+  /** Whether the section has settings or a card of its own (else a parent lists links to its children). */
+  const hasOwn = (key: string): boolean =>
+    ['general', 'appearance', 'window', 'editor'].includes(key) || settingsRegistry.settingsIn(key.split('.')).length > 0 || !!false;
 
   const render = (key: string): ReactNode => {
     switch (key) {
@@ -196,24 +205,8 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
       ? [...hits.keys()].some((k) => isUnder(k, f.key))
       : f.node.path.slice(0, -1).every((_, i) => expanded.has(sectionKey(f.node.path.slice(0, i + 1))));
   const selected = flat.find((f) => f.key === section) ?? flat[0];
-  // A node has unsaved changes when a setting in it (or under it) differs in the draft from the saved settings.
-  const unsaved = (path: readonly string[]) =>
-    dirty && settingsRegistry.settingsIn(path, true).some((s) => handled(s) && !deepEqual(s.get(draft), s.get(settings)));
-  // Reset restores the defaults of the page shown: the selected section and its children.
-  const pageDefs = selected && !searching ? settingsRegistry.settingsIn(selected.node.path, true).filter(handled) : [];
-  const canReset = pageDefs.some((d) => !deepEqual(d.get(draft), d.default));
-  const footer = selected?.key === 'keyboard.shortcuts' && !searching ? undefined : (
-    <>
-      <button title={t('settings.footer.reset')} className="btn btn-sm" disabled={!canReset} onClick={() => change(defaultsPatch(pageDefs, draft))}>{t('settings.footer.reset')}</button>
-      <button title={t('settings.footer.apply')} className="btn btn-sm" disabled={!dirty} onClick={apply}>{t('settings.footer.apply')}</button>
-      <button title={t('settings.footer.ok')}
-        className="btn btn-sm btn-primary"
-        onClick={requestClose}
-      >
-        {t('settings.footer.ok')}
-      </button>
-    </>
-  );
+  // A node is marked when a setting in it (or under it) differs from its default.
+  const modifiedIn = (path: readonly string[]) => settingsRegistry.settingsIn(path, true).some((s) => handled(s) && isModified(s, settings));
   // `#setting.id#` links in descriptions: open the target's section (unless search already shows it), then its row.
   const reveal = useRevealSetting(body);
   // Up/Down/Home/End/PageUp/PageDown between rows; Enter or F2 into a row's control, Escape back to the row.
@@ -234,10 +227,11 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
   }), [hits, reveal]);
 
   return (
-    <Modal title={t('settings.title')} onClose={requestClose} footer={footer} large>
+    <div className="settings-screen">
       <SettingLinksProvider value={links}>
-      <div className="settings-layout">
-        <nav className="settings-nav" aria-label={t('settings.title')}>
+      <SettingErrorsContext.Provider value={errors}>
+      <header className="settings-head">
+        <h2>{t('settings.title')}</h2>
           <div className="settings-nav-search-box">
           <input
             className="settings-search settings-nav-search"
@@ -274,6 +268,12 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
           </button>
           </div>
           {searching && <span className="settings-count">{t(total === 1 ? 'settings.search.count.one' : 'settings.search.count', { n: total })}</span>}
+        <span className="settings-head-spacer" />
+        <button type="button" className="btn btn-sm" disabled title={t('settings.openFile')}>{t('settings.openFile')}</button>
+        <button type="button" className="btn btn-ghost btn-sm btn-icon" title={t('settings.close')} aria-label={t('settings.close')} onClick={onClose}>✕</button>
+      </header>
+      <div className="settings-layout">
+        <nav className="settings-nav" aria-label={t('settings.title')}>
           {flat.filter(visible).map((f) => {
             const parent = f.node.children.length > 0;
             const isOpen = searching || expanded.has(f.key);
@@ -301,7 +301,7 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
                   ▶
                 </span>
                 {sectionLabel(f.node)}
-                {unsaved(f.node.path) && (
+                {modifiedIn(f.node.path) && (
                   <span className="settings-nav-modified" title={t('settings.row.modified')} aria-label={t('settings.row.modified')} />
                 )}
                 {searching && <span className="settings-nav-count">{deepCount(f.key)}</span>}
@@ -323,13 +323,16 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
             : selected && (
                 <div key={`page-${selected.key}`} className="settings-page">
                   <h3 className="settings-group-title">{selected.trail.join(' › ')}</h3>
-                  {render(selected.key)}
-                  {flat.filter((f) => f.key !== selected.key && isUnder(f.key, selected.key)).map((f) => (
-                    <div key={f.key} className="settings-group" data-section={f.key}>
-                      <h3 className="settings-subgroup-title">{f.trail.slice(selected.trail.length).join(' › ')}</h3>
-                      {render(f.key)}
+                  {hasOwn(selected.key) ? render(selected.key) : null}
+                  {!hasOwn(selected.key) && selected.node.children.length > 0 && (
+                    <div className="settings-links">
+                      {selected.node.children.map((c) => (
+                        <button key={sectionKey(c.path)} type="button" className="setting-link" onClick={() => { setExpanded((prev) => new Set([...prev, selected.key])); open(sectionKey(c.path)); }}>
+                          {sectionLabel(c)}
+                        </button>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
           {searching && hits.size === 0 && (
@@ -340,31 +343,9 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
           )}
         </div>
       </div>
+      </SettingErrorsContext.Provider>
       </SettingLinksProvider>
-      {asking && (
-        <Modal
-          title={t('settings.unsaved.title')}
-          onClose={() => setAsking(false)}
-          footer={
-            <>
-              <button title={t('settings.unsaved.cancel')} className="btn" onClick={() => setAsking(false)} autoFocus>{t('settings.unsaved.cancel')}</button>
-              <button title={t('settings.unsaved.discard')} className="btn" onClick={onClose}>{t('settings.unsaved.discard')}</button>
-              <button title={t('settings.unsaved.save')}
-                className="btn btn-primary"
-                onClick={() => {
-                  apply();
-                  onClose();
-                }}
-              >
-                {t('settings.unsaved.save')}
-              </button>
-            </>
-          }
-        >
-          <p>{t('settings.unsaved.message')}</p>
-        </Modal>
-      )}
-    </Modal>
+    </div>
   );
 }
 
