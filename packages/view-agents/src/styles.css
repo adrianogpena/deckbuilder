@@ -1,6 +1,7 @@
 .view-agents { display: flex; flex: 1; min-width: 0; min-height: 0; }
 .agents-sidebar:focus { outline: none; }
-.agents-sidebar { display: flex; flex-direction: column; gap: var(--space-8); width: 260px; overflow-y: auto; padding: var(--space-8) var(--space-4); background: var(--bg-sunken); border-right: 1px solid var(--border-soft); }
+.agents-sidebar-scroll { display: flex; flex-direction: column; gap: var(--space-8); flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.agents-sidebar { display: flex; flex-direction: column; gap: var(--space-8); width: 260px; overflow: hidden; padding: var(--space-8) var(--space-4); background: var(--bg-sunken); border-right: 1px solid var(--border-soft); }
 /* Session list, sdeck look on the Explorer .tree-row pattern: flat rows, no boxes; colour only on glyphs.
    --agents-depth (g6) indents two characters per level; .agents-lead is the checkbox slot (g7). */
 .agents-project { display: flex; flex-direction: column; }
@@ -115,9 +116,7 @@
 .agents-usage-view.clickable { cursor: pointer; border-radius: var(--radius-md); }
 .agents-usage-view.clickable:hover { background: var(--hover); }
 .agents-usage-view.clickable:focus-visible { outline: none; box-shadow: inset 0 0 0 1px var(--accent); }
-.agents-usage-view.pin-top { position: sticky; top: calc(-1 * var(--space-8)); z-index: 1; border-top: 0; border-bottom: 1px solid var(--border-soft); }
-.agents-usage-view.pin-bottom { position: sticky; bottom: calc(-1 * var(--space-8)); z-index: 1; margin-top: auto; }
-.agents-sidebar.checking .agents-usage-view.pin-bottom { position: static; }
+.agents-usage-view.pin-top { border-top: 0; border-bottom: 1px solid var(--border-soft); }
 .agents-usage-rows { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: baseline; column-gap: var(--space-6); row-gap: var(--space-2); }
 .agents-usage-row { display: contents; }
 .agents-usage-card { display: flex; flex-direction: column; gap: var(--space-6); }

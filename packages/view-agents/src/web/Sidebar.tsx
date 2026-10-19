@@ -1173,13 +1173,17 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
         clearBatch(true);
       }}
     >
-      {order.map(renderSection)}
-      {sections.hidden.length > 0 && (
-        <button type="button" className="agents-section-add" title={t('agents.section.add')} aria-label={t('agents.section.add')} aria-haspopup="menu" onClick={addSectionMenu}>
-          <Icon name="plus" size={14} />
-          <span className="agents-label">{t('agents.section.add')}</span>
-        </button>
-      )}
+      {usageTop && renderSection('usage')}
+      <div className="agents-sidebar-scroll">
+        {order.filter((id) => id !== 'usage').map(renderSection)}
+        {sections.hidden.length > 0 && (
+          <button type="button" className="agents-section-add" title={t('agents.section.add')} aria-label={t('agents.section.add')} aria-haspopup="menu" onClick={addSectionMenu}>
+            <Icon name="plus" size={14} />
+            <span className="agents-label">{t('agents.section.add')}</span>
+          </button>
+        )}
+      </div>
+      {!usageTop && renderSection('usage')}
       {checking && <BatchBar count={checked.size} actions={batchActions} onClear={() => clearBatch(true)} />}
       {menu && <ContextMenu at={menu.at} items={menu.items} onClose={() => setMenu(undefined)} />}
       {trashOpen && <TrashPanel onRestored={restored} onRefused={(message) => toast({ message, kind: 'error' })} onClose={() => setTrashOpen(false)} />}

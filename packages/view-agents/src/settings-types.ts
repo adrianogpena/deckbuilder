@@ -5,7 +5,7 @@ export type AgentsMode = 'terminal' | 'chat';
 export type AgentsRestore = 'ask' | 'always' | 'never';
 
 /** Where the sidebar usage section sits. */
-export type AgentsUsagePosition = 'float' | 'top' | 'bottom';
+export type AgentsUsagePosition = 'top' | 'bottom';
 
 /** The stored Agents settings. */
 export interface AgentsSettings {
@@ -38,7 +38,7 @@ export interface AgentsSettings {
   'hooks.onError'?: string;
   /** Usage section for the selected Claude session + context % on running rows; off when omitted. */
   'usage.show'?: boolean;
-  /** Where the usage section sits: right after the last row (float, default), or pinned top / bottom. */
+  /** Where the usage section sits: above (top) or below (bottom, default) the sessions tree. */
   'usage.position'?: AgentsUsagePosition;
   /** One line ('ctx 42% · 5h 73% · 7d 12%') instead of the full layout; off when omitted. */
   'usage.compact'?: boolean;
@@ -51,6 +51,7 @@ export interface AgentsSettings {
   'usage.showContext'?: boolean;
   'usage.showFiveHour'?: boolean;
   'usage.showSevenDay'?: boolean;
+  'usage.showCost'?: boolean;
   /** Config dir of the account new sessions launch as; blank or omitted = the default account. */
   'accounts.activeAccount'?: string;
   /** Show sessions of every account; on when omitted, off hides other accounts' Claude sessions. */

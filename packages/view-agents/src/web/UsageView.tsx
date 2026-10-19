@@ -14,6 +14,7 @@ export interface UsageItems {
   context: boolean;
   fiveHour: boolean;
   sevenDay: boolean;
+  cost: boolean;
 }
 
 /** `agents.usage.*` settings with defaults applied. */
@@ -28,7 +29,7 @@ export interface UsageSettings {
 export function usageSettingsOf(s: AgentsSettings | undefined): UsageSettings {
   return {
     show: s?.['usage.show'] === true,
-    position: s?.['usage.position'] ?? 'float',
+    position: s?.['usage.position'] === 'top' ? 'top' : 'bottom',
     compact: s?.['usage.compact'] === true,
     use24h: s?.['usage.use24HourClock'] === true,
     items: {
@@ -38,6 +39,7 @@ export function usageSettingsOf(s: AgentsSettings | undefined): UsageSettings {
       context: s?.['usage.showContext'] !== false,
       fiveHour: s?.['usage.showFiveHour'] !== false,
       sevenDay: s?.['usage.showSevenDay'] !== false,
+      cost: s?.['usage.showCost'] !== false,
     },
   };
 }
@@ -125,13 +127,6 @@ const LIMITS: Array<['fiveHour' | 'sevenDay', () => string]> = [
 
 const ARROW = { up: '↑', down: '↓' } as const;
 
-/** Usage groups in card order: the picked account first, then the others; one empty group when there is no account data. */
-function accountGroups(usage: AgentAccountUsage | undefined, accounts: AgentAccountUsage[] | undefined): Array<AgentAccountUsage | undefined> {
-  const list = accounts?.length ? accounts : usage ? [usage] : [];
-  const ordered = usage ? [usage, ...list.filter((a) => a.account !== usage.account)] : list;
-  return ordered.length ? ordered : [undefined];
-}
-
 /** 11px label and percent on one line, a bar under it, then a note (reset time, startup context). */
 function Metric({ label, metric, percent, stale, note, title }: { label: string; metric: UsageMetric; percent?: number; stale: boolean; note?: string; title?: string }) {
   const sev = percent === undefined ? '' : ` sev-${severity(metric, percent)}`;
@@ -161,18 +156,8 @@ function AccountGroup({ acc, name, session, show, now, use24h }: { acc?: AgentAc
   const cache = session?.cache && cacheState(session.cache, now);
   return (
     <span className="agents-ucard-group">
-      {show('account') && name && <span className="agents-label agents-ucard-head" title={acc?.email ?? name}>Claude ({name})</span>}
-      {acc && (
-        <span className="agents-ucard-cost" title={t('agents.usageCard.costEstimate')}>
-          <span className="agents-ucard-label">{t('agents.usageCard.today')}</span>
-          <span className="agents-ucard-amount">{formatCost(cost?.today)}</span>
-          {trend && trend.dir !== 'flat' && (
-            <span className={`agents-ucard-trend ${trend.dir}`} title={trend.pct !== undefined ? t('agents.usageCard.vsYesterday', { pct: `${trend.pct}%` }) : undefined}>
-              <span aria-hidden="true">{ARROW[trend.dir]}</span>
-              {trend.pct !== undefined && ` ${trend.pct}%`}
-            </span>
-          )}
-        </span>
+      {session && show('context') && (
+        <Metric label={LABEL.context()} metric="context" percent={context} stale={false} note={startup !== undefined ? t('agents.usage.startup', { n: startup }) : undefined} />
       )}
       {LIMITS.map(([k, label]) => {
         if (!show(k)) return null;
@@ -180,8 +165,17 @@ function AccountGroup({ acc, name, session, show, now, use24h }: { acc?: AgentAc
         const note = l?.resetsAt !== undefined ? t('agents.usageCard.resets', { time: resetLabel(l.resetsAt, k, use24h) }) : undefined;
         return <Metric key={k} label={label()} metric={k} percent={l?.percent} stale={!!l && staleOf(l)} title={l && staleTitle(l)} note={note} />;
       })}
-      {session && show('context') && (
-        <Metric label={LABEL.context()} metric="context" percent={context} stale={false} note={startup !== undefined ? t('agents.usage.startup', { n: startup }) : undefined} />
+      {acc && show('cost') && (
+        <span className="agents-ucard-cost" title={t('agents.usageCard.costExplain')}>
+          <span className="agents-ucard-label">{t('agents.usageCard.today')}</span>
+          <span className="agents-ucard-amount">{formatCost(cost?.today)}</span>
+          {trend && trend.dir !== 'flat' && (
+            <span className={`agents-ucard-trend ${trend.dir}`}>
+              <span aria-hidden="true">{ARROW[trend.dir]}</span>
+              {trend.pct !== undefined ? ` ${t('agents.usageCard.vsYesterday', { pct: `${trend.pct}%` })}` : ''}
+            </span>
+          )}
+        </span>
       )}
       {session && ((show('model') && model) || (show('cache') && cache)) && (
         <span className="agents-ucard-meta">
@@ -197,12 +191,13 @@ function AccountGroup({ acc, name, session, show, now, use24h }: { acc?: AgentAc
           )}
         </span>
       )}
+      {show('account') && name && <span className="agents-ucard-account" title={acc?.email ?? name}>Claude ({name})</span>}
     </span>
   );
 }
 
 /** Usage card (spec S10): per-account groups (today's cost, 5-hour and weekly limits; the selected session's context, model, cache) or one compact line. */
-export function UsageView({ session, usage, accountLabel, accounts, items = {}, compact = false, use24h = false, now: fixedNow, onOpen, className }: UsageViewProps) {
+export function UsageView({ session, usage, accountLabel, items = {}, compact = false, use24h = false, now: fixedNow, onOpen, className }: UsageViewProps) {
   const now = useNow(fixedNow);
   const show = (k: keyof UsageItems) => items[k] !== false;
   const context = session?.contextPercent;
@@ -218,7 +213,7 @@ export function UsageView({ session, usage, accountLabel, accounts, items = {}, 
   for (const [k, l] of limits) {
     if (show(k) && l) parts.push({ key: k, text: `${LABEL[k]()} ${shownPercent(l.percent)}%`, cls: `sev-${severity(k, l.percent)}${staleOf(l) ? ' stale' : ''}`, title: staleTitle(l) });
   }
-  if (usage?.cost) parts.unshift({ key: 'cost', text: `${t('agents.usageCard.today')} ${formatCost(usage.cost.today)}`, cls: 'agents-usage-cost', title: t('agents.usageCard.costEstimate') });
+  if (show('cost') && usage?.cost) parts.unshift({ key: 'cost', text: `${t('agents.usageCard.today')} ${formatCost(usage.cost.today)}`, cls: 'agents-usage-cost', title: t('agents.usageCard.costEstimate') });
   const summary = parts.map((p) => p.text).join(' · ') || t('agents.usage.noData');
 
   let body: ReactNode;
@@ -234,14 +229,10 @@ export function UsageView({ session, usage, accountLabel, accounts, items = {}, 
       </span>
     );
   } else {
-    const groups = accountGroups(usage, accounts);
-    const at = groups.findIndex((a) => a !== undefined && a.account === session?.account);
-    const sessionGroup = at < 0 ? 0 : at;
+    const inActive = !usage || !session || session.account === usage.account;
     body = (
       <span className="agents-ucard">
-        {groups.map((acc, i) => (
-          <AccountGroup key={acc?.account ?? i} acc={acc} name={acc?.label ?? accountLabel ?? session?.account} session={i === sessionGroup ? session : undefined} show={show} now={now} use24h={use24h} />
-        ))}
+        <AccountGroup acc={usage} name={usage?.label ?? accountLabel ?? session?.account} session={inActive ? session : undefined} show={show} now={now} use24h={use24h} />
       </span>
     );
   }

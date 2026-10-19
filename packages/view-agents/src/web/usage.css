@@ -3,7 +3,7 @@
 .agents-ucard { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .agents-ucard-group { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .agents-ucard-group + .agents-ucard-group { padding-top: 6px; border-top: 1px solid var(--border-soft); }
-.agents-ucard-head { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agents-ucard-account { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; color: var(--text-3); }
 
 .agents-ucard-cost { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
 .agents-ucard-amount { font-size: 15px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }

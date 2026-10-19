@@ -5,7 +5,7 @@ export type { AgentsMode, AgentsRestore, AgentsSettings, AgentsUsagePosition };
 
 const AGENTS_MODES: readonly AgentsMode[] = ['terminal', 'chat'];
 export const RESTORE_MODES: readonly AgentsRestore[] = ['ask', 'always', 'never'];
-export const USAGE_POSITIONS: readonly AgentsUsagePosition[] = ['float', 'top', 'bottom'];
+export const USAGE_POSITIONS: readonly AgentsUsagePosition[] = ['top', 'bottom'];
 
 /** The part of the app settings the Agents view reads; the app's `Settings` extends it. */
 export interface AgentsViewSettings {
@@ -43,7 +43,7 @@ export const agentsSettingDefs: SettingDef<AgentsViewSettings>[] = [
   groupField<AgentsViewSettings, 'agents'>('agents', 'autoSettle', 25, bool(true)),
   groupField<AgentsViewSettings, 'agents'>('agents', 'gitStatus', 27, bool(true)),
   groupField<AgentsViewSettings, 'agents'>('agents', 'usage.show', 28, bool(false)),
-  groupField<AgentsViewSettings, 'agents'>('agents', 'usage.position', 28.1, oneOf('float', USAGE_POSITIONS)),
+  groupField<AgentsViewSettings, 'agents'>('agents', 'usage.position', 28.1, oneOf('bottom', USAGE_POSITIONS)),
   groupField<AgentsViewSettings, 'agents'>('agents', 'usage.compact', 28.2, bool(false)),
   groupField<AgentsViewSettings, 'agents'>('agents', 'usage.use24HourClock', 28.3, bool(false)),
   groupField<AgentsViewSettings, 'agents'>('agents', 'usage.showAccount', 28.4, bool(true)),
@@ -52,6 +52,7 @@ export const agentsSettingDefs: SettingDef<AgentsViewSettings>[] = [
   groupField<AgentsViewSettings, 'agents'>('agents', 'usage.showContext', 28.7, bool(true)),
   groupField<AgentsViewSettings, 'agents'>('agents', 'usage.showFiveHour', 28.8, bool(true)),
   groupField<AgentsViewSettings, 'agents'>('agents', 'usage.showSevenDay', 28.9, bool(true)),
+  groupField<AgentsViewSettings, 'agents'>('agents', 'usage.showCost', 28.95, bool(true)),
   groupField<AgentsViewSettings, 'agents'>('agents', 'accounts.activeAccount', 29, str('')),
   groupField<AgentsViewSettings, 'agents'>('agents', 'accounts.showAllSessions', 29.1, bool(true)),
   groupField<AgentsViewSettings, 'agents'>('agents', 'accounts.shareProjects', 29.2, bool(true)),
