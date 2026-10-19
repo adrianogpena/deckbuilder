@@ -24,6 +24,8 @@ export interface Settings extends ThemeSettings, TerminalViewSettings, Workbench
   autostart: boolean;
   /** Tray icon; read at startup. */
   closeToTray: boolean;
+  /** Server port, read at startup; 0 = default. */
+  port: number;
   /** Settings reopens on the last page shown (until the app restarts). */
   rememberSettingsPage: boolean;
   updateFolder: string;

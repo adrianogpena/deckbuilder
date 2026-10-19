@@ -470,6 +470,7 @@ function GeneralSection({ settings, onChange, onQuit }: Props) {
         </label>
         <Row id="general.autostart" settings={settings} onChange={onChange} />
         <Row id="general.closeToTray" settings={settings} onChange={onChange} />
+        <Row id="general.port" settings={settings} onChange={onChange} />
         <Row id="general.rememberSettingsPage" settings={settings} onChange={onChange} />
         <Row id="general.confirmCloseDirty" settings={settings} onChange={onChange} />
         <Row id="general.toastDuration" settings={settings} onChange={onChange} />

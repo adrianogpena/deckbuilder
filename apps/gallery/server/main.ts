@@ -38,6 +38,8 @@ export interface Settings extends BaseSettings, TerminalServerSettings, Workbenc
   autostart: boolean;
   /** Tray icon, so closing the window keeps the app running; read at startup. */
   closeToTray: boolean;
+  /** Server port, read at startup; 0 = automatic (the app default). */
+  port: number;
   /** The Settings modal reopens on the last page shown (kept in memory by the UI). */
   rememberSettingsPage: boolean;
   /**
@@ -114,11 +116,12 @@ const autostart = createAutostart({ name: APP.name });
 const pickedUpdateFolder = pickedPaths({ max: 1 });
 const settings = settingsStore<Settings>({
   dir: dataDir,
-  defaults: { theme: 'dark', autostart: false, closeToTray: false, rememberSettingsPage: true, updateFolder: '' },
+  defaults: { theme: 'dark', autostart: false, closeToTray: false, port: 0, rememberSettingsPage: true, updateFolder: '' },
   check: (patch, prev) => checkViewSettings(serverViews, patch, prev as unknown as Record<string, unknown>),
   apply(patch, next) {
     if (typeof patch.autostart === 'boolean') next.autostart = patch.autostart;
     if (typeof patch.closeToTray === 'boolean') next.closeToTray = patch.closeToTray;
+    if (typeof patch.port === 'number' && Number.isInteger(patch.port) && (patch.port === 0 || (patch.port >= 1024 && patch.port <= 65535))) next.port = patch.port;
     if (typeof patch.rememberSettingsPage === 'boolean') next.rememberSettingsPage = patch.rememberSettingsPage;
     // A client may only clear it: a typed path could be any UNC share.
     if (patch.updateFolder === '' || (typeof patch.updateFolder === 'string' && pickedUpdateFolder.take(patch.updateFolder))) {
@@ -174,6 +177,8 @@ const mounted = mountViews(serverViews, { dataDir, settings, stores });
 
 await runApp({
   app: APP,
+  // Fixed port so the browser keeps per-origin permissions such as local fonts.
+  port: async () => (await settings.load()).port || 27610,
   routes: (ctx) => ({
     ...infoRoutes({ app: APP, version: pkg.version, dataDir }),
     ...settingsRoutes(settings),
@@ -185,8 +190,8 @@ await runApp({
       return settings.save({ updateFolder: path });
     },
     ...updateRoutes(updater, ctx.quit),
-    // Machine-specific: autostart writes the Run key, updateFolder is a local or share path.
-    ...backupRoutes({ app: { id: APP.id, version: pkg.version }, settings, stores: { projects: stores.projects, dbConnections: stores.dbConnections, requests: stores.requests, environments: stores.environments }, excludeSettings: ['autostart', 'updateFolder'] }),
+    // Machine-specific: autostart writes the Run key, updateFolder is a local or share path, port is per machine.
+    ...backupRoutes({ app: { id: APP.id, version: pkg.version }, settings, stores: { projects: stores.projects, dbConnections: stores.dbConnections, requests: stores.requests, environments: stores.environments }, excludeSettings: ['autostart', 'updateFolder', 'port'] }),
     ...(setAppLink(ctx.link), routes(ctx)),
     ...mounted.routes,
   }),

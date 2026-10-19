@@ -89,6 +89,8 @@ export const ptBR: Messages<typeof en> = {
   'settings.autostart.hint': 'Somente Windows, no exe compilado.',
   'settings.closeToTray': 'Manter em execução na bandeja',
   'settings.closeToTray.hint': 'Somente Windows. Vale após reiniciar o app.',
+  'settings.port': 'Porta',
+  'settings.port.hint': '0 usa a padrão, 27610. Vale na próxima inicialização. Se a porta estiver ocupada, o app usa outra. O navegador pede de novo permissões como fontes locais só quando a porta muda.',
   'settings.rememberPage': 'Lembrar a última página das configurações',
   'settings.rememberPage.hint': 'As configurações reabrem na última página vista, até reiniciar o app. Desligado: sempre abre em Geral.',
   'settings.search': 'Pesquisar configurações (@modified, @problems)',

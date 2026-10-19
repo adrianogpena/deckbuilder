@@ -87,6 +87,8 @@ export const en = {
   'settings.autostart.hint': 'Windows, built exe only.',
   'settings.closeToTray': 'Keep running in the tray',
   'settings.closeToTray.hint': 'Windows only. Takes effect after a restart.',
+  'settings.port': 'Port',
+  'settings.port.hint': '0 uses the default, 27610. Takes effect on the next launch. If the port is taken, the app falls back to another one. The browser asks for permissions such as local fonts again only when the port changes.',
   'settings.rememberPage': 'Remember last settings page',
   'settings.rememberPage.hint': 'Settings reopens on the page you last viewed, until the app restarts. Off: it always opens on General.',
   'settings.search': 'Search settings (@modified, @problems)',

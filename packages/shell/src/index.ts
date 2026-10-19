@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   type AppIdentity,
@@ -64,6 +65,13 @@ export interface RunOptions {
   /** Rewrites `index.html` before it is served, e.g. `themeHead(settings)` for the saved colours. */
   transformIndex?: IndexTransform;
   window?: WindowOptions;
+  /**
+   * Port to listen on when `--port` isn't passed (not in --dev), e.g. `27610`. The browser grants permissions
+   * (local fonts for ligatures, ...) per origin, port included, so a fixed port asks once instead of on every launch.
+   * A function lets the app read a user setting (return undefined or 0 for none). A port that is taken falls back to the
+   * last one used, then to a random one.
+   */
+  port?: number | (() => number | undefined | Promise<number | undefined>);
   /**
    * Registers `<app.id>://` on Windows (exe only), so `<id>://open/<path>` links open the app;
    * `app.id` must then be a valid URL scheme.
@@ -254,19 +262,47 @@ export async function runApp(opts: RunOptions): Promise<void> {
   const sockets = typeof opts.sockets === 'function' ? opts.sockets(ctx) : opts.sockets;
   const unauthenticated: Routes = { ...instance?.routes, ...(typeof opts.unauthenticated === 'function' ? opts.unauthenticated(ctx) : opts.unauthenticated) };
 
-  let server: ReturnType<typeof startServer> | undefined;
-  try {
-    server = startServer({
+  // Browsers grant permissions per origin, port included: with a random port every launch asks again.
+  // An unforced port tries the app's port, then the last one used, then any free port.
+  const portFile = join(appHome(app.id), 'port.txt');
+  const validPort = (n: unknown): number => (typeof n === 'number' && Number.isInteger(n) && n > 1023 && n < 65536 ? n : 0);
+  const lastPort = (): number => {
+    try {
+      return validPort(Number(readFileSync(portFile, 'utf8')));
+    } catch {
+      return 0;
+    }
+  };
+  const serve = (listenOn: number) =>
+    startServer({
       routes,
       sockets,
       unauthenticated,
       token,
       codes,
       devOrigins: dev ? [`http://localhost:${VITE_PORT}`, `http://127.0.0.1:${VITE_PORT}`] : undefined,
-      port,
+      port: listenOn,
       web: { ...(embedded ? { files: embedded } : { dir: opts.webDir }), transformIndex: opts.transformIndex },
       onActivity: () => idle?.touch(),
     });
+  let server: ReturnType<typeof startServer> | undefined;
+  try {
+    if (port === 0) {
+      const wanted = validPort(await (typeof opts.port === 'function' ? opts.port() : opts.port));
+      for (const candidate of new Set([wanted, lastPort()])) {
+        if (!candidate) continue;
+        try {
+          server = serve(candidate);
+          break;
+        } catch {}
+      }
+    }
+    server ??= serve(port);
+    if (port === 0) {
+      try {
+        writeFileSync(portFile, String(server.port));
+      } catch {}
+    }
   } catch (err) {
     if ((err as { code?: string }).code === 'EADDRINUSE') console.error(`Port ${port} is already in use. Pass --port with another port.`);
     else console.error(err);
