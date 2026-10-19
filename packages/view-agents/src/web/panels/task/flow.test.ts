@@ -1,5 +1,12 @@
 import { expect, test } from 'bun:test';
-import { advance, implementPrompt, type TaskItem } from './flow';
+import { advance, implementPrompt, startPrompt, type TaskItem } from './flow';
+
+test('startPrompt puts the trimmed skill, with a leading slash, before the text', () => {
+  expect(startPrompt('', 'do it')).toBe('do it');
+  expect(startPrompt(undefined, 'do it')).toBe('do it');
+  expect(startPrompt('  /plan-orchestration ', 'do it')).toBe('/plan-orchestration do it');
+  expect(startPrompt('plan-orchestration', 'do it')).toBe('/plan-orchestration do it');
+});
 
 const task = (over: Partial<TaskItem>): TaskItem => ({ id: 't', text: 'x', state: 'planning', planSession: 's', createdAt: 1, ...over });
 

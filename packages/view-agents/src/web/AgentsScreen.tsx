@@ -80,7 +80,7 @@ function Sash({ edge, width, onWidth, onDone, onReset }: { edge: 'start' | 'end'
 }
 
 /** Agents screen: the sessions sidebar and the dock workspace of the selected project (the selected session, or a tool opened over it). */
-export function AgentsScreen({ usageSettings, rightSidebarOpen = false, rightSidebarPerProject = false, dnd = false, onDnd }: { resumeOnSelect?: boolean; usageSettings?: UsageSettings; rightSidebarOpen?: boolean; rightSidebarPerProject?: boolean; dnd?: boolean; onDnd?: (on: boolean) => void }) {
+export function AgentsScreen({ usageSettings, rightSidebarOpen = false, rightSidebarPerProject = false, taskSkill = '', dnd = false, onDnd }: { resumeOnSelect?: boolean; usageSettings?: UsageSettings; taskSkill?: string; rightSidebarOpen?: boolean; rightSidebarPerProject?: boolean; dnd?: boolean; onDnd?: (on: boolean) => void }) {
   const { sessions, usage, git } = useAgentsFeed();
   const toast = useToast();
   const dialogs = useDialogs();
@@ -564,6 +564,7 @@ export function AgentsScreen({ usageSettings, rightSidebarOpen = false, rightSid
     usage,
     usageSettings,
     rightSidebarOpen,
+    taskSkill,
     rightSidebarPerProject,
     sharedSide: { side: sharedSideList, setSide: setSharedSideList, open: sharedSideOpen, setOpen: setSharedSideOpen },
     projects,

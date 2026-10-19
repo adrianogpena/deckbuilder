@@ -6,7 +6,7 @@ import type { AgentsCapWarn } from '../../../protocol';
 import { stopSession } from '../../api';
 import { useAgentsHost } from '../../workspace/host';
 import type { PanelModule, PanelProps } from '../../workspace/types';
-import { advance, implementPrompt, type TaskItem } from './flow';
+import { advance, implementPrompt, startPrompt, type TaskItem } from './flow';
 import { loadTasks, planOf, saveTasks, startModeSession, stateLabel } from './tasks-api';
 import './style.css';
 
@@ -110,7 +110,7 @@ function TaskPanel({ project, api, visible }: PanelProps) {
     setBusy(true);
     setError('');
     try {
-      const r = await startModeSession({ account: account.id, dir: project, mode: 'plan', prompt, confirmCap });
+      const r = await startModeSession({ account: account.id, dir: project, mode: 'plan', prompt: startPrompt(host.taskSkill, prompt), confirmCap });
       if (!r) return;
       const task: TaskItem = { id: crypto.randomUUID(), text: prompt, state: 'planning', planSession: r.sessionId, review: review || undefined, createdAt: Date.now() };
       setTasks((all) => [task, ...all]);

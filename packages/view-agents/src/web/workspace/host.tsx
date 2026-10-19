@@ -22,6 +22,8 @@ export interface AgentsHost {
   usageSettings?: UsageSettings;
   /** Setting `agents.rightSidebarOpen`: a workspace mounts with its right sidebar open. */
   rightSidebarOpen?: boolean;
+  /** Setting `agents.taskSkill`: slash command the Task panel puts before the task text. */
+  taskSkill?: string;
   /** Setting `agents.rightSidebarPerProject`: false = every workspace uses the shared `sharedSide` state. */
   rightSidebarPerProject?: boolean;
   sharedSide: { side: PanelKind[]; setSide: Dispatch<SetStateAction<PanelKind[]>>; open: boolean; setOpen: Dispatch<SetStateAction<boolean>> };

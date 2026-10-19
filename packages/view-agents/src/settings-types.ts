@@ -28,6 +28,8 @@ export interface AgentsSettings {
   rightSidebarPerProject?: boolean;
   /** Toast when a session needs you / finishes / fails and is not on screen; on when omitted. */
   notifyNeedsYou?: boolean;
+  /** Slash command put before the task text when the Task panel starts a task; blank = the text alone. */
+  taskSkill?: string;
   notifyDone?: boolean;
   notifyError?: boolean;
   /** Do not disturb: no toast while on (alerts and hooks still run); off when omitted. */

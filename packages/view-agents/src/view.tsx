@@ -23,6 +23,7 @@ export function agentsView({ group, order }: AgentsViewOptions) {
         resumeOnSelect={settings.agents?.resumeOnSelect === true}
         usageSettings={usageSettingsOf(settings.agents)}
         rightSidebarOpen={settings.agents?.rightSidebarOpen === true}
+        taskSkill={settings.agents?.taskSkill ?? ''}
         rightSidebarPerProject={settings.agents?.rightSidebarPerProject === true}
         dnd={settings.agents?.doNotDisturb === true}
         onDnd={(on) => onSave({ agents: { ...settings.agents, doNotDisturb: on } })}

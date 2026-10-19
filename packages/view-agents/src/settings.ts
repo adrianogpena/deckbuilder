@@ -57,6 +57,7 @@ export const agentsSettingDefs: SettingDef<AgentsViewSettings>[] = [
   groupField<AgentsViewSettings, 'agents'>('agents', 'accounts.showAllSessions', 29.1, bool(true), ['agents', 'accounts']),
   groupField<AgentsViewSettings, 'agents'>('agents', 'accounts.shareProjects', 29.2, bool(true), ['agents', 'accounts']),
   groupField<AgentsViewSettings, 'agents'>('agents', 'accounts.showOwner', 29.3, bool(false), ['agents', 'accounts']),
+  groupField<AgentsViewSettings, 'agents'>('agents', 'taskSkill', 31, str('')),
   groupField<AgentsViewSettings, 'agents'>('agents', 'notifyNeedsYou', 30, bool(true)),
   groupField<AgentsViewSettings, 'agents'>('agents', 'notifyDone', 40, bool(true)),
   groupField<AgentsViewSettings, 'agents'>('agents', 'notifyError', 50, bool(true)),

@@ -20,6 +20,13 @@ export interface PlanProbe {
   answered: boolean;
 }
 
+/** The first prompt of a task: the skill slash command (setting `agents.taskSkill`) before the text; the text alone when no skill. */
+export function startPrompt(skill: string | undefined, text: string): string {
+  const s = (skill ?? '').trim();
+  if (!s) return text;
+  return `${s.startsWith('/') ? s : `/${s}`} ${text}`;
+}
+
 /** The "implement" prompt of an approved plan. */
 export const implementPrompt = (plan: string) => `Implement this plan:\n${plan}`;
 
