@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PALETTES } from '@deckbuilderkit/server-core/palettes';
-import { AppFrame, type CommandDef, CommandPalette, detectLanguage, effectiveKeys, ErrorBanner, GLOBAL, Icon, isDesktop, KeybindingProvider, LayoutProvider, paletteCommand, type PaletteItem, setLanguage, Sidebar, Spinner, useAsync, useCommand, useCommandPalette, useHashRoute, useHeartbeat, useKeybindings, useRunCommand, useTheme, useZoom } from '@deckbuilderkit/ui';
+import { AppFrame, type CommandDef, CommandPalette, detectLanguage, effectiveKeys, ErrorBanner, GLOBAL, Icon, isDesktop, KeybindingProvider, LayoutProvider, paletteCommand, type PaletteItem, setLanguage, setViewTitle, Sidebar, Spinner, useAsync, useCommand, useCommandPalette, useHashRoute, useHeartbeat, useKeybindings, useRunCommand, useTheme, useViewTitle, useZoom } from '@deckbuilderkit/ui';
 import { APP } from '../../app';
 import { api, type Settings } from './api';
 import { type MessageKey, t } from './i18n';
@@ -93,9 +93,11 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
   const { kind } = useTheme(settings);
   useZoom(settings.zoom);
 
+  const viewTitle = useViewTitle();
+  useEffect(() => { setViewTitle(undefined); }, [screen]);
   useEffect(() => {
-    document.title = views.has(screen) ? `${views.label(screen)} · ${APP.name}` : APP.name;
-  }, [screen, settings.language]);
+    document.title = viewTitle ? `${viewTitle} — ${APP.name}` : views.has(screen) ? `${views.label(screen)} · ${APP.name}` : APP.name;
+  }, [screen, settings.language, viewTitle]);
 
   const save = useCallback((patch: Partial<Settings>) => {
     setSettings((s) => ({ ...s, ...patch }));

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PALETTES } from '@deckbuilderkit/server-core/palettes';
-import { CommandPalette, detectLanguage, effectiveKeys, ErrorBanner, GLOBAL, AppFrame, Icon, isDesktop, KeybindingProvider, LayoutProvider, type PaletteItem, setFileAssociations, setLanguage, Sidebar, Spinner, titleWithBadge, ToastProvider,useAsync, useCommand, useCommandPalette, useHashRoute, useHeartbeat, useKeybindings, useRunCommand, useTheme, useTitleBadge,useZen, useZoom } from '@deckbuilderkit/ui';
+import { CommandPalette, detectLanguage, effectiveKeys, ErrorBanner, GLOBAL, AppFrame, Icon, isDesktop, KeybindingProvider, LayoutProvider, type PaletteItem, setFileAssociations, setLanguage, setViewTitle, Sidebar, Spinner, titleWithBadge, ToastProvider,useAsync, useCommand, useCommandPalette, useHashRoute, useHeartbeat, useKeybindings, useRunCommand, useTheme, useTitleBadge,useViewTitle,useZen, useZoom } from '@deckbuilderkit/ui';
 import { EditorOptionsContext } from '@deckbuilderkit/editor/options';
 import { APP } from '../../app';
 import { api, type Settings } from './api';
@@ -104,9 +104,12 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
   }, [windowOptions]);
 
   const titleBadge = useTitleBadge();
+  const viewTitle = useViewTitle();
+  useEffect(() => { setViewTitle(undefined); }, [screen]);
   useEffect(() => {
-    document.title = titleWithBadge(views.has(screen) ? `${views.label(screen)} · ${APP.name}` : APP.name, titleBadge);
-  }, [screen, settings.language, titleBadge]);
+    const base = viewTitle ? `${viewTitle} — ${APP.name}` : views.has(screen) ? `${views.label(screen)} · ${APP.name}` : APP.name;
+    document.title = titleWithBadge(base, titleBadge);
+  }, [screen, settings.language, titleBadge, viewTitle]);
 
   const save = useCallback((patch: Partial<Settings>) => {
     setSettings((s) => ({ ...s, ...patch }));

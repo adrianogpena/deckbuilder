@@ -14,6 +14,20 @@ export function setTitleBadge(n: number): void {
 
 export const titleWithBadge = (title: string, n: number): string => (n > 0 ? `(${n}) ${title}` : title);
 
+// A title a view publishes for the window title, e.g. "project — session". undefined clears it.
+let viewTitle: string | undefined;
+
+export function setViewTitle(text: string | undefined): void {
+  const next = text?.trim() || undefined;
+  if (next === viewTitle) return;
+  viewTitle = next;
+  for (const l of listeners) l();
+}
+
+export function useViewTitle(): string | undefined {
+  return useSyncExternalStore((l) => { listeners.add(l); return () => { listeners.delete(l); }; }, () => viewTitle);
+}
+
 export function useTitleBadge(): number {
   return useSyncExternalStore((l) => { listeners.add(l); return () => { listeners.delete(l); }; }, () => count);
 }

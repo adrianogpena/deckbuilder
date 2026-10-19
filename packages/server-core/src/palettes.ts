@@ -298,7 +298,19 @@ export const PALETTES: readonly Palette[] = [
     '--border': '#c6d0c8', '--text': '#18221c', '--text-2': '#4a5a4f', '--text-3': '#7c8b81', '--accent': '#3e7d4a',
     '--ink-on-accent': '#ffffff',
   }),
-  modeline('modeline-dark', 'Modeline Dark', 'dark', [
+  islands('midnight-dark', 'Midnight Dark', 'dark', [
+    0x111418, 0x151a20, 0x232932, 0xe6e8eb, 0x6e7682, 0x4f8cff, 0xa78bfa, 0x38bdf8, 0x22c55e, 0xf5a524, 0xf0883e, 0xef4444], {
+    '--bg-sunken': '#0b0d10', '--bg': '#111418', '--bg-elev': '#151a20', '--panel': '#151a20', '--panel-2': '#1c222b',
+    '--border': '#232932', '--text': '#e6e8eb', '--text-2': '#a8b0bb', '--text-3': '#6e7682', '--accent': '#4f8cff',
+    '--ink-on-accent': '#0b0d10', '--shadow': '0 18px 48px rgba(0, 0, 0, 0.6)',
+  }),
+  islands('midnight-light', 'Midnight Light', 'light', [
+    0xffffff, 0xffffff, 0xc6d0c8, 0x18221c, 0x7c8b81, 0x2f6fdf, 0x7c4ddb, 0x1f6f8b, 0x2f7d3e, 0xb7791f, 0xb0561c, 0xc23b32], {
+    '--bg-sunken': '#e9ecf0', '--bg': '#ffffff', '--bg-elev': '#ffffff', '--panel': '#ffffff', '--panel-2': '#f3f6f3',
+    '--border': '#c6d0c8', '--text': '#18221c', '--text-2': '#4a5a4f', '--text-3': '#7c8b81', '--accent': '#2f6fdf',
+    '--ink-on-accent': '#ffffff',
+  }),
+  modeline('modeline-dark','Modeline Dark', 'dark', [
     0x0f2a2e, 0x143338, 0x2c4d52, 0xd8e4df, 0x6a817c, 0xe2b33c, 0xc39bd3, 0x6cc4c4, 0x8cc47a, 0xe2b33c, 0xe08a4f, 0xe5675f], {
     '--bg-sunken': '#0c2427', '--bg': '#0f2a2e', '--bg-elev': '#143338', '--panel': '#143338', '--panel-2': '#183a40',
     '--border': '#2c4d52', '--text': '#d8e4df', '--text-2': '#9db3ad', '--text-3': '#6a817c', '--accent': '#e2b33c',
