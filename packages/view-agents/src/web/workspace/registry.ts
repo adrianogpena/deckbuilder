@@ -29,8 +29,3 @@ export const panelsIn = (menu: NonNullable<PanelModule['addMenu']>): PanelModule
 
 export const isPanelKind = (kind: string): kind is PanelKind => byKind.has(kind);
 
-/**
- * What the dock may offer. `sidebarCards`: the sidebar can host tool panels as cards (group g2 sets it true);
- * until then "Move to sidebar" stays hidden.
- */
-export const capabilities = { sidebarCards: false };

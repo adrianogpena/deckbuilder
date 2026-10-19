@@ -25,10 +25,22 @@ import { SessionDot } from './StatusIcon';
 import { statusSince } from './status-text';
 import { activityStatus, projectActivity } from './project-activity';
 import { SectionButton, SidebarSection } from './SidebarSection';
-import { hideSection, loadSections, moveSection, restoreAll, restoreSection, saveSections, type SectionId, type SectionsState, sectionOrder, toggleSection } from './sidebar-sections';
+import { hideSection, isDockable, loadSections, moveSection, restoreAll, restoreSection, saveSections, SECTIONS_EVENT, type SectionId, type SectionsState, sectionOrder, toggleSection, toolKind } from './sidebar-sections';
+import { PANELS, panelOf } from './workspace/registry';
+import type { PanelKind, WorkspaceApi } from './workspace/types';
 
-const SECTION_TITLE: Record<SectionId, 'agents.section.sessions' | 'agents.section.tags' | 'agents.section.archived' | 'agents.section.usage'> = {
-  sessions: 'agents.section.sessions', tags: 'agents.section.tags', archived: 'agents.section.archived', usage: 'agents.section.usage',
+/** Drag type of a workspace tab (TabWorkspace); a drop on the sidebar docks the tab as a card. */
+const TAB_DRAG_TYPE = 'application/x-deckbuilder-tab';
+
+const CORE_TITLE = {
+  sessions: 'agents.section.sessions', changes: 'agents.section.changes', files: 'agents.section.files', tags: 'agents.section.tags', archived: 'agents.section.archived', usage: 'agents.section.usage',
+} as const;
+
+const sectionTitle = (id: SectionId): string => {
+  const kind = toolKind(id);
+  if (kind === undefined) return t(CORE_TITLE[id as keyof typeof CORE_TITLE]);
+  const mod = panelOf(kind);
+  return mod ? t(mod.titleKey) : kind;
 };
 
 /** Tooltip of a status dot: "Waiting for you · 2 min". */
@@ -51,6 +63,8 @@ export interface SidebarProps {
   usageSettings?: UsageSettings;
   /** A click on the usage section. */
   onOpenUsage?(): void;
+  /** The shown project's workspace (its folder and tab API); undefined when none is shown. */
+  getWorkspace?(): { project: string; api: WorkspaceApi } | undefined;
   selectedId?: string;
   onSelect(sessionId: string): void;
   /** The selected project row, if any (its summary is on screen). */
@@ -132,7 +146,7 @@ interface RowMatch {
 }
 
 /** Projects with their Claude sessions, a status dot and label per session; search, filter pills, pin, rename and archive. */
-export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenUsage, selectedId, onSelect, selectedProjectId, onSelectProject, selectedFolderId, onSelectFolder, onVisibleChange, onNewSession, onQuickNew, onRemoveProject, onStop, onRestart, onStartBackground, expandCollapsedOnActiveJump = false }: SidebarProps) {
+export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenUsage, getWorkspace, selectedId, onSelect, selectedProjectId, onSelectProject, selectedFolderId, onSelectFolder, onVisibleChange, onNewSession, onQuickNew, onRemoveProject, onStop, onRestart, onStartBackground, expandCollapsedOnActiveJump = false }: SidebarProps) {
   const ref = useRef<HTMLDivElement>(null);
   const { prefs: accountPrefs } = useAccountPrefs();
   const [accountCount, setAccountCount] = useState<number>();
@@ -181,6 +195,22 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
     return next;
   });
   useCommand(agentsCommands()[51]!, () => setSections(restoreAll));
+  const [dockOver, setDockOver] = useState(false);
+  useEffect(() => {
+    const reload = () => setSectionsState(loadSections());
+    window.addEventListener(SECTIONS_EVENT, reload);
+    return () => window.removeEventListener(SECTIONS_EVENT, reload);
+  }, []);
+  const focusChanges = useRef(false);
+  useCommand(agentsCommands().find((c) => c.id === 'agents.focusChanges')!, () => {
+    setSections((s) => restoreSection({ ...s, collapsed: s.collapsed.filter((x) => x !== 'changes') }, 'changes'));
+    focusChanges.current = true;
+  });
+  useEffect(() => {
+    if (!focusChanges.current) return;
+    focusChanges.current = false;
+    ref.current?.querySelector<HTMLElement>('[data-section="changes"] .agents-section-toggle')?.focus();
+  });
   const [menu, setMenu] = useState<{ at: { x: number; y: number }; items: Array<ContextMenuItem | 'sep'> }>();
   const [renaming, setRenaming] = useState<string>();
   const renamingRef = useRef<string | undefined>(undefined);
@@ -1004,28 +1034,38 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
   // ---- Section cards (spec S5): collapse, hide, restore and reorder; state in localStorage.
   const order = sectionOrder(sections, usageTop);
   const moveSectionTo = (id: SectionId, to: number) => setSections((s) => moveSection(s, id, to, usageTop));
+  const toWorkspace = (id: SectionId) => {
+    const kind = toolKind(id) ?? id;
+    setSections((st) => hideSection(st, id));
+    getWorkspace?.()?.api.open(kind as PanelKind);
+  };
   const sectionMenu = (id: SectionId) => (e: MouseEvent) => {
     const at = order.indexOf(id);
     setMenu({ at: { x: e.clientX, y: e.clientY }, items: [
       { id: 'moveUp', label: t('agents.tree.moveUp'), disabled: at <= 0, run: () => moveSectionTo(id, at - 1) },
       { id: 'moveDown', label: t('agents.tree.moveDown'), disabled: at >= order.length - 1, run: () => moveSectionTo(id, at + 1) },
       'sep',
-      { id: 'hide', label: t('agents.section.hide'), run: () => setSections((s) => hideSection(s, id)) },
+      ...(toolKind(id) !== undefined || id === 'changes' || id === 'files' ? [{ id: 'toWorkspace', label: t('agents.section.toWorkspace'), icon: 'panel-right' as const, disabled: !getWorkspace?.(), run: () => toWorkspace(id) }] : []),
+      { id: 'hide', label: t('agents.section.hide'), run: () => setSections((st) => hideSection(st, id)) },
     ] });
   };
+  const dockable = PANELS.filter((p) => isDockable(p) && p.kind !== 'changes' && p.kind !== 'files' && p.kind !== 'usage' && !sections.tools.includes(p.kind));
   const addSectionMenu = (e: MouseEvent) => {
     const box = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const hiddenItems = sections.hidden.map((id): ContextMenuItem => ({ id: `restore-${id}`, label: sectionTitle(id), run: () => setSections((st) => restoreSection(st, id)) }));
+    const toolItems = dockable.map((p): ContextMenuItem => ({ id: `dock-${p.kind}`, label: t(p.titleKey), icon: p.icon, run: () => setSections((st) => restoreSection(st, `tool:${p.kind}`)) }));
     setMenu({ at: { x: box.left, y: box.bottom }, items: [
-      ...sections.hidden.map((id): ContextMenuItem => ({ id: `restore-${id}`, label: t(SECTION_TITLE[id]), run: () => setSections((s) => restoreSection(s, id)) })),
-      'sep',
-      { id: 'reopenAll', label: t('agents.section.reopen'), run: () => setSections(restoreAll) },
+      ...hiddenItems,
+      ...(hiddenItems.length > 0 && toolItems.length > 0 ? ['sep' as const] : []),
+      ...toolItems,
+      ...(hiddenItems.length > 1 ? ['sep' as const, { id: 'reopenAll', label: t('agents.section.reopen'), run: () => setSections(restoreAll) }] : []),
     ] });
   };
   const section = (id: SectionId, body: ReactNode, opts: { count?: number; note?: ReactNode; actions?: ReactNode; forceOpen?: boolean; className?: string } = {}) => (
     <SidebarSection
       key={id}
       id={id}
-      title={t(SECTION_TITLE[id])}
+      title={sectionTitle(id)}
       count={opts.count}
       note={opts.note}
       collapsed={sections.collapsed.includes(id) && !opts.forceOpen}
@@ -1133,20 +1173,49 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
       </button>
     );
   });
+  const cardBody = (kind: string, compact: boolean) => {
+    const ws = getWorkspace?.();
+    const mod = panelOf(kind);
+    if (!mod) return null;
+    if (!ws) return <p className="agents-empty">{t('agents.section.noProject')}</p>;
+    if (mod.Section) return <mod.Section project={ws.project} api={ws.api} />;
+    if (!compact) return <p className="agents-empty">{t('agents.section.pending')}</p>;
+    return <mod.Panel project={ws.project} params={{ compact: true }} api={ws.api} tabId={`sidebar:${kind}`} visible focused={false} update={() => undefined} />;
+  };
   const renderSection = (id: SectionId) => {
     if (sections.hidden.includes(id)) return null;
+    const kind = toolKind(id);
+    if (kind !== undefined) return panelOf(kind) && section(id, cardBody(kind, true), { className: 'agents-section-tool' });
+    if (id === 'changes' || id === 'files') return section(id, cardBody(id, false), { className: 'agents-section-tool' });
     if (id === 'sessions') return section(id, sessionsBody, { count: live.length, note: note && <span className="agents-panel-note">{note}</span>, actions: sessionsActions, className: 'agents-section-sessions' });
     if (id === 'tags') return tags.length > 0 && section(id, <div className="agents-tags">{tagsBody}</div>, { count: tags.length });
     if (id === 'archived') return archived.length > 0 && section(id, archived.map((x) => row(x)), { count: archived.length, forceOpen: searching, className: 'agents-archived' });
-    return usageBlock && section(id, usageBlock);
+    return usageBlock && section(id, usageBlock, { actions: <SectionButton icon="maximize" label={t('agents.section.openDashboard')} onClick={() => onOpenUsage?.()} /> });
   };
   return (
     <nav
-      className={`agents-sidebar${checking ? ' checking' : ''}`}
+      className={`agents-sidebar${checking ? ' checking' : ''}${dockOver ? ' dock-over' : ''}`}
+      data-drop-hint={dockOver ? t('agents.section.dropHere') : undefined}
       aria-label={t('agents.sidebar')}
       ref={ref}
       tabIndex={-1}
       onFocusCapture={() => { focusMemory.region = 'tree'; }}
+      onDragOver={(e) => {
+        if (!e.dataTransfer.types.includes(TAB_DRAG_TYPE)) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        setDockOver(true);
+      }}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDockOver(false);
+      }}
+      onDrop={(e) => {
+        setDockOver(false);
+        const id = e.dataTransfer.getData(TAB_DRAG_TYPE);
+        if (!id) return;
+        e.preventDefault();
+        getWorkspace?.()?.api.moveTo(id, 'sidebar');
+      }}
       {...{ [KEY_SCOPE_ATTR]: AGENTS_LIST_SCOPE }}
       onKeyDown={(e) => {
         if (!e.defaultPrevented && !e.ctrlKey && !e.altKey && !e.metaKey && e.target instanceof Element && e.target.matches(ITEMS)) {
@@ -1176,7 +1245,7 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
       {usageTop && renderSection('usage')}
       <div className="agents-sidebar-scroll">
         {order.filter((id) => id !== 'usage').map(renderSection)}
-        {sections.hidden.length > 0 && (
+        {(sections.hidden.length > 0 || dockable.length > 0) && (
           <button type="button" className="agents-section-add" title={t('agents.section.add')} aria-label={t('agents.section.add')} aria-haspopup="menu" onClick={addSectionMenu}>
             <Icon name="plus" size={14} />
             <span className="agents-label">{t('agents.section.add')}</span>

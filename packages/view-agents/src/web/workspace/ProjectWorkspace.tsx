@@ -5,11 +5,12 @@ import { t } from '../../i18n';
 import { displayName } from '../attention';
 import { EmptyCard } from './EmptyCard';
 import { useAgentsHost } from './host';
-import { agentTabOf, allTabs, dedupeCopies, EMPTY_KIND, emptyRoute, focusedAgentId, focusTab, openRoute, paramsOf, patchParams, projectPathOf, restoreLayout, routeOf, sameFolder, shellSessions, singleTabOf, type WorkspaceLayout } from './layout-model';
+import { agentTabOf, allTabs, dedupeCopies, EMPTY_KIND, emptyRoute, findTabById, focusedAgentId, focusTab, openRoute, paramsOf, patchParams, projectPathOf, restoreLayout, routeOf, sameFolder, shellSessions, singleTabOf, type WorkspaceLayout } from './layout-model';
 import { getLayout, putLayout } from './layout-api';
 import { MissingPanel } from './MissingPanel';
 import { PanelBoundary } from './PanelBoundary';
-import { capabilities, panelOf, panelsIn } from './registry';
+import { isDockable, setDocked } from '../sidebar-sections';
+import { panelOf, panelsIn } from './registry';
 import type { OpenOptions, PanelKind, PanelParams, PanelRoute, WorkspaceApi } from './types';
 
 /** What the screen can do to one project's workspace. */
@@ -96,6 +97,11 @@ export function ProjectWorkspace({ project, hidden, register, onFocusedAgent }: 
 
   const open = useCallback(
     (kind: PanelKind, params: PanelParams = {}, opts?: OpenOptions): string => {
+      const mod = panelOf(kind);
+      if (opts?.placement === 'sidebar' && mod && isDockable(mod)) {
+        setDocked(kind, true);
+        return '';
+      }
       const cur = latest.current!;
       if (isSingle(kind)) {
         const existing = singleTabOf(cur, kind);
@@ -114,7 +120,15 @@ export function ProjectWorkspace({ project, hidden, register, onFocusedAgent }: 
       open,
       focus: (id) => change(focusTab(latest.current!, id)),
       close: (id) => change(closeTabs(latest.current!, [id], () => newTab(emptyRoute()))),
-      moveTo: (id, to) => hostRef.current.moveTo?.(project, id, to),
+      moveTo: (id, to) => {
+        const tab = findTabById(latest.current!, id);
+        const mod = tab && panelOf(tab.route.kind);
+        if (!tab || !mod || !isDockable(mod)) return;
+        if (to === 'sidebar') {
+          setDocked(tab.route.kind, true);
+          change(closeTabs(latest.current!, [id], () => newTab(emptyRoute())));
+        }
+      },
       sendToSession: (sessionId, textToSend) => hostRef.current.sendToSession(sessionId, textToSend),
       activeProject: project,
     }),
@@ -187,7 +201,7 @@ export function ProjectWorkspace({ project, hidden, register, onFocusedAgent }: 
       items.push({ id: 'rename', label: t('workspace.tab.rename'), icon: 'edit', run: () => void rename(tab) });
       items.push({ id: 'restart', label: t('workspace.tab.restart'), icon: 'rotate-ccw', run: () => restartShell(tab) });
     }
-    if (capabilities.sidebarCards && panelOf(route.kind)?.addMenu === 'tools') {
+    if ((() => { const m = panelOf(route.kind); return !!m && isDockable(m); })()) {
       items.push({ id: 'toSidebar', label: t('workspace.tab.moveToSidebar'), icon: 'sidebar', run: () => api.moveTo(tab.id, 'sidebar') });
     }
     return items;

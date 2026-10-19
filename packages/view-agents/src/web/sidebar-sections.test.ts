@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { DEFAULT_SECTIONS, hideSection, loadSections, moveSection, normalizeSections, restoreAll, restoreSection, saveSections, sectionOrder, SECTIONS_KEY, toggleSection } from './sidebar-sections';
+import { DEFAULT_SECTIONS, dockTool, hideSection, loadSections, moveSection, normalizeSections, restoreAll, restoreSection, saveSections, sectionOrder, SECTIONS_KEY, toggleSection } from './sidebar-sections';
 
 const memory = () => {
   const m = new Map<string, string>();
@@ -22,16 +22,27 @@ describe('sidebar sections', () => {
   });
 
   test('move sets an explicit order', () => {
-    expect(sectionOrder(DEFAULT_SECTIONS)).toEqual(['sessions', 'tags', 'archived', 'usage']);
+    expect(sectionOrder(DEFAULT_SECTIONS)).toEqual(['sessions', 'changes', 'files', 'tags', 'archived', 'usage']);
     expect(sectionOrder(DEFAULT_SECTIONS, true)[0]).toBe('usage');
     const a = moveSection(DEFAULT_SECTIONS, 'usage', 0);
-    expect(a.order).toEqual(['usage', 'sessions', 'tags', 'archived']);
-    expect(moveSection(a, 'usage', 99).order).toEqual(['sessions', 'tags', 'archived', 'usage']);
+    expect(a.order).toEqual(['usage', 'sessions', 'changes', 'files', 'tags', 'archived']);
+    expect(moveSection(a, 'usage', 99).order).toEqual(['sessions', 'changes', 'files', 'tags', 'archived', 'usage']);
   });
 
   test('normalize drops unknown ids and completes the order', () => {
-    expect(normalizeSections({ order: ['tags', 'bogus'], collapsed: [], hidden: ['x', 'usage'] })).toEqual({ order: ['tags', 'sessions', 'archived', 'usage'], collapsed: [], hidden: ['usage'] });
+    expect(normalizeSections({ order: ['tags', 'bogus'], collapsed: [], hidden: ['x', 'usage'] })).toEqual({ order: ['tags', 'sessions', 'changes', 'files', 'archived', 'usage'], collapsed: [], hidden: ['usage'], tools: [] });
     expect(normalizeSections(null)).toEqual(DEFAULT_SECTIONS);
+  });
+
+  test('docked tools: dock, order, undock, old state without tools', () => {
+    const a = dockTool(DEFAULT_SECTIONS, 'json');
+    expect(a.tools).toEqual(['json']);
+    expect(sectionOrder(a).at(-1)).toBe('tool:json');
+    expect(hideSection(moveSection(a, 'tool:json', 0), 'tool:json')).toEqual({ ...DEFAULT_SECTIONS, order: sectionOrder(DEFAULT_SECTIONS) });
+    expect(dockTool(hideSection(DEFAULT_SECTIONS, 'changes'), 'changes').hidden).toEqual([]);
+    expect(normalizeSections({ collapsed: [], hidden: [] }).tools).toEqual([]);
+    expect(normalizeSections({ tools: ['json', 'bogus'], order: ['tool:json', 'tool:task'] }).order?.[0]).toBe('tool:json');
+    expect(normalizeSections({ tools: ['json'], order: ['tool:task'] }).order).not.toContain('tool:task');
   });
 
   test('save and load round trip; bad JSON and throwing storage fall back', () => {

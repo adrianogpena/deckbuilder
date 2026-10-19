@@ -29,14 +29,14 @@ export interface OpenOptions {
 export interface WorkspaceApi {
   /**
    * Opens a panel and returns its tab id. A `single` kind already open is focused instead (its params are merged in).
-   * With `placement: 'sidebar'` the sidebar card is shown (needs `capabilities.sidebarCards`).
+   * With `placement: 'sidebar'` the sidebar card is shown.
    */
   open(kind: PanelKind, params?: PanelParams, opts?: OpenOptions): string;
   /** Selects the tab and focuses its pane. */
   focus(id: string): void;
   /** Closes the tab (a terminal tab also ends its shell). */
   close(id: string): void;
-  /** Moves a tool between the workspace and the sidebar (sidebar side: group g2). */
+  /** Moves a tool between the workspace and the sidebar (a docked card; state in `sidebar-sections.ts`). */
   moveTo(id: string, to: 'center' | 'sidebar'): void;
   /** Inserts text into the Claude session's terminal (no Enter). */
   sendToSession(sessionId: string, text: string): void;

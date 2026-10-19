@@ -47,8 +47,6 @@ export interface AgentsHost {
   sendToSession(sessionId: string, text: string): void;
   /** Focuses the visible terminal input soon (it may still be mounting). */
   focusSoon(): void;
-  /** Moves a tool tab to the sidebar or back; the sidebar side is group g2's (no-op until it sets `capabilities.sidebarCards`). */
-  moveTo?(project: string, tabId: string, to: 'center' | 'sidebar'): void;
 }
 
 const Ctx = createContext<AgentsHost | undefined>(undefined);

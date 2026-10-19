@@ -603,6 +603,11 @@ export function AgentsScreen({ usageSettings, dnd = false, onDnd }: { resumeOnSe
               usage={usage}
               usageSettings={usageSettings}
               onOpenUsage={() => openTool('usage')}
+              getWorkspace={() => {
+                const path = activeProject ?? projects[0]?.path;
+                const h = path === undefined ? undefined : handleOf(path);
+                return path !== undefined && h ? { project: path, api: h.api } : undefined;
+              }}
               selectedId={selectedId}
               onSelect={select}
               selectedProjectId={summaryFor}
