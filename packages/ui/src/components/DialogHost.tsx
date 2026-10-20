@@ -96,8 +96,8 @@ export function DialogHost() {
 
   return (
     <>
-      {local.element}
       {opened.map((o) => <span key={o.id} style={{ display: 'contents' }}>{o.node}</span>)}
+      {local.element}
     </>
   );
 }

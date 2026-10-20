@@ -238,7 +238,7 @@ export function FileDialog({ mode, title, filters, start, purpose, suggestedName
     }
   };
 
-  const heading = title ?? t(mode === 'open' ? 'fileDialog.titleOpen' : mode === 'save' ? 'fileDialog.titleSave' : 'fileDialog.titleFolder');
+  const heading = title?.replace(/\s*(\.{3}|…)\s*$/, '') || t(mode === 'open' ? 'fileDialog.titleOpen' : mode === 'save' ? 'fileDialog.titleSave' : 'fileDialog.titleFolder');
   const segments = listing ? splitPath(listing.path) : [];
   const placeLabel = (id: string) => t(`fileDialog.${id}` as 'fileDialog.home');
 
