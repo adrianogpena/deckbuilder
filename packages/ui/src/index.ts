@@ -27,6 +27,7 @@ export * from './components/ui';
 export * from './api';
 export * from './dialogs';
 export * from './components/DialogHost';
+export * from './components/FileDialog';
 export * from './popout';
 export * from './grid';
 export * from './hooks';

@@ -393,6 +393,41 @@ kbd {
 .modal-large .modal-head { flex: none; gap: var(--space-2); height: var(--header-h); padding: 0 var(--space-6) 0 14px; border-bottom: 1px solid var(--border); background: var(--panel-2); user-select: none; }
 .modal-large .modal-head h3 { font-size: var(--fs-sm); font-weight: 600; }
 .modal-large .modal-body { flex: 1; min-height: 0; padding: 0; gap: 0; }
+/* In-app file dialog (Open / Save / Folder) */
+.fd { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.fd-toolbar { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-6) var(--space-8); border-bottom: 1px solid var(--border); }
+.fd-path, .fd-path-input { flex: 1; min-width: 0; height: var(--control-h-sm); }
+.fd-path { display: flex; align-items: center; overflow: hidden; background: var(--bg-sunken); border: 1px solid var(--border); border-radius: var(--radius-lg); cursor: text; }
+.fd-crumb { flex: none; height: 100%; padding: 0 var(--space-6); background: transparent; border: 0; color: var(--text-2); font: inherit; font-size: var(--fs-sm); cursor: pointer; }
+.fd-crumb:hover { background: var(--hover); color: var(--text); }
+.fd-crumb:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
+.fd-crumb.current { color: var(--text); font-weight: 600; }
+.fd-crumb + .fd-crumb::before { content: '/'; margin-right: var(--space-6); color: var(--text-3); font-weight: 400; }
+.fd-main { display: flex; flex: 1; min-height: 0; }
+.fd-side { flex: none; width: 190px; overflow-y: auto; padding: var(--space-6); border-right: 1px solid var(--border); background: var(--panel-2); display: flex; flex-direction: column; gap: 1px; }
+.fd-side-title { padding: var(--space-8) var(--space-6) var(--space-4); font-size: var(--fs-sm); color: var(--text-3); text-transform: uppercase; letter-spacing: .04em; }
+.fd-side-item { display: flex; align-items: center; gap: var(--space-6); width: 100%; padding: var(--space-4) var(--space-6); background: transparent; border: 0; border-radius: var(--radius-md); color: var(--text-2); font: inherit; font-size: var(--fs-sm); text-align: left; cursor: pointer; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.fd-side-item:hover { background: var(--hover); color: var(--text); }
+.fd-side-item:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
+.fd-center { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.fd-list { flex: 1; min-height: 0; overflow-y: auto; outline: none; }
+.fd-head, .fd-row { display: grid; grid-template-columns: minmax(0, 1fr) 90px 170px; align-items: center; gap: var(--space-8); padding: 0 var(--space-12); }
+.fd-head { position: sticky; top: 0; z-index: 1; height: 26px; background: var(--bg-elev); border-bottom: 1px solid var(--border); font-size: var(--fs-sm); color: var(--text-3); }
+.fd-row { box-sizing: border-box; cursor: default; font-size: var(--fs-sm); color: var(--text-2); outline: none; }
+.fd-row:hover { background: var(--hover); color: var(--text); }
+.fd-row.selected { background: var(--selected); color: var(--text); }
+.fd-row.dim { opacity: .55; }
+.fd-row:focus-visible { box-shadow: inset 0 0 0 1px var(--accent); }
+.fd-name { display: flex; align-items: center; gap: var(--space-6); min-width: 0; }
+.fd-label { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.fd-num { text-align: right; color: var(--text-3); }
+.fd-date { color: var(--text-3); white-space: nowrap; }
+.fd-note { padding: var(--space-8) var(--space-12); font-size: var(--fs-sm); color: var(--text-3); }
+.fd-error { padding: var(--space-6) var(--space-12); border-top: 1px solid var(--border); }
+.fd-bottom { display: flex; gap: var(--space-12); padding: var(--space-8) var(--space-12); border-top: 1px solid var(--border); }
+.fd-field { display: flex; align-items: center; gap: var(--space-8); font-size: var(--fs-sm); color: var(--text-2); }
+.fd-field:first-child { flex: 1; }
+.fd-field:first-child input { flex: 1; }
 @media (max-width: 720px) {
   .modal-large { width: 100%; height: 100%; }
 }
