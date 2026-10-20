@@ -311,6 +311,7 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
       .sort((a, b) => b.updatedAt - a.updatedAt), accs, allView);
     if (agentsSettings?.autoSettle !== false) sessionState?.settle(views);
     // A pty whose session has no transcript yet (new, or after `/clear`): listed with the empty title until the first message.
+    const sessionAccount = new Map(views.map((x) => [x.id, x.account]));
     const scannedIds: ReadonlySet<string> = new Set(views.map((x) => x.id));
     const scanned = new Set(scannedIds);
     for (const term of claudeTerms()) {
@@ -320,7 +321,10 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
       const project = matchProject(term.cwd, refs)?.id;
       if (project === undefined) continue;
       const lifecycle = lc.exited.has(term.sessionId) ? ('exited' as const) : lc.starting.has(term.sessionId) ? ('starting' as const) : undefined;
-      views.push(...applyAccountView([{ id: term.sessionId, account: term.account, cwd: term.cwd, title: '', firstPrompt: '', updatedAt: Date.now(), status: statusOf(term.sessionId), live: statuses.has(term.sessionId) || undefined, project, lifecycle, exitCode: lc.exited.get(term.sessionId), seenAt: s[term.sessionId] }], accs, allView));
+      // Before its first reading the session already carries the startup context (system prompt, tools, CLAUDE.md): its own, else the account's latest.
+      const own = usage.bySession.get(term.sessionId);
+      const startup = own?.startupContextPercent ?? [...usage.bySession.values()].filter((u) => u.startupContextPercent && u.startupContextPercent > 0 && sessionAccount.get(u.sessionId) === term.account).sort((a, b) => b.updatedAt - a.updatedAt)[0]?.startupContextPercent;
+      views.push(...applyAccountView([{ id: term.sessionId, account: term.account, cwd: term.cwd, title: '', firstPrompt: '', updatedAt: Date.now(), contextPercent: usageContextPercent(own) || (startup !== undefined ? Math.round(startup) : undefined), startupContextPercent: startup, modelName: usage.bySession.get(term.sessionId)?.model?.display_name, effort: usage.bySession.get(term.sessionId)?.effort, claudeVersion: usage.bySession.get(term.sessionId)?.version, status: statusOf(term.sessionId), live: statuses.has(term.sessionId) || undefined, project, lifecycle, exitCode: lc.exited.get(term.sessionId), seenAt: s[term.sessionId] }], accs, allView));
     }
     const everyOwner = views.map((x) => {
       const st = sessionState?.get(x.id);
