@@ -917,6 +917,10 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
         {...(r ? dragProps(r) : {})}
         aria-current={s.id === selectedId ? 'true' : undefined}
         onClick={(e) => (e.ctrlKey || e.metaKey ? toggleCheck(s.id) : onSelect(s.id))}
+        onDoubleClick={(e) => {
+          if (e.ctrlKey || e.metaKey || e.shiftKey) return;
+          void runCommand('agents.interact');
+        }}
         onContextMenu={(e) => {
           e.preventDefault();
           setMenu({ at: { x: e.clientX, y: e.clientY }, items: menuItems(s, r) });
