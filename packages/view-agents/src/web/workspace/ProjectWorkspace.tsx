@@ -142,6 +142,15 @@ export function ProjectWorkspace({ project, hidden, register, onFocusedAgent }: 
     const items = PANELS.filter((p) => isDockable(p) && !side.includes(p.kind)).map((p): ContextMenuItem => ({ id: `add-${p.kind}`, label: t(p.titleKey), icon: p.icon, run: () => addToSide(p.kind) }));
     setSideMenu({ at: { x: box.left, y: box.bottom }, items });
   };
+  const moveInSide = (kind: PanelKind, to: number) => {
+    setSide((cur) => {
+      const at = cur.indexOf(kind);
+      if (at < 0 || to < 0 || to >= cur.length) return cur;
+      const next = cur.filter((k) => k !== kind);
+      next.splice(to, 0, kind);
+      return next;
+    });
+  };
   const moveToLeft = (kind: PanelKind) => {
     setSide((cur) => cur.filter((k) => k !== kind));
     setDocked(kind, true);
@@ -173,10 +182,14 @@ export function ProjectWorkspace({ project, hidden, register, onFocusedAgent }: 
             <Icon name="plus" size={14} />
             <span className="agents-label">{t('agents.section.add')}</span>
           </button>
-          {side.map((kind) => {
+          {side.map((kind, at) => {
             const mod = panelOf(kind);
             return (
-              <section key={kind} className="agents-dock-side-item" onContextMenu={(e) => { e.preventDefault(); setSideMenu({ at: { x: e.clientX, y: e.clientY }, items: [{ id: 'toLeft', label: t('agents.section.toLeft'), run: () => moveToLeft(kind) }] }); }}>
+              <section key={kind} className="agents-dock-side-item" onContextMenu={(e) => { e.preventDefault(); setSideMenu({ at: { x: e.clientX, y: e.clientY }, items: [
+                { id: 'moveUp', label: t('agents.tree.moveUp'), disabled: at === 0, run: () => moveInSide(kind, at - 1) },
+                { id: 'moveDown', label: t('agents.tree.moveDown'), disabled: at === side.length - 1, run: () => moveInSide(kind, at + 1) },
+                { id: 'toLeft', label: t('agents.section.toLeft'), run: () => moveToLeft(kind) },
+              ] }); }}>
                 <div className="agents-section-head agents-dock-side-head"><span className="agents-label">{mod ? t(mod.titleKey) : kind}</span><span className="agents-section-actions"><SectionButton icon="close" label={t('agents.section.hide')} onClick={() => setSide((cur) => cur.filter((k) => k !== kind))} /></span></div>
                 <PanelBoundary>{mod ? <mod.Panel {...panelProps(kind, {}, true, () => undefined)} /> : <MissingPanel kind={kind} />}</PanelBoundary>
               </section>
