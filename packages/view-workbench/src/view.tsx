@@ -4,7 +4,7 @@ import { workbenchClient, type WorkbenchClient } from './client';
 import { workbenchCommands } from './commands';
 import { en, ptBR } from './i18n';
 import { workbenchSettingDefs, type WorkbenchViewSettings } from './settings';
-import { FormatterCard, projectsSettingField, ResultsCard, WorkbenchCard } from './settings/cards';
+import { FormatterCard, ResultsCard, WorkbenchCard } from './settings/cards';
 
 // The editor and its language parsers are a separate chunk, loaded on first visit.
 const WorkbenchScreen = lazy(() => import('./WorkbenchScreen').then((m) => ({ default: m.WorkbenchScreen })));
@@ -31,7 +31,6 @@ export function workbenchView({ group, order, client = workbenchClient }: Workbe
         { path: ['workbench', 'sqlFormatter'], order: 20, label: 'settings.section.workbench.sqlFormatter' },
       ],
       cards: { workbench: WorkbenchCard, 'workbench.results': ResultsCard, 'workbench.sqlFormatter': FormatterCard },
-      fields: { 'workbench.explorerProjects': projectsSettingField(client) },
     },
     messages: { en, 'pt-BR': ptBR },
   });

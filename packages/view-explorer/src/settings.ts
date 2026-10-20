@@ -10,8 +10,6 @@ export type { ExplorerSettings };
 
 /** The part of the Workbench state the Explorer reads (SQL files) and writes (`doc`, to open a file there). */
 export interface ExplorerWorkbench {
-  /** Project ids allowed to run SQL from the Explorer. */
-  explorerProjects: string[];
   maxRows: number;
   results: Partial<ResultFormat>;
   copyFormat: CopyFormat;
@@ -54,7 +52,6 @@ const DEFAULT_MAX_ROWS = 1000;
 /** The stored Workbench state with every field the Explorer reads filled with its default. */
 export const withWorkbenchDefaults = (raw?: Partial<ExplorerWorkbench>) => ({
   ...raw,
-  explorerProjects: raw?.explorerProjects ?? [],
   maxRows: raw?.maxRows ?? DEFAULT_MAX_ROWS,
   results: { ...DEFAULT_RESULT_FORMAT, ...raw?.results },
   copyFormat: raw?.copyFormat ?? ('tsv' satisfies CopyFormat),

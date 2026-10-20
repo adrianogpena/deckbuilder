@@ -71,12 +71,12 @@ function ParamsDialog({ params, initial, onSubmit, onClose }: { params: SqlParam
 
 /**
  * SQL of an Explorer file: connection dropdown and Run / Run all / Format tab actions, the editor's run keys and completions, and a results panel
- * below the editor. Only `.sql` files of projects in `workbench.explorerProjects`; the rest get nothing.
+ * below the editor. Only `.sql` files; the rest get nothing.
  * The connection's DB session is the Workbench's.
  */
 export function useExplorerSql({ project, name, asSql, active, focused, draft, sql, confirm, onRunStart }: Options) {
   const settings = useMemo(() => withWorkbenchDefaults(sql?.workbench), [sql?.workbench]);
-  const enabled = !!sql && active && (asSql || langOfFile(name) === 'sql') && settings.explorerProjects.includes(project);
+  const enabled = !!sql && active && (asSql || langOfFile(name) === 'sql');
   const connections = useAsync(() => (enabled ? sqlClient.connections() : Promise.resolve([])), [enabled]);
   const connection = connections.data?.find((c) => c.id === sql?.connections?.[project]);
   const db = enabled ? connection?.id : undefined;

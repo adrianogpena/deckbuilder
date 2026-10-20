@@ -22,8 +22,6 @@ export interface WorkbenchState {
   steps?: boolean;
   /** Width of the SQL steps sidebar in px. */
   stepsWidth?: number;
-  /** Project ids allowed to run SQL from the Explorer. */
-  explorerProjects?: string[];
   /** How result cells are shown and copied. */
   results?: {
     nullText: string;
@@ -95,10 +93,6 @@ export function validWorkbench(raw: unknown): WorkbenchState | null {
   if (r.stepsWidth !== undefined) {
     if (typeof r.stepsWidth !== 'number' || !Number.isInteger(r.stepsWidth) || r.stepsWidth < 200 || r.stepsWidth > 2000) return null;
     out.stepsWidth = r.stepsWidth;
-  }
-  if (r.explorerProjects !== undefined) {
-    if (!Array.isArray(r.explorerProjects) || r.explorerProjects.length > 1000 || !r.explorerProjects.every((id) => typeof id === 'string' && /^[\w-]{1,64}$/.test(id))) return null;
-    out.explorerProjects = [...r.explorerProjects];
   }
   if (r.results !== undefined) {
     const x = r.results as Partial<NonNullable<WorkbenchState['results']>> | null;

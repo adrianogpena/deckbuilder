@@ -20,8 +20,6 @@ export interface WorkbenchSettings {
   stepsWidth?: number;
   /** The SQL history sidebar is open. */
   history?: boolean;
-  /** Project ids allowed to run SQL from the Explorer. */
-  explorerProjects: string[];
   /** How result cells are shown and copied; exports stay raw. */
   results: ResultFormat;
   /** Format of "Copy results". */
@@ -78,7 +76,6 @@ const resultBool = (key: 'hideMidnight' | 'thousandsSeparator', order: number, l
 });
 
 export const workbenchSettingDefs: SettingDef<WorkbenchViewSettings>[] = [
-  { id: 'workbench.explorerProjects', kind: 'custom', section: workbench, order: 10, label: 'settings.workbench.projects', description: 'settings.workbench.projects.hint', default: [] as string[], get: (s) => withWorkbenchDefaults(s.workbench).explorerProjects, set: (s, v) => withWorkbench(s, { explorerProjects: v as string[] }) },
   {
     id: 'workbench.maxRows',
     kind: 'number',
@@ -158,7 +155,6 @@ export const workbenchSettingDefs: SettingDef<WorkbenchViewSettings>[] = [
 /** The stored workbench state with every missing field filled with its default. */
 export const withWorkbenchDefaults = (raw?: Partial<WorkbenchSettings>): WorkbenchSettings => ({
   ...raw,
-  explorerProjects: raw?.explorerProjects ?? [],
   results: { ...DEFAULT_RESULT_FORMAT, ...raw?.results },
   copyFormat: raw?.copyFormat ?? 'tsv',
   confirmDestructive: raw?.confirmDestructive ?? true,
