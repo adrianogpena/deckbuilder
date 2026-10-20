@@ -5,9 +5,7 @@ import * as review from './review/i18n';
 import * as usage from './usage/i18n';
 import * as run from './run/i18n';
 import * as scratchpad from './scratchpad/i18n';
-import * as files from './files/i18n';
 import * as code from './code/i18n';
-import * as preview from './preview/i18n';
 import * as json from './json/i18n';
 import * as task from './task/i18n';
 import * as notes from './notes/i18n';
@@ -25,9 +23,7 @@ export const panelsEn = {
   ...usage.en,
   ...run.en,
   ...scratchpad.en,
-  ...files.en,
   ...code.en,
-  ...preview.en,
   ...json.en,
   ...task.en,
   ...notes.en,
@@ -45,9 +41,7 @@ export const panelsPtBR = {
   ...usage.ptBR,
   ...run.ptBR,
   ...scratchpad.ptBR,
-  ...files.ptBR,
   ...code.ptBR,
-  ...preview.ptBR,
   ...json.ptBR,
   ...task.ptBR,
   ...notes.ptBR,

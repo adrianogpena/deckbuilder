@@ -13,27 +13,27 @@ describe('sidebar sections', () => {
 
   test('hide, restore one, restore all', () => {
     const a = hideSection(hideSection(DEFAULT_SECTIONS, 'tags'), 'usage');
-    expect(a.hidden).toEqual(['changes', 'files', 'tags', 'usage']);
-    expect(restoreSection(a, 'tags').hidden).toEqual(['changes', 'files', 'usage']);
+    expect(a.hidden).toEqual(['changes', 'tags', 'usage']);
+    expect(restoreSection(a, 'tags').hidden).toEqual(['changes', 'usage']);
     expect(restoreAll(a).hidden).toEqual([]);
   });
 
   test('move sets an explicit order', () => {
-    expect(sectionOrder(DEFAULT_SECTIONS)).toEqual(['sessions', 'changes', 'files', 'tags', 'archived', 'usage']);
+    expect(sectionOrder(DEFAULT_SECTIONS)).toEqual(['sessions', 'changes', 'tags', 'archived', 'usage']);
     expect(sectionOrder(DEFAULT_SECTIONS, true)[0]).toBe('usage');
     const a = moveSection(DEFAULT_SECTIONS, 'usage', 0);
-    expect(a.order).toEqual(['usage', 'sessions', 'changes', 'files', 'tags', 'archived']);
-    expect(moveSection(a, 'usage', 99).order).toEqual(['sessions', 'changes', 'files', 'tags', 'archived', 'usage']);
+    expect(a.order).toEqual(['usage', 'sessions', 'changes', 'tags', 'archived']);
+    expect(moveSection(a, 'usage', 99).order).toEqual(['sessions', 'changes', 'tags', 'archived', 'usage']);
   });
 
   test('moveWithin keeps the tree and island areas apart', () => {
     const a = moveWithin(DEFAULT_SECTIONS, 'tags', 0);
     expect(sectionOrder(a).filter(isTreeSection)).toEqual(['tags', 'sessions', 'archived']);
-    expect(sectionOrder(a).filter((x) => !isTreeSection(x))).toEqual(['changes', 'files', 'usage']);
+    expect(sectionOrder(a).filter((x) => !isTreeSection(x))).toEqual(['changes', 'usage']);
   });
 
   test('normalize drops unknown ids and completes the order', () => {
-    expect(normalizeSections({ order: ['tags', 'bogus'], collapsed: [], hidden: ['x', 'usage'] })).toEqual({ order: ['tags', 'sessions', 'changes', 'files', 'archived', 'usage'], collapsed: [], hidden: ['usage'], tools: [] });
+    expect(normalizeSections({ order: ['tags', 'bogus'], collapsed: [], hidden: ['x', 'files', 'usage'] })).toEqual({ order: ['tags', 'sessions', 'changes', 'archived', 'usage'], collapsed: [], hidden: ['usage'], tools: [] });
     expect(normalizeSections(null)).toEqual(DEFAULT_SECTIONS);
   });
 
@@ -42,7 +42,7 @@ describe('sidebar sections', () => {
     expect(a.tools).toEqual(['json']);
     expect(sectionOrder(a).at(-1)).toBe('tool:json');
     expect(hideSection(moveSection(a, 'tool:json', 0), 'tool:json')).toEqual({ ...DEFAULT_SECTIONS, order: sectionOrder(DEFAULT_SECTIONS) });
-    expect(dockTool(DEFAULT_SECTIONS, 'changes').hidden).toEqual(['files']);
+    expect(dockTool(DEFAULT_SECTIONS, 'changes').hidden).toEqual([]);
     expect(normalizeSections({ collapsed: [], hidden: [] }).tools).toEqual([]);
     expect(normalizeSections({ tools: ['json', 'bogus'], order: ['tool:json', 'tool:task'] }).order?.[0]).toBe('tool:json');
     expect(normalizeSections({ tools: ['json'], order: ['tool:task'] }).order).not.toContain('tool:task');

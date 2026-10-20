@@ -1,6 +1,0 @@
-.agents-panel-files { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; overflow: auto; }
-.agents-files-tree { display: flex; flex-direction: column; padding: 4px 0; }
-.agents-files-row { display: flex; align-items: center; gap: 6px; padding: 3px 8px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; white-space: nowrap; }
-.agents-files-row:hover { background: var(--hover, rgba(128, 128, 128, 0.15)); }
-.agents-files-row svg { flex: none; width: 14px; height: 14px; }
-.agents-files-name { overflow: hidden; text-overflow: ellipsis; }

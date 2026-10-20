@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { t } from '../../../i18n';
 import { listAgentSessions, type AgentSessionView } from '../../api';
-import { fs, relativeTo } from '../files/fs';
+import { fs, relativeTo } from '../code/fs';
 import type { WorkspaceApi } from '../../workspace/types';
 import { askPrompt, linesOf } from './prompt';
 

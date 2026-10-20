@@ -6,7 +6,7 @@ export type CoreSectionId = 'sessions' | 'changes' | 'files' | 'tags' | 'archive
 /** A core card, or a docked tool panel (`tool:<kind>`). */
 export type SectionId = CoreSectionId | `tool:${string}`;
 
-export const CORE_IDS: readonly CoreSectionId[] = ['sessions', 'changes', 'files', 'tags', 'archived', 'usage'];
+export const CORE_IDS: readonly CoreSectionId[] = ['sessions', 'changes', 'tags', 'archived', 'usage'];
 export const SECTION_IDS = CORE_IDS;
 
 export const SECTIONS_KEY = 'deckbuilder.agents.sections';
@@ -22,11 +22,11 @@ export interface SectionsState {
   tools: string[];
 }
 
-/** Changes and Files start on the right side panel, not as left cards. */
-export const DEFAULT_SECTIONS: SectionsState = { collapsed: ['archived'], hidden: ['changes', 'files'], tools: [] };
+/** Changes starts on the right side panel, not as a left card. */
+export const DEFAULT_SECTIONS: SectionsState = { collapsed: ['archived'], hidden: ['changes'], tools: [] };
 
 /** Tool kinds that are core cards instead of `tool:` cards. */
-const CORE_OF_KIND: Record<string, CoreSectionId> = { changes: 'changes', files: 'files', usage: 'usage' };
+const CORE_OF_KIND: Record<string, CoreSectionId> = { changes: 'changes', usage: 'usage' };
 
 /** The card a tool kind docks as. */
 export const sectionOfKind = (kind: string): SectionId => CORE_OF_KIND[kind] ?? `tool:${kind}`;

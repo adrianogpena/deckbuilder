@@ -31,7 +31,7 @@ import { panelOf } from './workspace/registry';
 import type { PanelKind, WorkspaceApi } from './workspace/types';
 
 const CORE_TITLE = {
-  sessions: 'agents.section.sessions', changes: 'agents.section.changes', files: 'agents.section.files', tags: 'agents.section.tags', archived: 'agents.section.archived', usage: 'agents.section.usage',
+  sessions: 'agents.section.sessions', changes: 'agents.section.changes', tags: 'agents.section.tags', archived: 'agents.section.archived', usage: 'agents.section.usage',
 } as const;
 
 const sectionTitle = (id: SectionId): string => {
@@ -1059,11 +1059,11 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
       { id: 'moveUp', label: t('agents.tree.moveUp'), disabled: at <= 0, run: () => moveSectionTo(id, at - 1) },
       { id: 'moveDown', label: t('agents.tree.moveDown'), disabled: at >= group.length - 1, run: () => moveSectionTo(id, at + 1) },
       'sep',
-      ...(toolKind(id) !== undefined || id === 'changes' || id === 'files' ? [{ id: 'toWorkspace', label: t('agents.section.toWorkspace'), icon: 'panel-right' as const, disabled: !getWorkspace?.(), run: () => toWorkspace(id) }] : []),
+      ...(toolKind(id) !== undefined || id === 'changes' ? [{ id: 'toWorkspace', label: t('agents.section.toWorkspace'), icon: 'panel-right' as const, disabled: !getWorkspace?.(), run: () => toWorkspace(id) }] : []),
       { id: 'hide', label: t('agents.section.hide'), run: () => setSections((st) => hideSection(st, id)) },
     ] });
   };
-  const restorable: SectionId[] = sections.hidden.filter((id) => id !== 'changes' && id !== 'files');
+  const restorable: SectionId[] = sections.hidden.filter((id) => id !== 'changes');
   const addSectionMenu = (e: MouseEvent) => {
     const box = (e.currentTarget as HTMLElement).getBoundingClientRect();
     setMenu({ at: { x: box.left, y: box.bottom }, items: [
@@ -1197,7 +1197,7 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
     if (sections.hidden.includes(id)) return null;
     const kind = toolKind(id);
     if (kind !== undefined) return panelOf(kind) && section(id, cardBody(kind, true), { className: 'agents-section-tool' });
-    if (id === 'changes' || id === 'files') return section(id, cardBody(id, false), { className: 'agents-section-tool' });
+    if (id === 'changes') return section(id, cardBody(id, false), { className: 'agents-section-tool' });
     if (id === 'sessions') return section(id, sessionsBody, { count: live.length, note: note && <span className="agents-panel-note">{note}</span>, actions: sessionsActions, className: 'agents-section-sessions' });
     if (id === 'tags') return tags.length > 0 && section(id, <div className="agents-tags">{tagsBody}</div>, { count: tags.length });
     if (id === 'archived') return archived.length > 0 && section(id, archived.map((x) => row(x)), { count: archived.length, forceOpen: searching, className: 'agents-archived' });

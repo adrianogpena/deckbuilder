@@ -3,7 +3,7 @@ import { langOfFile } from '@deckbuilderkit/editor';
 import { type ApiError, ErrorBanner, errorOf, PanelLoading } from '@deckbuilderkit/ui';
 import { t } from '../../../i18n';
 import type { PanelModule, PanelProps } from '../../workspace/types';
-import { fs, relativeTo } from '../files/fs';
+import { fs, relativeTo } from './fs';
 import './style.css';
 
 const CodeEditor = lazy(() => import('@deckbuilderkit/editor').then((m) => ({ default: m.CodeEditor })));
