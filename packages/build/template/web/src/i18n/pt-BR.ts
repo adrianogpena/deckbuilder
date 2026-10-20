@@ -14,6 +14,8 @@ export const ptBR: Messages<typeof en> = {
   'palette.theme': 'Tema: {name}',
   'palette.quit': 'Sair do {name}',
   'nav.palette': 'Paleta de comandos (Ctrl+Shift+P)',
+  'window.popOut': 'Destacar vista',
+  'window.poppedHint': 'Aberta em janela própria',
 
   'home.title': 'Início',
   'home.system': 'Sistema',

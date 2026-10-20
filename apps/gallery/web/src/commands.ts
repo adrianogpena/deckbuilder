@@ -18,6 +18,7 @@ export const bindViews = (views: CommandViews) => {
 export const navCommandId = (screen: string) => `nav.${screen}`;
 export const SETTINGS_COMMAND = 'app.settings';
 export const KEYS_COMMAND = 'app.keybindings';
+export const POPOUT_COMMAND = 'window.popOut';
 
 /** Every shortcut of the gallery; built at render so the labels follow the language. */
 export function commands(views: CommandViews): CommandDef[] {
@@ -31,6 +32,7 @@ export function commands(views: CommandViews): CommandDef[] {
     // Settings and keybindings are modals over the screen, not screens; both are VS Code's keys.
     { id: SETTINGS_COMMAND, scope: GLOBAL, label: t('nav.settings'), keys: ['Ctrl+,'], inInput: true },
     { id: KEYS_COMMAND, scope: GLOBAL, label: t('nav.keys'), keys: ['Ctrl+K Ctrl+S'], inInput: true },
+    { id: POPOUT_COMMAND, scope: GLOBAL, label: t('window.popOut'), keys: ['Ctrl+Alt+O'], inInput: true, desktopOnly: true },
     ...views.keybindings(),
     ...views.commands(),
   ];

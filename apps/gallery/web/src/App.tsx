@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PALETTES } from '@deckbuilderkit/server-core/palettes';
-import { CommandPalette, detectLanguage, effectiveKeys, ErrorBanner, GLOBAL, AppFrame, Icon, isDesktop, KeybindingProvider, LayoutProvider, type PaletteItem, setFileAssociations, setLanguage, setViewTitle, Sidebar, Spinner, titleWithBadge, ToastProvider, type ApiError, errorMessage, errorOf, useToast, useAsync, useCommand, useCommandPalette, useHashRoute, useHeartbeat, useKeybindings, useRunCommand, useTheme, useTitleBadge,useViewTitle,useZen, useZoom } from '@deckbuilderkit/ui';
+import { CommandPalette, detectLanguage, effectiveKeys, ErrorBanner, GLOBAL, AppFrame, Icon, isDesktop, KeybindingProvider, LayoutProvider, type PaletteItem, popOut, popoutView, usePopouts,setFileAssociations, setLanguage, setViewTitle, Sidebar, Spinner, titleWithBadge, ToastProvider, type ApiError, errorMessage, errorOf, useToast, useAsync, useCommand, useCommandPalette, useHashRoute, useHeartbeat, useKeybindings, useRunCommand, useTheme, useTitleBadge,useViewTitle,useZen, useZoom } from '@deckbuilderkit/ui';
 import { EditorOptionsContext } from '@deckbuilderkit/editor/options';
 import { APP } from '../../app';
 import { api, type Settings } from './api';
-import { commandById, commands, KEYS_COMMAND, navCommandId, SETTINGS_COMMAND } from './commands';
+import { commandById, commands, KEYS_COMMAND, navCommandId, POPOUT_COMMAND, SETTINGS_COMMAND } from './commands';
 import { type MessageKey, t } from './i18n';
 import { appearanceSettingsOf, editorSettingsOf, generalSettingsOf, keyboardSettingsOf, windowSettingsOf } from './settings';
-import { SettingsModal } from './screens/SettingsModal';
+import { SettingsModal, viewSettingsSection } from './screens/SettingsModal';
 import { views, type ScreenId } from './views';
 
 // Retrying can't revive a used launch code or a stale token; the user has to open the app again.
@@ -52,7 +52,10 @@ function Shell({ initialSettings }: { initialSettings: Settings }) {
     window.addEventListener('hashchange', take);
     return () => window.removeEventListener('hashchange', take);
   }, []);
-  const [screen, go] = useHashRoute(views.ids, generalSettingsOf(settings).startScreen as ScreenId);
+  const pv = popoutView() as ScreenId | undefined;
+  const [routed, rawGo] = useHashRoute(views.ids, generalSettingsOf(settings).startScreen as ScreenId);
+  const screen = pv && views.has(pv) ? pv : routed;
+  const go = useCallback((id: ScreenId) => { if (!pv || id === pv) rawGo(id); }, [pv, rawGo]);
   shown.current = screen;
   setLanguage(settings.language ?? detectLanguage());
   setFileAssociations(settings.fileAssociations);
@@ -103,10 +106,14 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
     root.dataset.statusBar = String(windowOptions.statusBar);
   }, [windowOptions]);
 
+  const inPopout = popoutView() !== undefined;
+  const popouts = usePopouts();
+  const popped = popouts.views;
   const titleBadge = useTitleBadge();
   const viewTitle = useViewTitle();
   useEffect(() => { setViewTitle(undefined); }, [screen]);
   useEffect(() => {
+    if (inPopout && views.has(screen)) { document.title = titleWithBadge(viewTitle ?? views.label(screen), titleBadge); return; }
     const base = viewTitle ? `${viewTitle} — ${APP.name}` : views.has(screen) ? `${views.label(screen)} · ${APP.name}` : APP.name;
     document.title = titleWithBadge(base, titleBadge);
   }, [screen, settings.language, titleBadge, viewTitle]);
@@ -130,9 +137,24 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
 
   const navItems = views.nav.flatMap((s) => s.items);
   // The nav list is a constant, so the hooks run in the same order every render.
-  for (const item of navItems) useCommand(commandById(navCommandId(item.id)), () => go(item.id));
+  const firstFree = (skip?: string) => navItems.find((i) => i.id !== skip && !popped.has(i.id))?.id;
+  const goView = (id: ScreenId) => { if (popped.has(id)) void popOut(id, views.label(id)); else go(id); };
+  const popOutShown = () => {
+    void popOut(screen, views.label(screen)).then((ok) => {
+      const free = ok ? firstFree(screen) : undefined;
+      if (free) go(free);
+    });
+  };
+  // A view popped out elsewhere (or a hash pointing at one) leaves the main window.
+  useEffect(() => {
+    if (inPopout || !popped.has(screen)) return;
+    const free = firstFree();
+    if (free) go(free);
+  }, [popped, screen, inPopout]);
+  for (const item of navItems) useCommand(commandById(navCommandId(item.id)), () => goView(item.id), { enabled: !inPopout });
   useCommand(commandById(SETTINGS_COMMAND), () => setOverlay('settings'));
-  useCommand(commandById(KEYS_COMMAND), () => setOverlay('keys'));
+  useCommand(commandById(KEYS_COMMAND), () => { if (!inPopout) setOverlay('keys'); });
+  useCommand(commandById(POPOUT_COMMAND), popOutShown, { enabled: !inPopout && popouts.supported });
   const zen = useZen();
   const keys = useKeybindings();
   const runCommand = useRunCommand();
@@ -141,12 +163,12 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
   const quit = useCallback(() => { api.quit().then(() => setStopped(true)).catch(() => { /* already gone */ }); }, []);
   const nextTheme = kind === 'dark' ? 'light' : 'dark';
   const items = useMemo<PaletteItem[]>(() => {
-    const goTo = navItems.map((i): PaletteItem => ({
-      id: `go:${i.id}`, group: t('palette.group.go'), label: views.label(i.id), hint: chordOf(navCommandId(i.id)), keywords: [i.id], run: () => go(i.id),
+    const goTo = inPopout ? [] : navItems.map((i): PaletteItem => ({
+      id: `go:${i.id}`, group: t('palette.group.go'), label: views.label(i.id), hint: chordOf(navCommandId(i.id)), keywords: [i.id], run: () => goView(i.id),
     }));
     const overlays: PaletteItem[] = [
       { id: 'app:settings', group: t('palette.group.go'), label: t('nav.settings'), hint: chordOf(SETTINGS_COMMAND), keywords: ['settings', 'preferences'], run: () => setOverlay('settings') },
-      { id: 'app:keys', group: t('palette.group.go'), label: t('nav.keys'), hint: chordOf(KEYS_COMMAND), keywords: ['keybindings', 'shortcuts', 'keys'], run: () => setOverlay('keys') },
+      ...(inPopout ? [] : [{ id: 'app:keys', group: t('palette.group.go'), label: t('nav.keys'), hint: chordOf(KEYS_COMMAND), keywords: ['keybindings', 'shortcuts', 'keys'], run: () => setOverlay('keys') }]),
     ];
     const toggle: PaletteItem = {
       id: 'theme:toggle', group: t('palette.group.theme'), label: t(`nav.theme.${nextTheme}`), keywords: ['theme', 'dark', 'light'],
@@ -163,7 +185,7 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
       id: `cmd:${d.id}`, group: views.label(keys!.scope), label: d.label, hint: chordOf(d.id), keywords: [d.id], run: () => void runCommand(d.id),
     }));
     return [...goTo, ...overlays, ...viewItems, toggle, ...palettes, ...quitItem];
-  }, [go, save, quit, nextTheme, settings.language, keys, setOverlay]);
+  }, [go, save, quit, nextTheme, settings.language, keys, setOverlay, inPopout, popped]);
 
   if (stopped) return <div className="boot"><span>{t('app.stopped', { name: APP.name })}</span></div>;
 
@@ -174,16 +196,27 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
   const settingsChord = chordOf(SETTINGS_COMMAND);
   const settingsTitle = settingsChord ? `${t('nav.settings')} (${settingsChord})` : t('nav.settings');
 
+  const popOutChord = chordOf(POPOUT_COMMAND);
+  const popOutTitle = popOutChord ? `${t('window.popOut')} (${popOutChord})` : t('window.popOut');
+  const gear = (
+    <button className={`btn btn-ghost btn-sm${overlay ? ' active' : ''} btn-icon`} onClick={() => setOverlay('settings')} title={settingsTitle} aria-label={settingsTitle}>
+      <Icon name="settings" />
+    </button>
+  );
   const footer = (
     <>
-      <button className={`btn btn-ghost btn-sm${overlay ? ' active' : ''} btn-icon`} onClick={() => setOverlay('settings')} title={settingsTitle} aria-label={settingsTitle}>
-        <Icon name="settings" />
-      </button>
+      {popouts.supported && !inPopout && (
+        <button className="btn btn-ghost btn-sm btn-icon" onClick={() => void runCommand(POPOUT_COMMAND)} title={popOutTitle} aria-label={popOutTitle}>
+          <Icon name="popout" />
+        </button>
+      )}
+      {gear}
       <button className="btn btn-ghost btn-sm btn-icon" onClick={() => palette.setOpen(true)} title={t('nav.palette')} aria-label={t('nav.palette')}>
         <Icon name="search" />
       </button>
     </>
   );
+  const popoutTools = viewSettingsSection(screen) ? gear : undefined;
 
   return (
     <LayoutProvider layout={settings.layout} icons={settings.icons} mainMenu={settings.mainMenu} dock={settings.dock} layoutIcon={settings.layoutIcon}>
@@ -193,13 +226,14 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
       <views.Providers settings={settings} go={go as (id: string) => void}>
       <AppFrame
         zen={zen}
-        tools={footer}
-        sidebar={<Sidebar name={APP.name} sections={sections} current={screen} onSelect={go} footer={footer} />}
+        popout={inPopout}
+        tools={inPopout ? popoutTools : footer}
+        sidebar={inPopout ? undefined : <Sidebar name={APP.name} sections={sections} current={screen} onSelect={goView} footer={footer} popped={popped as ReadonlySet<ScreenId>} poppedHint={t('window.poppedHint')} />}
       >
         <main className="main">
           <div className="main-view" hidden={!!overlay}>{views.render(screen, { settings, onSave: save, go: go as (id: string) => void })}</div>
           {overlay && (
-            <SettingsModal key={overlay} settings={settings} onChange={save} onQuit={() => setStopped(true)} onClose={() => setOverlay(null)} initialSection={overlay === 'keys' ? 'keyboard.shortcuts' : overlay.startsWith('settings/') ? overlay.slice('settings/'.length) : undefined} />
+            <SettingsModal key={overlay} settings={settings} onChange={save} onQuit={() => setStopped(true)} onClose={() => setOverlay(null)} onlyView={inPopout ? screen : undefined} initialSection={inPopout ? undefined : overlay === 'keys' ? 'keyboard.shortcuts' : overlay.startsWith('settings/') ? overlay.slice('settings/'.length) : undefined} />
           )}
         </main>
         {palette.open && <CommandPalette items={items} initialQuery={palette.initialQuery} onClose={() => palette.setOpen(false)} />}

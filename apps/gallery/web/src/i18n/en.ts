@@ -14,6 +14,8 @@ export const en = {
   'palette.theme': 'Theme: {name}',
   'palette.quit': 'Quit {name}',
   'nav.palette': 'Command palette (Ctrl+Shift+P)',
+  'window.popOut': 'Pop out view',
+  'window.poppedHint': 'Open in its own window',
 
   'home.title': 'Home',
   'home.system': 'System',
