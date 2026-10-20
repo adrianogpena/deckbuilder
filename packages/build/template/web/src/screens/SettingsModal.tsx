@@ -192,9 +192,12 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
   const deepCount = (key: string) => [...hits].reduce((n, [k, h]) => (isUnder(k, key) ? n + h.ids.length : n), 0);
   const total = [...hits.values()].reduce((n, h) => n + h.ids.length, 0);
 
+  /** Pages with an explicit `render` branch; keep in step with the switch below. */
+  const OWN_PAGES = ['general', 'appearance', 'window', 'keyboard.shortcuts', 'system.updates'];
+
   /** Whether the section has settings or a card of its own (else a parent lists links to its children). */
   const hasOwn = (key: string): boolean =>
-    ['general', 'appearance', 'window', 'editor'].includes(key) || settingsRegistry.settingsIn(key.split('.')).length > 0 || !!false;
+    OWN_PAGES.includes(key) || settingsRegistry.settingsIn(key.split('.')).length > 0 || !!false;
 
   const render = (key: string): ReactNode => {
     switch (key) {
