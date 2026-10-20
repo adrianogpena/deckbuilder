@@ -2,16 +2,8 @@ import type { SqlHistoryEntry } from '@deckbuilderkit/server-core/protocol';
 import { type DbConnection, type SqlClient, sqlClient } from '@deckbuilderkit/sql-ui';
 import { request } from '@deckbuilderkit/ui';
 
-/** A project folder, as the Settings page lists the ones allowed to run SQL. */
-export interface WorkbenchProject {
-  id: string;
-  name: string;
-  path: string;
-}
-
 /** The server calls the Workbench makes; the app builds it from its api and passes it to `workbenchView`. */
 export interface WorkbenchClient extends SqlClient {
-  projects: () => Promise<WorkbenchProject[]>;
   createConnection: (input: Record<string, unknown>) => Promise<DbConnection>;
   updateConnection: (id: string, input: Record<string, unknown>) => Promise<DbConnection>;
   deleteConnection: (id: string) => Promise<unknown>;
@@ -27,10 +19,9 @@ export interface WorkbenchClient extends SqlClient {
   writeFile: (root: string, path: string, text: string, expectedMtime: number | undefined, encoding?: string) => Promise<{ mtime: number }>;
 }
 
-/** The default `WorkbenchClient`: the server's `/api/db/*`, `/api/projects` and `/api/fs` routes over fetch. */
+/** The default `WorkbenchClient`: the server's `/api/db/*` and `/api/fs` routes over fetch. */
 export const workbenchClient: WorkbenchClient = {
   ...sqlClient,
-  projects: () => request<WorkbenchProject[]>('GET', '/api/projects'),
   createConnection: (input) => request<DbConnection>('POST', '/api/db/connections', {}, input),
   updateConnection: (id, input) => request<DbConnection>('PUT', '/api/db/connections', { id }, input),
   deleteConnection: (id) => request<{ ok: true }>('DELETE', '/api/db/connections', { id }),

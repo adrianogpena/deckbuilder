@@ -339,8 +339,6 @@ kbd {
 .field { display: flex; flex-direction: column; gap: var(--space-6); }
 .field select { align-self: flex-start; min-width: 200px; }
 .field .check-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-12); padding: var(--space-4) 0; cursor: pointer; }
-.project-add-list { display: flex; flex-direction: column; max-height: 220px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius-md); }
-.project-add-list .menu-item { justify-content: space-between; gap: var(--space-12); }
 
 .skeleton {
   height: var(--control-h); border-radius: var(--radius-md);
