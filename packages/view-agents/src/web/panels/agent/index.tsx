@@ -99,17 +99,18 @@ function AgentPanel({ params, api, update }: PanelProps) {
     }
   };
 
-  /** Take over an external session: ends the other terminal's process (after a warning unless it is idle), then resumes it here. */
+  /** Take over an external session (a hanging one is only closed, not started): ends the other terminal's process (after a warning unless it is idle), then resumes it here. */
   const takeOver = async () => {
     if (!session) return;
     host.setError('');
-    if (session.status !== 'idle' && session.status !== 'done') {
+    if (!session.hanging && session.status !== 'idle' && session.status !== 'done') {
       const status = t(`agents.status.${session.status}`).toLowerCase();
       const ok = await dialogs.confirm({ title: t('agents.external.takeover'), body: t('agents.external.takeoverBusy', { status }), okLabel: t('agents.external.takeover'), danger: true });
       if (!ok) return;
     }
     try {
       if (!(await takeOverSession(session.id)).ok) return host.setError(t('agents.external.takeoverFailed'));
+      if (session.hanging) return;
       const r = await startSession({ account: session.account, dir: session.cwd, sessionId: session.id });
       setTerminal(r.session);
       setResolved(true);
@@ -156,7 +157,7 @@ function AgentPanel({ params, api, update }: PanelProps) {
         )}
         {inExternal && (
           <div className="agents-pane">
-            <ExternalPane sessionId={session.id} updatedAt={session.updatedAt} external={session.external === true} onTakeOver={() => void takeOver()} />
+            <ExternalPane sessionId={session.id} updatedAt={session.updatedAt} external={session.external === true} hanging={session.hanging === true} onTakeOver={() => void takeOver()} />
           </div>
         )}
         {inPreview && !terminal && (

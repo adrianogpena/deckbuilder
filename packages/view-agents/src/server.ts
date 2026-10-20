@@ -38,7 +38,7 @@ import { createStatuslineInstaller } from './server/statusline-install.ts';
 import { addAccount, applyShared, deleteAccount, readShared, shareList } from './server/account-admin.ts';
 import { forgetPendingAccount, markPendingAccount } from './server/accounts.ts';
 import type { AccountPrefsSetResult, AgentAccountAddResult, AgentAccountApplyResult, AgentAccountDeleteResult, AgentAccountSharedResult } from './protocol.ts';
-import { type AgentStatus, createStatusTracker, externalIds, isPidAlive, readPidFiles } from './server/status.ts';
+import { type AgentStatus, createStatusTracker, externalIds, isPidAlive, readPidFiles, scanPidFiles } from './server/status.ts';
 import type { AgentDeleteResult, AgentRestoreResult, AgentTreePatch, AgentTrashEntry } from './protocol.ts';
 import { createTrashStore, isSafeId } from './server/trash.ts';
 import { createUsageReader, pruneUsage, usageContextPercent } from './server/usage.ts';
@@ -296,7 +296,10 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
       const err = detectScreenError(lines);
       if (err) screenErrors.set(id, err.message);
     }
-    const pids = accs.flatMap((a) => readPidFiles(a.dir));
+    const scans = accs.map((a) => scanPidFiles(a.dir));
+    const pids = scans.flatMap((x) => x.live);
+    const liveIds = new Set(pids.map((p) => p.sessionId));
+    const hanging = new Set(scans.flatMap((x) => x.stale).map((p) => p.sessionId).filter((id) => !liveIds.has(id) && !liveTerminalIds().includes(id)));
     const lc = lifecycleStep(pids);
     const s = loadSeen();
     const statuses = tracker.update(pids, screenErrors, { seen: s, starting: lc.starting, exited: lc.exited.keys() });
@@ -306,7 +309,7 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
     sevenDayHistory.observe(usage.accounts);
     const views: AgentSessionView[] = applyAccountView(scanner
       .scan(accs.map((a) => ({ id: a.id, dir: a.dir })), quick, { projectPaths: refs.map((r) => r.path), perFolder: sessionCap, keep: new Set([...statuses.keys(), ...claudeTerms().map((t) => t.sessionId)]) }, (m) => usage.windows.get(m))
-      .map((x) => ({ ...x, lifecycle: lc.exited.has(x.id) ? ('exited' as const) : lc.starting.has(x.id) ? ('starting' as const) : undefined, exitCode: lc.exited.get(x.id), contextPercent: usageContextPercent(usage.bySession.get(x.id)) ?? x.contextPercent, startupContextPercent: usage.bySession.get(x.id)?.startupContextPercent, modelName: usage.bySession.get(x.id)?.model?.display_name, effort: usage.bySession.get(x.id)?.effort, claudeVersion: usage.bySession.get(x.id)?.version, status: statusOf(x.id), live: statuses.has(x.id) || undefined, external: external.has(x.id) || undefined, project: matchProject(x.cwd, refs)?.id, seenAt: s[x.id] }))
+      .map((x) => ({ ...x, lifecycle: lc.exited.has(x.id) ? ('exited' as const) : lc.starting.has(x.id) ? ('starting' as const) : undefined, exitCode: lc.exited.get(x.id), contextPercent: usageContextPercent(usage.bySession.get(x.id)) ?? x.contextPercent, startupContextPercent: usage.bySession.get(x.id)?.startupContextPercent, modelName: usage.bySession.get(x.id)?.model?.display_name, effort: usage.bySession.get(x.id)?.effort, claudeVersion: usage.bySession.get(x.id)?.version, status: statusOf(x.id), live: statuses.has(x.id) || undefined, external: external.has(x.id) || hanging.has(x.id) || undefined, hanging: hanging.has(x.id) || undefined, project: matchProject(x.cwd, refs)?.id, seenAt: s[x.id] }))
       .filter((x) => x.project !== undefined)
       .sort((a, b) => b.updatedAt - a.updatedAt), accs, allView);
     if (agentsSettings?.autoSettle !== false) sessionState?.settle(views);
@@ -810,8 +813,12 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
         'POST /api/agents/session/takeover': async ({ json }) => {
           const b = await json<{ sessionId?: unknown }>();
           const id = typeof b.sessionId === 'string' ? b.sessionId : '';
-          const pids = accounts().flatMap((a) => readPidFiles(a.dir)).filter((e) => e.sessionId === id);
-          if (!pids.length || !(await compute()).sessions.some((x) => x.id === id && x.external)) return { ok: false };
+          const scans = accounts().map((a) => scanPidFiles(a.dir));
+          const pids = scans.flatMap((x) => x.live).filter((e) => e.sessionId === id);
+          const stale = scans.flatMap((x) => x.stale).filter((e) => e.sessionId === id);
+          if ((!pids.length && !stale.length) || !(await compute()).sessions.some((x) => x.id === id && x.external)) return { ok: false };
+          // A stale file has no Claude process (its pid may belong to another program): only the file goes, never a kill.
+          for (const e of stale) for (const f of e.files) rmSync(f, { force: true });
           for (const e of pids) {
             try {
               process.kill(e.pid);

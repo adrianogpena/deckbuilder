@@ -22,34 +22,86 @@ export function isPidAlive(pid: number): boolean {
   }
 }
 
-/** Reads `<account>/sessions/<pid>.json`; ignores `<pid>.<hash>.key`, unparsable files and dead pids. */
-export function readPidFiles(accountDir: string, alive: (pid: number) => boolean = isPidAlive): PidEntry[] {
+const PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+
+/** Creation time of a process as a Windows FILETIME string (what Claude writes as `procStart`); undefined elsewhere or when unreadable. */
+export function processStart(pid: number): string | undefined {
+  if (process.platform !== 'win32') return undefined;
+  try {
+    const { dlopen, FFIType, ptr } = require('bun:ffi') as typeof import('bun:ffi');
+    const k32 = dlopen('kernel32.dll', {
+      OpenProcess: { args: [FFIType.u32, FFIType.i32, FFIType.u32], returns: FFIType.ptr },
+      GetProcessTimes: { args: [FFIType.ptr, FFIType.ptr, FFIType.ptr, FFIType.ptr, FFIType.ptr], returns: FFIType.i32 },
+      CloseHandle: { args: [FFIType.ptr], returns: FFIType.i32 },
+    });
+    try {
+      const h = k32.symbols.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
+      if (!h) return undefined;
+      const t = new BigUint64Array(4);
+      const ok = k32.symbols.GetProcessTimes(h, ptr(t), ptr(t, 8), ptr(t, 16), ptr(t, 24));
+      k32.symbols.CloseHandle(h);
+      return ok ? t[0].toString() : undefined;
+    } finally {
+      k32.close();
+    }
+  } catch {
+    return undefined;
+  }
+}
+
+export interface PidScan {
+  live: PidEntry[];
+  /** Pid files with no Claude process behind them: the pid is dead, or reused by another process (`procStart` differs). */
+  stale: Array<PidEntry & { files: string[] }>;
+}
+
+/**
+ * Scans `<account>/sessions/<pid>.json`; ignores `<pid>.<hash>.key` and unparsable files.
+ * A file whose pid is dead, or whose `procStart` differs from the live process's start (pid reused), is stale.
+ */
+export function scanPidFiles(
+  accountDir: string,
+  alive: (pid: number) => boolean = isPidAlive,
+  startOf: (pid: number) => string | undefined = processStart,
+): PidScan {
   const dir = join(accountDir, 'sessions');
+  const out: PidScan = { live: [], stale: [] };
   let names: string[] = [];
   try {
     names = readdirSync(dir);
   } catch {
-    return [];
+    return out;
   }
-  const out: PidEntry[] = [];
   for (const n of names) {
     if (!/^\d+\.json$/.test(n)) continue;
     try {
       const j = JSON.parse(readFileSync(join(dir, n), 'utf8'));
       const pid = Number(j.pid ?? n.slice(0, -5));
-      if (!Number.isInteger(pid) || typeof j.sessionId !== 'string' || !alive(pid)) continue;
-      out.push({
+      if (!Number.isInteger(pid) || typeof j.sessionId !== 'string') continue;
+      const entry: PidEntry = {
         pid,
         sessionId: j.sessionId,
         cwd: typeof j.cwd === 'string' ? j.cwd : undefined,
         status: typeof j.status === 'string' ? j.status : undefined,
         updatedAt: typeof j.updatedAt === 'number' ? j.updatedAt : undefined,
-      });
+      };
+      let ours = alive(pid);
+      if (ours && typeof j.procStart === 'string') {
+        const start = startOf(pid);
+        ours = start === j.procStart || (start === undefined && process.platform !== 'win32');
+      }
+      if (ours) out.live.push(entry);
+      else out.stale.push({ ...entry, files: names.filter((f) => f === n || (f.startsWith(`${pid}.`) && f.endsWith('.key'))).map((f) => join(dir, f)) });
     } catch {
       /* best effort */
     }
   }
   return out;
+}
+
+/** The pid entries of running Claude processes. */
+export function readPidFiles(accountDir: string, alive?: (pid: number) => boolean, startOf?: (pid: number) => string | undefined): PidEntry[] {
+  return scanPidFiles(accountDir, alive, startOf).live;
 }
 
 export function mapStatus(raw: string | undefined): 'running' | 'needs-you' | 'idle' {

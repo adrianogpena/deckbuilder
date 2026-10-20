@@ -953,7 +953,7 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
         {connector}
         {dot}
         {pin && <span className="agents-mark" role="img" title={pinLabel} aria-label={pinLabel}>{pin === 'top' ? '↑' : '↓'}</span>}
-        {s.external && <span className="agents-mark" role="img" title={t('agents.external.note')} aria-label={t('agents.external')}>↗</span>}
+        {s.hanging ? <span className="agents-mark" role="img" title={t('agents.hanging.note')} aria-label={t('agents.hanging')}>⚠</span> : s.external && <span className="agents-mark" role="img" title={t('agents.external.note')} aria-label={t('agents.external')}>↗</span>}
         <span className="agents-session-main">
         <span className="agents-session-text">
           <span className="agents-session-title" title={name}>

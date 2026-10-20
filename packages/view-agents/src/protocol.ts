@@ -270,6 +270,8 @@ export interface AgentSessionView extends AgentSession {
   live?: boolean;
   /** Claude is running this session in another terminal (live pid file that is not ours). */
   external?: boolean;
+  /** A pid file claims this session but no Claude process runs it (it crashed or its terminal was killed): needs closing. Set with `external`. */
+  hanging?: boolean;
   /** `starting`: our terminal runs it but Claude's pid file has not appeared yet; `exited`: the process ended and its terminal is still listed. */
   lifecycle?: 'starting' | 'exited';
   /** Exit code when `lifecycle` is `exited` (null = no code). */

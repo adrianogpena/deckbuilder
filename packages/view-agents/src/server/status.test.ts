@@ -2,7 +2,7 @@ import { afterEach, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createStatusTracker, externalIds, pickStatus, readPidFiles } from './status';
+import { createStatusTracker, externalIds, pickStatus, processStart, readPidFiles, scanPidFiles } from './status';
 
 let dir = '';
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
@@ -16,6 +16,38 @@ test('reads pid files, ignores key files and dead pids', () => {
   writeFileSync(join(s, '100.abc.key'), 'secret');
   const out = readPidFiles(dir, (pid) => pid === 100);
   expect(out).toEqual([{ pid: 100, sessionId: 'a', cwd: 'C:\\x', status: 'busy', updatedAt: undefined }]);
+});
+
+test('drops a pid file whose procStart differs from the live process (reused pid)', () => {
+  dir = mkdtempSync(join(tmpdir(), 'st-'));
+  const s = join(dir, 'sessions');
+  mkdirSync(s);
+  writeFileSync(join(s, '100.json'), JSON.stringify({ pid: 100, sessionId: 'a', procStart: '111' }));
+  writeFileSync(join(s, '200.json'), JSON.stringify({ pid: 200, sessionId: 'b', procStart: '222' }));
+  writeFileSync(join(s, '300.json'), JSON.stringify({ pid: 300, sessionId: 'c', procStart: '333' }));
+  const out = readPidFiles(dir, () => true, (pid) => (pid === 100 ? '999' : pid === 200 ? '222' : '333'));
+  expect(out.map((e) => e.sessionId)).toEqual(['b', 'c']);
+});
+
+test('scanPidFiles reports dead and reused pids as stale with their files', () => {
+  dir = mkdtempSync(join(tmpdir(), 'st-'));
+  const s = join(dir, 'sessions');
+  mkdirSync(s);
+  writeFileSync(join(s, '100.json'), JSON.stringify({ pid: 100, sessionId: 'a', procStart: '111' }));
+  writeFileSync(join(s, '100.abc.key'), 'secret');
+  writeFileSync(join(s, '200.json'), JSON.stringify({ pid: 200, sessionId: 'b' }));
+  const out = scanPidFiles(dir, (pid) => pid === 100, () => '999');
+  expect(out.live).toEqual([]);
+  expect(out.stale.map((e) => [e.sessionId, e.files.map((f) => f.slice(s.length + 1)).sort()])).toEqual([
+    ['a', ['100.abc.key', '100.json']],
+    ['b', ['200.json']],
+  ]);
+});
+
+test('processStart matches the procStart Claude wrote for a live session', () => {
+  if (process.platform !== 'win32') return;
+  const start = processStart(process.pid);
+  expect(start).toMatch(/^\d{17,18}$/);
 });
 
 test('baseline, running to idle becomes done until its stamp is seen', () => {
