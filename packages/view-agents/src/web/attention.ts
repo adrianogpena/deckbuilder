@@ -9,8 +9,8 @@ export const statusRank = (s: AgentStatus): number => RANK[s] ?? RANK.stopped;
 export const compareSessions = (a: AgentSessionView, b: AgentSessionView): number =>
   Number(!!b.pinned) - Number(!!a.pinned) || statusRank(a.status) - statusRank(b.status) || b.updatedAt - a.updatedAt;
 
-/** The name a session shows: the app-side name, else the title, first prompt or short id. */
-export const displayName = (s: AgentSessionView): string => s.name || s.title || s.firstPrompt || s.id.slice(0, 8);
+/** The name a session shows: the app-side name, else the title, first prompt, or "{new session}" before anything was sent. */
+export const displayName = (s: AgentSessionView): string => s.name || s.title || s.firstPrompt || '{new session}';
 
 export const needsYouCount = (sessions: AgentSessionView[]): number => sessions.filter((s) => s.status === 'needs-you').length;
 

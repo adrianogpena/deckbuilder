@@ -537,13 +537,14 @@ export function AgentsScreen({ usageSettings, rightSidebarOpen = false, rightSid
         (r) => {
           showAgent(path, r.sessionId, { terminal: r.session });
           setSelectedId(r.sessionId);
+          void focusSoon();
         },
         (e) => {
           if (!(e instanceof CapDeclined)) setError(errorOf(e).message);
         },
       );
     },
-    [projects, dialogs, showAgent],
+    [projects, dialogs, showAgent, focusSoon],
   );
 
   const newKey = useMemo(() => (keys ? effectiveKeys(keys.defs, keys.keymap).get('agents.newSession')?.[0] : undefined), [keys]);
@@ -648,6 +649,7 @@ export function AgentsScreen({ usageSettings, rightSidebarOpen = false, rightSid
                   setSelectedId(r.sessionId);
                   const path = projects.find((p) => p.id === r.projectId)?.path;
                   if (path) showAgent(path, r.sessionId, { terminal: r.terminal });
+                  void focusSoon();
                 }}
               />
             )}

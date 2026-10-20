@@ -315,6 +315,7 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
     const scanned = new Set(scannedIds);
     for (const term of claudeTerms()) {
       if (scanned.has(term.sessionId) || !term.account) continue;
+      if (lc.exited.get(term.sessionId) === 0) continue;
       scanned.add(term.sessionId);
       const project = matchProject(term.cwd, refs)?.id;
       if (project === undefined) continue;
