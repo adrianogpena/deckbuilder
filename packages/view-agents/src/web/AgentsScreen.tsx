@@ -112,6 +112,7 @@ export function AgentsScreen({ usageSettings, rightSidebarOpen = false, rightSid
   const [projects, setProjects] = useState<AgentProject[]>([]);
   const [accounts, setAccounts] = useState<AgentAccount[]>([]);
   const [adding, setAdding] = useState(false);
+  const [addedProject, setAddedProject] = useState<AgentProject>();
   const [alertsOpen, setAlertsOpen] = useState(false);
   /** Sessions the user stopped (exit bar reads "Session stopped") and sessions whose resume bar was dismissed. */
   const [userStopped, setUserStopped] = useState<ReadonlySet<string>>(new Set());
@@ -597,6 +598,7 @@ export function AgentsScreen({ usageSettings, rightSidebarOpen = false, rightSid
           {!hidden && (
             <Sidebar
               projects={projects}
+              addedProject={addedProject}
               sessions={sessions}
               usage={usage}
               usageSettings={usageSettings}
@@ -634,7 +636,7 @@ export function AgentsScreen({ usageSettings, rightSidebarOpen = false, rightSid
             />
           )}
           {alertsOpen && <AlertsPanel projects={projects} onClose={() => setAlertsOpen(false)} />}
-          {adding && <AddProject added={projects} onAdded={(p) => setProjects((l) => [...l, p])} onClose={() => setAdding(false)} />}
+          {adding && <AddProject added={projects} onAdded={(p) => { setProjects((l) => [...l, p]); setAddedProject(p); }} onClose={() => setAdding(false)} />}
           <section className={`agents-main${region === 'main' ? ' focused' : ''}`}>
             {error && <div role="alert" className="agents-error">{error}</div>}
             {notice && <div role="status" className="agents-notice">{notice}</div>}

@@ -86,6 +86,8 @@ export interface SidebarProps {
   onStartBackground?(session: AgentSessionView): void;
   /** `ui.expandCollapsedOnActiveJump` (not in Settings yet; off by default): `[` / `]` also land on rows inside collapsed nodes. */
   expandCollapsedOnActiveJump?: boolean;
+  /** A project just added: opens the Move to folder picker for it instead of leaving it at the top level. */
+  addedProject?: AgentProject;
 }
 
 const SORTS = ['manual', 'recent', 'actionable'] as const;
@@ -144,7 +146,7 @@ interface RowMatch {
 }
 
 /** Projects with their Claude sessions, a status dot and label per session; search, filter pills, pin, rename and archive. */
-export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenUsage, getWorkspace, selectedId, onSelect, selectedProjectId, onSelectProject, selectedFolderId, onSelectFolder, onVisibleChange, onNewSession, onQuickNew, onRemoveProject, onStop, onRestart, onStartBackground, expandCollapsedOnActiveJump = false }: SidebarProps) {
+export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenUsage, getWorkspace, selectedId, onSelect, selectedProjectId, onSelectProject, selectedFolderId, onSelectFolder, onVisibleChange, onNewSession, onQuickNew, onRemoveProject, onStop, onRestart, onStartBackground, expandCollapsedOnActiveJump = false, addedProject }: SidebarProps) {
   const ref = useRef<HTMLDivElement>(null);
   const { prefs: accountPrefs } = useAccountPrefs();
   const [accountCount, setAccountCount] = useState<number>();
@@ -422,6 +424,10 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
     if (key === undefined || !p) return void toast({ message: t('agents.folder.moveNoTarget') });
     setPicker({ keys: [key], name: p.name, current: tree?.folders.find((f) => f.projects.includes(key))?.id });
   };
+
+  useEffect(() => {
+    if (addedProject) setPicker({ keys: [projectKey(addedProject.path)], name: addedProject.name });
+  }, [addedProject]);
 
   const pickFolder = async (keys: string[], pick: FolderPick) => {
     setPicker(undefined);
