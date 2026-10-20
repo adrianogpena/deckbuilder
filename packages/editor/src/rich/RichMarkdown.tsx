@@ -9,7 +9,7 @@ import type { Node } from '@milkdown/prose/model';
 import type { EditorView } from '@milkdown/prose/view';
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
 import { frontmatterEntries, frontmatterTable } from '../markdown';
-import { imageView, userEditPlugin } from './base';
+import { htmlView, imageView, refreshHtml, userEditPlugin } from './base';
 import { type RichApi, type RichCommandId, type RichHost, runRichCommand } from './commands';
 import { FEATURES } from './features';
 import { EXTERNAL_META, frontmatterYaml, richValue, splitFrontmatter } from './frontmatter';
@@ -82,6 +82,7 @@ export const RichMarkdown = forwardRef<RichMarkdownHandle, RichMarkdownProps>(fu
       .use(gfm)
       .use(history)
       .use(imageView(() => latest.current.host.resolveImage))
+      .use(htmlView(() => latest.current.host.resolveImage))
       .use(userEditPlugin(emit));
     for (const f of FEATURES) if (f.plugins) make.use(f.plugins);
     make.create().then((ed) => {
@@ -120,6 +121,11 @@ export const RichMarkdown = forwardRef<RichMarkdownHandle, RichMarkdownProps>(fu
     sync.current.baseDoc = view.state.doc;
     setFront(split.front);
   }, [value, api]);
+
+  const resolveImage = host.resolveImage;
+  useEffect(() => {
+    if (api && root.current) refreshHtml(root.current, resolveImage);
+  }, [api, resolveImage]);
 
   useImperativeHandle(ref, () => ({ run: (id) => (api ? runRichCommand(FEATURES, id, api) : false) }), [api]);
 

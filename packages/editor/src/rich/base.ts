@@ -1,10 +1,10 @@
 import { t } from '@deckbuilderkit/ui';
 import type { MilkdownPlugin } from '@milkdown/ctx';
-import { imageSchema } from '@milkdown/preset-commonmark';
+import { htmlSchema, imageSchema } from '@milkdown/preset-commonmark';
 import { Plugin, PluginKey } from '@milkdown/prose/state';
 import type { EditorView } from '@milkdown/prose/view';
 import { $prose, $view } from '@milkdown/utils';
-import { imagePolicy } from '../markdown';
+import { imagePolicy, sanitizeHtml } from '../markdown';
 import { isUserEdit } from './frontmatter';
 
 /** Images go through `imagePolicy`: relative ones via `resolveImage`, remote ones become a "blocked" placeholder. */
@@ -27,6 +27,26 @@ export function imageView(resolveImage: () => ((src: string) => string | null) |
     }
     return { dom, update: () => false };
   });
+}
+
+/** Raw HTML in the text (`<p align="center">…`) shows rendered, sanitized like the read-only view; the node itself stays an atom. */
+export function htmlView(resolveImage: () => ((src: string) => string | null) | undefined): MilkdownPlugin {
+  return $view(htmlSchema.node, () => (node) => {
+    const dom = document.createElement('span');
+    dom.className = 'md-html';
+    dom.dataset.html = String(node.attrs.value ?? '');
+    renderHtml(dom, resolveImage());
+    return { dom, update: () => false };
+  });
+}
+
+function renderHtml(dom: HTMLElement, resolveImage?: (src: string) => string | null) {
+  dom.replaceChildren(sanitizeHtml(dom.dataset.html ?? '', { resolveImage, blockedLabel: t('preview.remoteImageBlocked') }));
+}
+
+/** Renders the HTML blocks under `root` again; image sources load late, so their blobs arrive after the first render. */
+export function refreshHtml(root: HTMLElement, resolveImage?: (src: string) => string | null) {
+  for (const el of root.querySelectorAll<HTMLElement>('.md-html')) renderHtml(el, resolveImage);
 }
 
 const changeKey = new PluginKey('deckbuilder.richChange');

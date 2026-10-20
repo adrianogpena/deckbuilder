@@ -73,12 +73,8 @@ export function frontmatterTable(entries: [string, string][]): HTMLTableElement 
 
 const BLOCKED_ATTR = 'data-md-blocked';
 
-/** Markdown (GFM) to sanitized HTML. Needs a DOM (DOMPurify): browser only. */
-export function renderMarkdown(md: string, opts: MarkdownOptions = {}): string {
-  const fm = frontmatter(md);
-  const entries = fm ? frontmatterEntries(fm.yaml) : null;
-  if (fm) md = (entries ? '' : '~~~~yaml\n' + fm.yaml + '\n~~~~\n') + md.slice(fm.length);
-  const raw = marked.parse(md, { gfm: true, async: false }) as string;
+/** HTML to a sanitized fragment: links and images follow the policies above. Needs a DOM (DOMPurify): browser only. */
+export function sanitizeHtml(raw: string, opts: MarkdownOptions = {}): DocumentFragment {
   const hook = (node: Element) => {
     if (node.tagName === 'A' && node.hasAttribute('href')) {
       const link = linkPolicy(node.getAttribute('href')!);
@@ -116,6 +112,15 @@ export function renderMarkdown(md: string, opts: MarkdownOptions = {}): string {
     span.textContent = opts.blockedLabel ?? 'Remote image blocked';
     img.replaceWith(span);
   }
+  return fragment;
+}
+
+/** Markdown (GFM) to sanitized HTML. Needs a DOM (DOMPurify): browser only. */
+export function renderMarkdown(md: string, opts: MarkdownOptions = {}): string {
+  const fm = frontmatter(md);
+  const entries = fm ? frontmatterEntries(fm.yaml) : null;
+  if (fm) md = (entries ? '' : '~~~~yaml\n' + fm.yaml + '\n~~~~\n') + md.slice(fm.length);
+  const fragment = sanitizeHtml(marked.parse(md, { gfm: true, async: false }) as string, opts);
   const box = document.createElement('div');
   if (entries) box.append(frontmatterTable(entries));
   box.append(fragment);
