@@ -2,7 +2,7 @@ import { t } from '@deckbuilderkit/ui/i18n';
 import { type FSWatcher, mkdirSync, readdirSync, readFileSync, rmSync, watch, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { confirmDialog, createToaster } from '@deckbuilderkit/platform';
+import { createToaster } from '@deckbuilderkit/platform';
 import { editorRoutes, gitRoutes, pickedPaths, rootedFs } from '@deckbuilderkit/server-mods';
 import { defineServerView, invalid, ndjson, socketTickets, validGroup, type SocketData, type SocketRoutes } from '@deckbuilderkit/server-core';
 import type { ServerWebSocket } from 'bun';
@@ -426,13 +426,16 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
     timer = undefined;
   };
 
+  let uiBroker: { confirm(o: { title: string; message: string; ok?: string; okKey?: string }): Promise<boolean> } | undefined;
+
   return defineServerView<AgentsServerSettings>({
     id: 'agents',
     settings: {
       validate: { agents: validAgents },
-      check: (patch, prev) => checkHookSettings(patch, prev, { approvals, confirm: opts.confirm ?? ((o) => confirmDialog(o)) }),
+      check: (patch, prev) => checkHookSettings(patch, prev, { approvals, confirm: opts.confirm ?? ((o) => (uiBroker ? uiBroker.confirm(o) : Promise.resolve(false))) }),
     },
     routes: (ctx) => {
+      uiBroker = (ctx.stores as { ui?: { confirm(o: { title: string; message: string; ok?: string; okKey?: string }): Promise<boolean> } }).ui;
       approvalsFile = join(ctx.dataDir, 'agents', 'approved-hooks.json');
       seenFile = join(ctx.dataDir, 'agents', 'seen.json');
       alertsDir = join(ctx.dataDir, 'agents', 'alerts');

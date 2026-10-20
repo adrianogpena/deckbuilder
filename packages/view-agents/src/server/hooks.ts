@@ -44,7 +44,7 @@ export function createHookApprovals(file: () => string | undefined) {
 export type HookApprovals = ReturnType<typeof createHookApprovals>;
 
 /** Asks the user (an OS dialog) whether a hook command may run; true = allowed. */
-export type HookConfirm = (opts: { title: string; message: string; ok?: string }) => Promise<boolean>;
+export type HookConfirm = (opts: { title: string; message: string; ok?: string; okKey?: string }) => Promise<boolean>;
 
 const HOOK_WHEN: Record<HookKey, string> = { onRunning: 'starts running', onWaiting: 'starts waiting for you', onDone: 'finishes', onError: 'errors or exits' };
 
@@ -67,6 +67,7 @@ export async function checkHookSettings(patch: Record<string, unknown>, _prev: R
 
 ${command}`,
       ok: 'Allow',
+      okKey: 'confirm.allow',
     });
     if (!ok) throw invalid('hookNotApproved', 'The hook command was not approved; settings not saved.');
     await deps.approvals.approve(command);

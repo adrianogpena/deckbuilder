@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { appHome, confirmNo, createAutostart, setBrowser } from '@deckbuilderkit/platform';
+import { appHome, createAutostart, setBrowser } from '@deckbuilderkit/platform';
 import { applyViewSettings, checkViewSettings, type FieldSpec, forbidden, mountViews, updatePublicKey, validGroup } from '@deckbuilderkit/server-core';
 import {
   backupRoutes,
@@ -198,14 +198,14 @@ await runApp({
     ...(setAppLink(ctx.link), routes(ctx)),
     ...mounted.routes,
     ...fileDialogRoutes({ home: dataDir, picks: stores.picks }),
-    ...stores.ui.routes,
+    ...(stores.ui.setReveal(ctx.reveal), stores.ui.routes),
   }),
   sockets: { ...mounted.sockets, ...stores.ui.sockets },
   unauthenticated: mounted.unauthenticated,
   onQuit: () => mounted.onQuit(),
   confirmQuit: async () => {
     const messages = await mounted.quitGuard();
-    return messages.length === 0 || confirmNo(APP.name, messages.join('\n\n'));
+    return messages.length === 0 || stores.ui.confirm({ title: APP.name, message: messages.join('\n\n'), okKey: 'confirm.quit', danger: true });
   },
   webDir: join(import.meta.dir, '../dist/web'),
   transformIndex: themeHead(settings),

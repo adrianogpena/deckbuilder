@@ -38,6 +38,8 @@ export interface StartContext {
   link(path: string): string;
   /** Opens a window (or browser tab) like a new launch would, on `#<path>` when given. */
   show(mode: OpenMode, path?: string): void;
+  /** Opens a window (or browser tab) in the running mode, e.g. for a server-started confirm; does nothing in mode `none`. */
+  reveal(): void;
   quit(): Promise<void>;
 }
 
@@ -202,7 +204,8 @@ export async function runApp(opts: RunOptions): Promise<void> {
       console.error(err);
     }
     if (ok) return quit();
-    if (reopen && mode !== 'none' && mode !== 'browser') show(mode);
+    // A window the confirm itself revealed is still open: do not open a second one.
+    if (reopen && mode !== 'none' && mode !== 'browser' && openWindows() === 0 && !appWindowsOpen()) show(mode);
   };
   // Native windows and app windows both report here; the app ends once neither kind is open,
   // unless it has a tray icon. While the icon starts, it waits to see whether it shows.
@@ -249,6 +252,9 @@ export async function runApp(opts: RunOptions): Promise<void> {
   const ctx: StartContext = {
     link: (path) => (linkViaProtocol ? `${app.id}://open/${path}` : `http://127.0.0.1:${serverPort}/#${path}`),
     show: (m, path) => void show(m, path),
+    reveal: () => {
+      if (mode !== 'none') void show(mode);
+    },
     quit,
   };
 
