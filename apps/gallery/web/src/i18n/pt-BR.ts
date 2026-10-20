@@ -95,6 +95,7 @@ export const ptBR: Messages<typeof en> = {
   'settings.rememberPage.hint': 'As configurações reabrem na última página vista, até reiniciar o app. Desligado: sempre abre em Geral.',
   'settings.search': 'Pesquisar configurações (@modified, @problems)',
   'settings.search.none': 'Nenhuma configuração correspondente.',
+  'settings.noViewSettings': 'Esta vista não tem configurações.',
   'settings.problems.banner': '{n} configurações salvas em settings.json são inválidas:',
   'settings.search.clear': 'Limpar pesquisa',
   'settings.search.modified': 'Mostrar só configurações modificadas',

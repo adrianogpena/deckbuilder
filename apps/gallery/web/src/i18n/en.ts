@@ -93,6 +93,7 @@ export const en = {
   'settings.rememberPage.hint': 'Settings reopens on the page you last viewed, until the app restarts. Off: it always opens on General.',
   'settings.search': 'Search settings (@modified, @problems)',
   'settings.search.none': 'No matching settings.',
+  'settings.noViewSettings': 'This view has no settings.',
   'settings.problems.banner': '{n} saved settings in settings.json are invalid:',
   'settings.search.clear': 'Clear search',
   'settings.search.modified': 'Show modified settings only',

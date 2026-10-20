@@ -116,6 +116,10 @@ function searchSchema(flat: FlatNode[], query: string, settings: Settings): Map<
   return found;
 }
 
+/** The root section holding view `viewId`'s settings (by convention named like the view), or undefined when it has none. */
+export const viewSettingsSection = (viewId: string): string | undefined =>
+  settingsRegistry.sectionTree().some((n) => sectionKey(n.path) === viewId) ? viewId : undefined;
+
 /** The section last shown; lives until the app restarts. */
 let lastSection: string | undefined;
 
@@ -127,20 +131,25 @@ let lastSection: string | undefined;
  * Every change saves at once (text on blur or Enter, Escape reverts); a rejected save leaves the old value and shows
  * the error on its row.
  */
-export function SettingsModal({ settings, onChange, onQuit, onClose, initialSection }: Props & { onClose: () => void; initialSection?: string }) {
-  const flat = useMemo(() => flatten(settingsRegistry.sectionTree()), []);
+export function SettingsModal({ settings, onChange, onQuit, onClose, initialSection, onlyView }: Props & { onClose: () => void; initialSection?: string; onlyView?: string }) {
+  const flat = useMemo(() => {
+    const tree = settingsRegistry.sectionTree();
+    return flatten(onlyView ? tree.filter((n) => sectionKey(n.path) === viewSettingsSection(onlyView)) : tree);
+  }, [onlyView]);
   const [startSection] = useState(() => {
+    if (onlyView) return flat[0]?.key;
     const remembered = settings.rememberSettingsPage !== false && lastSection && flat.some((f) => f.key === lastSection) ? lastSection : undefined;
     return initialSection ?? remembered;
   });
   const [section, setSection] = useState(startSection ?? flat[0]?.key ?? 'general');
   useEffect(() => {
-    lastSection = section;
-  }, [section]);
-  // The initial section's ancestors start expanded, so the nav shows it.
+    if (!onlyView) lastSection = section;
+  }, [section, onlyView]);
+  // The initial section's ancestors start expanded, so the nav shows it; a view's root starts open.
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => {
     const path = startSection?.split('.') ?? [];
-    return new Set(path.slice(0, -1).map((_, i) => path.slice(0, i + 1).join('.')));
+    const open = path.slice(0, onlyView ? path.length : -1).map((_, i) => path.slice(0, i + 1).join('.'));
+    return new Set(open);
   });
   const [query, setQuery] = useState('');
   const draft = settings;
@@ -174,7 +183,7 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
   const searching = query.trim() !== '';
   const hits = useMemo(() => searchSchema(flat, query, draft), [flat, query, draft]);
   const modifiedOnly = parseSettingsQuery(splitProblemsTag(query).rest).modified;
-  const problemSettings = useMemo(() => settingsRegistry.settings().filter((d) => problemOf(d, draft)), [draft]);
+  const problemSettings = useMemo(() => settingsRegistry.settings().filter((d) => (!onlyView || isUnder(sectionKey(d.section), onlyView)) && problemOf(d, draft)), [draft, onlyView]);
   const [fileError, setFileError] = useState<string | null>(null);
   // Picks up edits made to settings.json outside the app.
   useEffect(() => {
@@ -408,6 +417,7 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
                   )}
                 </div>
               )}
+          {onlyView && flat.length === 0 && <div className="settings-empty"><span className="muted">{t('settings.noViewSettings')}</span></div>}
           {searching && hits.size === 0 && (
             <div className="settings-empty">
               <span className="muted">{t('settings.search.none')}</span>

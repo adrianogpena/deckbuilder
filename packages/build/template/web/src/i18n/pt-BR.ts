@@ -52,6 +52,7 @@ export const ptBR: Messages<typeof en> = {
   'keys.global': 'Global',
   'settings.search': 'Pesquisar configurações (@modified, @problems)',
   'settings.search.none': 'Nenhuma configuração correspondente.',
+  'settings.noViewSettings': 'Esta vista não tem configurações.',
   'settings.problems.banner': '{n} configurações salvas em settings.json são inválidas:',
   'settings.search.clear': 'Limpar pesquisa',
   'settings.search.modified': 'Mostrar só configurações modificadas',
