@@ -10,6 +10,7 @@
   ],
   "scripts": {
     "dev": "bun run --cwd apps/gallery dev",
+    "dev:window": "bun run --cwd apps/gallery dev:window",
     "start": "bun run --cwd apps/gallery start",
     "start:browser": "bun run --cwd apps/gallery start:browser",
     "build:web": "bun run --cwd apps/gallery build:web",
