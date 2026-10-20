@@ -1,11 +1,10 @@
 import { join } from 'node:path';
-import { appHome, createAutostart, pickFolder } from '@deckbuilderkit/platform';
-import { applyViewSettings, checkViewSettings, mountViews, updatePublicKey } from '@deckbuilderkit/server-core';
+import { appHome, createAutostart } from '@deckbuilderkit/platform';
+import { applyViewSettings, checkViewSettings, forbidden, mountViews, updatePublicKey } from '@deckbuilderkit/server-core';
 import {
   createUpdater,
   fileDialogRoutes,
   folderSource,
-  fromPlatform,
   githubSource,
   infoRoutes,
   pickedPaths,
@@ -84,9 +83,8 @@ await runApp({
     ...infoRoutes({ app: APP, version: pkg.version, dataDir }),
     ...settingsRoutes(settings),
     'POST /api/settings/update-folder': async ({ json }) => {
-      const { title } = await json<{ title?: unknown }>();
-      const path = await pickFolder({ title: typeof title === 'string' ? title : undefined }).catch(fromPlatform);
-      if (path === null) return settings.load();
+      const { path } = await json<{ path?: unknown }>();
+      if (typeof path !== 'string' || !picks.opened.take(path)) throw forbidden('notAPickedFolder', 'Choose the folder first.');
       pickedUpdateFolder.add(path);
       return settings.save({ updateFolder: path });
     },

@@ -1,16 +1,15 @@
-import { createToaster, saveFileAs, writeFileAtomic } from '@deckbuilderkit/platform';
+import { createToaster, writeFileAtomic } from '@deckbuilderkit/platform';
 import { forbidden, invalid, ndjson, type Routes } from '@deckbuilderkit/server-core';
-import { fromPlatform, pickedPaths } from '@deckbuilderkit/server-mods';
+import { fromPlatform } from '@deckbuilderkit/server-mods';
 import type { StartContext } from '@deckbuilderkit/shell';
 import { APP } from '../app.ts';
+import { stores } from './stores.ts';
 
 const toaster = createToaster();
 
 const MAX_DEMO_ROWS = 100_000;
 const DEMO_BATCH = 500;
 const DEMO_PAUSE_MS = 20;
-/** Paths the save dialog returned and `/api/demo/save` may still write once. */
-const saveTargets = pickedPaths();
 
 /**
  * This app's own endpoints. Keys are "METHOD /path"; handlers return a JSON-serializable value
@@ -27,16 +26,9 @@ export const routes = (ctx: StartContext): Routes => ({
       }
     });
   },
-  'POST /api/demo/save-target': async ({ json }) => {
-    const { format } = await json<{ format?: unknown }>().catch(() => ({ format: undefined }));
-    const ext = format === 'json' ? 'json' : 'csv';
-    const path = await saveFileAs({ suggestedName: `rows.${ext}`, filters: [{ name: ext.toUpperCase(), patterns: [`*.${ext}`] }] }).catch(fromPlatform);
-    if (path) saveTargets.add(path);
-    return { path };
-  },
   'POST /api/demo/save': async ({ json }) => {
     const { path, text } = await json<{ path?: unknown; text?: unknown }>();
-    if (typeof path !== 'string' || typeof text !== 'string' || !saveTargets.take(path)) throw forbidden('notASaveTarget', 'Choose where to save first.');
+    if (typeof path !== 'string' || typeof text !== 'string' || !stores.picks.saveTargets.take(path)) throw forbidden('notASaveTarget', 'Choose where to save first.');
     await writeFileAtomic(path, text).catch(fromPlatform);
     return { ok: true };
   },

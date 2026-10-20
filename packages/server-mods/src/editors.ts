@@ -5,11 +5,11 @@ import {
   type EditorId,
   findEditor,
   openInEditor,
-  pickFile,
   readJsonFile,
   writeJsonAtomic,
 } from '@deckbuilderkit/platform';
-import { type EditorInfo, invalid, isRecord, type Routes } from '@deckbuilderkit/server-core';
+import { type EditorInfo, forbidden, invalid, isRecord, type Routes } from '@deckbuilderkit/server-core';
+import type { PickedPaths } from './dialogs.ts';
 import { fromPlatform } from './platform-errors.ts';
 import type { RootedFs } from './rooted-fs.ts';
 
@@ -19,7 +19,8 @@ export interface EditorRoutesOptions {
   /** Folder of editors.json (the overrides), usually `appHome(APP.id)`. */
   dir: string;
   fs: RootedFs;
-  pick?: typeof pickFile;
+  /** Paths the in-app file dialog committed (`picks.opened`); `pick` takes its `path` from here. */
+  picked: PickedPaths;
   find?: typeof findEditor;
   open?: typeof openInEditor;
 }
@@ -37,11 +38,11 @@ const editorOf = (v: unknown): EditorId => {
 /**
  * `GET /api/editors`, `POST /api/editors/pick`, `DELETE /api/editors/override?editor=` and
  * `POST /api/editors/open`. The program to run comes from detection or from a server-side file
- * dialog saved in `<dir>/editors.json`, never from the client; `.cmd` scripts are refused because
+ * file chosen in the in-app dialog (the client sends the committed `path`) saved in `<dir>/editors.json`; `.cmd` scripts are refused because
  * they would go through cmd.exe.
  */
 export function editorRoutes(opts: EditorRoutesOptions): Routes {
-  const { dir, fs, pick = pickFile, find = findEditor, open = openInEditor } = opts;
+  const { dir, fs, picked: pickedSet, find = findEditor, open = openInEditor } = opts;
   const file = join(dir, 'editors.json');
 
   const readOverrides = async (): Promise<Overrides> => {
@@ -68,12 +69,10 @@ export function editorRoutes(opts: EditorRoutesOptions): Routes {
     'GET /api/editors': () => list(),
 
     'POST /api/editors/pick': async ({ json }) => {
-      const editor = editorOf(((await json()) as Record<string, unknown>).editor);
-      const picked = await pick({
-        title: `Choose the ${EDITOR_NAMES[editor]} program`,
-        filters: [{ name: 'Programs', patterns: ['*.exe'] }],
-      }).catch(fromPlatform);
-      if (picked === null) return list();
+      const b = (await json()) as Record<string, unknown>;
+      const editor = editorOf(b.editor);
+      const picked = b.path;
+      if (typeof picked !== 'string' || !pickedSet.take(picked)) throw forbidden('notAPickedFile', 'Choose a file first.');
       if (process.platform === 'win32' && !/\.exe$/i.test(picked)) throw invalid('editorNotExe', 'The editor program must be an existing .exe file.');
       await writeJsonAtomic(file, { ...(await readOverrides()), [editor]: picked });
       return list();

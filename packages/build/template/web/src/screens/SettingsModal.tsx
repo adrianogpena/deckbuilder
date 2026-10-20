@@ -1,5 +1,5 @@
 import { type CSSProperties, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { AppearanceFields, DockField, IconsField, LayoutIconField, LayoutField, MainMenuField, ZoomField, type ApiError, detectLanguage, ErrorBanner, errorMessage, errorOf, GLOBAL, isDesktop, KeybindingsEditor, LANGUAGES, isModified, parseSettingsQuery, settingDescriptionText, toggleModifiedFilter, SettingLinksProvider, SettingErrorsContext, type SettingLinks, SettingRow, Spinner, useRevealSetting, useRovingList, SETTING_ROW_CONTROLS, useAsync, useKeybindings, type Language, type SettingDef, type SettingsSectionNode, sectionKey } from '@deckbuilderkit/ui';
+import { AppearanceFields, DockField, IconsField, LayoutIconField, LayoutField, MainMenuField, ZoomField, type ApiError, detectLanguage, dialogs, ErrorBanner, errorMessage, errorOf, GLOBAL, isDesktop, KeybindingsEditor, LANGUAGES, isModified, parseSettingsQuery, settingDescriptionText, toggleModifiedFilter, SettingLinksProvider, SettingErrorsContext, type SettingLinks, SettingRow, Spinner, useRevealSetting, useRovingList, SETTING_ROW_CONTROLS, useAsync, useKeybindings, type Language, type SettingDef, type SettingsSectionNode, sectionKey } from '@deckbuilderkit/ui';
 import { APP } from '../../../app';
 import { api, type Settings } from '../api';
 import { type MessageKey, t } from '../i18n';
@@ -526,7 +526,9 @@ function UpdatesCard({ folder, onFolder }: { folder: string; onFolder: (folder: 
               className="btn btn-sm"
               disabled={busy}
               onClick={() => run(async () => {
-                const next = (await api.pickUpdateFolder(t('settings.updateFolder.pick'))).updateFolder;
+                const path = await dialogs.pickFolder({ title: t('settings.updateFolder.pick'), purpose: 'updateFolder', start: folder || undefined });
+                if (path === null) return;
+                const next = (await api.pickUpdateFolder(path)).updateFolder;
                 if (next !== folder) onFolder(next);
               })}
             >

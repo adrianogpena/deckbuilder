@@ -85,7 +85,6 @@ export interface DbConnection {
 /** The server calls the SQL hooks make; the app builds it from its api and passes it to each hook. */
 export interface SqlClient {
   connections: () => Promise<DbConnection[]>;
-  saveTarget: (format: 'csv' | 'json') => Promise<{ path: string | null }>;
   saveDemo: (path: string, text: string) => Promise<unknown>;
   dbRun: (id: string, sql: string, maxRows?: number) => Promise<DbRunResult>;
   dbExplain: (id: string, sql: string) => Promise<DbPlanRow[]>;

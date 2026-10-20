@@ -139,21 +139,21 @@ export const api = {
   saveSettings: (patch: Partial<Settings>) => request<Settings>('PUT', '/api/settings', {}, patch),
   openSettingsFile: () => request<{ ok: true }>('POST', '/api/settings/open-file'),
   externalSettings: () => request<{ changed: boolean; settings: Settings }>('GET', '/api/settings/external'),
-  /** Shows the server's folder dialog and saves the result as `updateFolder` (unchanged when cancelled). */
-  pickUpdateFolder: (title: string) => request<Settings>('POST', '/api/settings/update-folder', {}, { title }),
+  /** Saves a folder chosen in the in-app dialog as `updateFolder`. */
+  pickUpdateFolder: (path: string) => request<Settings>('POST', '/api/settings/update-folder', {}, { path }),
   update: () => request<UpdateState>('GET', '/api/update'),
   checkUpdate: () => request<UpdateState>('POST', '/api/update/check'),
   applyUpdate: () => request<{ version: string }>('POST', '/api/update/apply'),
   quit: () => request<{ ok: true }>('POST', '/api/quit'),
   testToast: () => request<{ ok: true }>('POST', '/api/toast/test'),
   backupParts: () => request<{ stores: string[] }>('GET', '/api/backup/parts'),
-  exportBackup: (settings: boolean, stores: string[]) =>
-    request<{ path: string | null; counts?: Record<string, number> }>('POST', '/api/backup/export', {}, { settings, stores }),
-  inspectBackup: () => request<BackupInfo>('POST', '/api/backup/inspect'),
+  exportBackup: (settings: boolean, stores: string[], target: string) =>
+    request<{ path: string; counts?: Record<string, number> }>('POST', '/api/backup/export', {}, { settings, stores, target }),
+  inspectBackup: (path: string) => request<BackupInfo>('POST', '/api/backup/inspect', {}, { path }),
   importBackup: (token: string, settings: boolean, stores: string[], mode: 'merge' | 'replace') =>
     request<{ settings: boolean; stores: Record<string, ImportResult> }>('POST', '/api/backup/import', {}, { token, settings, stores, mode }),
   editors: () => request<EditorInfo[]>('GET', '/api/editors'),
-  pickEditor: (editor: EditorInfo['id']) => request<EditorInfo[]>('POST', '/api/editors/pick', {}, { editor }),
+  pickEditor: (editor: EditorInfo['id'], path: string) => request<EditorInfo[]>('POST', '/api/editors/pick', {}, { editor, path }),
   resetEditor: (editor: EditorInfo['id']) => request<EditorInfo[]>('DELETE', '/api/editors/override', { editor }),
   /** Ids of the shells installed on this machine (no `'auto'`). */
   terminalShells: () => request<string[]>('GET', '/api/terminal/shells'),

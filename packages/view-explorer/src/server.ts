@@ -127,7 +127,7 @@ export function explorerServerView(opts: ExplorerServerOptions = {}): ExplorerSe
         ...recordRoutes(stores.projects, '/api/projects'),
         ...rooted.routes,
         ...dialogRoutes({ picked: stores.pickedFolders }),
-        ...editorRoutes({ dir: ctx.dataDir, fs: rooted }),
+        ...editorRoutes({ dir: ctx.dataDir, fs: rooted, picked: stores.pickedFolders }),
         'POST /api/fs/reveal': async ({ json }) => {
           await revealInFolder(await target(json)).catch(fromPlatform);
           return { ok: true };

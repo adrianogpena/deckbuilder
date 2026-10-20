@@ -1,5 +1,5 @@
 import { type CSSProperties, Fragment, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { AppearanceFields, DockField, IconsField, LayoutIconField, LayoutField, MainMenuField, SettingLinksProvider, SettingErrorsContext, type SettingLinks, SettingRow, useRevealSetting, useRovingList, SETTING_ROW_CONTROLS,ZoomField, type ApiError, detectLanguage, type FileAssociation, validFileAssociations, deepEqual, ErrorBanner, errorMessage, errorOf, GLOBAL, isDesktop, KeybindingsEditor, LANGUAGES, isModified, Modal, parseSettingsQuery, settingDescriptionText, toggleModifiedFilter, Spinner, useAsync, useKeybindings, tryT, type Language, type SettingDef, type SettingsSectionNode, sectionKey } from '@deckbuilderkit/ui';
+import { AppearanceFields, DockField, IconsField, LayoutIconField, LayoutField, MainMenuField, SettingLinksProvider, SettingErrorsContext, type SettingLinks, SettingRow, useRevealSetting, useRovingList, SETTING_ROW_CONTROLS,ZoomField, type ApiError, detectLanguage, type FileAssociation, validFileAssociations, deepEqual, dialogs, ErrorBanner, errorMessage, errorOf, GLOBAL, isDesktop, KeybindingsEditor, LANGUAGES, isModified, Modal, parseSettingsQuery, settingDescriptionText, toggleModifiedFilter, Spinner, useAsync, useKeybindings, tryT, type Language, type SettingDef, type SettingsSectionNode, sectionKey } from '@deckbuilderkit/ui';
 import { APP } from '../../../app';
 import { views } from '../views';
 import { api, type BackupInfo, type EditorInfo, type ImportResult, type Settings } from '../api';
@@ -622,7 +622,14 @@ function EditorsCard() {
               <Fragment key={editor.id}>
                 <span className="mono-label">{editor.name}</span>
                 <span className="mono editor-path">{editor.path ?? t('settings.editors.notFound')}</span>
-                <button title={t('settings.editors.choose')} className="btn btn-sm" disabled={busy} onClick={() => run(() => api.pickEditor(editor.id))}>
+                <button title={t('settings.editors.choose')} className="btn btn-sm" disabled={busy} onClick={() => run(async () => {
+                  const path = await dialogs.pickFile({
+                    title: `${t('settings.editors.choose')} (${editor.name})`,
+                    purpose: 'editor',
+                    filters: /windows/i.test(navigator.userAgent) ? [{ name: 'Programs', patterns: ['*.exe'] }] : undefined,
+                  });
+                  return path === null ? editors : api.pickEditor(editor.id, path);
+                })}>
                   {t('settings.editors.choose')}
                 </button>
                 {editor.custom ? (
@@ -686,7 +693,9 @@ function UpdatesCard({ folder, onFolder }: { folder: string; onFolder: (folder: 
               className="btn btn-sm"
               disabled={busy}
               onClick={() => run(async () => {
-                const next = (await api.pickUpdateFolder(t('settings.updateFolder.pick'))).updateFolder;
+                const path = await dialogs.pickFolder({ title: t('settings.updateFolder.pick'), purpose: 'updateFolder', start: folder || undefined });
+                if (path === null) return;
+                const next = (await api.pickUpdateFolder(path)).updateFolder;
                 if (next !== folder) onFolder(next);
               })}
             >
@@ -792,7 +801,17 @@ function BackupCard({ onSettings }: { onSettings: (settings: Settings) => void }
               <button title={t('settings.backup.export')}
                 className="btn btn-sm"
                 disabled={busy || (!settings && chosen.length === 0)}
-                onClick={() => run(async () => setSaved((await api.exportBackup(settings, chosen)).path))}
+                onClick={() => run(async () => {
+                  const d = new Date();
+                  const day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                  const target = await dialogs.saveAs({
+                    title: t('settings.backup.export'),
+                    purpose: 'backup',
+                    suggestedName: `${APP.id}-backup-${day}.json`,
+                    filters: [{ name: 'JSON', patterns: ['*.json'] }],
+                  });
+                  if (target !== null) setSaved((await api.exportBackup(settings, chosen, target)).path);
+                })}
               >
                 {t('settings.backup.export')}
               </button>
@@ -800,7 +819,9 @@ function BackupCard({ onSettings }: { onSettings: (settings: Settings) => void }
                 className="btn btn-sm"
                 disabled={busy}
                 onClick={() => run(async () => {
-                  const info = await api.inspectBackup();
+                  const path = await dialogs.pickFile({ title: t('settings.backup.import'), purpose: 'backup', filters: [{ name: 'JSON', patterns: ['*.json'] }] });
+                  if (path === null) return;
+                  const info = await api.inspectBackup(path);
                   if (info.token !== null) setInspected(info);
                 })}
               >

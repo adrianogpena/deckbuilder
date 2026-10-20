@@ -2,8 +2,9 @@ import { afterEach, expect, test } from 'bun:test';
 import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { EditorId, findEditor, openInEditor, pickFile } from '@deckbuilderkit/platform';
+import type { EditorId, findEditor, openInEditor } from '@deckbuilderkit/platform';
 import type { RouteContext } from '@deckbuilderkit/server-core';
+import { pickedPaths } from './dialogs.ts';
 import { editorRoutes } from './editors.ts';
 import { rootedFs } from './rooted-fs.ts';
 
@@ -29,11 +30,12 @@ async function setup(over: { detected?: Partial<Record<EditorId, string>>; picke
   const fs = rootedFs({ roots: async () => [{ id: 'r', path: root }] });
   const opened: Opened[] = [];
   const find = (async (id: EditorId) => over.detected?.[id] ?? null) as typeof findEditor;
-  const pick = (async () => over.picked ?? null) as typeof pickFile;
+  const picked = pickedPaths();
+  if (over.picked) picked.add(over.picked);
   const open = (async (id: EditorId, exe: string, o: { folder: string; file?: string; line?: number }) => {
     opened.push({ id, exe, ...o });
   }) as typeof openInEditor;
-  const routes = editorRoutes({ dir: join(base, 'home'), fs, find, pick, open });
+  const routes = editorRoutes({ dir: join(base, 'home'), fs, picked, find, open });
   const call = (key: string, input: Record<string, unknown> = {}, query = '') =>
     routes[key]!({ query: new URLSearchParams(query), json: async () => input } as unknown as RouteContext);
   const fail = (key: string, input: Record<string, unknown> = {}, query = '') => Promise.resolve(call(key, input, query)).catch((e) => e);
@@ -73,7 +75,7 @@ test('pick stores an override that the list returns as custom; delete removes it
   const before = (await call('GET /api/editors')) as Array<{ id: string; path: string | null; custom: boolean }>;
   expect(before.find((e) => e.id === 'vscode')).toMatchObject({ path: 'Code.exe', custom: false });
   expect(before.find((e) => e.id === 'intellij')).toMatchObject({ path: null, custom: false });
-  const after = (await call('POST /api/editors/pick', { editor: 'vscode' })) as typeof before;
+  const after = (await call('POST /api/editors/pick', { editor: 'vscode', path: exe })) as typeof before;
   expect(after.find((e) => e.id === 'vscode')).toMatchObject({ path: exe, custom: true });
   const reset = (await call('DELETE /api/editors/override', {}, 'editor=vscode')) as typeof before;
   expect(reset.find((e) => e.id === 'vscode')).toMatchObject({ path: 'Code.exe', custom: false });
@@ -81,6 +83,12 @@ test('pick stores an override that the list returns as custom; delete removes it
 
 test('pick of a script is refused on Windows', async () => {
   if (process.platform !== 'win32') return;
-  const { fail } = await setup({ picked: join(tmpdir(), 'x.cmd') });
-  expect(await fail('POST /api/editors/pick', { editor: 'vscode' })).toMatchObject({ code: 'editorNotExe' });
+  const script = join(tmpdir(), 'x.cmd');
+  const { fail } = await setup({ picked: script });
+  expect(await fail('POST /api/editors/pick', { editor: 'vscode', path: script })).toMatchObject({ code: 'editorNotExe' });
+});
+
+test('pick refuses a path the dialog did not commit', async () => {
+  const { fail } = await setup();
+  expect(await fail('POST /api/editors/pick', { editor: 'vscode', path: join(tmpdir(), 'x.exe') })).toMatchObject({ code: 'notAPickedFile' });
 });

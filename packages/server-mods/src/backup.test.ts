@@ -2,9 +2,9 @@ import { afterEach, expect, test } from 'bun:test';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { pickFile, saveFileAs } from '@deckbuilderkit/platform';
 import { invalid, type RouteContext } from '@deckbuilderkit/server-core';
 import { backupRoutes } from './backup.ts';
+import { pickedPaths } from './dialogs.ts';
 import { recordStore } from './records.ts';
 import { type BaseSettings, settingsStore } from './settings.ts';
 
@@ -39,12 +39,22 @@ async function setup() {
   });
   const projects = recordStore<Item>({ dir, name: 'projects', validate });
   const target = { path: join(dir, 'backup.json') as string | null };
-  const save = (async () => target.path) as typeof saveFileAs;
-  const pick = (async () => target.path) as typeof pickFile;
-  const routes = backupRoutes({ app: { id: 'testapp', version: '1.2.3' }, settings, stores: { projects }, excludeSettings: ['autostart'], save, pick });
-  const call = (key: string, input: unknown = {}) => Promise.resolve(routes[key]!({ query: new URLSearchParams(), json: async () => input } as unknown as RouteContext));
-  const fail = (key: string, input: unknown = {}) => call(key, input).catch((e) => e);
-  return { dir, settings, projects, target, call, fail };
+  const picks = { opened: pickedPaths(), saveTargets: pickedPaths() };
+  const routes = backupRoutes({ app: { id: 'testapp', version: '1.2.3' }, settings, stores: { projects }, excludeSettings: ['autostart'], picks });
+  const raw = (key: string, input: unknown = {}) => Promise.resolve(routes[key]!({ query: new URLSearchParams(), json: async () => input } as unknown as RouteContext));
+  const call = (key: string, input: Record<string, unknown> = {}) => {
+    if (key === 'POST /api/backup/export') {
+      picks.saveTargets.add(target.path!);
+      return raw(key, { ...input, target: target.path });
+    }
+    if (key === 'POST /api/backup/inspect') {
+      picks.opened.add(target.path!);
+      return raw(key, { path: target.path });
+    }
+    return raw(key, input);
+  };
+  const fail = (key: string, input: Record<string, unknown> = {}) => call(key, input).catch((e) => e);
+  return { dir, settings, projects, target, call, fail, raw };
 }
 
 test('export, inspect and import restore a deleted record and a changed setting', async () => {
@@ -69,13 +79,17 @@ test('export, inspect and import restore a deleted record and a changed setting'
   expect((await projects.list()).map((r) => [r.id, r.title])).toEqual([[a.id, 'a']]);
 });
 
-test('cancelled dialogs return null and an empty export is refused', async () => {
-  const { target, call, fail } = await setup();
+test('an empty export is refused', async () => {
+  const { fail } = await setup();
   expect(await fail('POST /api/backup/export', { settings: false, stores: [] })).toMatchObject({ code: 'backupEmpty' });
   expect(await fail('POST /api/backup/export', { settings: true, stores: ['nope'] })).toMatchObject({ code: 'badRequest' });
-  target.path = null;
-  expect(await call('POST /api/backup/export', { settings: true, stores: [] })).toEqual({ path: null });
-  expect(await call('POST /api/backup/inspect')).toEqual({ token: null });
+});
+
+test('paths that were not picked are forbidden', async () => {
+  const { target, raw } = await setup();
+  expect(await raw('POST /api/backup/export', { settings: true, stores: [], target: target.path }).catch((e) => e)).toMatchObject({ code: 'notASaveTarget' });
+  expect(await raw('POST /api/backup/inspect', { path: target.path }).catch((e) => e)).toMatchObject({ code: 'notAPickedFile' });
+  expect(await raw('POST /api/backup/inspect').catch((e) => e)).toMatchObject({ code: 'notAPickedFile' });
 });
 
 test('a backup of another app, a broken file and a reused token are refused', async () => {

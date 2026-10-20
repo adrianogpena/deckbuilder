@@ -3,7 +3,7 @@ import { type FSWatcher, mkdirSync, readdirSync, readFileSync, rmSync, watch, wr
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { confirmDialog, createToaster } from '@deckbuilderkit/platform';
-import { editorRoutes, gitRoutes, rootedFs } from '@deckbuilderkit/server-mods';
+import { editorRoutes, gitRoutes, pickedPaths, rootedFs } from '@deckbuilderkit/server-mods';
 import { defineServerView, invalid, ndjson, socketTickets, validGroup, type SocketData, type SocketRoutes } from '@deckbuilderkit/server-core';
 import type { ServerWebSocket } from 'bun';
 import type { AgentLocal, AgentSkill, AgentActiveAccountResult, AgentActiveAccountSet, AgentLaunch, AgentRunning, AgentSessionView, AgentsCapWarn, AgentsFrame, AgentStopResult } from './protocol.ts';
@@ -509,7 +509,7 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
       const rooted = rootedFs({ roots });
       const pick = new Set(['GET /api/fs/list', 'GET /api/fs/stat', 'GET /api/fs/read', 'POST /api/fs/write', 'GET /api/git/status', 'GET /api/git/file', 'GET /api/editors', 'POST /api/editors/open']);
       const projectFs = Object.fromEntries(
-        Object.entries({ ...rooted.routes, ...gitRoutes({ roots }), ...editorRoutes({ dir: ctx.dataDir, fs: rooted }) })
+        Object.entries({ ...rooted.routes, ...gitRoutes({ roots }), ...editorRoutes({ dir: ctx.dataDir, fs: rooted, picked: pickedPaths() }) })
           .filter(([key]) => pick.has(key))
           .map(([key, handler]) => [key.replace(' /api/', ' /api/agents/'), handler]),
       );

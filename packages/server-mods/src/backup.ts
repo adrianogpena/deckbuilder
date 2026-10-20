@@ -1,6 +1,6 @@
-import { pickFile, saveFileAs, writeJsonAtomic } from '@deckbuilderkit/platform';
-import { type BackupInspect, invalid, isRecord, type Routes } from '@deckbuilderkit/server-core';
-import { fromPlatform } from './platform-errors.ts';
+import { writeJsonAtomic } from '@deckbuilderkit/platform';
+import { type BackupInspect, forbidden, invalid, isRecord, type Routes } from '@deckbuilderkit/server-core';
+import type { DialogPicks } from './file-dialog.ts';
 import type { ImportResult, RecordStore, Rec } from './records.ts';
 import type { SettingsStore } from './settings.ts';
 
@@ -11,8 +11,8 @@ export interface BackupRoutesOptions {
   stores: Record<string, RecordStore<any>>;
   /** Settings keys left out of exports and imports (machine-specific ones). */
   excludeSettings?: string[];
-  save?: typeof saveFileAs;
-  pick?: typeof pickFile;
+  /** The in-app file dialog's picks: export writes to a `saveTargets` path, inspect reads an `opened` one. */
+  picks: Pick<DialogPicks, 'opened' | 'saveTargets'>;
 }
 
 /** What an export writes. Secret fields are left out. */
@@ -29,22 +29,20 @@ export interface BackupFile {
 const MAX_FILE_BYTES = 20_000_000;
 const MAX_INSPECTED = 5;
 const INSPECTED_TTL_MS = 600_000;
-const JSON_FILTER = [{ name: 'JSON', patterns: ['*.json'] }];
-
 const badRequest = () => invalid('badRequest', 'Invalid request.');
 const badBackup = () => invalid('badBackup', 'This file is not a valid backup.');
 const isStringArray = (v: unknown): v is string[] => Array.isArray(v) && v.every((s) => typeof s === 'string');
 
-const localDate = (d = new Date()) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const notASaveTarget = () => forbidden('notASaveTarget', 'Choose where to save first.');
 
 /**
  * `GET /api/backup/parts`, `POST /api/backup/export`, `POST /api/backup/inspect` and
- * `POST /api/backup/import`. Both files come from server-side dialogs; inspect keeps the parsed
- * file under a one-shot token that import takes, so the client never sends a path.
+ * `POST /api/backup/import`. Both files are chosen in the in-app file dialog: export takes the
+ * `target` it committed, inspect the `path`; inspect keeps the parsed file under a one-shot token
+ * that import takes.
  */
 export function backupRoutes(opts: BackupRoutesOptions): Routes {
-  const { app, settings, stores, excludeSettings = [], save = saveFileAs, pick = pickFile } = opts;
+  const { app, settings, stores, excludeSettings = [], picks } = opts;
   const inspected = new Map<string, { file: BackupFile; at: number }>();
 
   const withoutExcluded = (values: Record<string, unknown>) => {
@@ -78,11 +76,12 @@ export function backupRoutes(opts: BackupRoutesOptions): Routes {
     'GET /api/backup/parts': () => ({ stores: Object.keys(stores) }),
 
     'POST /api/backup/export': async ({ json }) => {
-      const chosen = parts(await json());
+      const body = await json();
+      const chosen = parts(body);
       if (chosen.stores.some((name) => !Object.hasOwn(stores, name))) throw badRequest();
       if (!chosen.settings && chosen.stores.length === 0) throw invalid('backupEmpty', 'Choose something to export.');
-      const path = await save({ suggestedName: `${app.id}-backup-${localDate()}.json`, filters: JSON_FILTER }).catch(fromPlatform);
-      if (path === null) return { path: null };
+      const path = (body as Record<string, unknown>).target;
+      if (typeof path !== 'string' || !picks.saveTargets.take(path)) throw notASaveTarget();
       const file: BackupFile = { format: 'deckbuilder-backup', version: 1, app: app.id, appVersion: app.version, exportedAt: new Date().toISOString() };
       if (chosen.settings) file.settings = withoutExcluded(await settings.load());
       const counts: Record<string, number> = {};
@@ -97,9 +96,9 @@ export function backupRoutes(opts: BackupRoutesOptions): Routes {
       return { path, counts };
     },
 
-    'POST /api/backup/inspect': async (): Promise<BackupInspect> => {
-      const path = await pick({ filters: JSON_FILTER }).catch(fromPlatform);
-      if (path === null) return { token: null };
+    'POST /api/backup/inspect': async ({ json }): Promise<BackupInspect> => {
+      const path = ((await json()) as Record<string, unknown> | null)?.path;
+      if (typeof path !== 'string' || !picks.opened.take(path)) throw forbidden('notAPickedFile', 'Choose a file first.');
       const file = await read(path);
       const now = Date.now();
       for (const [key, entry] of inspected) if (now - entry.at >= INSPECTED_TTL_MS) inspected.delete(key);

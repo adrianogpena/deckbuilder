@@ -1,4 +1,4 @@
-import { type ExportColumn, toCsv } from '@deckbuilderkit/ui';
+import { dialogs, type ExportColumn, toCsv } from '@deckbuilderkit/ui';
 import { t } from './i18n';
 import type { SqlClient } from './types';
 
@@ -16,7 +16,7 @@ export function toJson<T>(columns: ExportColumn<T>[], rows: T[]): string {
  * Returns the toast message, or undefined when the dialog was cancelled.
  */
 export async function exportResults<T>(client: SqlClient, format: ExportFormat, columns: ExportColumn<T>[], rows: T[], truncated: boolean): Promise<string | undefined> {
-  const { path } = await client.saveTarget(format);
+  const path = await dialogs.saveAs({ purpose: 'export', suggestedName: `rows.${format}`, filters: [{ name: format.toUpperCase(), patterns: [`*.${format}`] }] });
   if (!path) return undefined;
   const slice = rows.slice(0, EXPORT_ROWS);
   await client.saveDemo(path, format === 'json' ? toJson(columns, slice) : toCsv(columns, slice));

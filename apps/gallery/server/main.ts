@@ -1,11 +1,10 @@
 import { join } from 'node:path';
-import { appHome, confirmNo, createAutostart, pickFolder, setBrowser } from '@deckbuilderkit/platform';
-import { applyViewSettings, checkViewSettings, type FieldSpec, mountViews, updatePublicKey, validGroup } from '@deckbuilderkit/server-core';
+import { appHome, confirmNo, createAutostart, setBrowser } from '@deckbuilderkit/platform';
+import { applyViewSettings, checkViewSettings, type FieldSpec, forbidden, mountViews, updatePublicKey, validGroup } from '@deckbuilderkit/server-core';
 import {
   backupRoutes,
   createUpdater,
   folderSource,
-  fromPlatform,
   githubSource,
   infoRoutes,
   pickedPaths,
@@ -188,15 +187,14 @@ await runApp({
     ...infoRoutes({ app: APP, version: pkg.version, dataDir }),
     ...settingsRoutes(settings),
     'POST /api/settings/update-folder': async ({ json }) => {
-      const { title } = await json<{ title?: unknown }>();
-      const path = await pickFolder({ title: typeof title === 'string' ? title : undefined }).catch(fromPlatform);
-      if (path === null) return settings.load();
+      const { path } = await json<{ path?: unknown }>();
+      if (typeof path !== 'string' || !stores.picks.opened.take(path)) throw forbidden('notAPickedFolder', 'Choose the folder first.');
       pickedUpdateFolder.add(path);
       return settings.save({ updateFolder: path });
     },
     ...updateRoutes(updater, ctx.quit),
     // Machine-specific: autostart writes the Run key, updateFolder is a local or share path, port is per machine.
-    ...backupRoutes({ app: { id: APP.id, version: pkg.version }, settings, stores: { projects: stores.projects, dbConnections: stores.dbConnections, requests: stores.requests, environments: stores.environments }, excludeSettings: ['autostart', 'updateFolder', 'port'] }),
+    ...backupRoutes({ app: { id: APP.id, version: pkg.version }, settings, stores: { projects: stores.projects, dbConnections: stores.dbConnections, requests: stores.requests, environments: stores.environments }, excludeSettings: ['autostart', 'updateFolder', 'port'], picks: stores.picks }),
     ...(setAppLink(ctx.link), routes(ctx)),
     ...mounted.routes,
     ...fileDialogRoutes({ home: dataDir, picks: stores.picks }),

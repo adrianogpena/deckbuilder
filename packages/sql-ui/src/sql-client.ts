@@ -4,7 +4,6 @@ import type { DbConnection, DbPlanRow, DbRunResult, DbSchema, DbStatus, DbTableD
 /** The default `SqlClient`: the server's `/api/db/*` and demo save routes over fetch. */
 export const sqlClient: SqlClient = {
   connections: () => request<DbConnection[]>('GET', '/api/db/connections'),
-  saveTarget: (format = 'csv') => request<{ path: string | null }>('POST', '/api/demo/save-target', {}, { format }),
   saveDemo: (path, text) => request<{ ok: true }>('POST', '/api/demo/save', {}, { path, text }),
   dbRun: (id, sql, maxRows) => request<DbRunResult>('POST', '/api/db/run', {}, { id, sql, maxRows }),
   dbExplain: (id, sql) => request<{ rows: DbPlanRow[] }>('POST', '/api/db/explain', {}, { id, sql }).then((r) => r.rows),
