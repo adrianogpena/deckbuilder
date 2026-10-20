@@ -110,15 +110,3 @@ export interface DialogFilter {
   /** Globs such as `*.md`. */
   patterns: string[];
 }
-
-const dialog = (kind: string, opts: object) => request<{ path: string | null }>('POST', `/api/dialog/${kind}`, {}, opts).then((r) => r.path);
-
-/**
- * Native dialogs through the app server's `dialogRoutes`; each resolves an absolute path, or null
- * when cancelled. Only one dialog is open at a time (`error.dialogBusy`).
- */
-export const dialogs = {
-  pickFolder: (opts: { title?: string } = {}) => dialog('folder', opts),
-  pickFile: (opts: { title?: string; filters?: DialogFilter[] } = {}) => dialog('file', opts),
-  saveFileAs: (opts: { title?: string; suggestedName?: string; filters?: DialogFilter[] } = {}) => dialog('save', opts),
-};
