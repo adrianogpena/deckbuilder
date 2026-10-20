@@ -14,6 +14,7 @@ import * as notes from './notes/i18n';
 import * as trajectory from './trajectory/i18n';
 import * as skills from './skills/i18n';
 import * as output from './output/i18n';
+import * as workflows from './workflows/i18n';
 
 /** Every panel's messages, spread into `src/i18n.ts`. A panel adds keys to its own `<kind>/i18n.ts`, never here. */
 export const panelsEn = {
@@ -33,6 +34,7 @@ export const panelsEn = {
   ...trajectory.en,
   ...skills.en,
   ...output.en,
+  ...workflows.en,
 };
 
 export const panelsPtBR = {
@@ -52,4 +54,5 @@ export const panelsPtBR = {
   ...trajectory.ptBR,
   ...skills.ptBR,
   ...output.ptBR,
+  ...workflows.ptBR,
 };
