@@ -204,11 +204,14 @@ source directly; there is no package build step.
   and only `appKeys` commands (the palette by default) pass through, by the first step of their chords (a gallery terminal passes Ctrl+K on to the app, not to the shell). A real PTY on every platform
   through `Bun.spawn({ terminal })` (ConPTY on Windows). The gallery's Terminal screen and the
   Explorer's "Open terminal here" use it.
-- **Dialogs**: `useDialogs()` (from `@deckbuilderkit/ui`) gives `confirm` and `prompt` modals.
-  Native pickers: `dialogRoutes()` on the server and the `dialogs` client in the UI (`pickFolder`,
-  `pickFile`, `saveFileAs`). A route that takes back a path the client got from a dialog must
-  check it with `pickedPaths().take` (pass the set to `dialogRoutes({ picked })`), so a client
-  can't hand in any other absolute path. Tested on Windows; other systems are best-effort.
+- **Dialogs**: new dialogs use the `packages/ui` dialog components, never native ones;
+  `bun run typecheck` fails on native dialog code (`scripts/check-boundaries.ts`). `<DialogHost/>`
+  is mounted once per app. `dialogs.confirm/prompt/choose/pickFile/pickFolder/saveAs` (from
+  `@deckbuilderkit/ui`) return a promise: await it; it is `null` on cancel. `purpose` names the
+  dialog's remembered start folder; `filters` is `{ name, patterns: string[] }[]` (globs such as
+  `*.md`). The dialog's OK commits the path to `stores.picks`, and a save or open route that takes
+  the path back must `take` it from there, so a client can't hand in any other absolute path.
+  A confirm the server starts goes through `stores.ui.confirm`.
 - **DataTable**: `<DataTable columns rows rowKey />` windows its rows (fixed row height), sorts,
   resizes columns (`widths` + `onWidthsChange` to persist), selects and copies. `toCsv` and `toTsv`
   build exports. `groupOf(row)` keeps rows of a lower group first whatever the sort (folders before
@@ -247,8 +250,9 @@ source directly; there is no package build step.
   `@deckbuilderkit/editor` return `ImportedRequest`s: `{ name?, draft, auth?, warnings }`, with the
   Authorization value taken out of the headers into `auth` (the secret field) and `warnings` as
   `<code>:<argument>` strings to translate; `parseImport(text)` picks cURL or `.http`. A file
-  import is a route that shows `pickFile` on the server and returns only `{ name, text }`, never
-  the path (`POST /api/requests/import-file`, 1 MB at most); the client parses and saves.
+  import: the client picks the file with `dialogs.pickFile`, and a route reads the picked path and
+  returns only `{ name, text }`, never the path (`POST /api/requests/import-file`, 1 MB at
+  most); the client parses and saves.
   `RequestEditor` has Params and Auth tabs and form and multipart bodies; the draft round-trips
   to curl and `.http`. Environments: `variableResolver(vars)` (`rest-env.ts`) resolves `{{name}}`
   on every send; `httpRoutes` options `environmentVars(id)` (variables of the request's
@@ -511,6 +515,10 @@ A terminal WebSocket can't send headers, so it takes a one-time, short-lived tic
   API calls from the app only, inline styles, images from the app or `data:`/`blob:` URLs, and
   audio/video from the app or `blob:` URLs.
   Every static file gets `X-Content-Type-Options: nosniff` and `Referrer-Policy: no-referrer`.
+- **File dialog**: `/api/file-dialog/*` lists any folder on disk, but returns names, kind, size
+  and mtime only, never contents. `mkdir` takes one name segment. Write routes accept only paths
+  the dialog committed. All of it sits behind the loopback bind, the Host and Origin checks and
+  the token.
 - **HTTP executor**: sends only the headers the user set, never the session token, and accepts
   only http/https URLs.
 - In the native window, links to other origins open in the default browser, never inside the
