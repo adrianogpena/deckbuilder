@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { request } from '../api';
 import { registerDialogHost, dialogs } from '../dialogs';
 import { t } from '../i18n';
@@ -94,10 +95,12 @@ export function DialogHost() {
     };
   }, []);
 
-  return (
+  // In the body, after the app: the dialogs share the modals' z-index, so DOM order decides which is on top.
+  return createPortal(
     <>
       {opened.map((o) => <span key={o.id} style={{ display: 'contents' }}>{o.node}</span>)}
       {local.element}
-    </>
+    </>,
+    document.body,
   );
 }
