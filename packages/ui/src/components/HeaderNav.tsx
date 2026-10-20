@@ -10,7 +10,7 @@ import { BrandMark, Icon } from './ui';
  * global tools (the sidebar `footer`). Labels only, or icons only with `mainMenu: 'icons'`; tabs
  * that do not fit move into a More menu.
  */
-export function HeaderNav<Id extends string>({ name, sections, current, onSelect, footer }: SidebarProps<Id>) {
+export function HeaderNav<Id extends string>({ name, sections, current, onSelect, footer, popped, poppedHint }: SidebarProps<Id>) {
   const { structure, mainMenu } = useLayout();
   const iconsOnly = mainMenu === 'icons';
   const items = sections.flatMap((s) => s.items);
@@ -52,17 +52,24 @@ export function HeaderNav<Id extends string>({ name, sections, current, onSelect
   const hiddenActive = hidden.some((i) => i.id === current);
 
   const tab = (item: NavItem<Id>, measure: boolean) => {
-    const title = item.hint ? `${item.label} (${item.hint})` : item.label;
+    const isPopped = popped?.has(item.id) ?? false;
+    const base = item.hint ? `${item.label} (${item.hint})` : item.label;
+    const title = isPopped && poppedHint ? `${base} - ${poppedHint}` : base;
     const active = current === item.id;
     return (
       <button
         key={item.id}
-        className={`header-tab${active ? ' active' : ''}`}
+        className={`header-tab${active ? ' active' : ''}${isPopped ? ' popped' : ''}`}
         title={title}
         {...(measure ? { tabIndex: -1 } : { onClick: () => onSelect(item.id), 'aria-current': active ? ('page' as const) : undefined })}
         {...(iconsOnly ? { 'aria-label': title } : {})}
       >
         {iconsOnly ? <Icon name={item.icon} size={16} /> : <span className="header-tab-label">{item.label}</span>}
+        {isPopped && (
+          <span className="popped-mark">
+            <Icon name="popout" size={iconsOnly ? 9 : 12} />
+          </span>
+        )}
       </button>
     );
   };
@@ -110,7 +117,7 @@ export function HeaderNav<Id extends string>({ name, sections, current, onSelect
         <ContextMenu
           at={menuAt}
           onClose={() => setMenuAt(null)}
-          items={hidden.map((item) => ({ id: item.id, label: item.label, icon: item.icon, hint: item.hint, radio: true, checked: current === item.id, run: () => onSelect(item.id) }))}
+          items={hidden.map((item) => ({ id: item.id, label: item.label, icon: popped?.has(item.id) ? 'popout' : item.icon, hint: popped?.has(item.id) && poppedHint ? poppedHint : item.hint, radio: true, checked: current === item.id, run: () => onSelect(item.id) }))}
         />
       )}
     </nav>

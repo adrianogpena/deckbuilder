@@ -265,6 +265,13 @@ kbd {
 .side-toggle { margin-left: auto; }
 .app.nav-collapsed { grid-template-columns: var(--sidebar-w-collapsed) 1fr; }
 /* Zen mode: no nav and no status bars, only the tabs and the editor. */
+.app.popout-frame { display: flex; flex-direction: column; position: relative; height: 100vh; }
+.app.popout-frame > :not(.popout-tools) { flex: 1; min-height: 0; }
+.popout-tools { position: absolute; top: var(--space-4); right: var(--space-6); z-index: 5; display: flex; align-items: center; gap: var(--space-6); }
+.side-item.popped, .header-tab.popped { position: relative; }
+.side-item .popped-mark, .header-tab .popped-mark { display: inline-flex; margin-left: auto; opacity: .65; }
+.header-tab .popped-mark { margin-left: var(--space-4); vertical-align: middle; }
+.sidebar.collapsed .side-item .popped-mark, .header-nav.icons-only .header-tab .popped-mark { position: absolute; top: 2px; right: 2px; margin: 0; }
 .app.zen { grid-template-columns: 1fr; }
 .app.zen > .sidebar, .app.zen .status-bar { display: none; }
 .app.sidebar-right { grid-template-columns: 1fr var(--sidebar-w); }

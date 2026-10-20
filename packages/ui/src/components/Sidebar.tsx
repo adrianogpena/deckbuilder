@@ -32,6 +32,10 @@ export interface SidebarProps<Id extends string> {
   onCollapsedChange?: (collapsed: boolean) => void;
   /** Title of the toggle button (already translated, with its shortcut). */
   toggleLabel?: string;
+  /** Items shown in their own pop-out window: marked, still selectable. */
+  popped?: ReadonlySet<Id>;
+  /** Tooltip text added to popped items (already translated). */
+  poppedHint?: string;
 }
 
 export function Sidebar<Id extends string>(props: SidebarProps<Id>) {
@@ -47,7 +51,7 @@ export const LINE_COUNT = 7;
 /** Line of the nav item at flat position `index` (0-based). */
 export const lineOf = (index: number) => (index % LINE_COUNT) + 1;
 
-export function BaseSidebar<Id extends string>({ name, sections, current, onSelect, footer: footerProp, collapsed: collapsedProp, onCollapsedChange, toggleLabel }: SidebarProps<Id>) {
+export function BaseSidebar<Id extends string>({ name, sections, current, onSelect, footer: footerProp, collapsed: collapsedProp, onCollapsedChange, toggleLabel, popped, poppedHint }: SidebarProps<Id>) {
   const { structure } = useLayout();
   const collapsed = collapsedProp ?? structure.sidebarMode === 'collapsed';
   const footer = structure.navFooter === 'none' ? undefined : footerProp;
@@ -76,11 +80,13 @@ export function BaseSidebar<Id extends string>({ name, sections, current, onSele
           <div key={section.title} className="side-section">
             {!collapsed && <div className="side-title">{section.title}</div>}
             {section.items.map((item) => {
-              const title = item.hint ? `${item.label} (${item.hint})` : item.label;
+              const isPopped = popped?.has(item.id) ?? false;
+              const base = item.hint ? `${item.label} (${item.hint})` : item.label;
+              const title = isPopped && poppedHint ? `${base} - ${poppedHint}` : base;
               return (
                 <button
                   key={item.id}
-                  className={`side-item${current === item.id ? ' active' : ''}`}
+                  className={`side-item${current === item.id ? ' active' : ''}${isPopped ? ' popped' : ''}`}
                   data-line={lineOf(ids.indexOf(item.id))}
                   onClick={() => onSelect(item.id)}
                   title={title}
@@ -88,6 +94,11 @@ export function BaseSidebar<Id extends string>({ name, sections, current, onSele
                 >
                   <Icon name={item.icon} size={14} />
                   {!collapsed && <span className="side-label">{item.label}</span>}
+                  {isPopped && (
+                    <span className="popped-mark">
+                      <Icon name="popout" size={collapsed ? 9 : 12} />
+                    </span>
+                  )}
                 </button>
               );
             })}

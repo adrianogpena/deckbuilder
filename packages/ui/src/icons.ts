@@ -18,6 +18,7 @@ export const PATHS = {
   split: 'M3 4h18v16H3zM12 4v16',
   'split-down': 'M3 4h18v16H3zM3 12h18',
   sidebar: 'M3 4h18v16H3zM9 4v16',
+  popout: 'M14 3h7v7M21 3l-9 9M18 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5',
   maximize: 'M4 4h16v16H4z',
   restore: 'M8 4h12v12M4 8h12v12H4z',
   back: 'M19 12H5m7-7-7 7 7 7',
@@ -135,6 +136,7 @@ const MATERIAL_PATHS: Record<IconName, string> = {
   "chevron": "M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z", // chevron_right
   "split": "M3 15h8v-2H3v2zm0 4h8v-2H3v2zm0-8h8V9H3v2zm0-6v2h8V5H3zm10 0h8v14h-8V5z", // vertical_split
   "split-down": "M3 19h18v-6H3v6zm0-8h18V9H3v2zm0-6v2h18V5H3z", // horizontal_split
+  "popout": "M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z", // open_in_new
   "sidebar": "M16,20H2V4h14V20z M18,8h4V4h-4V8z M18,20h4v-4h-4V20z M18,14h4v-4h-4V14z", // view_sidebar
   "maximize": "M18 4H6c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H6V6h12v12z", // crop_square
   "restore": "M3 5H1v16c0 1.1.9 2 2 2h16v-2H3V5zm18-4H7c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V3c0-1.1-.9-2-2-2zm0 16H7V3h14v14z", // filter_none
@@ -241,6 +243,7 @@ const ATOM_PATHS: Record<IconName, string> = {
   "chevron": "<g transform=\"translate(0 0) scale(1)\"><path d=\"M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z\" fill=\"currentColor\"/></g>", // ui/chevron-right.svg
   "split": "<g transform=\"translate(0 0) scale(1)\"><path d=\"M18,16V13H15V22H13V2H15V11H18V8L22,12L18,16M2,12L6,16V13H9V22H11V2H9V11H6V8L2,12Z\"/></g>", // ui/split-horizontal.svg
   "split-down": "<g transform=\"translate(0 0) scale(1)\"><path fill=\"currentColor\" d=\"M8,18H11V15H2V13H22V15H13V18H16L12,22L8,18M12,2L8,6H11V9H2V11H22V9H13V6H16L12,2Z\"/></g>", // ui/split-vertical.svg
+  "popout": "<g transform=\"translate(0 0) scale(1)\"><path fill=\"currentColor\" d=\"M14,3V5H17.59L7.76,14.83L9.17,16.24L19,6.41V10H21V3M19,19H5V5H12V3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V12H19V19Z\"/></g>", // open-in-new
   "sidebar": "<g transform=\"translate(0 0) scale(1)\"><path fill=\"currentColor\" d=\"M20 4H4A2 2 0 0 0 2 6V18A2 2 0 0 0 4 20H20A2 2 0 0 0 22 18V6A2 2 0 0 0 20 4M20 18H9V6H20Z\" /></g>", // ui/layout-sidebar-left.svg
   "maximize": "<g transform=\"translate(0 0) scale(1)\"><path d=\"M4,4H20V20H4V4M6,8V18H18V8H6Z\"/></g>", // ui/chrome-maximize.svg
   "restore": "<g transform=\"translate(0 0) scale(1)\"><path d=\"M4,8H8V4H20V16H16V20H4V8M16,8V14H18V6H10V8H16M6,12V18H14V12H6Z\"/></g>", // ui/chrome-restore.svg

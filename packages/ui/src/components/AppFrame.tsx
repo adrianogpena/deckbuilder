@@ -4,6 +4,8 @@ import { BrandMark } from './ui';
 
 export interface AppFrameProps {
   zen?: boolean;
+  /** Pop-out window: renders only `children` and `tools`, no sidebar or header nav. */
+  popout?: boolean;
   sidebar: ReactNode;
   /** Global tools; the base frame ignores them (the sidebar footer already shows them). */
   tools?: ReactNode;
@@ -65,7 +67,18 @@ export function AtlasAppFrame({ tools, children, ...rest }: AppFrameProps) {
   );
 }
 
+/** Pop-out window: only the view, with the global tools in a slim strip at the top right. */
+export function PopoutAppFrame({ tools, children }: AppFrameProps) {
+  return (
+    <div className="app popout-frame">
+      {tools && <div className="popout-tools">{tools}</div>}
+      {children}
+    </div>
+  );
+}
+
 export function AppFrame(props: AppFrameProps) {
   const { Frame } = useLayout().shell;
+  if (props.popout) return <PopoutAppFrame {...props} />;
   return <Frame {...props} />;
 }
