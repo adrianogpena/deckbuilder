@@ -15,6 +15,21 @@ function setup() {
   return p;
 }
 
+test('a session opened with an answered slash command is named after it; /clear alone is skipped', () => {
+  const p = setup();
+  writeFileSync(
+    join(p, 'cmd.jsonl'),
+    jl(
+      { type: 'user', cwd: 'C:\\x\\app', message: { content: '<command-message>plan-orchestration</command-message>\n<command-name>/plan-orchestration</command-name>\n<command-args>do it</command-args>' } },
+      { type: 'user', isMeta: true, message: { content: 'expanded skill text' } },
+    ),
+  );
+  writeFileSync(join(p, 'clear.jsonl'), jl({ type: 'user', cwd: 'C:\\x\\app', message: { content: '<command-name>/clear</command-name>' } }));
+  const out = createSessionScanner().scan([{ id: 'acc', dir }]);
+  expect(out.map((s) => s.id)).toEqual(['cmd']);
+  expect(out[0]).toMatchObject({ title: '/plan-orchestration do it', firstPrompt: '/plan-orchestration do it' });
+});
+
 test('parses sessions, skips synthetic turns, agent files and sidechains', () => {
   const p = setup();
   writeFileSync(

@@ -61,6 +61,17 @@ export function realPrompt(entry: Entry): string | undefined {
   return trimmed;
 }
 
+/** `/name args` of a slash-command turn, or undefined for any other entry. */
+function commandPrompt(entry: Entry): string | undefined {
+  if (entry.type !== 'user' || entry.isMeta === true || entry.isSidechain === true) return undefined;
+  const content = entry.message?.content;
+  const text = typeof content === 'string' ? content : Array.isArray(content) ? content.find((c) => c?.type === 'text' && typeof c.text === 'string')?.text : undefined;
+  const name = text && /<command-name>\s*(\/?[^<\s]+)\s*<\/command-name>/.exec(text)?.[1];
+  if (!name) return undefined;
+  const args = /<command-args>([^<]*)<\/command-args>/.exec(text)?.[1]?.trim();
+  return args ? `${name} ${args}` : name;
+}
+
 function entryTitle(e: Entry): string | undefined {
   const v =
     e.type === 'summary' ? e.summary : e.type === 'ai-title' ? e.aiTitle : e.type === 'custom-title' ? e.customTitle : undefined;
@@ -105,12 +116,19 @@ export function parseTranscript(
   let firstPrompt: string | undefined;
   let title: string | undefined;
   let model: string | undefined;
+  let command: string | undefined;
+  let answered = false;
   for (const e of head) {
     if (e.isSidechain === true) continue;
     if (!cwd && typeof e.cwd === 'string' && e.cwd) cwd = e.cwd;
     if (!gitBranch && typeof e.gitBranch === 'string' && e.gitBranch) gitBranch = e.gitBranch;
     if (!firstPrompt) firstPrompt = realPrompt(e);
+    if (!command) command = commandPrompt(e);
+    else if (e.type === 'user' && e.isMeta === true) answered = true;
+    else if (e.type === 'assistant' && e.message?.model !== '<synthetic>') answered = true;
   }
+  // A session opened with a command that ran (a skill expands into a meta turn or gets a reply; `/clear` does neither) is named after it until a real prompt or title exists.
+  if (!firstPrompt && answered) firstPrompt = command;
   for (const e of [...head, ...tail]) {
     if (e.isSidechain === true) continue;
     const t = entryTitle(e);
