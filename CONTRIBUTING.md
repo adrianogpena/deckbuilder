@@ -542,6 +542,14 @@ A tool in the Agents view is a panel module:
 - Server routes, if any: `packages/view-agents/src/server/panels/<kind>.ts` exporting `routes(ctx)` (`PanelCtx` in `server/panels/ctx.ts`), added in `server/panels/index.ts`.
 - Optional `Section` makes the panel dockable as a sidebar card; `commands` adds shortcuts.
 
+### Live output hook (Output panel)
+Foreground Bash output only reaches the transcript when the command ends. To see it while it runs, add a PreToolUse hook to your Claude Code settings (the app never edits them); the script tees stdout/stderr to `<dataDir>/agents/live/<sessionId>.log` and keeps the exit code. Background commands are left alone, and without the hook the panel works as before. The panel's empty state has a Copy-snippet button with this JSON:
+
+```json
+{ "hooks": { "PreToolUse": [{ "matcher": "Bash", "hooks": [{ "type": "command", "command": "bun \"/path/to/packages/view-agents/scripts/live-output-hook.ts\"" }] }] } }
+```
+An optional second argument sets the agents dir (default `~/.deckbuilder/agents`; give an absolute path).
+
 ## Adding a layout
 
 Add `packages/ui/src/layouts/<id>.css`, scoped under `:root[data-layout='<id>']`, and an entry

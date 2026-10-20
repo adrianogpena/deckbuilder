@@ -1,0 +1,48 @@
+.agents-panel-output { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; }
+.agents-output { display: flex; flex: 1; flex-direction: column; gap: 4px; padding: 8px; min-width: 0; min-height: 0; }
+.agents-output-head { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.agents-output-cmd { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: ui-monospace, Consolas, monospace; font-size: 0.85em; }
+.agents-output-status { font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.7; white-space: nowrap; }
+.agents-output-status[data-status='error'] { color: var(--danger, #e5484d); opacity: 1; }
+.agents-output-status[data-status='running'] { color: var(--accent, #3b82f6); opacity: 1; }
+.agents-output-meta { font-size: 0.75em; opacity: 0.7; white-space: nowrap; }
+.agents-output-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-width: 0; }
+.agents-output-bar select, .agents-output-bar input[type='search'] { min-width: 0; max-width: 100%; height: 24px; font: inherit; font-size: 0.8em; }
+.agents-output-bar select { flex: 1 1 8em; }
+.agents-output-bar input[type='search'] { flex: 1 1 6em; }
+.agents-output-btn { height: 24px; padding: 0 8px; border: 1px solid var(--border, #8884); border-radius: 4px; background: transparent; color: inherit; font: inherit; font-size: 0.75em; cursor: pointer; }
+.agents-output-btn:hover { background: var(--hover, #8882); }
+.agents-output-btn[aria-pressed='true'] { background: var(--hover, #8883); border-color: var(--accent, #3b82f6); }
+.agents-output-note { font-size: 0.75em; opacity: 0.7; }
+.agents-output-pre { flex: 1; min-height: 120px; max-height: 60vh; margin: 0; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-family: ui-monospace, Consolas, monospace; font-size: 0.8em; }
+.agents-output-pre[data-wrap='off'] { white-space: pre; overflow-wrap: normal; }
+.agents-panel-output .agents-output-pre { max-height: none; }
+.agents-output-pre mark { background: color-mix(in srgb, var(--accent, #3b82f6) 35%, transparent); color: inherit; }
+.agents-output-pre .ansi-bold { font-weight: 700; }
+.agents-output-pre .ansi-dim { opacity: 0.65; }
+.agents-output-pre .ansi-italic { font-style: italic; }
+.agents-output-pre .ansi-underline { text-decoration: underline; }
+.agents-output-pre .ansi-fg-0 { color: var(--ansi-black, #6e7681); }
+.agents-output-pre .ansi-fg-1 { color: var(--ansi-red, var(--danger, #e5484d)); }
+.agents-output-pre .ansi-fg-2 { color: var(--ansi-green, var(--success, #30a46c)); }
+.agents-output-pre .ansi-fg-3 { color: var(--ansi-yellow, var(--warning, #d9a400)); }
+.agents-output-pre .ansi-fg-4 { color: var(--ansi-blue, var(--accent, #3b82f6)); }
+.agents-output-pre .ansi-fg-5 { color: var(--ansi-magenta, #c061cb); }
+.agents-output-pre .ansi-fg-6 { color: var(--ansi-cyan, #0d9ea8); }
+.agents-output-pre .ansi-fg-7 { color: var(--ansi-white, #b1b8c0); }
+.agents-output-pre .ansi-fg-8 { color: var(--ansi-bright-black, #8b949e); }
+.agents-output-pre .ansi-fg-9 { color: var(--ansi-bright-red, #ff6b70); }
+.agents-output-pre .ansi-fg-10 { color: var(--ansi-bright-green, #4cc38a); }
+.agents-output-pre .ansi-fg-11 { color: var(--ansi-bright-yellow, #f0c000); }
+.agents-output-pre .ansi-fg-12 { color: var(--ansi-bright-blue, #5b9bff); }
+.agents-output-pre .ansi-fg-13 { color: var(--ansi-bright-magenta, #d98ae0); }
+.agents-output-pre .ansi-fg-14 { color: var(--ansi-bright-cyan, #3cc4cf); }
+.agents-output-pre .ansi-fg-15 { color: var(--ansi-bright-white, #e6edf3); }
+.agents-output-pre .ansi-bg-0 { background: color-mix(in srgb, var(--ansi-black, #6e7681) 40%, transparent); }
+.agents-output-pre .ansi-bg-1, .agents-output-pre .ansi-bg-9 { background: color-mix(in srgb, var(--ansi-red, #e5484d) 40%, transparent); }
+.agents-output-pre .ansi-bg-2, .agents-output-pre .ansi-bg-10 { background: color-mix(in srgb, var(--ansi-green, #30a46c) 40%, transparent); }
+.agents-output-pre .ansi-bg-3, .agents-output-pre .ansi-bg-11 { background: color-mix(in srgb, var(--ansi-yellow, #d9a400) 40%, transparent); }
+.agents-output-pre .ansi-bg-4, .agents-output-pre .ansi-bg-12 { background: color-mix(in srgb, var(--ansi-blue, #3b82f6) 40%, transparent); }
+.agents-output-pre .ansi-bg-5, .agents-output-pre .ansi-bg-13 { background: color-mix(in srgb, var(--ansi-magenta, #c061cb) 40%, transparent); }
+.agents-output-pre .ansi-bg-6, .agents-output-pre .ansi-bg-14 { background: color-mix(in srgb, var(--ansi-cyan, #0d9ea8) 40%, transparent); }
+.agents-output-pre .ansi-bg-7, .agents-output-pre .ansi-bg-8, .agents-output-pre .ansi-bg-15 { background: color-mix(in srgb, var(--ansi-white, #b1b8c0) 40%, transparent); }

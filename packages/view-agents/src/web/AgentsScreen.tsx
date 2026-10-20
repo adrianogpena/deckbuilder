@@ -606,7 +606,7 @@ export function AgentsScreen({ usageSettings, rightSidebarOpen = false, rightSid
               getWorkspace={() => {
                 const path = activeProject ?? projects[0]?.path;
                 const h = path === undefined ? undefined : handleOf(path);
-                return path !== undefined && h ? { project: path, api: h.api } : undefined;
+                return path !== undefined && h ? { project: path, api: h.api, sessionId: selectedId } : undefined;
               }}
               selectedId={selectedId}
               onSelect={select}

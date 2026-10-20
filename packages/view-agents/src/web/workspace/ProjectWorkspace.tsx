@@ -130,7 +130,7 @@ export function ProjectWorkspace({ project, hidden, register, onFocusedAgent }: 
     });
   }, []);
 
-  const panelProps = (kind: string, params: PanelParams, active: boolean, update: PanelProps['update']): PanelProps => ({ project, params, api, tabId: kind, visible: active && !hidden, focused: active && !hidden, update });
+  const panelProps = (kind: string, params: PanelParams, active: boolean, update: PanelProps['update']): PanelProps => ({ project, params, api, tabId: kind, visible: active && !hidden, focused: active && !hidden, update, sessionId: agent?.sessionId });
   const agentMod = panelOf('agent');
   const toolMod = tool ? panelOf(tool.kind) : undefined;
   const addToSide = (kind: PanelKind) => {

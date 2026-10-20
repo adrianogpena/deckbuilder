@@ -3,7 +3,7 @@ import type { IconName } from '@deckbuilderkit/ui';
 import type { AgentsMessageKey } from '../../i18n';
 
 /** Every tool of the Agents view; each has a folder `panels/<kind>/` exporting a `PanelModule` named `panel`. */
-export const PANEL_KINDS = ['agent', 'changes', 'diff', 'review', 'usage', 'run', 'scratchpad', 'files', 'code', 'preview', 'json', 'task', 'notes', 'trajectory', 'skills'] as const;
+export const PANEL_KINDS = ['agent', 'changes', 'diff', 'review', 'usage', 'run', 'scratchpad', 'files', 'code', 'preview', 'json', 'task', 'notes', 'trajectory', 'skills', 'output'] as const;
 export type PanelKind = (typeof PANEL_KINDS)[number];
 
 /** The params of a panel (agent session id and terminal hint; diff path; tool params). */
@@ -48,12 +48,16 @@ export interface PanelProps {
   focused: boolean;
   /** Merges `patch` into the panel's params (a `undefined` value removes the key). */
   update(patch: PanelParams): void;
+  /** Id of the Claude session the workspace shows; undefined when none. */
+  sessionId?: string;
 }
 
 export interface SectionProps {
   /** Folder of the selected project; undefined when none. */
   project: string | undefined;
   api: WorkspaceApi;
+  /** Id of the Claude session shown (selected); undefined when none. */
+  sessionId?: string;
 }
 
 /** A shortcut a panel adds: `key` is the default chord (e.g. `Ctrl+Shift+G`). */

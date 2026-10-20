@@ -62,7 +62,7 @@ export interface SidebarProps {
   /** A click on the usage section. */
   onOpenUsage?(): void;
   /** The shown project's workspace (its folder and API); undefined when none is shown. */
-  getWorkspace?(): { project: string; api: WorkspaceApi } | undefined;
+  getWorkspace?(): { project: string; api: WorkspaceApi; sessionId?: string } | undefined;
   selectedId?: string;
   onSelect(sessionId: string): void;
   /** The selected project row, if any (its summary is on screen). */
@@ -1189,9 +1189,9 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
     const mod = panelOf(kind);
     if (!mod) return null;
     if (!ws) return <p className="agents-empty">{t('agents.section.noProject')}</p>;
-    if (mod.Section) return <mod.Section project={ws.project} api={ws.api} />;
+    if (mod.Section) return <mod.Section project={ws.project} api={ws.api} sessionId={ws.sessionId} />;
     if (!compact) return <p className="agents-empty">{t('agents.section.pending')}</p>;
-    return <mod.Panel project={ws.project} params={{ compact: true }} api={ws.api} tabId={`sidebar:${kind}`} visible focused={false} update={() => undefined} />;
+    return <mod.Panel project={ws.project} params={{ compact: true }} api={ws.api} tabId={`sidebar:${kind}`} visible focused={false} update={() => undefined} sessionId={ws.sessionId} />;
   };
   const renderSection = (id: SectionId) => {
     if (sections.hidden.includes(id)) return null;

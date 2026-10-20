@@ -19,6 +19,8 @@ export interface PanelCtx {
   projects(): AgentProject[];
   /** The folder of a project given its id or its path (any slash/case spelling); undefined when it is not an added project. */
   projectRoot(project: string): string | undefined;
+  /** The config folders of the Claude accounts (each has `projects/`). */
+  accountDirs?(): string[];
   /** The transcript scanner shared with the session list. */
   scanner: ReturnType<typeof createSessionScanner>;
   /** Shows an OS toast (clicking it opens `launch`, an app link, when set). */

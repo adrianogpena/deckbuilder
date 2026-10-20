@@ -504,6 +504,7 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
         stores: ctx.stores,
         projects: () => store.list(),
         projectRoot: (project) => store.list().find((p) => p.id === project || projectKey(p.path) === projectKey(project))?.path,
+        accountDirs: () => accounts().map((a) => a.dir),
         scanner,
         notify: (toast) => show({ launch: '', ...toast }),
       };
