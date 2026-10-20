@@ -11,14 +11,12 @@ Base for local-first desktop apps. A Bun workspace of shared packages plus thin 
 
 ![Agents, dark](docs/agents.png)
 
-The Agents view (`view-agents`): Claude Code sessions per project, with live status, terminal/chat, usage, attention and dockable tool panels (changes, files, review, run, tasks, usage) over the selected session in the center.
+The Agents view (`view-agents`): Claude Code sessions per project, with live status, terminal/chat, usage and attention. Tool panels dock around the selected session: changes, diff, files, code, review, run, output, tasks, workflows, notes, preview, JSON, scratchpad, trajectory and usage. Skills opens as its own page.
 
-- Projects are any picked folder. The sidebar is a tree of folders and tags with clean rows. Sessions can be archived (and shown in an archived view) or moved to the trash.
-- Each project shows at most `agents.maxSessionsPerProject` sessions (default 10); live sessions are always shown and counted first. New sessions go on top. Sort: manual, recent or needs attention.
-- A stopped session shows a card; `agents.resumeOnSelect` resumes it when selected. One account is active at a time.
-- Search accepts status prefixes `! @ # & ~`. `agents.restoreSessions` (ask, always, never) controls restoring sessions on start.
-- Every list action is a palette command with a rebindable key; single-letter keys work only while the session list has focus.
-- Settings > Usage previews changes next to a live sample Usage view.
+- Projects are any picked folder. The sidebar is a tree of folders and tags. Sessions can be archived or moved to the trash; sort by manual, recent or needs attention.
+- Each project shows at most `agents.maxSessionsPerProject` sessions (default 10); live sessions come first.
+- A stopped session shows a card; `agents.resumeOnSelect` resumes it when selected, and `agents.restoreSessions` (ask, always, never) controls restoring sessions on start.
+- Search accepts status prefixes `! @ # & ~`. Every list action is a palette command with a rebindable key.
 
 ## Install
 
@@ -63,7 +61,7 @@ The app starts with Home and Settings. `--views` adds view packages (any of `age
 bun add @deckbuilderkit/ui @deckbuilderkit/server-core @deckbuilderkit/view-terminal
 ```
 
-Packages: `ui`, `server-core`, `server-mods`, `shell`, `platform`, `build`, and the views `view-agents`, `view-explorer`, `view-git`, `view-rest`, `view-terminal`, `view-workbench`, all under `@deckbuilderkit/`.
+Packages: `ui`, `server-core`, `server-mods`, `shell`, `platform`, `build`, `db`, `editor`, `sql-ui`, `terminal`, and the views `view-agents`, `view-explorer`, `view-git`, `view-rest`, `view-terminal`, `view-workbench`, all under `@deckbuilderkit/`.
 
 ### 4. npm, pnpm or yarn
 
@@ -95,11 +93,12 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the other scripts.
 - **Explorer**: file browser with archives, git badges and file compare. Markdown opens in a rich editor with a toolbar, tables, highlighted code blocks, Mermaid diagrams, heading outline, followable links, zoom and reading width, and Export HTML; Source mode shows the raw text. Settings has a Markdown section. Keys include Ctrl+I, Ctrl+Shift+V (Source), Ctrl+Shift+O (go to heading), Ctrl+Alt+T (table); Ctrl+B stays the sidebar toggle outside the text.
 - **Terminal**: terminal with search and clipboard support.
 - **REST**: HTTP client with environments, history, and curl and `.http` import.
-- **Workbench**: Oracle client with history, explain plan and table details.
+- **Workbench**: SQL client (Oracle) with history, explain plan and table details. Explorer opens `.sql` files in it.
 - **Git**: repository status and history.
-- **Tabs**: several views side by side in one window.
-- **Grid**: views arranged in a grid.
-- **Settings**: theme, language, layout and shortcuts.
+- **Tabs** and **Grid**: several views in one window; any view can also pop out into its own window.
+- **Settings**: theme, language, layout, browser and shortcuts.
+
+All dialogs (file pickers, confirms) are in-app, themed and translated; no native OS dialogs.
 
 ## Layouts
 
