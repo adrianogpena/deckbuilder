@@ -20,8 +20,9 @@ function readPlacement(file: string): WindowPlacement | undefined {
 // Runs before every page load. Tells the UI it is in a window, sends links to other origins to
 // the default browser instead of navigating the app window away, and stops Ctrl+wheel and
 // Ctrl +/-/0 from zooming the whole window (the zoom is a setting; the page still gets the events).
-const INIT = `
+const initScript = (popout?: string): string => `
 window.__DECKBUILDER_SHELL__ = 'window';
+${popout ? `window.__DECKBUILDER_POPOUT__ = ${JSON.stringify(popout)};` : ''}
 (() => {
   addEventListener('wheel', (e) => { if (e.ctrlKey) e.preventDefault(); }, { passive: false, capture: true });
   const zoomKeys = ['Equal', 'Minus', 'Digit0', 'NumpadAdd', 'NumpadSubtract', 'Numpad0'];
@@ -51,7 +52,7 @@ window.__DECKBUILDER_SHELL__ = 'window';
 self.onmessage = (e: MessageEvent<WindowRequest>) => {
   // The window shows #121212 until the page paints (WEBVIEW2_DEFAULT_BACKGROUND_COLOR has no effect
   // with this webview library); the palette inlined into index.html (themeHead) carries the first paint.
-  const { url, title, width, height, debug, stateFile } = e.data;
+  const { url, title, width, height, debug, stateFile, popout } = e.data;
   const webview = new Webview(debug, { width, height, hint: SizeHint.NONE });
   if (!webview.unsafeHandle) {
     // WebView2 failed to start, e.g. its profile folder is still locked by msedgewebview2.exe
@@ -63,6 +64,7 @@ self.onmessage = (e: MessageEvent<WindowRequest>) => {
   const hwnd = webview.unsafeWindowHandle;
   showWindow(hwnd);
   setWindowIconFromExe(hwnd);
+  if (popout) self.postMessage({ hwnd: Number(hwnd) });
   if (stateFile) {
     const saved = readPlacement(stateFile);
     if (saved) setWindowPlacement(hwnd, saved);
@@ -84,8 +86,9 @@ self.onmessage = (e: MessageEvent<WindowRequest>) => {
   webview.title = title;
   webview.bind('__deckbuilderOpenExternal', (href: string) => openExternal(href));
   webview.bind('__deckbuilderSetZoom', (factor: number) => setWebviewZoom(webview.unsafeHandle as Pointer, factor));
-  webview.init(INIT);
+  webview.init(initScript(popout));
   webview.navigate(url);
   webview.run();
-  process.exit(0);
+  // A pop-out only ends its own worker; the main window ends the process.
+  if (!popout) process.exit(0);
 };

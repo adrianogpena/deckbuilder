@@ -81,6 +81,38 @@ export function showWindow(hwnd: import('bun:ffi').Pointer | null): void {
   }
 }
 
+/** Brings a native window (an HWND) to the front on Windows, restoring it if minimized; elsewhere a no-op. */
+export function focusWindow(hwnd: number | import('bun:ffi').Pointer | null): void {
+  if (process.platform !== 'win32' || !hwnd) return;
+  try {
+    const { dlopen, FFIType } = require('bun:ffi') as typeof import('bun:ffi');
+    const user32 = dlopen('user32.dll', {
+      IsIconic: { args: [FFIType.ptr], returns: FFIType.i32 },
+      ShowWindow: { args: [FFIType.ptr, FFIType.i32], returns: FFIType.i32 },
+      SetForegroundWindow: { args: [FFIType.ptr], returns: FFIType.i32 },
+      GetForegroundWindow: { args: [], returns: FFIType.ptr },
+      GetWindowThreadProcessId: { args: [FFIType.ptr, FFIType.ptr], returns: FFIType.u32 },
+      AttachThreadInput: { args: [FFIType.u32, FFIType.u32, FFIType.i32], returns: FFIType.i32 },
+    });
+    const kernel32 = dlopen('kernel32.dll', { GetCurrentThreadId: { args: [], returns: FFIType.u32 } });
+    const h = hwnd as import('bun:ffi').Pointer;
+    const SW_RESTORE = 9;
+    if (user32.symbols.IsIconic(h)) user32.symbols.ShowWindow(h, SW_RESTORE);
+    // Attaching to the foreground window's thread lets SetForegroundWindow raise instead of only flashing the taskbar.
+    const fg = user32.symbols.GetForegroundWindow();
+    const fgThread = fg ? user32.symbols.GetWindowThreadProcessId(fg, null) : 0;
+    const me = kernel32.symbols.GetCurrentThreadId();
+    const attach = fgThread !== 0 && fgThread !== me;
+    if (attach) user32.symbols.AttachThreadInput(me, fgThread, 1);
+    user32.symbols.SetForegroundWindow(h);
+    if (attach) user32.symbols.AttachThreadInput(me, fgThread, 0);
+    user32.close();
+    kernel32.close();
+  } catch {
+    // the window stays where it is
+  }
+}
+
 /**
  * Sets a native window's title-bar and taskbar icon (Windows) to the icon embedded in the running
  * exe. The webview library picks its own icon; this makes the exe's `--windows-icon` the one shown.

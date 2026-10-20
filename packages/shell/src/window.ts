@@ -1,4 +1,4 @@
-import { showError } from '@deckbuilderkit/platform';
+import { focusWindow, showError } from '@deckbuilderkit/platform';
 
 export interface WindowOptions {
   title?: string;
@@ -8,6 +8,16 @@ export interface WindowOptions {
   debug?: boolean;
   /** JSON file where the window's position, size and maximized state are kept between runs. */
   stateFile?: string;
+  /** View id of a pop-out window: the page reads it from `__DECKBUILDER_POPOUT__`; closing it leaves the process running. */
+  popout?: string;
+}
+
+/** Control over an open window. */
+export interface WindowHandle {
+  /** Brings the window to the front (needs its handle, known once it shows). */
+  focus(): void;
+  /** Runs once the window has closed (immediately if it already has). */
+  onClosed(cb: () => void): void;
 }
 
 /** Message the window worker receives. */
@@ -18,6 +28,7 @@ export interface WindowRequest {
   height: number;
   debug: boolean;
   stateFile?: string;
+  popout?: string;
 }
 
 /** Size of a new native or app window unless the app passes one. */
@@ -34,8 +45,11 @@ export function openWindows(): number {
  * Opens a native window on `url`. Each window runs in its own Worker because Webview.run()
  * blocks its thread; the server stays on the main thread. `onAllClosed` runs when the last one closes.
  */
-export function openWindow(url: string, opts: WindowOptions, onAllClosed: () => void): void {
+export function openWindow(url: string, opts: WindowOptions, onAllClosed: () => void): WindowHandle {
   open++;
+  let hwnd = 0;
+  const closedCbs: Array<() => void> = [];
+  let closed = false;
   // In the exe this resolves next to the bundled entry, where `deckbuilder build` puts the worker entrypoint.
   const worker = new Worker(new URL('./window-worker.ts', import.meta.url).href);
   const request: WindowRequest = {
@@ -45,13 +59,24 @@ export function openWindow(url: string, opts: WindowOptions, onAllClosed: () => 
     height: opts.height ?? DEFAULT_WINDOW.height,
     debug: opts.debug ?? false,
     stateFile: opts.stateFile,
+    popout: opts.popout,
   };
   worker.postMessage(request);
-  worker.addEventListener('message', (e: MessageEvent<{ error?: string }>) => {
+  worker.addEventListener('message', (e: MessageEvent<{ error?: string; hwnd?: number }>) => {
     if (e.data.error) showError(opts.title ?? 'Error', e.data.error);
+    if (e.data.hwnd) hwnd = e.data.hwnd;
   });
   worker.addEventListener('error', (e) => showError(opts.title ?? 'Error', `Window failed: ${e.message}`));
   worker.addEventListener('close', () => {
+    closed = true;
+    for (const cb of closedCbs) cb();
     if (--open === 0) onAllClosed();
   });
+  return {
+    focus: () => focusWindow(hwnd),
+    onClosed: (cb) => {
+      if (closed) cb();
+      else closedCbs.push(cb);
+    },
+  };
 }

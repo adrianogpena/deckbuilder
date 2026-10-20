@@ -6,6 +6,7 @@ import {
   DEV_PORT,
   embeddedWebAssets,
   type IndexTransform,
+  invalid,
   isUrlScheme,
   launchCodes,
   type Routes,
@@ -20,7 +21,8 @@ import { createIdleWatch, type IdleWatch } from './idle.ts';
 import { acquireLock, createInstance, handOff, type OpenMode } from './instance.ts';
 import { parseAppLink } from './link.ts';
 import { launchUrl } from './urls.ts';
-import { openWindow, openWindows, type WindowOptions } from './window.ts';
+import { createPopouts, parsePopoutBody } from './popouts.ts';
+import { openWindow, openWindows, type WindowHandle, type WindowOptions } from './window.ts';
 
 export type { OpenMode } from './instance.ts';
 export { DEFAULT_WINDOW, type WindowOptions } from './window.ts';
@@ -250,6 +252,7 @@ export async function runApp(opts: RunOptions): Promise<void> {
     quit,
   };
 
+  const popouts = createPopouts<WindowHandle>();
   const routes: Routes = {
     ...(typeof opts.routes === 'function' ? opts.routes(ctx) : opts.routes),
     'POST /api/quit': () => {
@@ -257,6 +260,32 @@ export async function runApp(opts: RunOptions): Promise<void> {
       return { ok: true };
     },
     'POST /api/alive': () => ({ ok: true }),
+    'GET /api/window/popouts': () => ({ supported: mode === 'window', views: popouts.views() }),
+    'POST /api/window/popout': async (c) => {
+      if (mode !== 'window') return { ok: false };
+      const body = parsePopoutBody(await c.json());
+      if (!body) throw invalid('popout.invalid', 'Invalid pop-out view or title');
+      const existing = popouts.get(body.view);
+      if (existing) {
+        existing.focus();
+        return { ok: true };
+      }
+      const handle = openWindow(
+        launchUrl(origin, codes, `/${body.view}`),
+        {
+          title: body.title,
+          stateFile: join(appHome(app.id), `popout-${body.view}.json`),
+          debug: dev,
+          popout: body.view,
+          width: opts.window?.width,
+          height: opts.window?.height,
+        },
+        onAllClosed,
+      );
+      popouts.add(body.view, handle);
+      handle.onClosed(() => popouts.remove(body.view, handle));
+      return { ok: true };
+    },
   };
 
   const sockets = typeof opts.sockets === 'function' ? opts.sockets(ctx) : opts.sockets;
