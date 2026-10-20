@@ -1,14 +1,13 @@
-import { useEffect, useState, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
 import { Icon, type IconName, useShortcutTip } from '@deckbuilderkit/ui';
+import type { ChatEvent } from '../chat-protocol.ts';
 import type { AgentSessionView } from '../protocol.ts';
 import { t } from '../i18n';
+import { sessionHistory } from './api';
 import { displayName } from './attention';
-import { Badge, type BadgeKind } from './Badge';
-import { SessionDot } from './StatusIcon';
-import { statusSince } from './status-text';
+import { type BadgeKind } from './Badge';
+import { toolStats } from './session-summary';
 import './main.css';
-
-export type SessionMode = 'terminal' | 'external';
 
 /** Status badge of the head strip: kind and label (spec S7). */
 export function headBadge(s: Pick<AgentSessionView, 'status' | 'lifecycle' | 'exitCode'>): { kind: BadgeKind; label: string } {
@@ -26,9 +25,6 @@ export function headBadge(s: Pick<AgentSessionView, 'status' | 'lifecycle' | 'ex
 
 export interface SessionHeadProps {
   session: AgentSessionView;
-  mode: SessionMode;
-  /** Project display name; the cwd folder when the session has no project. */
-  project: string;
   git?: { branch?: string | null; dirty?: number; ahead?: number; behind?: number };
   onRename(name: string | null): void;
   onStop(): void;
@@ -47,19 +43,22 @@ function HeadButton({ icon, label, onClick, command }: { icon: IconName; label: 
   );
 }
 
-/** The 34px strip above the selected session (spec S7): dot, title (double-click renames), badges, "project — session", git, context, actions. */
-export function SessionHead({ session: s, mode, project, git, onRename, onStop, onRestart, onCopy, onTrajectory, onTogglePanel }: SessionHeadProps) {
+/** The 34px strip above the selected session (spec S7): title (double-click renames), tool total, subagents, git, context, actions. */
+export function SessionHead({ session: s, git, onRename, onStop, onRestart, onCopy, onTrajectory, onTogglePanel }: SessionHeadProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 30_000);
-    return () => clearInterval(id);
-  }, []);
+  const [events, setEvents] = useState<ChatEvent[]>([]);
   useEffect(() => setEditing(false), [s.id]);
+  useEffect(() => {
+    let live = true;
+    void sessionHistory(s.id).then((r) => live && setEvents(r.events), () => undefined);
+    return () => {
+      live = false;
+    };
+  }, [s.id, s.updatedAt]);
+  const stats = useMemo(() => toolStats(events), [events]);
 
   const title = displayName(s);
-  const badge = headBadge(s);
   const running = (s.live === true || s.lifecycle === 'starting') && s.lifecycle !== 'exited';
   const commit = () => {
     setEditing(false);
@@ -76,16 +75,16 @@ export function SessionHead({ session: s, mode, project, git, onRename, onStop, 
 
   return (
     <div className="agents-head">
-      <SessionDot status={s.status} account={s.account} title={statusSince(s, now, t).text} />
       {editing ? (
         <input className="agents-head-rename" aria-label={t('agents.head.rename')} value={draft} autoFocus onChange={(e) => setDraft(e.target.value)} onKeyDown={onKey} onBlur={commit} />
       ) : (
         <span className="agents-head-title" title={t('agents.head.rename')} onDoubleClick={() => { setDraft(title); setEditing(true); }}>{title}</span>
       )}
-      <Badge kind={badge.kind}>{badge.label}</Badge>
-      <Badge kind="neutral">{t(`agents.badge.${mode}`)}</Badge>
-      {s.status === 'needs-you' && <span className="agents-head-bell" aria-hidden><Icon name="bell" size={12} /></span>}
-      <span className="agents-head-sub" title={s.cwd}>{t('agents.head.title', { project, session: title })}</span>
+      {stats && stats.total > 0 && (
+        <span className="agents-head-sub" title={stats.tools.map(([n, c]) => `${n} ${c}`).join(' · ')}>{t('agents.head.tools', { n: stats.total })}</span>
+      )}
+      {stats && stats.subagents > 0 && <span className="agents-head-sub">{t('agents.head.subagents', { n: stats.subagents })}</span>}
+      <span className="agents-head-fill" />
       {git?.branch && (
         <span className="agents-head-git">
           <Icon name="git-branch" size={12} />

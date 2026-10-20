@@ -84,7 +84,6 @@ function AgentPanel({ params, api, update }: PanelProps) {
   const showSession = session !== undefined && (inTerminal || inExternal || inPreview);
   const exitedHere = showSession && !inExternal && (session.lifecycle === 'exited' || (inPreview && (session.status === 'exited' || host.userStopped.has(session.id))));
   const resumeHere = showSession && inPreview && !exitedHere && !session.external && !host.resumeDismissed.has(session.id);
-  const projectName = session ? (host.projects.find((p) => p.id === session.project)?.name ?? session.cwd.split(/[\\/]/).filter(Boolean).pop() ?? session.cwd) : '';
 
   const startPreview = async () => {
     if (!session) return;
@@ -133,8 +132,6 @@ function AgentPanel({ params, api, update }: PanelProps) {
       {showSession && (
         <SessionHead
           session={session}
-          mode={inExternal ? 'external' : 'terminal'}
-          project={projectName}
           git={host.git[session.cwd]}
           onRename={(name) => void patchSessionState(session.id, { name }).catch((e) => host.setError(errorOf(e).message))}
           onStop={() => host.stop(session)}

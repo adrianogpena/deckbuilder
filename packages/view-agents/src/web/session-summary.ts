@@ -41,6 +41,29 @@ export function summarize(events: ChatEvent[]): SessionSummary {
   return s;
 }
 
+const SUBAGENT_TOOLS = new Set(['Task', 'Agent']);
+
+export interface ToolStats {
+  /** Top-level tool calls, most used first. */
+  tools: Array<[name: string, count: number]>;
+  total: number;
+  subagents: number;
+}
+
+/** Tool-call totals and the number of subagents launched, from the loaded history events. */
+export function toolStats(events: ChatEvent[]): ToolStats {
+  const counts = new Map<string, number>();
+  let total = 0;
+  let subagents = 0;
+  for (const e of events) {
+    if (e.type !== 'tool_use' || e.parentId) continue;
+    total++;
+    counts.set(e.name, (counts.get(e.name) ?? 0) + 1);
+    if (SUBAGENT_TOOLS.has(e.name)) subagents++;
+  }
+  return { tools: [...counts].sort((a, b) => b[1] - a[1]), total, subagents };
+}
+
 /** A path relative to the cwd when inside it, else unchanged. Handles both slash styles. */
 export function shortPath(path: string, cwd: string): string {
   const norm = (p: string) => p.split(String.fromCharCode(92)).join('/');
