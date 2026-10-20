@@ -2,7 +2,7 @@ import { statSync } from 'node:fs';
 import { openWithDefault, revealInFolder } from '@deckbuilderkit/platform';
 import { defineServerView, invalid, isRecord, type ServerViewDef } from '@deckbuilderkit/server-core';
 import { dbSharedRoutes, type DbStores } from '@deckbuilderkit/db';
-import { type DialogPicks, dialogRoutes, editorRoutes, fromPlatform, httpSharedRoutes, pickedPaths, recordRoutes, rootedFs, type AppStores, type RootedFs } from '@deckbuilderkit/server-mods';
+import { type DialogPicks, editorRoutes, fromPlatform, httpSharedRoutes, pickedPaths, recordRoutes, rootedFs, type AppStores, type RootedFs } from '@deckbuilderkit/server-mods';
 import type { ExplorerSettings } from './explorer-state';
 import { type MarkdownStored, validMarkdown } from './settings/markdown';
 
@@ -126,7 +126,6 @@ export function explorerServerView(opts: ExplorerServerOptions = {}): ExplorerSe
       return {
         ...recordRoutes(stores.projects, '/api/projects'),
         ...rooted.routes,
-        ...dialogRoutes({ picked: stores.pickedFolders }),
         ...editorRoutes({ dir: ctx.dataDir, fs: rooted, picked: stores.pickedFolders }),
         'POST /api/fs/reveal': async ({ json }) => {
           await revealInFolder(await target(json)).catch(fromPlatform);
