@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, expect, test } from 'bun:test';
-import type { saveFileAs } from '@deckbuilderkit/platform';
 import type { AppError, RouteContext } from '@deckbuilderkit/server-core';
+import { pickedPaths } from './dialogs.ts';
 import { httpExecutor, httpRoutes, suggestedName, validateDraft, validateRequest } from './http.ts';
 
 let server: ReturnType<typeof Bun.serve>;
@@ -311,23 +311,23 @@ test('suggested file names come from the final URL and content type', () => {
   expect(suggestedName(`http://h/${'n'.repeat(300)}`, 'text/plain')).toHaveLength(104);
 });
 
-test('save writes the kept bytes through the dialog, and an evicted id is responseGone', async () => {
-  const written: string[] = [];
+test('save writes the kept bytes to a picked target, and an evicted id is responseGone', async () => {
   const executor = httpExecutor({ keep: 1 });
-  const target = { path: `${process.env.TEMP ?? '.'}/deckbuilder-http-save-${Date.now()}.json` as string | null };
-  const routes = httpRoutes(executor, { save: (async () => target.path) as typeof saveFileAs });
-  const call = (id: string) =>
-    Promise.resolve(routes['POST /api/http/save']!({ json: async () => ({ id }) } as unknown as RouteContext)).catch((e) => e);
+  const picks = { saveTargets: pickedPaths() };
+  const path = `${process.env.TEMP ?? '.'}/deckbuilder-http-save-${Date.now()}.json`;
+  const routes = httpRoutes(executor, { picks });
+  const call = (id: string, target?: string) =>
+    Promise.resolve(routes['POST /api/http/save']!({ json: async () => ({ id, target }) } as unknown as RouteContext)).catch((e) => e);
   const first = await executor.send(spec('/echo'));
   const second = await executor.send(spec('/echo'));
-  expect(((await call(first.id)) as AppError).code).toBe('responseGone');
-  const saved = (await call(second.id)) as { path: string; bytes: number };
+  picks.saveTargets.add(path);
+  expect(((await call(first.id, path)) as AppError).code).toBe('responseGone');
+  const saved = (await call(second.id, path)) as { path: string; bytes: number };
   expect(saved.bytes).toBe(second.size);
-  written.push(saved.path);
   expect(await Bun.file(saved.path).text()).toBe(second.text!);
-  target.path = null;
-  expect(await call(second.id)).toEqual({ path: null });
-  await Bun.file(written[0]!).delete();
+  expect(((await call(second.id, path)) as AppError).code).toBe('notASaveTarget');
+  expect(((await call(second.id)) as AppError).code).toBe('notASaveTarget');
+  await Bun.file(path).delete();
 });
 
 test('send resolves environment variables in URL, headers, body, form and saved auth', async () => {

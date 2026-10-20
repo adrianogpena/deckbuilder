@@ -1,6 +1,6 @@
 import { extname } from 'node:path';
-import { saveFileAs, writeFileAtomic } from '@deckbuilderkit/platform';
-import { AppError, invalid, isRecord, type Routes } from '@deckbuilderkit/server-core';
+import { writeFileAtomic } from '@deckbuilderkit/platform';
+import { AppError, forbidden, invalid, isRecord, type Routes } from '@deckbuilderkit/server-core';
 import {
   HTTP_MAX_BODY_BYTES,
   HTTP_MAX_BODY_CHARS,
@@ -17,7 +17,7 @@ import {
   type RestHistoryEntry,
 } from '@deckbuilderkit/server-core/protocol';
 import { isBinary } from './bytes.ts';
-import { fromPlatform } from './platform-errors.ts';
+import type { DialogPicks } from './file-dialog.ts';
 import { variableResolver, type VariableResolver } from './rest-env.ts';
 
 export interface HttpExecutorOptions {
@@ -59,7 +59,8 @@ export interface HttpRoutesOptions {
   environmentVars?: (id: string) => Promise<Record<string, string>>;
   /** Called once per send, failures included (status 0 and `error`), with the unresolved request minus Authorization. */
   onSend?: (entry: Omit<RestHistoryEntry, 'id'>) => unknown;
-  save?: typeof saveFileAs;
+  /** The in-app file dialog's picks: `save` takes a `target` that is in `saveTargets`. Missing: every save is refused. */
+  picks?: Pick<DialogPicks, 'saveTargets'>;
 }
 
 const MAX_HEADER_NAME_CHARS = 200;
@@ -371,6 +372,7 @@ export function httpExecutor(opts: HttpExecutorOptions = {}): HttpExecutor {
           size: bytes.length,
           truncated,
           contentType,
+          fileName: suggestedName(finalUrl, contentType),
         };
         if (isTextType(contentType) && !isBinary(bytes)) info.text = new TextDecoder().decode(bytes);
         else info.binary = true;
@@ -414,9 +416,9 @@ export function suggestedName(url: string, contentType: string): string {
   return name;
 }
 
-/** `POST /api/http/send` (`HttpSendInput`: `{ request, secretRef?, environment? }`, `{{name}}` resolved before sending) and `POST /api/http/save` (`{ id }`, asks for the target in a server-side dialog). */
+/** `POST /api/http/send` (`HttpSendInput`: `{ request, secretRef?, environment? }`, `{{name}}` resolved before sending) and `POST /api/http/save` (`{ id, target }`, `target` is the path the in-app save dialog returned). */
 export function httpRoutes(executor: HttpExecutor, opts: HttpRoutesOptions = {}): Routes {
-  const { secretHeaders, environmentVars, onSend, save = saveFileAs } = opts;
+  const { secretHeaders, environmentVars, onSend, picks } = opts;
 
   async function send(body: Record<string, unknown>, signal: AbortSignal): Promise<HttpResponseInfo> {
     const values = typeof body.environment === 'string' && environmentVars ? await environmentVars(body.environment) : {};
@@ -474,8 +476,8 @@ export function httpRoutes(executor: HttpExecutor, opts: HttpRoutesOptions = {})
       if (!isRecord(body) || typeof body.id !== 'string') throw badRequest();
       const response = executor.body(body.id);
       if (!response) throw invalid('responseGone', 'This response is no longer kept; send the request again.');
-      const path = await save({ suggestedName: suggestedName(response.url, response.contentType) }).catch(fromPlatform);
-      if (path === null) return { path: null };
+      const path = body.target;
+      if (typeof path !== 'string' || !picks?.saveTargets.take(path)) throw forbidden('notASaveTarget', 'Choose where to save first.');
       await writeFileAtomic(path, response.bytes);
       return { path, bytes: response.bytes.length };
     },

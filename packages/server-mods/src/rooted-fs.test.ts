@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PlatformError } from '@deckbuilderkit/platform';
 import type { RouteContext } from '@deckbuilderkit/server-core';
+import { pickedPaths } from './dialogs.ts';
 import { type FsEntry, parseExclude, rootedFs, searchTree, sortEntries } from './rooted-fs.ts';
 
 const dirs: string[] = [];
@@ -312,9 +313,10 @@ test('search stops once aborted', async () => {
   expect((await hits.next()).done).toBe(true);
 });
 
-const tailSetup = async (content: string | Buffer, saveAs?: (o: unknown) => Promise<string | null>) => {
+const tailSetup = async (content: string | Buffer) => {
   const t = await setup();
-  const fs = rootedFs({ roots: async () => [{ id: 'r', path: t.root }], saveAs: saveAs as never });
+  const picks = { opened: pickedPaths(), saveTargets: pickedPaths() };
+  const fs = rootedFs({ roots: async () => [{ id: 'r', path: t.root }], picks });
   await writeFile(join(t.root, 'x.log'), content);
   const call = (key: string, input: string | Record<string, unknown>) =>
     fs.routes[key]!({
@@ -322,7 +324,7 @@ const tailSetup = async (content: string | Buffer, saveAs?: (o: unknown) => Prom
       query: new URLSearchParams(typeof input === 'string' ? input : ''),
       json: async () => input,
     } as unknown as RouteContext);
-  return { ...t, call, fail: (key: string, input: string | Record<string, unknown>) => Promise.resolve(call(key, input)).catch((e: unknown) => e) };
+  return { ...t, picks, call, fail: (key: string, input: string | Record<string, unknown>) => Promise.resolve(call(key, input)).catch((e: unknown) => e) };
 };
 
 test('tail reads whole lines and keeps the unterminated last line as partial', async () => {
@@ -361,63 +363,48 @@ test('tail clamps max, refuses bad input, outside paths and binary files', async
   expect(await call('GET /api/fs/tail', 'root=r&path=x.log&max=0')).toMatchObject({ size: 4 });
 });
 
-test('save-range writes the bytes after the bookmark to the dialog target', async () => {
-  const seen: unknown[] = [];
-  const t = await tailSetup('hello world\n', async (o) => {
-    seen.push(o);
-    return join(t.root, 'out.log');
-  });
-  expect(await t.call('POST /api/fs/save-range', { root: 'r', path: 'x.log', from: 6 })).toEqual({ path: join(t.root, 'out.log'), bytes: 6 });
-  expect(await readFile(join(t.root, 'out.log'), 'utf8')).toBe('world\n');
-  expect(seen[0]).toMatchObject({ suggestedName: 'x-from-6.log' });
+test('save-range writes the bytes after the bookmark to the picked target', async () => {
+  const t = await tailSetup('hello world\n');
+  const target = join(t.root, 'out.log');
+  t.picks.saveTargets.add(target);
+  expect(await t.call('POST /api/fs/save-range', { root: 'r', path: 'x.log', from: 6, target })).toEqual({ path: target, bytes: 6 });
+  expect(await readFile(target, 'utf8')).toBe('world\n');
 });
 
-test('save-range writes nothing when cancelled and refuses stale or bad offsets', async () => {
-  const t = await tailSetup('abc\n', async () => null);
-  expect(await t.call('POST /api/fs/save-range', { root: 'r', path: 'x.log', from: 0 })).toEqual({ path: null });
-  expect(await t.fail('POST /api/fs/save-range', { root: 'r', path: 'x.log', from: 99 })).toMatchObject({ code: 'rangeStale' });
-  expect(await t.fail('POST /api/fs/save-range', { root: 'r', path: 'x.log', from: -1 })).toMatchObject({ code: 'badRequest' });
+test('save-range refuses a target no dialog picked and stale or bad offsets', async () => {
+  const t = await tailSetup('abc\n');
+  const target = join(t.root, 'out.log');
+  expect(await t.fail('POST /api/fs/save-range', { root: 'r', path: 'x.log', from: 0, target })).toMatchObject({ code: 'notASaveTarget' });
+  expect(await t.fail('POST /api/fs/save-range', { root: 'r', path: 'x.log', from: 0 })).toMatchObject({ code: 'notASaveTarget' });
+  t.picks.saveTargets.add(target);
+  expect(await t.fail('POST /api/fs/save-range', { root: 'r', path: 'x.log', from: 99, target })).toMatchObject({ code: 'rangeStale' });
+  expect(await t.fail('POST /api/fs/save-range', { root: 'r', path: 'x.log', from: -1, target })).toMatchObject({ code: 'badRequest' });
 });
 
-test('save-new writes nothing when the dialog is cancelled', async () => {
-  const seen: unknown[] = [];
-  const t = await tailSetup('', async (o) => {
-    seen.push(o);
-    return null;
-  });
-  expect(await t.call('POST /api/fs/save-new', { text: 'note', suggestedName: 'untitled.sql', start: t.root })).toEqual({ path: null });
-  expect(seen[0]).toEqual({ suggestedName: 'untitled.sql', start: t.root, filters: [{ name: 'SQL', patterns: ['*.sql'] }, { name: 'All files', patterns: ['*.*'] }] });
+test('save-new writes the text to the picked target once', async () => {
+  const t = await tailSetup('');
+  const target = join(t.outside, 'note.md');
+  t.picks.saveTargets.add(target);
+  expect(await t.call('POST /api/fs/save-new', { text: '# hi\n', target })).toEqual({ path: target });
+  expect(await readFile(target, 'utf8')).toBe('# hi\n');
+  expect(await t.fail('POST /api/fs/save-new', { text: 'again', target })).toMatchObject({ code: 'notASaveTarget' });
 });
 
-test('save-new writes the text to the dialog target', async () => {
-  const t = await tailSetup('', async () => join(t.outside, 'note.md'));
-  expect(await t.call('POST /api/fs/save-new', { text: '# hi\n', suggestedName: 'untitled.md' })).toEqual({ path: join(t.outside, 'note.md') });
-  expect(await readFile(join(t.outside, 'note.md'), 'utf8')).toBe('# hi\n');
-});
-
-test('save-new with a path a dialog returned writes there without the dialog and refuses relative paths', async () => {
-  const seen: unknown[] = [];
-  const t = await tailSetup('', async (o) => {
-    seen.push(o);
-    return seen.length === 1 ? join(t.outside, 'kept.txt') : null;
-  });
+test('save-new with a path an earlier save returned writes there and refuses relative paths', async () => {
+  const t = await tailSetup('');
   const target = join(t.outside, 'kept.txt');
-  expect(await t.call('POST /api/fs/save-new', { text: 'v1', suggestedName: 'untitled.txt' })).toEqual({ path: target });
+  t.picks.saveTargets.add(target);
+  expect(await t.call('POST /api/fs/save-new', { text: 'v1', target })).toEqual({ path: target });
   expect(await t.call('POST /api/fs/save-new', { text: 'v2', path: target })).toEqual({ path: target });
   expect(await readFile(target, 'utf8')).toBe('v2');
-  expect(seen).toHaveLength(1);
   expect(await t.fail('POST /api/fs/save-new', { text: 'x', path: 'rel.txt' })).toMatchObject({ code: 'badRequest' });
 });
 
-test('save-new with a path no dialog returned asks again from that file and never writes it', async () => {
-  const seen: unknown[] = [];
-  const t = await tailSetup('', async (o) => {
-    seen.push(o);
-    return null;
-  });
+test('save-new with a path no dialog returned is refused and never written', async () => {
+  const t = await tailSetup('');
   const elsewhere = join(t.outside, 'sub', 'evil.txt');
-  expect(await t.call('POST /api/fs/save-new', { text: 'x', path: elsewhere })).toEqual({ path: null });
-  expect(seen[0]).toMatchObject({ suggestedName: 'evil.txt', start: join(t.outside, 'sub') });
+  expect(await t.fail('POST /api/fs/save-new', { text: 'x', path: elsewhere })).toMatchObject({ code: 'notASaveTarget' });
+  expect(await t.fail('POST /api/fs/save-new', { text: 'x', target: elsewhere })).toMatchObject({ code: 'notASaveTarget' });
   expect(await readFile(elsewhere, 'utf8').catch(() => null)).toBeNull();
 });
 

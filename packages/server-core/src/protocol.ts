@@ -216,6 +216,8 @@ export interface HttpResponseInfo {
   truncated: boolean;
   /** The Content-Type header, '' when absent. */
   contentType: string;
+  /** The name the save dialog suggests for the body. */
+  fileName: string;
   /** Set for text-like bodies (UTF-8). */
   text?: string;
   /** Set otherwise; the bytes are only reachable through save. */
@@ -270,13 +272,12 @@ export interface FsHash {
 
 /** `POST /api/fs/extract`: unpacks the archive `path` into the new folder `to` (must not exist). */
 /**
- * `POST /api/fs/save-new` body (an untitled tab): without `path` the server opens the save dialog in
- * `start` (absolute) with `suggestedName`; with `path` (absolute) it writes there. Reply `{ path }`, null on cancel.
+ * `POST /api/fs/save-new` body (an untitled tab): `target` (absolute) is a path the in-app save dialog
+ * returned; `path` (absolute) is a path an earlier save of this server returned, else `notASaveTarget`. Reply `{ path }`.
  */
 export interface FsSaveNewRequest {
   text: string;
-  suggestedName?: string;
-  start?: string;
+  target?: string;
   path?: string;
 }
 

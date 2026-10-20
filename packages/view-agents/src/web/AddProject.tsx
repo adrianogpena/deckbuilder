@@ -31,7 +31,7 @@ export function AddProject({ added, onAdded, onClose }: { added: AgentProject[];
 
   const browse = async () => {
     try {
-      const picked = await dialogs.pickFolder({ title: t('agents.add.pick') });
+      const picked = await dialogs.pickFolder({ title: t('agents.add.pick'), purpose: 'project' });
       if (!picked) return;
       setPath(picked);
       setName(baseName(picked));

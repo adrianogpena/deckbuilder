@@ -34,8 +34,8 @@ export const explorerClient: ExplorerClient = {
     request<FsCompressResult>('POST', '/api/fs/compress', {}, { root, paths, name, format } satisfies FsCompressRequest),
   fsCreate: (root, path, kind) => request<FsEntry>('POST', '/api/fs/create', {}, { root, path, kind }),
   fsTail: (root, path, from, max) => request<TailChunk>('GET', '/api/fs/tail', { root, path, from, max }),
-  fsSaveRange: (root, path, from) => request<{ path: string | null; bytes?: number }>('POST', '/api/fs/save-range', {}, { root, path, from }),
-  fsSaveNew: (body) => request<{ path: string | null }>('POST', '/api/fs/save-new', {}, body satisfies FsSaveNewRequest),
+  fsSaveRange: (root, path, from, target) => request<{ path: string; bytes: number }>('POST', '/api/fs/save-range', {}, { root, path, from, target }),
+  fsSaveNew: (body) => request<{ path: string }>('POST', '/api/fs/save-new', {}, body satisfies FsSaveNewRequest),
   fsWrite: (root, path, text, expectedMtime, encoding, unlock) =>
     request<FsEntry>('POST', '/api/fs/write', {}, { root, path, text, expectedMtime, encoding, unlock }),
   fsRename: (root, path, name) => request<FsEntry>('POST', '/api/fs/rename', {}, { root, path, name }),
@@ -50,7 +50,7 @@ export const explorerClient: ExplorerClient = {
   editors: () => request<EditorInfo[]>('GET', '/api/editors'),
   openInEditor: (editor, root, path) => request<{ ok: true }>('POST', '/api/editors/open', {}, { editor, root, path: path || undefined }),
   gitStatus: (root, ignored) => request<GitStatus>('GET', '/api/git/status', { root, ignored: ignored ? '1' : undefined }),
-  httpSave: (id) => request<{ path: string | null; bytes?: number }>('POST', '/api/http/save', {}, { id }),
+  httpSave: (id, target) => request<{ path: string; bytes?: number }>('POST', '/api/http/save', {}, { id, target }),
 };
 
 /** The default `ExplorerClients`: the Explorer's routes plus the default SQL and HTTP clients. */

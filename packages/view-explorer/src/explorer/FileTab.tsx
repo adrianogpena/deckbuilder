@@ -279,12 +279,21 @@ function TextFileTab({ project, projectName, projectPath, path, focused, preview
     filePath: path,
     onOpenPath: (p) => onOpenPathRef.current?.(p),
     pickFile: async () => {
-      const abs = await dialogs.pickFile({ title: t('explorer.md.pickFileTitle') });
+      const abs = await dialogs.pickFile({ title: t('explorer.md.pickFileTitle'), purpose: 'markdown-link' });
       return abs && projectPath ? (relativeInside(projectPath, abs) ?? null) : null;
     },
     saveAs: async (defaultName, content) => {
       const start = projectPath ? fullPath(projectPath, relPath.dirname(path)) : undefined;
-      return (await api.fsSaveNew({ text: content, suggestedName: defaultName, ...(start && { start }) })).path !== null;
+      const ext = /\.([^./]+)$/.exec(defaultName)?.[1] ?? '';
+      const target = await dialogs.saveAs({
+        purpose: 'file-export',
+        suggestedName: defaultName,
+        ...(start && { start }),
+        filters: [...(ext ? [{ name: ext.toUpperCase(), patterns: [`*.${ext}`] }] : []), { name: 'All files', patterns: ['*.*'] }],
+      });
+      if (target === null) return false;
+      await api.fsSaveNew({ text: content, target });
+      return true;
     },
     resolveImage,
     settings: mdSettings,

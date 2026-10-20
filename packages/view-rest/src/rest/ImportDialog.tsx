@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { type ImportedRequest, parseImport, warningText } from '@deckbuilderkit/editor';
-import { type ApiError, ErrorBanner, errorOf, Modal } from '@deckbuilderkit/ui';
+import { type ApiError, dialogs, ErrorBanner, errorOf, Modal } from '@deckbuilderkit/ui';
 import { restApi as api } from '../client';
 import { t } from '../i18n';
 
@@ -50,8 +50,13 @@ export function ImportDialog({ onLoad, onSaveMany, onClose }: Props) {
   const openFile = async () => {
     setError(undefined);
     try {
-      const { text: content } = await api.importRequestsFile();
-      if (content === null) return;
+      const path = await dialogs.pickFile({
+        title: t('rest.import.openFile'),
+        purpose: 'rest-import',
+        filters: [{ name: 'HTTP', patterns: ['*.http', '*.rest'] }, { name: 'All files', patterns: ['*.*'] }],
+      });
+      if (path === null) return;
+      const { text: content } = await api.importRequestsFile(path);
       setText(content);
       parse(content);
     } catch (err) {

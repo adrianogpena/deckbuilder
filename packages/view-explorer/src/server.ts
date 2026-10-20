@@ -2,7 +2,7 @@ import { statSync } from 'node:fs';
 import { openWithDefault, revealInFolder } from '@deckbuilderkit/platform';
 import { defineServerView, invalid, isRecord, type ServerViewDef } from '@deckbuilderkit/server-core';
 import { dbSharedRoutes, type DbStores } from '@deckbuilderkit/db';
-import { dialogRoutes, editorRoutes, fromPlatform, httpSharedRoutes, pickedPaths, recordRoutes, rootedFs, type AppStores, type RootedFs } from '@deckbuilderkit/server-mods';
+import { type DialogPicks, dialogRoutes, editorRoutes, fromPlatform, httpSharedRoutes, pickedPaths, recordRoutes, rootedFs, type AppStores, type RootedFs } from '@deckbuilderkit/server-mods';
 import type { ExplorerSettings } from './explorer-state';
 import { type MarkdownStored, validMarkdown } from './settings/markdown';
 
@@ -76,6 +76,7 @@ type Stores = {
   projects: Parameters<typeof recordRoutes>[0];
   projectRoots: Parameters<typeof rootedFs>[0]['roots'];
   pickedFolders: ReturnType<typeof pickedPaths>;
+  picks: DialogPicks;
 };
 
 const isDirectory = (path: string) => {
@@ -115,7 +116,7 @@ export function explorerServerView(opts: ExplorerServerOptions = {}): ExplorerSe
     ],
     routes(ctx) {
       const stores = ctx.stores as unknown as Stores;
-      const rooted = rootedFs({ multiDelete: opts.multiDelete, roots: stores.projectRoots });
+      const rooted = rootedFs({ multiDelete: opts.multiDelete, roots: stores.projectRoots, picks: stores.picks });
       fs = rooted;
       const target = async (json: <T>() => Promise<T>) => {
         const { root, path } = await json<{ root?: unknown; path?: unknown }>();

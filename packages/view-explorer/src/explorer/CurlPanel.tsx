@@ -1,7 +1,7 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { type CodeEditorHandle, type CodeEditorProps, curlAt, draftToSpec, type HttpHeaderDraft, type ImportedRequest, parseCurl, ResponseView, warningText } from '@deckbuilderkit/editor';
 import type { HttpResponseInfo } from '@deckbuilderkit/server-core/protocol';
-import { type ApiError, errorOf, Icon, PanelBanner, SplitView, type TabAction, useViewLink } from '@deckbuilderkit/ui';
+import { type ApiError, dialogs, errorOf, Icon, PanelBanner, SplitView, type TabAction, useViewLink } from '@deckbuilderkit/ui';
 import { explorerApi as api } from '../client';
 import { httpClient } from '../client';
 import { t } from '../i18n';
@@ -89,7 +89,9 @@ export function useExplorerCurl({ name, active, draft, sql }: Options) {
 
   const saveResponse = async (info: HttpResponseInfo) => {
     try {
-      await api.httpSave(info.id);
+      const target = await dialogs.saveAs({ purpose: 'rest-response', suggestedName: info.fileName });
+      if (target === null) return;
+      await api.httpSave(info.id, target);
     } catch (err) {
       setNotice({ tone: 'err', text: errorOf(err).message });
     }

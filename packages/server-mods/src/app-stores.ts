@@ -210,8 +210,9 @@ export function appStores(appId: string, opts: AppStoresOptions = {}): AppStores
 }
 
 /** `/api/http/*` (send, import, save...): shared by the rest view and the Explorer curl panel, so both declare it as `shared: 'http'`. */
-export const httpSharedRoutes = (stores: Pick<AppStores, 'secretHeaders' | 'environmentVars' | 'restHistory'>): Routes =>
+export const httpSharedRoutes = (stores: Pick<AppStores, 'secretHeaders' | 'environmentVars' | 'restHistory' | 'picks'>): Routes =>
   httpRoutes(httpExecutor(), {
+    picks: stores.picks,
     secretHeaders: stores.secretHeaders,
     environmentVars: stores.environmentVars,
     onSend: (entry) => stores.restHistory.append(entry),

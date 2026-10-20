@@ -2,12 +2,14 @@ import { randomBytes } from 'node:crypto';
 import type { Dirent } from 'node:fs';
 import { chmod, cp, lstat, mkdir, readdir, readlink, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import { basename, dirname, extname, isAbsolute, join, resolve, sep } from 'node:path';
-import { moveToTrash, renameWithRetry, type SaveDialogOptions, saveFileAs, writeFileAtomic } from '@deckbuilderkit/platform';
+import { moveToTrash, renameWithRetry, writeFileAtomic } from '@deckbuilderkit/platform';
 import { AppError, forbidden, type Handler, invalid, ndjson, notFound, type Routes, socketTickets, type TailChunk } from '@deckbuilderkit/server-core';
 import type { FsCompressResult, FsDuProgress, FsExtractResult, FsHash, FsInfo } from '@deckbuilderkit/server-core/protocol';
 import { compressArchive, extractArchive, listArchive } from './archive.ts';
 import { isBinary } from './bytes.ts';
 import { decodeText, detectEncoding, encodeText, encodingByBom, TEXT_ENCODINGS, type TextEncodingId } from './encoding.ts';
+import type { DialogPicks } from './file-dialog.ts';
+import { pickedPaths } from './dialogs.ts';
 import { fromPlatform } from './platform-errors.ts';
 import { readSqlite } from './sqlite.ts';
 
@@ -34,8 +36,8 @@ export interface RootedFsOptions {
   trash?: (paths: string[]) => Promise<void>;
   /** False: the delete route takes one path only. Default true. */
   multiDelete?: boolean;
-  /** The save dialog: `saveFileAs` from platform, a fake in tests. */
-  saveAs?: (opts: SaveDialogOptions) => Promise<string | null>;
+  /** The in-app file dialog's picks: the save routes take a `target` that is in `saveTargets`. Missing: every save is refused. */
+  picks?: DialogPicks;
 }
 
 export interface Resolved {
@@ -128,6 +130,7 @@ const fileNotFound = () => notFound('fileNotFound', 'File or folder not found.')
 const exists = () => invalid('exists', 'A file or folder with this name already exists.');
 const notADir = () => invalid('notADir', 'This is not a folder.');
 const notAFile = () => invalid('notAFile', 'This is not a file.');
+const notASaveTarget = () => forbidden('notASaveTarget', 'Choose where to save first.');
 
 const DEVICE = /^(con|prn|aux|nul|conin\$|conout\$|com[1-9¹²³]|lpt[1-9¹²³])$/i;
 const WIN_RESERVED = /[<>"|?*\u0000-\u001f]/;
@@ -373,7 +376,7 @@ async function contentHits(file: string, q: string): Promise<Array<{ line: numbe
 export function rootedFs(opts: RootedFsOptions): RootedFs {
   const maxReadBytes = opts.maxReadBytes ?? 5_000_000;
   const trash = opts.trash ?? moveToTrash;
-  const saveAs = opts.saveAs ?? saveFileAs;
+  const saveTargetPicks = (opts.picks ?? { saveTargets: pickedPaths() }).saveTargets;
   /** Targets the user picked in a save dialog; `save-new` writes a given `path` only when it is one of these. */
   const savedTargets = new Set<string>();
   const targetKey = (p: string) => (process.platform === 'win32' ? resolve(p).toLowerCase() : resolve(p));
@@ -609,45 +612,30 @@ export function rootedFs(opts: RootedFsOptions): RootedFs {
       const size = st.size;
       if (size < from) throw invalid('rangeStale', 'The file is shorter than the bookmark; it was rotated or cleared.');
       if (size - from > MAX_SAVE_RANGE_BYTES) throw invalid('rangeTooLarge', 'The range is too large.');
-      const name = basename(loc.real);
-      const target = await saveAs({
-        suggestedName: `${name.slice(0, name.length - extname(name).length)}-from-${from}.log`,
-        filters: [{ name: 'Log', patterns: ['*.log'] }],
-      }).catch(fromPlatform);
-      if (target === null) return { path: null };
+      if (typeof b.target !== 'string' || !isAbsolute(b.target) || !saveTargetPicks.take(b.target)) throw notASaveTarget();
+      const target = b.target;
       savedTargets.add(targetKey(target));
       await writeFileAtomic(target, Bun.file(loc.real).slice(from, size));
       return { path: target, bytes: size - from };
     },
 
-    // An untitled tab: without `path` asks where with the save dialog (any folder), else writes to
-    // `path` when an earlier save dialog of this server returned it. Any other `path` (say a tab
-    // restored after a restart) asks again, starting at that file.
+    // An untitled tab: `target` is a path the in-app save dialog returned (taken once from the save
+    // targets); `path` writes again to a path an earlier save of this server returned. Any other
+    // `path` (say a tab restored after a restart) is refused: the client asks with the dialog.
     'POST /api/fs/save-new': async ({ json }) => {
       const b = await body(json);
       if (typeof b.text !== 'string') throw badRequest();
       const text = b.text;
-      let target: string | null;
-      let suggested = typeof b.suggestedName === 'string' ? basename(b.suggestedName) : 'untitled.txt';
-      let start = typeof b.start === 'string' && isAbsolute(b.start) ? b.start : undefined;
-      if (b.path !== undefined) {
+      let target: string;
+      if (b.target !== undefined) {
+        if (typeof b.target !== 'string' || !isAbsolute(b.target)) throw badRequest();
+        if (!saveTargetPicks.take(b.target)) throw notASaveTarget();
+        target = resolve(b.target);
+        savedTargets.add(targetKey(target));
+      } else {
         if (typeof b.path !== 'string' || !isAbsolute(b.path)) throw badRequest();
         target = resolve(b.path);
-        if (!savedTargets.has(targetKey(target))) {
-          suggested = basename(target);
-          start = dirname(target);
-          target = null;
-        }
-      } else target = null;
-      if (target === null) {
-        const ext = extname(suggested).slice(1);
-        target = await saveAs({
-          suggestedName: suggested,
-          ...(start && { start }),
-          filters: [...(ext ? [{ name: ext.toUpperCase(), patterns: [`*.${ext}`] }] : []), { name: 'All files', patterns: ['*.*'] }],
-        }).catch(fromPlatform);
-        if (target === null) return { path: null };
-        savedTargets.add(targetKey(target));
+        if (!savedTargets.has(targetKey(target))) throw notASaveTarget();
       }
       const st = await stat(target).catch(() => null);
       if (st?.isDirectory()) throw notAFile();

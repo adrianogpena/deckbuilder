@@ -60,9 +60,9 @@ export interface ExplorerClient {
   fsCompress: (root: string, paths: string[], name: string, format: FsArchiveFormat) => Promise<FsCompressResult>;
   fsCreate: (root: string, path: string, kind: 'file' | 'dir') => Promise<FsEntry>;
   fsTail: (root: string, path: string, from?: number, max?: number) => Promise<TailChunk>;
-  fsSaveRange: (root: string, path: string, from: number) => Promise<{ path: string | null; bytes?: number }>;
-  /** Saves an untitled tab: the save dialog without `path`, else straight to `path` (see `FsSaveNewRequest`). */
-  fsSaveNew: (body: FsSaveNewRequest) => Promise<{ path: string | null }>;
+  fsSaveRange: (root: string, path: string, from: number, target: string) => Promise<{ path: string; bytes: number }>;
+  /** Saves an untitled tab to a path the in-app save dialog returned (`target`) or an earlier save returned (`path`); see `FsSaveNewRequest`. */
+  fsSaveNew: (body: FsSaveNewRequest) => Promise<{ path: string }>;
   fsWrite: (root: string, path: string, text: string, expectedMtime: number | undefined, encoding?: TextEncoding, unlock?: boolean) => Promise<FsEntry>;
   fsRename: (root: string, path: string, name: string) => Promise<FsEntry>;
   fsMove: (root: string, from: string, to: string, onExisting?: Existing) => Promise<FsEntry>;
@@ -77,7 +77,7 @@ export interface ExplorerClient {
   openInEditor: (editor: EditorInfo['id'], root: string, path?: string) => Done;
   /** `ignored`: also list the ignored files and folders. */
   gitStatus: (root: string, ignored?: boolean) => Promise<GitStatus>;
-  httpSave: (id: string) => Promise<{ path: string | null; bytes?: number }>;
+  httpSave: (id: string, target: string) => Promise<{ path: string; bytes?: number }>;
 }
 
 /** Everything the Explorer calls: its own routes plus the SQL and HTTP clients of the capability packages. */

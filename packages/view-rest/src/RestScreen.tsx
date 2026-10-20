@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { draftToSpec, hasAuthHeader, type HttpRequestDraft, type ImportedRequest, RequestEditor, ResponseView, toCurl } from '@deckbuilderkit/editor';
 import type { HttpResponseInfo, RestEnvVar } from '@deckbuilderkit/server-core/protocol';
-import { type ApiError, ErrorBanner, errorOf, Icon, PageHead, SplitView, useAsync, useCommand, useDebouncedSave, useDialogs, useShortcutTip, useViewRequest } from '@deckbuilderkit/ui';
+import { type ApiError, dialogs, ErrorBanner, errorOf, Icon, PageHead, SplitView, useAsync, useCommand, useDebouncedSave, useDialogs, useShortcutTip, useViewRequest } from '@deckbuilderkit/ui';
 import { restCommands } from './commands';
 import { restApi as api } from './client';
 import type { RestSettings, RestViewSettings, SavedRequest } from './settings';
@@ -183,8 +183,10 @@ export function RestScreen({ settings, onSave }: { settings: RestViewSettings; o
     const id = tab.id;
     setActionError(undefined);
     try {
-      const { path } = await api.httpSave(info.id);
-      if (path) restTabs.setRuntime(id, { savedPath: path });
+      const target = await dialogs.saveAs({ purpose: 'rest-response', suggestedName: info.fileName });
+      if (target === null) return;
+      const { path } = await api.httpSave(info.id, target);
+      restTabs.setRuntime(id, { savedPath: path });
     } catch (err) {
       setActionError(errorOf(err));
     }

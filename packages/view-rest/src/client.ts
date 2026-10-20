@@ -12,11 +12,11 @@ export interface RestClient extends HttpClient {
   reorderRequests: (ids: string[]) => Promise<unknown>;
   /** The saved Authorization value of request `id`, for Copy as curl. */
   requestAuth: (id: string) => Promise<{ value: string | null }>;
-  /** Picks a file on the server side; `text` is null when the dialog was cancelled. */
-  importRequestsFile: () => Promise<{ name?: string; text: string | null }>;
-  saveCurl: (text: string) => Promise<{ path: string | null }>;
-  /** Saves the body of the sent response `id`; `path` is null when the dialog was cancelled. */
-  httpSave: (id: string) => Promise<{ path: string | null; bytes?: number }>;
+  /** Reads the file `path`, which the in-app open dialog returned. */
+  importRequestsFile: (path: string) => Promise<{ name?: string; text: string }>;
+  saveCurl: (text: string, target: string) => Promise<{ path: string }>;
+  /** Saves the body of the sent response `id` to `target`, which the in-app save dialog returned. */
+  httpSave: (id: string, target: string) => Promise<{ path: string; bytes?: number }>;
   restTabs: () => Promise<RestTabsFile>;
   saveRestTabs: (file: RestTabsFile) => Promise<unknown>;
   createRestEnvironment: (input: RestEnvironmentInput) => Promise<RestEnvironment>;
@@ -50,9 +50,9 @@ export const restClient: RestClient = {
   deleteRequest: (id) => request<{ ok: true }>('DELETE', '/api/requests', { id }),
   reorderRequests: (ids) => request<{ ok: true }>('POST', '/api/requests/order', {}, { ids }),
   requestAuth: (id) => request<{ value: string | null }>('GET', '/api/requests/auth', { id }),
-  importRequestsFile: () => request<{ name?: string; text: string | null }>('POST', '/api/requests/import-file'),
-  saveCurl: (text) => request<{ path: string | null }>('POST', '/api/requests/save-curl', {}, { text }),
-  httpSave: (id) => request<{ path: string | null; bytes?: number }>('POST', '/api/http/save', {}, { id }),
+  importRequestsFile: (path) => request<{ name?: string; text: string }>('POST', '/api/requests/import-file', {}, { path }),
+  saveCurl: (text, target) => request<{ path: string }>('POST', '/api/requests/save-curl', {}, { text, target }),
+  httpSave: (id, target) => request<{ path: string; bytes?: number }>('POST', '/api/http/save', {}, { id, target }),
   restTabs: () => request<RestTabsFile>('GET', '/api/rest-tabs'),
   saveRestTabs: (file) => request<{ ok: true }>('PUT', '/api/rest-tabs', {}, file),
   createRestEnvironment: (input) => request<RestEnvironment>('POST', '/api/rest/environments', {}, input),

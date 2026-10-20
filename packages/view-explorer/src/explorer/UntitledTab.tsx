@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { applyEol, CodeEditor, langLabel, langOfFile, prepareForSave, type SelectionInfo, useEditorOptions } from '@deckbuilderkit/editor';
-import { type ApiError, errorOf, ErrorBanner, FILE_DEFAULTS, type FileSettings, relPath, StatusBar, type StatusItem, type TabAction, useCommand, useDialogs, useToast } from '@deckbuilderkit/ui';
+import { type ApiError, dialogs, errorOf, ErrorBanner, FILE_DEFAULTS, type FileSettings, relPath, StatusBar, type StatusItem, type TabAction, useCommand, useDialogs, useToast } from '@deckbuilderkit/ui';
 import { explorerApi as api } from '../client';
 import { explorerCommandById as commandById } from '../commands';
 import { t } from '../i18n';
@@ -61,8 +61,28 @@ export function UntitledTab({ lang, text, target, saved, project = '', start, fo
     setSaveError(undefined);
     const out = prepareForSave(draft, { trim: files.trimTrailingWhitespace, finalNewline: files.insertFinalNewline, markdown: editorLang === 'markdown' });
     try {
-      const res = await api.fsSaveNew({ text: applyEol(out, OS_EOL), suggestedName: name, ...(start && { start }), ...(target && { path: target }) });
-      if (res.path === null) return false;
+      const text = applyEol(out, OS_EOL);
+      const pick = async (suggestedName: string, dir: string | undefined) => {
+        const ext = /\.([^./]+)$/.exec(suggestedName)?.[1] ?? '';
+        const chosen = await dialogs.saveAs({
+          purpose: 'untitled',
+          suggestedName,
+          ...(dir && { start: dir }),
+          filters: [...(ext ? [{ name: ext.toUpperCase(), patterns: [`*.${ext}`] }] : []), { name: 'All files', patterns: ['*.*'] }],
+        });
+        return chosen === null ? null : api.fsSaveNew({ text, target: chosen });
+      };
+      let res: { path: string } | null;
+      if (target) {
+        try {
+          res = await api.fsSaveNew({ text, path: target });
+        } catch (err) {
+          if (errorOf(err).code !== 'notASaveTarget') throw err;
+          const cut = Math.max(target.lastIndexOf('/'), target.lastIndexOf('\\'));
+          res = await pick(target.slice(cut + 1), cut > 0 ? target.slice(0, cut) : undefined);
+        }
+      } else res = await pick(name, start);
+      if (res === null) return false;
       setDraft(out);
       toast({ message: t('explorer.savedTo', { path: res.path }) });
       onSaved(res.path, out);

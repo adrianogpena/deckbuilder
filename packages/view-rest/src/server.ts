@@ -1,7 +1,7 @@
 import { basename } from 'node:path';
-import { pickFile, saveFileAs, writeFileAtomic } from '@deckbuilderkit/platform';
-import { defineServerView, invalid, isRecord, type Routes } from '@deckbuilderkit/server-core';
-import { environmentRoutes, fromPlatform, httpSharedRoutes, recordRoutes, type AppStores, type RecordStore, type RestHistory, restTabsRoutes } from '@deckbuilderkit/server-mods';
+import { writeFileAtomic } from '@deckbuilderkit/platform';
+import { defineServerView, forbidden, invalid, isRecord, type Routes } from '@deckbuilderkit/server-core';
+import { type DialogPicks, environmentRoutes, fromPlatform, httpSharedRoutes, recordRoutes, type AppStores, type RecordStore, type RestHistory, restTabsRoutes } from '@deckbuilderkit/server-mods';
 
 /** The part of the server settings the REST view owns; the app's `Settings` extends it. */
 export interface RestServerSettings {
@@ -50,10 +50,6 @@ export const restHistorySizeOf = (s: RestServerSettings) => {
 };
 
 const MAX_IMPORT_BYTES = 1_000_000;
-const HTTP_FILE_FILTERS = [
-  { name: 'HTTP', patterns: ['*.http', '*.rest'] },
-  { name: 'All files', patterns: ['*.*'] },
-];
 
 /** A saved request record; the store itself belongs to the app (its `/api/http/send` reads the saved Authorization value). */
 interface SavedRequestRecord {
@@ -74,6 +70,7 @@ export const restServerView = () =>
     routes: (ctx): Routes => {
       const requests = ctx.stores.requests as RecordStore<SavedRequestRecord>;
       const history = ctx.stores.restHistory as RestHistory;
+      const picks = ctx.stores.picks as DialogPicks;
       return {
         ...environmentRoutes(ctx.stores as unknown as AppStores),
         ...recordRoutes(requests, '/api/requests'),
@@ -85,19 +82,18 @@ export const restServerView = () =>
           return { value: ((await requests.secret(id, 'auth')) as string | undefined) ?? null };
         },
         ...restTabsRoutes({ dir: ctx.dataDir }),
-        // The target comes from the save dialog on this side; the client never names a path.
+        // The target must be one the in-app save dialog returned.
         'POST /api/requests/save-curl': async ({ json }) => {
-          const { text } = await json<{ text?: unknown }>();
+          const { text, target } = await json<{ text?: unknown; target?: unknown }>();
           if (typeof text !== 'string' || text.length > MAX_IMPORT_BYTES) throw invalid('badRequest', 'Invalid request.');
-          const path = await saveFileAs({ suggestedName: 'request.curl', filters: [{ name: 'cURL', patterns: ['*.curl', '*.sh'] }, { name: 'All files', patterns: ['*.*'] }] }).catch(fromPlatform);
-          if (!path) return { path: null };
-          await writeFileAtomic(path, `${text}\n`).catch(fromPlatform);
-          return { path };
+          if (typeof target !== 'string' || !picks.saveTargets.take(target)) throw forbidden('notASaveTarget', 'Choose where to save first.');
+          await writeFileAtomic(target, `${text}\n`).catch(fromPlatform);
+          return { path: target };
         },
-        // The file's text goes to the client for parsing; its path never does.
-        'POST /api/requests/import-file': async () => {
-          const path = await pickFile({ filters: HTTP_FILE_FILTERS }).catch(fromPlatform);
-          if (!path) return { text: null };
+        // The file's text goes to the client for parsing; the path must be one the in-app open dialog returned.
+        'POST /api/requests/import-file': async ({ json }) => {
+          const { path } = await json<{ path?: unknown }>();
+          if (typeof path !== 'string' || !picks.opened.take(path)) throw forbidden('notAPickedFile', 'Choose a file first.');
           const file = Bun.file(path);
           if (file.size > MAX_IMPORT_BYTES) throw invalid('importTooLarge', 'The file is too large to import.');
           return { name: basename(path), text: await file.text() };

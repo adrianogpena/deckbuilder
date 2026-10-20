@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { CodeEditor } from '@deckbuilderkit/editor';
-import { type ApiError, copyText, ErrorBanner, errorOf, Modal } from '@deckbuilderkit/ui';
+import { type ApiError, copyText, dialogs, ErrorBanner, errorOf, Modal } from '@deckbuilderkit/ui';
 import { restApi as api } from '../client';
 import { t } from '../i18n';
 
@@ -15,8 +15,15 @@ export function CurlDialog({ curl, onClose }: { curl: string; onClose: () => voi
   const save = async () => {
     setError(undefined);
     try {
-      const { path } = await api.saveCurl(curl);
-      if (path) setSavedPath(path);
+      const target = await dialogs.saveAs({
+        title: t('rest.code.save'),
+        purpose: 'rest-curl',
+        suggestedName: 'request.curl',
+        filters: [{ name: 'cURL', patterns: ['*.curl', '*.sh'] }, { name: 'All files', patterns: ['*.*'] }],
+      });
+      if (target === null) return;
+      const { path } = await api.saveCurl(curl, target);
+      setSavedPath(path);
     } catch (err) {
       setError(errorOf(err));
     }

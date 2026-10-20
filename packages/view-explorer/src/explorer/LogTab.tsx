@@ -6,6 +6,7 @@ import {
   ErrorBanner,
   type HighlightTerm,
   type LogBookmark,
+  dialogs,
   LogView,
   MAX_LOG_KEY_CHARS,
   PanelBanner,
@@ -94,8 +95,16 @@ export function LogTab({ project, path, focused, logs, onLogsChange, onActions }
 
   const saveFrom = (b: LogBookmark) =>
     run(async () => {
-      const saved = await api.fsSaveRange(project, path, b.offset);
-      if (saved.path) setNote(t('explorer.logSaved', { path: saved.path }));
+      const file = path.split('/').pop() ?? path;
+      const dot = file.lastIndexOf('.');
+      const target = await dialogs.saveAs({
+        purpose: 'log-range',
+        suggestedName: `${dot > 0 ? file.slice(0, dot) : file}-from-${b.offset}.log`,
+        filters: [{ name: 'Log', patterns: ['*.log'] }],
+      });
+      if (target === null) return;
+      const saved = await api.fsSaveRange(project, path, b.offset, target);
+      setNote(t('explorer.logSaved', { path: saved.path }));
     });
 
   useTabActions([{ id: 'reload', group: 'menu', icon: 'refresh', label: t('explorer.reload'), run: tail.reload }], onActions);

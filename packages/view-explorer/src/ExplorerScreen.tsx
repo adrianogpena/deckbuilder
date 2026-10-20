@@ -743,7 +743,7 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
             value={{ ...form.project }}
             error={formError}
             onCancel={() => setForm(undefined)}
-            onBrowse={() => dialogs.pickFolder({ title: t('explorer.pickFolder') })}
+            onBrowse={() => dialogs.pickFolder({ title: t('explorer.pickFolder'), purpose: 'project' })}
             onSubmit={(values) => void submitForm(values)}
           />
         </Modal>
