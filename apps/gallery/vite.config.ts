@@ -21,6 +21,18 @@ const diagnosticsChannelStub = (): Plugin => ({
 export default defineConfig({
   root: 'web',
   plugins: [diagnosticsChannelStub(), react()],
+  // Dev pre-bundles dependencies with esbuild, which skips the plugin above.
+  optimizeDeps: {
+    esbuildOptions: {
+      plugins: [{
+        name: 'stub-diagnostics-channel',
+        setup(build) {
+          build.onResolve({ filter: /^(node:)?diagnostics_channel$/ }, () => ({ path: STUB_ID, namespace: 'stub' }));
+          build.onLoad({ filter: /.*/, namespace: 'stub' }, () => ({ contents: STUB_SOURCE, loader: 'js' }));
+        },
+      }],
+    },
+  },
   build: {
     outDir: '../dist/web',
     emptyOutDir: true,

@@ -25,7 +25,7 @@ interface Run {
 /** Kills a process and its children. */
 async function killTree(pid: number, proc: { kill(): void }): Promise<void> {
   if (process.platform === 'win32') {
-    const k = Bun.spawn(['taskkill', '/PID', String(pid), '/T', '/F'], { stdout: 'ignore', stderr: 'ignore' });
+    const k = Bun.spawn(['taskkill', '/PID', String(pid), '/T', '/F'], { stdout: 'ignore', stderr: 'ignore', windowsHide: true });
     await k.exited.catch(() => undefined);
   } else {
     proc.kill();
@@ -77,7 +77,7 @@ export const routes: PanelRoutes = (ctx: PanelCtx) => {
     const exe = Bun.which(target.cmd[0]!) ?? target.cmd[0]!;
     let proc: ReturnType<typeof Bun.spawn>;
     try {
-      proc = Bun.spawn([exe, ...target.cmd.slice(1)], { cwd: root, stdin: 'ignore', stdout: 'pipe', stderr: 'pipe', env: { ...process.env, FORCE_COLOR: '0' } });
+      proc = Bun.spawn([exe, ...target.cmd.slice(1)], { cwd: root, stdin: 'ignore', stdout: 'pipe', stderr: 'pipe', windowsHide: true, env: { ...process.env, FORCE_COLOR: '0' } });
     } catch (err) {
       state.status = 'exited';
       state.exitCode = null;
