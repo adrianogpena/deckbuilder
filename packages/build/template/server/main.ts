@@ -3,6 +3,7 @@ import { appHome, createAutostart, pickFolder } from '@deckbuilderkit/platform';
 import { applyViewSettings, checkViewSettings, mountViews, updatePublicKey } from '@deckbuilderkit/server-core';
 import {
   createUpdater,
+  fileDialogRoutes,
   folderSource,
   fromPlatform,
   githubSource,
@@ -11,8 +12,10 @@ import {
   settingsRoutes,
   settingsStore,
   themeHead,
+  uiBroker,
   updateRoutes,
   type BaseSettings,
+  type DialogPicks,
 } from '@deckbuilderkit/server-mods';
 import { runApp } from '@deckbuilderkit/shell';
 import { type Keymap, validKeymap } from '@deckbuilderkit/ui/keybindings';
@@ -71,6 +74,9 @@ const updater = createUpdater({
 
 const { closeToTray } = await settings.load();
 const mounted = mountViews(serverViews, { dataDir, settings, stores });
+/** The in-app file dialog's picks and the broker that asks the page questions (confirm dialogs). */
+const picks: DialogPicks = { opened: pickedPaths(), saveTargets: pickedPaths() };
+const ui = uiBroker();
 
 await runApp({
   app: APP,
@@ -86,9 +92,11 @@ await runApp({
     },
     ...updateRoutes(updater, ctx.quit),
     ...mounted.routes,
+    ...fileDialogRoutes({ home: dataDir, picks }),
+    ...ui.routes,
     ...routes(ctx),
   }),
-  sockets: mounted.sockets,
+  sockets: { ...mounted.sockets, ...ui.sockets },
   unauthenticated: mounted.unauthenticated,
   onQuit: () => mounted.onQuit(),
   webDir: join(import.meta.dir, '../dist/web'),

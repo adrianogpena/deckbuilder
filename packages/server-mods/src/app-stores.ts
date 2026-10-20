@@ -5,6 +5,8 @@ import { AppError, invalid, isRecord, notFound, type Routes } from '@deckbuilder
 import { REST_ENV_MAX_VARS, REST_ENV_NAME_CHARS, REST_VAR_NAME, type HttpRequestDraft, type RestEnvVar } from '@deckbuilderkit/server-core/protocol';
 import { httpExecutor, httpRoutes, validateDraft } from './http.ts';
 import { pickedPaths } from './dialogs.ts';
+import type { DialogPicks } from './file-dialog.ts';
+import { uiBroker, type UiBroker } from './ui-broker.ts';
 import { recordRoutes, recordStore, type RecordStore } from './records.ts';
 import { restHistory, type RestHistory } from './rest-history.ts';
 
@@ -36,6 +38,10 @@ export interface AppStores {
   home: string;
   secrets: ReturnType<typeof secretStore>;
   pickedFolders: ReturnType<typeof pickedPaths>;
+  /** The in-app file dialog's picks: `opened` is `pickedFolders`. */
+  picks: DialogPicks;
+  /** Asks the open page questions (confirm dialogs) over a socket. */
+  ui: UiBroker;
   projects: RecordStore<{ name: string; path: string }>;
   projectRoots: () => Promise<Array<{ id: string; path: string }>>;
   requests: RecordStore<SavedRequest>;
@@ -197,7 +203,10 @@ export function appStores(appId: string, opts: AppStoresOptions = {}): AppStores
     return value ? [['Authorization', value]] : [];
   };
 
-  return { home, secrets, pickedFolders, projects, projectRoots, requests, restHistory: history, environments, environmentInput, environmentVars, secretHeaders };
+  const picks: DialogPicks = { opened: pickedFolders, saveTargets: pickedPaths() };
+  const ui = uiBroker();
+
+  return { home, secrets, pickedFolders, picks, ui, projects, projectRoots, requests, restHistory: history, environments, environmentInput, environmentVars, secretHeaders };
 }
 
 /** `/api/http/*` (send, import, save...): shared by the rest view and the Explorer curl panel, so both declare it as `shared: 'http'`. */
