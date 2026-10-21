@@ -21,6 +21,7 @@
     "./styles.css": "./src/grid.css"
   },
   "dependencies": {
+    "@deckbuilderkit/editor": "workspace:*",
     "@deckbuilderkit/server-core": "workspace:*",
     "@deckbuilderkit/ui": "workspace:*"
   },

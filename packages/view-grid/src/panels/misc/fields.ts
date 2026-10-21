@@ -1,4 +1,39 @@
 import type { PanelField } from '@deckbuilderkit/ui/grid';
 
+export const MAX_URLS = 20;
+export const SYSTEM_COLUMNS = ['cpu', 'memory', 'disk', 'uptime'] as const;
+
+const linesField = (key: string, label: string): PanelField => ({
+  key,
+  kind: 'text',
+  label,
+  description: 'dash.misc.lines.hint',
+  default: '',
+  maxLength: 2000,
+  rows: 6,
+  placeholder: 'dash.misc.lines.placeholder',
+});
+
 /** Config field lists of the misc panels (no React). */
-export const fields: Record<string, readonly PanelField[]> = {};
+export const fields: Record<string, readonly PanelField[]> = {
+  links: [
+    linesField('items', 'dash.misc.links.items'),
+    { key: 'layout', kind: 'enum', label: 'dash.misc.links.layout', default: 'list', values: ['list', 'tiles'], optionLabel: 'dash.misc.links.layout' },
+  ],
+  notes: [{ key: 'text', kind: 'text', label: 'dash.misc.notes.text', default: '', maxLength: 4000, rows: 10 }],
+  'url-health': [
+    linesField('urls', 'dash.misc.health.urls'),
+    { key: 'timeoutMs', kind: 'number', label: 'dash.misc.health.timeoutMs', default: 5000, min: 1000, max: 30000 },
+    { key: 'refreshMin', kind: 'enum', label: 'dash.misc.refreshMin', default: 5, values: [1, 5, 15] },
+  ],
+  'json-metric': [
+    { key: 'url', kind: 'string', label: 'dash.misc.json.url', default: '', maxLength: 200, placeholder: 'https://' },
+    { key: 'path', kind: 'string', label: 'dash.misc.json.path', description: 'dash.misc.json.path.hint', default: '', maxLength: 200, placeholder: 'data.items.0.count' },
+    { key: 'label', kind: 'string', label: 'dash.misc.json.label', default: '', maxLength: 60 },
+    { key: 'unit', kind: 'string', label: 'dash.misc.json.unit', default: '', maxLength: 20 },
+    { key: 'refreshMin', kind: 'enum', label: 'dash.misc.refreshMin', default: 5, values: [1, 5, 15] },
+  ],
+  system: [
+    { key: 'show', kind: 'multi', label: 'dash.misc.system.show', default: ['cpu', 'memory', 'disk', 'uptime'], values: SYSTEM_COLUMNS, optionLabel: 'dash.misc.system.show' },
+  ],
+};

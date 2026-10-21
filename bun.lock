@@ -271,6 +271,7 @@
       "name": "@deckbuilderkit/view-grid",
       "version": "0.3.0",
       "dependencies": {
+        "@deckbuilderkit/editor": "workspace:*",
         "@deckbuilderkit/server-core": "workspace:*",
         "@deckbuilderkit/ui": "workspace:*",
       },
