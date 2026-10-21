@@ -66,7 +66,8 @@ export function PanelCreator({ kinds, items, onAdd, onClose, presets, onAddPrese
   }
 
   return (
-    <Modal title={tKey('grid.creator.title')} onClose={onClose}>
+    <Modal title={tKey('grid.creator.title')} onClose={onClose} large>
+      <div className="grid-creator-scroll">
       {mine.length > 0 && (
         <section className="grid-creator-group">
           <h3 className="mono-label">{tKey('dash.preset.mine')}</h3>
@@ -116,6 +117,7 @@ export function PanelCreator({ kinds, items, onAdd, onClose, presets, onAddPrese
           </div>
         </section>
       ))}
+      </div>
     </Modal>
   );
 }
