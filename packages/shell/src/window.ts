@@ -1,4 +1,4 @@
-import { focusWindow, showError } from '@deckbuilderkit/platform';
+import { focusWindow, showError, windowExists } from '@deckbuilderkit/platform';
 
 export interface WindowOptions {
   title?: string;
@@ -62,16 +62,32 @@ export function openWindow(url: string, opts: WindowOptions, onAllClosed: () => 
     popout: opts.popout,
   };
   worker.postMessage(request);
-  worker.addEventListener('message', (e: MessageEvent<{ error?: string; hwnd?: number }>) => {
-    if (e.data.error) showError(opts.title ?? 'Error', e.data.error);
-    if (e.data.hwnd) hwnd = e.data.hwnd;
-  });
-  worker.addEventListener('error', (e) => showError(opts.title ?? 'Error', `Window failed: ${e.message}`));
-  worker.addEventListener('close', () => {
+  let watch: ReturnType<typeof setInterval> | undefined;
+  const finish = () => {
+    clearInterval(watch);
+    if (closed) return;
     closed = true;
     for (const cb of closedCbs) cb();
     if (--open === 0) onAllClosed();
+  };
+  worker.addEventListener('message', (e: MessageEvent<{ error?: string; hwnd?: number; closed?: boolean }>) => {
+    if (e.data.error) showError(opts.title ?? 'Error', e.data.error);
+    if (e.data.hwnd) {
+      hwnd = e.data.hwnd;
+      // A pop-out's worker outlives its window (run() does not return), so the window itself is watched.
+      watch = setInterval(() => {
+        if (windowExists(hwnd)) return;
+        finish();
+        worker.terminate();
+      }, 500);
+    }
+    if (e.data.closed) {
+      finish();
+      worker.terminate();
+    }
   });
+  worker.addEventListener('error', (e) => showError(opts.title ?? 'Error', `Window failed: ${e.message}`));
+  worker.addEventListener('close', finish);
   return {
     focus: () => focusWindow(hwnd),
     onClosed: (cb) => {

@@ -61,6 +61,20 @@ export function showWindow(hwnd: import('bun:ffi').Pointer | null): void {
   }
 }
 
+/** Whether the HWND still names a window (true on other platforms, where it cannot be told). */
+export function windowExists(hwnd: number): boolean {
+  if (process.platform !== 'win32') return true;
+  try {
+    const { dlopen, FFIType } = require('bun:ffi') as typeof import('bun:ffi');
+    const user32 = dlopen('user32.dll', { IsWindow: { args: [FFIType.ptr], returns: FFIType.i32 } });
+    const alive = user32.symbols.IsWindow(hwnd as unknown as import('bun:ffi').Pointer) !== 0;
+    user32.close();
+    return alive;
+  } catch {
+    return true;
+  }
+}
+
 /** Brings a native window (an HWND) to the front on Windows, restoring it if minimized; elsewhere a no-op. */
 export function focusWindow(hwnd: number | import('bun:ffi').Pointer | null): void {
   if (process.platform !== 'win32' || !hwnd) return;

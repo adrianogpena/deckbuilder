@@ -91,4 +91,5 @@ self.onmessage = (e: MessageEvent<WindowRequest>) => {
   webview.run();
   // A pop-out only ends its own worker; the main window ends the process.
   if (!popout) process.exit(0);
+  self.postMessage({ closed: true });
 };
