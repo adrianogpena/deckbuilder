@@ -220,6 +220,13 @@ describe('multi, text and date fields', () => {
     expect(validConfig(richFields, { since: 5 }).since).toBe('');
   });
 
+  test('connection accepts an id up to 64 characters', () => {
+    const fs: PanelField[] = [{ key: 'conn', kind: 'connection', connectionType: 'github', label: 'l', default: '' }];
+    expect(validConfig(fs, { conn: 'abc123' }).conn).toBe('abc123');
+    expect(validConfig(fs, { conn: 'x'.repeat(65) }).conn).toBe('');
+    expect(validConfig(fs, { conn: 7 }).conn).toBe('');
+  });
+
   test('sameConfig compares arrays by value', () => {
     expect(sameConfig({ cols: ['a', 'b'] }, { cols: ['a', 'b'] })).toBe(true);
     expect(sameConfig({ cols: ['a', 'b'] }, { cols: ['b', 'a'] })).toBe(false);

@@ -24,6 +24,7 @@ export const en = {
   'dash.unsaved.discard': 'Discard',
   'dash.empty.title': 'Nothing here yet',
   'dash.empty.body': 'Add panels to build this dashboard.',
+  'dash.connections': 'Connections',
 };
 
 export const ptBR: Messages<typeof en> = {
@@ -50,4 +51,5 @@ export const ptBR: Messages<typeof en> = {
   'dash.unsaved.discard': 'Descartar',
   'dash.empty.title': 'Nada aqui ainda',
   'dash.empty.body': 'Adicione painéis para montar este painel.',
+  'dash.connections': 'Conexões',
 };

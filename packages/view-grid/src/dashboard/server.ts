@@ -1,4 +1,5 @@
 import { defineServerView, type Routes } from '@deckbuilderkit/server-core';
+import { connectionRoutes } from '../connections/routes';
 import { kindSpecsOf, sourceRoutes, type DataSource, type GridPanelSpec } from '../server';
 import { validDashboardLayouts, validDashboardPresets, type DashboardLayouts, type DashboardPreset } from './model';
 
@@ -27,7 +28,7 @@ export function dashboardServerView({ panels, sources = [] }: DashboardServerOpt
   }
   return defineServerView<DashboardServerSettings>({
     id: 'dashboard',
-    routes: (ctx): Routes => sourceRoutes(sources, ctx.dataDir),
+    routes: (ctx): Routes => ({ ...sourceRoutes(sources, ctx.dataDir), ...connectionRoutes(ctx.dataDir) }),
     settings: {
       validate: {
         dashboardLayouts: (raw) => validDashboardLayouts(raw, specs),

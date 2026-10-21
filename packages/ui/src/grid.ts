@@ -19,7 +19,9 @@ export type PanelField =
   | (PanelFieldBase & { kind: 'enum'; default: string | number; values: readonly (string | number)[]; /** i18n key prefix: `<prefix>.<value>` is the option text when it exists. */ optionLabel?: string })
   | (PanelFieldBase & { kind: 'multi'; default: string[]; values: readonly string[]; /** i18n key prefix: `<prefix>.<value>` is the option text when it exists. */ optionLabel?: string })
   | (PanelFieldBase & { kind: 'text'; default: string; maxLength?: number; rows?: number; placeholder?: string })
-  | (PanelFieldBase & { kind: 'date'; default: '' });
+  | (PanelFieldBase & { kind: 'date'; default: '' })
+  /** A connection id (see the Dashboard's Connections); the form shows a select of the connections of `connectionType`. */
+  | (PanelFieldBase & { kind: 'connection'; connectionType: 'jira' | 'github'; default: '' });
 
 export const MAX_FIELD_TEXT = 200;
 export const MAX_TEXT_FIELD = 4000;
@@ -64,6 +66,9 @@ export function validConfig(fields: readonly PanelField[], raw: unknown): PanelC
         break;
       case 'date':
         out[f.key] = typeof v === 'string' && DATE_RE.test(v) && !Number.isNaN(Date.parse(v)) ? v : f.default;
+        break;
+      case 'connection':
+        out[f.key] = typeof v === 'string' && v.length <= MAX_ID ? v : f.default;
         break;
     }
   }

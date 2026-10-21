@@ -89,6 +89,23 @@ function Loaded({ kind, id, config, size, configure }: HostProps & { id: string 
   );
   if (data === undefined) {
     if (!error) return <PanelLoading />;
+    const setUp = (
+      <Button size="sm" icon="settings" variant="primary" title={tKey('grid.setUp')} onClick={configure}>{tKey('grid.setUp')}</Button>
+    );
+    if (error.code === 'source-not-configured') {
+      return <PanelNotice icon={<Icon name="alert" size={20} />} title={tKey('grid.notConfigured')} message={errorMessage(error)} action={setUp} />;
+    }
+    if (error.code === 'source-auth') {
+      return (
+        <PanelNotice
+          icon={<Icon name="alert" size={20} />}
+          tone="err"
+          title={tKey('grid.authFailed')}
+          message={errorMessage(error)}
+          action={<>{setUp} {retry}</>}
+        />
+      );
+    }
     return <PanelNotice icon={<Icon name="alert" size={20} />} tone="err" title={tKey('grid.loadFailed')} message={errorMessage(error)} action={retry} />;
   }
   return (

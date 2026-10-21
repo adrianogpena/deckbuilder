@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { addItem, Button, ContextMenu, Empty, PageHead, PanelGrid, sameItems, t, useDialogs, type ContextMenuItem, type GridItem, type PanelConfig } from '@deckbuilderkit/ui';
 import { ConfigDialog } from '../ConfigForm';
+import { ConnectionsDialog } from '../connections/ConnectionsDialog';
 import { tKey } from '../i18n';
 import { fieldsOf, kindSpecs, panelDef, type AnyPanelKind } from '../panel';
 import { addableKinds, PanelCreator } from '../PanelCreator';
@@ -35,6 +36,7 @@ export function DashboardScreen({ settings, onSave, panels }: DashboardScreenPro
     return unsaved && unsaved.layoutId === current.id ? unsaved.items : current.items;
   });
   const [creating, setCreating] = useState(false);
+  const [connecting, setConnecting] = useState(false);
   const [configuring, setConfiguring] = useState<string | null>(null);
   const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
   const { confirm, prompt, choose, element } = useDialogs();
@@ -152,6 +154,7 @@ export function DashboardScreen({ settings, onSave, panels }: DashboardScreenPro
           }}
         />
         <Button size="sm" icon="plus" title={tKey('grid.add')} onClick={() => setCreating(true)} disabled={!canAdd}>{tKey('grid.add')}</Button>
+        <Button size="sm" icon="link" title={tKey('dash.connections')} onClick={() => setConnecting(true)}>{tKey('dash.connections')}</Button>
         <Button size="sm" variant={dirty ? 'primary' : 'default'} icon="check" title={tKey('grid.save')} onClick={save} disabled={!dirty}>
           {dirty && <span className="dirty-dot" aria-hidden="true" />} {tKey('grid.save')}
         </Button>
@@ -177,6 +180,7 @@ export function DashboardScreen({ settings, onSave, panels }: DashboardScreenPro
           />
         )}
       </div>
+      {connecting && <ConnectionsDialog onClose={() => setConnecting(false)} />}
       {menuAt && <ContextMenu at={menuAt} items={menu} onClose={() => setMenuAt(null)} />}
       {creating && (
         <PanelCreator

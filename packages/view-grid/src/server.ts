@@ -1,7 +1,14 @@
 import { defineServerView, type RouteContext, type Routes } from '@deckbuilderkit/server-core';
 import { validConfig, validGridItems, type GridItem, type PanelConfig, type PanelField, type PanelKindSpec } from '@deckbuilderkit/ui/grid';
 
+import { type ResolvedConnection } from './connections/auth';
+import { connectionResolverOf } from './connections/routes';
+import { type ConnectionType } from './connections/store';
+
 export { CLOCK_FIELDS, CLOCK_SPEC } from './clock-fields';
+export { authHeader, type ResolvedConnection } from './connections/auth';
+export { codeForStatus, SourceError, sourceFetch, type SourceErrorCode } from './connections/errors';
+export { type Connection, type ConnectionType, type PublicConnection } from './connections/store';
 export { dashboardServerView, type DashboardServerOptions, type DashboardServerSettings } from './dashboard/server';
 export { dashboardSources, dashboardSpecs } from './panels/catalog.server';
 
@@ -17,6 +24,8 @@ export type GridPanelSpec = PanelKindSpec & { kind: string };
 export interface SourceContext {
   dataDir: string;
   signal: AbortSignal;
+  /** The credentials of connection `id` (`not-configured` when unknown or of another type). */
+  connection(id: string, type: ConnectionType): Promise<ResolvedConnection>;
 }
 
 export interface DataSource<C extends PanelConfig = PanelConfig> {
@@ -47,12 +56,13 @@ export const sourceRoute = (id: string): string => `POST /api/grid/source/${id}`
 
 /** The handlers of `sources`: the body is `{ config }`, cleaned with the source's fields before `fetch`. */
 export function sourceRoutes(sources: readonly DataSource<any>[], dataDir = ''): Routes {
+  const connection = connectionResolverOf(dataDir);
   return Object.fromEntries(
     sources.map((source) => [
       sourceRoute(source.id),
       async ({ json, req }: RouteContext) => {
         const body = await json<{ config?: unknown }>();
-        return source.fetch(validConfig(source.fields, body.config), { dataDir, signal: req.signal });
+        return source.fetch(validConfig(source.fields, body.config), { dataDir, signal: req.signal, connection });
       },
     ]),
   );

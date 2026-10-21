@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Button, IconButton, MAX_TEXT_FIELD, Modal, OnOffField, validConfig, type PanelConfig, type PanelField } from '@deckbuilderkit/ui';
+import { ConnectionDialog, listConnections, type ConnectionType, type PublicConnection } from './connections/ConnectionDialog';
 import { tKey } from './i18n';
 
 function NumberInput({ field, value, onChange }: { field: Extract<PanelField, { kind: 'number' }>; value: number; onChange: (n: number) => void }) {
@@ -21,9 +22,41 @@ function NumberInput({ field, value, onChange }: { field: Extract<PanelField, { 
   );
 }
 
-function FieldRow({ field, value, onChange }: { field: PanelField; value: unknown; onChange: (value: unknown) => void }) {
+const NEW_CONNECTION = 'new:connection';
+
+interface Connections {
+  list: PublicConnection[];
+  /** Opens the edit dialog for a new connection of `type`; `done` gets the stored one. */
+  create(type: ConnectionType, done: (c: PublicConnection) => void): void;
+}
+
+function FieldRow({ field, value, onChange, connections }: { field: PanelField; value: unknown; onChange: (value: unknown) => void; connections: Connections }) {
   const hint = field.description ? tKey(field.description) : undefined;
   switch (field.kind) {
+    case 'connection': {
+      const id = typeof value === 'string' ? value : field.default;
+      const matching = connections.list.filter((c) => c.type === field.connectionType);
+      return (
+        <label className="field">
+          <span className="mono-label">{tKey(field.label)}</span>
+          <select
+            value={id}
+            onChange={(e) => {
+              if (e.target.value === NEW_CONNECTION) connections.create(field.connectionType, (c) => onChange(c.id));
+              else onChange(e.target.value);
+            }}
+          >
+            <option value="">{tKey('conn.pick')}</option>
+            {id !== '' && !matching.some((c) => c.id === id) && <option value={id}>{id}</option>}
+            {matching.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+            <option value={NEW_CONNECTION}>{tKey('conn.new')}</option>
+          </select>
+          {hint && <span className="muted">{hint}</span>}
+        </label>
+      );
+    }
     case 'boolean':
       return <OnOffField label={tKey(field.label)} hint={hint} value={value === true} onChange={onChange} />;
     case 'number':
@@ -112,11 +145,33 @@ function FieldRow({ field, value, onChange }: { field: PanelField; value: unknow
 
 /** A form generated from the fields of a panel kind. */
 export function ConfigForm({ fields, value, onChange }: { fields: readonly PanelField[]; value: PanelConfig; onChange: (value: PanelConfig) => void }) {
+  const [list, setList] = useState<PublicConnection[]>([]);
+  const [creating, setCreating] = useState<{ type: ConnectionType; done: (c: PublicConnection) => void }>();
+  const needsConnections = fields.some((f) => f.kind === 'connection');
+  useEffect(() => {
+    if (!needsConnections) return;
+    let live = true;
+    listConnections().then((l) => live && setList(l), () => {});
+    return () => {
+      live = false;
+    };
+  }, [needsConnections]);
+  const connections: Connections = { list, create: (type, done) => setCreating({ type, done }) };
   return (
     <div className="grid-config-form">
       {fields.map((f) => (
-        <FieldRow key={f.key} field={f} value={value[f.key]} onChange={(v) => onChange({ ...value, [f.key]: v })} />
+        <FieldRow key={f.key} field={f} value={value[f.key]} onChange={(v) => onChange({ ...value, [f.key]: v })} connections={connections} />
       ))}
+      {creating && (
+        <ConnectionDialog
+          type={creating.type}
+          onSaved={(c) => {
+            setList((l) => [...l.filter((x) => x.id !== c.id), c]);
+            creating.done(c);
+          }}
+          onClose={() => setCreating(undefined)}
+        />
+      )}
     </div>
   );
 }
