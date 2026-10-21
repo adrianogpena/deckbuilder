@@ -68,7 +68,7 @@ export function scanPidFiles(
   const out: PidScan = { live: [], stale: [] };
   let names: string[] = [];
   try {
-    names = readdirSync(dir);
+    names = readdirSync(dir).sort();
   } catch {
     return out;
   }
