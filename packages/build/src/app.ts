@@ -13,6 +13,8 @@ export interface AppDir {
   name: string;
   id: string;
   version: string;
+  /** package.json `author`; the Windows exe's company name and copyright. */
+  publisher?: string;
 }
 
 export async function loadApp(dir: string): Promise<AppDir> {
@@ -20,8 +22,9 @@ export async function loadApp(dir: string): Promise<AppDir> {
     if (!existsSync(join(dir, file))) throw new Error(`${dir} is not an app folder: ${file} is missing`);
   }
   const { APP } = (await import(join(dir, 'app.ts'))) as { APP: { name: string; id: string } };
-  const { version } = (await Bun.file(join(dir, 'package.json')).json()) as { version: string };
-  return { dir, name: APP.name, id: APP.id, version };
+  const { version, author } = (await Bun.file(join(dir, 'package.json')).json()) as { version: string; author?: string | { name?: string } };
+  const publisher = typeof author === 'string' ? author : author?.name;
+  return { dir, name: APP.name, id: APP.id, version, ...(publisher ? { publisher } : {}) };
 }
 
 /** The folder whose package.json declares `workspaces` (the repo root), or `dir` itself. */

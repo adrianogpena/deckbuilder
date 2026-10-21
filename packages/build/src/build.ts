@@ -116,6 +116,7 @@ export async function buildExe(app: AppDir, target: Target): Promise<string> {
       `--windows-description=${app.name}`,
       `--windows-version=${app.version.split('-')[0]}.0`,
     );
+    if (app.publisher) cmd.push(`--windows-publisher=${app.publisher}`, `--windows-copyright=© ${new Date().getFullYear()} ${app.publisher}`);
   }
   run(app, cmd);
   console.log(`built ${relative(app.dir, out)}`);
