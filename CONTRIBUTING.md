@@ -390,6 +390,7 @@ scheme for deep links (default: the folder without dashes). Then:
 3. View links: a view registers a link with `views.link`. Another view calls `useViewLink(id)`, which returns null when the target view is absent, or `useViewRequest(id)` to receive requests. Both live in `packages/ui/src/views.ts`.
 4. Capabilities: when two views need the same code (SQL/db, HTTP, git), put it in a shared non-view package and depend on that, not on the other view.
 5. Settings cards: set `ViewDef.settingsCards`; write the cards in `src/settings/cards.tsx` and wire them in `view.tsx`.
+6. Design: buttons, headers, rows, tabs, states and menus follow [docs/DESIGN.md](docs/DESIGN.md); use `Button`/`IconButton` and the shared components, not view-specific copies.
 
 The Agents view lives in `packages/view-agents`.
 
@@ -541,6 +542,7 @@ A tool in the Agents view is a panel module:
 - Register it: one import in `web/workspace/registry.ts` and one in `web/panels/i18n.ts`.
 - Server routes, if any: `packages/view-agents/src/server/panels/<kind>.ts` exporting `routes(ctx)` (`PanelCtx` in `server/panels/ctx.ts`), added in `server/panels/index.ts`.
 - Optional `Section` makes the panel dockable as a sidebar card; `commands` adds shortcuts.
+- UI follows [docs/DESIGN.md](docs/DESIGN.md): `Button` (size `xs` in rows), tokens only, no hex.
 
 ### Live output hook (Output panel)
 Foreground Bash output only reaches the transcript when the command ends. To see it while it runs, add a PreToolUse hook to your Claude Code settings (the app never edits them); the script tees stdout/stderr to `<dataDir>/agents/live/<sessionId>.log` and keeps the exit code. Background commands are left alone, and without the hook the panel works as before. The panel's empty state has a Copy-snippet button with this JSON:

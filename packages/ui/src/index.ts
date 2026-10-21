@@ -24,6 +24,7 @@ export * from './components/TabWorkspace';
 export * from './components/Toast';
 export * from './components/TreeView';
 export * from './components/ui';
+export * from './components/Button';
 export * from './api';
 export * from './dialogs';
 export * from './components/DialogHost';

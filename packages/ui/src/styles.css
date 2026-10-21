@@ -197,6 +197,11 @@ kbd {
 .btn-ghost { background: transparent; border-color: transparent; color: var(--text-2); }
 .btn-ghost:hover:not(:disabled) { background: var(--hover); border-color: transparent; color: var(--text); }
 .btn-ghost.active { color: var(--accent); background: var(--accent-soft); }
+.btn-xs { height: var(--control-h-3xs); padding: 0 var(--space-6); gap: var(--space-4); font-size: var(--fs-xs); border-radius: var(--radius-md); }
+.btn-icon.btn-xs { width: var(--control-h-3xs); }
+.btn[aria-pressed="true"] { color: var(--accent); background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+.btn:focus-visible, .chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.toolbar-sep { align-self: stretch; width: 1px; margin: var(--space-4) var(--space-2); background: var(--border); flex: none; }
 .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--ink-on-accent); font-weight: 600; }
 .btn-primary:hover:not(:disabled) { background: var(--accent-2); border-color: var(--accent-2); color: var(--ink-on-accent); }
 .dirty-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: currentColor; vertical-align: middle; }

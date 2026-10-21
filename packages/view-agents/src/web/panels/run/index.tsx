@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Button } from '@deckbuilderkit/ui';
 import { t } from '../../../i18n';
 import type { PanelModule, PanelProps, SectionProps } from '../../workspace/types';
 import { getLogs, getTargets, openRunUrl, startRun, stopRun, type RunState, type RunTarget } from './api';
@@ -65,15 +66,15 @@ function RunBody({ project }: { project: string | undefined }) {
               <span className="agents-run-actions">
                 {running ? (
                   <>
-                    <button type="button" className="agents-run-btn" onClick={() => act(stopRun, x.id)}>{t('panel.run.stop')}</button>
-                    <button type="button" className="agents-run-btn" onClick={() => act(startRun, x.id)}>{t('panel.run.restart')}</button>
+                    <Button size="xs" variant="danger" icon="square" onClick={() => act(stopRun, x.id)}>{t('panel.run.stop')}</Button>
+                    <Button size="xs" icon="rotate-ccw" onClick={() => act(startRun, x.id)}>{t('panel.run.restart')}</Button>
                   </>
                 ) : (
-                  <button type="button" className="agents-run-btn" onClick={() => act(startRun, x.id)}>{t('panel.run.start')}</button>
+                  <Button size="xs" variant="primary" icon="play" onClick={() => act(startRun, x.id)}>{t('panel.run.start')}</Button>
                 )}
-                <button type="button" className="agents-run-btn" aria-pressed={logOf === x.id} onClick={() => setLogOf(logOf === x.id ? undefined : x.id)}>
+                <Button size="xs" variant="ghost" icon="log" pressed={logOf === x.id} onClick={() => setLogOf(logOf === x.id ? undefined : x.id)}>
                   {logOf === x.id ? t('panel.run.hideLogs') : t('panel.run.logs')}
-                </button>
+                </Button>
               </span>
             </div>
             {run?.url && (

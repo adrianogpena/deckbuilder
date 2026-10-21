@@ -3,13 +3,14 @@ import { CodeEditor, type CodeEditorHandle, type SqlProblem, SqlSteps, type SqlS
 import {
   type ApiError,
   Badge,
+  Button,
   ContextMenu,
   errorMessage,
   errorOf,
   ErrorBanner,
-  Icon,
   PageHead,
   SplitView,
+  ToolbarSep,
   useAsync,
   useCommand,
   useShortcutTip,
@@ -241,41 +242,35 @@ ${sql}` : sql);
             ))}
             <option value={MANAGE}>{t('workbench.source.manage')}</option>
           </select>
-          <button className="btn btn-sm" onClick={() => setManaging(true)} title={t('workbench.source.manage')} aria-label={t('workbench.source.manage')}>
-            <Icon name="database" /> {t('workbench.conn.button')}
-          </button>
-          <button className="btn btn-primary btn-sm" data-run onClick={run} disabled={busy} title={t('workbench.run')}>
-            <Icon name="play" /> {t('workbench.run')}
-          </button>
-          <button className="btn btn-sm" onClick={runAll} disabled={busy} title={t('workbench.runAll.title')}>
-            <Icon name="play" /> {t('workbench.runAll')}
-          </button>
-          <button className="btn btn-sm" onClick={explain} disabled={!db || busy || runner.explaining} title={tip(t('workbench.explain.title'), 'workbench.explain')}>
-            <Icon name="plan" /> {t('workbench.explain')}
-          </button>
-          <button className="btn btn-sm" onClick={format} title={tip(t('workbench.format'), 'workbench.format')}>{t('workbench.format')}</button>
-          {runner.running && <button className="btn btn-sm" onClick={runner.cancel} title={t('workbench.cancel')}>{t('workbench.cancel')}</button>}
+          <Button size="sm" variant="ghost" icon="database" onClick={() => setManaging(true)} title={t('workbench.source.manage')} aria-label={t('workbench.source.manage')}>{t('workbench.conn.button')}</Button>
+          <ToolbarSep />
+          <Button size="sm" variant="primary" icon="play" data-run onClick={run} disabled={busy} title={t('workbench.run')}>{t('workbench.run')}</Button>
+          <Button size="sm" icon="play" onClick={runAll} disabled={busy} title={t('workbench.runAll.title')}>{t('workbench.runAll')}</Button>
+          {runner.running && <Button size="sm" variant="danger" icon="square" onClick={runner.cancel} title={t('workbench.cancel')}>{t('workbench.cancel')}</Button>}
+          <Button size="sm" variant="ghost" icon="plan" onClick={explain} disabled={!db || busy || runner.explaining} title={tip(t('workbench.explain.title'), 'workbench.explain')}>{t('workbench.explain')}</Button>
+          <Button size="sm" variant="ghost" icon="braces" onClick={format} title={tip(t('workbench.format'), 'workbench.format')}>{t('workbench.format')}</Button>
           {db && (
             <>
-              <button className="btn btn-sm" onClick={() => update((cur) => ({ schema: !cur.schema }))} aria-pressed={!!state.schema} title={t('workbench.schema')}>
-                <Icon name="table" /> {t('workbench.schema')}
-              </button>
+              <ToolbarSep />
               {status?.pending && <Badge tone="warn">{t('workbench.tx.pending')}</Badge>}
-              <button className="btn btn-sm" onClick={runner.commit} disabled={!status?.connected || starting} title={t('workbench.tx.commit')}>{t('workbench.tx.commit')}</button>
-              <button className="btn btn-sm" onClick={runner.rollback} disabled={!status?.connected || starting} title={t('workbench.tx.rollback')}>{t('workbench.tx.rollback')}</button>
-              <button className="btn btn-sm" onClick={disconnect} disabled={!status?.connected || starting} title={t('workbench.tx.disconnect')}>{t('workbench.tx.disconnect')}</button>
+              <Button size="sm" icon="check" onClick={runner.commit} disabled={!status?.connected || starting} title={t('workbench.tx.commit')}>{t('workbench.tx.commit')}</Button>
+              <Button size="sm" icon="rotate-ccw" onClick={runner.rollback} disabled={!status?.connected || starting} title={t('workbench.tx.rollback')}>{t('workbench.tx.rollback')}</Button>
+              <Button size="sm" variant="ghost" onClick={disconnect} disabled={!status?.connected || starting} title={t('workbench.tx.disconnect')}>{t('workbench.tx.disconnect')}</Button>
             </>
           )}
-          <button className="btn btn-sm" onClick={() => update((cur) => ({ steps: !cur.steps }))} aria-pressed={!!state.steps} title={t('workbench.steps.title')}>
-            <Icon name="list-flat" /> {t('workbench.steps')}
+          <ToolbarSep />
+          {db && (
+            <Button size="sm" variant="ghost" icon="table" onClick={() => update((cur) => ({ schema: !cur.schema }))} pressed={!!state.schema} title={t('workbench.schema')}>{t('workbench.schema')}</Button>
+          )}
+          <Button size="sm" variant="ghost" icon="list-flat" onClick={() => update((cur) => ({ steps: !cur.steps }))} pressed={!!state.steps} title={t('workbench.steps.title')}>
+            {t('workbench.steps')}
             {!state.steps && lintErrors > 0 && (
               <span className="sqlsteps-count is-error wb-steps-badge" title={t('workbench.steps.errors', { count: lintErrors })}>{lintErrors}</span>
             )}
-          </button>
-          <button className="btn btn-sm" onClick={() => update((cur) => ({ history: !cur.history }))} aria-pressed={!!state.history} title={t('workbench.history')}>
-            <Icon name="history" /> {t('workbench.history')}
-          </button>
-          <button className="btn btn-sm" onClick={openExportMenu} disabled={tableRows.length === 0} aria-haspopup="menu" aria-expanded={!!exportMenu} title={t('workbench.export')}>{t('workbench.export')}</button>
+          </Button>
+          <Button size="sm" variant="ghost" icon="history" onClick={() => update((cur) => ({ history: !cur.history }))} pressed={!!state.history} title={t('workbench.history')}>{t('workbench.history')}</Button>
+          <ToolbarSep />
+          <Button size="sm" variant="ghost" icon="download" onClick={openExportMenu} disabled={tableRows.length === 0} aria-haspopup="menu" aria-expanded={!!exportMenu} title={t('workbench.export')}>{t('workbench.export')}</Button>
           {exportMenu && (
             <ContextMenu
               at={exportMenu}
@@ -286,11 +281,11 @@ ${sql}` : sql);
               ]}
             />
           )}
-          <button className="btn btn-sm" onClick={runner.copy} disabled={tableRows.length === 0} title={t(selection.length > 0 ? 'workbench.copySelected' : 'workbench.copy')}>{t(selection.length > 0 ? 'workbench.copySelected' : 'workbench.copy')}</button>
+          <Button size="sm" variant="ghost" icon="copy" onClick={runner.copy} disabled={tableRows.length === 0} title={t(selection.length > 0 ? 'workbench.copySelected' : 'workbench.copy')}>{t(selection.length > 0 ? 'workbench.copySelected' : 'workbench.copy')}</Button>
           {doc.kind === 'file' && (
             <>
               <span className="muted" title={doc.path}>{t('workbench.doc.file', { name: docName })}</span>
-              <button className="btn btn-sm" onClick={() => update(() => ({ doc: { kind: 'default' } }))} title={t('workbench.doc.default')}>{t('workbench.doc.default')}</button>
+              <Button size="sm" variant="ghost" onClick={() => update(() => ({ doc: { kind: 'default' } }))} title={t('workbench.doc.default')}>{t('workbench.doc.default')}</Button>
             </>
           )}
           <span className="muted">{t('workbench.exportHint', { count: EXPORT_ROWS })}</span>
