@@ -6,7 +6,7 @@ import { tKey } from '../i18n';
 import { fieldsOf, kindSpecs, panelDef, type AnyPanelKind } from '../panel';
 import { addableKinds, PanelCreator } from '../PanelCreator';
 import { PanelHost } from '../PanelHost';
-import { activeLayout, layoutsOrDefault, MAX_LAYOUTS, MAX_NAME, newLayoutId, type DashboardLayouts } from './model';
+import { activeLayout, itemFromPreset, layoutsOrDefault, MAX_LAYOUTS, MAX_NAME, MAX_PRESETS, newLayoutId, newPresetId, presetFromItem, validDashboardPresets, type DashboardLayouts, type DashboardPreset } from './model';
 import '../grid.css';
 import './dashboard.css';
 
@@ -14,6 +14,8 @@ import './dashboard.css';
 export interface DashboardViewSettings {
   /** Saved layouts (`DashboardLayouts`); the server validates them. */
   dashboardLayouts?: unknown;
+  /** Saved panel presets (`DashboardPreset[]`); the server validates them. */
+  dashboardPresets?: unknown;
 }
 
 /** Unsaved items of a layout, kept while another screen is shown; a restart drops them. */
@@ -35,6 +37,7 @@ export function DashboardScreen({ settings, onSave, panels }: DashboardScreenPro
     const current = activeLayout(state);
     return unsaved && unsaved.layoutId === current.id ? unsaved.items : current.items;
   });
+  const [presets, setPresets] = useState<DashboardPreset[]>(() => validDashboardPresets(settings.dashboardPresets, specs) ?? []);
   const [creating, setCreating] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [configuring, setConfiguring] = useState<string | null>(null);
@@ -125,11 +128,34 @@ export function DashboardScreen({ settings, onSave, panels }: DashboardScreenPro
     { id: 'delete', label: tKey('dash.delete'), icon: 'trash', danger: true, disabled: state.layouts.length <= 1, hint: state.layouts.length <= 1 ? tKey('dash.deleteLast') : undefined, run: () => void remove() },
   ];
 
+  const storePresets = (next: DashboardPreset[]) => {
+    setPresets(next);
+    onSave({ dashboardPresets: next });
+  };
+  const savePreset = async (item: GridItem) => {
+    const name = await prompt({ title: tKey('dash.preset.save'), label: tKey('dash.preset.name'), value: item.title ?? '', validate: nameError });
+    if (name === null) return;
+    storePresets([...presets, presetFromItem(item, newPresetId(presets), name)]);
+  };
+  const renamePreset = async (preset: DashboardPreset) => {
+    const name = await prompt({ title: tKey('dash.preset.rename'), label: tKey('dash.preset.name'), value: preset.name, validate: nameError });
+    if (name === null) return;
+    storePresets(presets.map((p) => (p.id === preset.id ? { ...p, name: name.trim() } : p)));
+  };
+  const deletePreset = async (preset: DashboardPreset) => {
+    const ok = await confirm({ title: tKey('dash.preset.deleteTitle'), body: tKey('dash.preset.deleteBody', { name: preset.name }), okLabel: tKey('dash.delete.ok'), danger: true });
+    if (ok) storePresets(presets.filter((p) => p.id !== preset.id));
+  };
+
   const kindOf = (kind: string) => panels.find((k) => k.kind === kind);
   const itemMenu = (item: GridItem): ContextMenuItem[] => {
     const kind = kindOf(item.kind);
-    if (!kind || fieldsOf(kind).length === 0) return [];
-    return [{ id: 'configure', label: t('panel.configure'), icon: 'settings', run: () => setConfiguring(item.id) }];
+    if (!kind) return [];
+    const full = presets.length >= MAX_PRESETS;
+    const out: ContextMenuItem[] = [];
+    if (fieldsOf(kind).length > 0) out.push({ id: 'configure', label: t('panel.configure'), icon: 'settings', run: () => setConfiguring(item.id) });
+    out.push({ id: 'preset', label: tKey('dash.preset.save'), icon: 'plus', disabled: full, hint: full ? tKey('dash.preset.tooMany') : undefined, run: () => void savePreset(item) });
+    return out;
   };
   const target = configuring ? items.find((i) => i.id === configuring) : undefined;
   const targetKind = target && kindOf(target.kind);
@@ -188,6 +214,10 @@ export function DashboardScreen({ settings, onSave, panels }: DashboardScreenPro
           items={items}
           onAdd={(kind, config: PanelConfig | undefined) => change(addItem(items, defs.find((d) => d.id === kind.kind)!, config))}
           onClose={() => setCreating(false)}
+          presets={presets}
+          onAddPreset={(p) => change(itemFromPreset(items, p, defs.find((d) => d.id === p.kind)!))}
+          onRenamePreset={(p) => void renamePreset(p)}
+          onDeletePreset={(p) => void deletePreset(p)}
         />
       )}
       {target && targetKind && (

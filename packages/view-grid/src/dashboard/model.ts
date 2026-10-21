@@ -1,4 +1,4 @@
-import { MAX_ID, validGridItems, type GridItem, type PanelConfig, type PanelKindSpec } from '@deckbuilderkit/ui/grid';
+import { addItem, MAX_ID, validGridItems, type GridItem, type PanelConfig, type PanelDef, type PanelKindSpec } from '@deckbuilderkit/ui/grid';
 
 type IconName = NonNullable<GridItem['icon']>;
 
@@ -89,3 +89,29 @@ export const layoutsOrDefault = (raw: unknown, kinds: Specs, name: string): Dash
 
 /** The active layout (the first when `active` names none). */
 export const activeLayout = (state: DashboardLayouts): DashboardLayout => state.layouts.find((l) => l.id === state.active) ?? state.layouts[0]!;
+
+/** The preset made from a grid item: its kind, config, title, icon and size. */
+export function presetFromItem(item: GridItem, id: string, name: string): DashboardPreset {
+  const preset: DashboardPreset = { id, name: name.trim(), kind: item.kind, w: item.w, h: item.h };
+  if (item.config) preset.config = item.config;
+  if (item.title) preset.title = item.title;
+  if (item.icon) preset.icon = item.icon;
+  return preset;
+}
+
+/** An id not in `presets`. */
+export function newPresetId(presets: readonly DashboardPreset[]): string {
+  const used = new Set(presets.map((p) => p.id));
+  for (let n = presets.length + 1; ; n++) if (!used.has(`preset-${n}`)) return `preset-${n}`;
+}
+
+/** `items` plus a new item for `preset` at the preset size (at least the kind's minimum), with the preset's title, icon and config. */
+export function itemFromPreset(items: readonly GridItem[], preset: DashboardPreset, def: PanelDef): GridItem[] {
+  const sized: PanelDef = { ...def, defaultSize: { w: Math.max(preset.w, def.minW), h: Math.max(preset.h, def.minH) } };
+  const next = addItem(items, sized, preset.config);
+  const added = next[next.length - 1]!;
+  const extra: Partial<GridItem> = {};
+  if (preset.title) extra.title = preset.title;
+  if (preset.icon) extra.icon = preset.icon;
+  return [...next.slice(0, -1), { ...added, ...extra }];
+}

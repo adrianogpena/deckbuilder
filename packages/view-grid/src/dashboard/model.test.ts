@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { CLOCK_SPEC } from '../clock-fields';
-import { activeLayout, defaultLayouts, layoutsOrDefault, newLayoutId, validDashboardLayouts, validDashboardPresets } from './model';
+import { activeLayout, defaultLayouts, itemFromPreset, layoutsOrDefault, newLayoutId, newPresetId, presetFromItem, validDashboardLayouts, validDashboardPresets } from './model';
 
 const kinds = { clock: CLOCK_SPEC };
 const item = { id: 'clock', kind: 'clock', x: 0, y: 0, w: 3, h: 4 };
@@ -52,5 +52,29 @@ describe('validDashboardPresets', () => {
   test('rejects a non-list and more than 50', () => {
     expect(validDashboardPresets({}, kinds)).toBeNull();
     expect(validDashboardPresets(Array.from({ length: 51 }, (_, i) => ({ ...preset, id: `p${i}` })), kinds)).toBeNull();
+  });
+});
+
+describe('presets to items', () => {
+  const def = { id: 'clock', title: 'Clock', icon: 'sun' as const, defaultSize: { w: 3, h: 4 }, minW: 2, minH: 2 };
+
+  test('presetFromItem keeps kind, config, title, icon and size', () => {
+    const p = presetFromItem({ ...item, config: { timeZone: 'Europe/Lisbon' }, title: 'Lisbon', icon: 'home' as const }, 'preset-1', ' Lisbon clock ');
+    expect(p).toEqual({ id: 'preset-1', name: 'Lisbon clock', kind: 'clock', config: { timeZone: 'Europe/Lisbon' }, title: 'Lisbon', icon: 'home', w: 3, h: 4 });
+  });
+
+  test('itemFromPreset adds an item with the preset size, title, icon and config', () => {
+    const next = itemFromPreset([], { id: 'p', name: 'n', kind: 'clock', config: { timeZone: 'Europe/Lisbon' }, title: 'Lisbon', icon: 'home' as const, w: 5, h: 3 }, def);
+    expect(next).toHaveLength(1);
+    expect(next[0]).toMatchObject({ kind: 'clock', w: 5, h: 3, title: 'Lisbon', icon: 'home', config: { timeZone: 'Europe/Lisbon' } });
+  });
+
+  test('itemFromPreset clamps to the minimum size', () => {
+    const next = itemFromPreset([], { id: 'p', name: 'n', kind: 'clock', w: 1, h: 1 }, def);
+    expect(next[0]).toMatchObject({ w: 2, h: 2 });
+  });
+
+  test('newPresetId avoids used ids', () => {
+    expect(newPresetId([{ id: 'preset-1', name: 'a', kind: 'clock', w: 1, h: 1 }])).toBe('preset-2');
   });
 });

@@ -11,6 +11,8 @@
 .grid-creator-group h3 { margin: 0 0 var(--space-6); }
 .grid-creator-list { display: flex; flex-direction: column; gap: var(--space-6); min-width: 360px; }
 .btn.grid-creator-kind { height: auto; justify-content: flex-start; gap: var(--space-12); padding: var(--space-8) var(--space-12); text-align: left; white-space: normal; }
+.grid-creator-preset { display: flex; align-items: center; gap: var(--space-6); }
+.grid-creator-preset .grid-creator-kind { flex: 1; min-width: 0; }
 .grid-creator-text { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
 .grid-creator-title { font-weight: 600; }
 .grid-creator-desc { font-size: var(--fs-sm); color: var(--text-3); }

@@ -25,6 +25,15 @@ export const en = {
   'dash.empty.title': 'Nothing here yet',
   'dash.empty.body': 'Add panels to build this dashboard.',
   'dash.connections': 'Connections',
+  'dash.preset.save': 'Save as preset…',
+  'dash.preset.name': 'Preset name',
+  'dash.preset.mine': 'My panels',
+  'dash.preset.rename': 'Rename preset',
+  'dash.preset.delete': 'Delete preset',
+  'dash.preset.deleteTitle': 'Delete preset',
+  'dash.preset.deleteBody': 'Delete the preset “{name}”?',
+  'dash.preset.tooMany': 'At most 50 presets.',
+  'dash.preset.once': 'Already on the layout.',
 };
 
 export const ptBR: Messages<typeof en> = {
@@ -52,4 +61,13 @@ export const ptBR: Messages<typeof en> = {
   'dash.empty.title': 'Nada aqui ainda',
   'dash.empty.body': 'Adicione painéis para montar este painel.',
   'dash.connections': 'Conexões',
+  'dash.preset.save': 'Salvar como predefinição…',
+  'dash.preset.name': 'Nome da predefinição',
+  'dash.preset.mine': 'Meus painéis',
+  'dash.preset.rename': 'Renomear predefinição',
+  'dash.preset.delete': 'Excluir predefinição',
+  'dash.preset.deleteTitle': 'Excluir predefinição',
+  'dash.preset.deleteBody': 'Excluir a predefinição “{name}”?',
+  'dash.preset.tooMany': 'No máximo 50 predefinições.',
+  'dash.preset.once': 'Já está no layout.',
 };

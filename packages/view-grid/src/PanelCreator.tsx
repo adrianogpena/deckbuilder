@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { Button, Icon, Modal, validConfig, type GridItem, type PanelConfig } from '@deckbuilderkit/ui';
+import { Button, Icon, IconButton, Modal, validConfig, type GridItem, type PanelConfig } from '@deckbuilderkit/ui';
 import { ConfigForm } from './ConfigForm';
+import type { DashboardPreset } from './dashboard/model';
 import { tKey } from './i18n';
 import { fieldsOf, initialConfig, type AnyPanelKind } from './panel';
 
@@ -18,12 +19,18 @@ export function groupByCategory(kinds: readonly AnyPanelKind[]): Array<{ categor
 }
 
 /** "Add panel": pick a kind, set it up when it has fields, then `onAdd`. */
-export function PanelCreator({ kinds, items, onAdd, onClose }: {
+export function PanelCreator({ kinds, items, onAdd, onClose, presets, onAddPreset, onRenamePreset, onDeletePreset }: {
   kinds: readonly AnyPanelKind[];
   items: readonly GridItem[];
   onAdd: (kind: AnyPanelKind, config: PanelConfig | undefined) => void;
   onClose: () => void;
+  /** Saved presets; the "My panels" section shows when this is given. */
+  presets?: readonly DashboardPreset[];
+  onAddPreset?: (preset: DashboardPreset) => void;
+  onRenamePreset?: (preset: DashboardPreset) => void;
+  onDeletePreset?: (preset: DashboardPreset) => void;
 }) {
+  const mine = useMemo(() => (presets ?? []).filter((p) => kinds.some((k) => k.kind === p.kind)), [presets, kinds]);
   const available = useMemo(() => addableKinds(kinds, items), [kinds, items]);
   const groups = useMemo(() => groupByCategory(available), [available]);
   const [picked, setPicked] = useState<AnyPanelKind>();
@@ -60,7 +67,39 @@ export function PanelCreator({ kinds, items, onAdd, onClose }: {
 
   return (
     <Modal title={tKey('grid.creator.title')} onClose={onClose}>
-      {groups.length === 0 && <p className="muted">{tKey('grid.creator.empty')}</p>}
+      {mine.length > 0 && (
+        <section className="grid-creator-group">
+          <h3 className="mono-label">{tKey('dash.preset.mine')}</h3>
+          <div className="grid-creator-list">
+            {mine.map((p) => {
+              const kind = kinds.find((k) => k.kind === p.kind)!;
+              const blocked = kind.allowMultiple === false && items.some((i) => i.kind === p.kind);
+              return (
+                <div key={p.id} className="grid-creator-preset">
+                  <Button
+                    className="grid-creator-kind"
+                    title={blocked ? tKey('dash.preset.once') : p.name}
+                    disabled={blocked}
+                    onClick={() => {
+                      onAddPreset?.(p);
+                      onClose();
+                    }}
+                  >
+                    <Icon name={p.icon ?? kind.icon} size={18} />
+                    <span className="grid-creator-text">
+                      <span className="grid-creator-title">{p.name}</span>
+                      <span className="grid-creator-desc">{p.title ?? tKey(kind.title)}</span>
+                    </span>
+                  </Button>
+                  <IconButton icon="edit" label={tKey('dash.preset.rename')} onClick={() => onRenamePreset?.(p)} />
+                  <IconButton icon="trash" label={tKey('dash.preset.delete')} onClick={() => onDeletePreset?.(p)} />
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+      {groups.length === 0 && mine.length === 0 && <p className="muted">{tKey('grid.creator.empty')}</p>}
       {groups.map((g) => (
         <section key={g.category} className="grid-creator-group">
           <h3 className="mono-label">{tKey(g.category)}</h3>
