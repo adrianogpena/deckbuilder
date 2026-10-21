@@ -40,6 +40,11 @@ describe('createViews', () => {
     expect(() => createViews([view('a', 'g', 1, { shared: 'x' }), view('b', 'g', 2, { shared: 'y' })])).toThrow('Duplicate message key');
   });
 
+  test('allows a duplicate key with identical text', () => {
+    const v = createViews([view('a', 'g', 1, { shared: 'x' }), view('b', 'g', 2, { shared: 'x' })]);
+    expect(v.messages.en.shared).toBe('x');
+  });
+
   test('throws on a duplicate id', () => {
     expect(() => createViews([view('a', 'g', 1), view('a', 'g', 2)])).toThrow('already registered');
   });

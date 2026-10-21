@@ -5,4 +5,7 @@ export { definePanel, type AnyPanelKind, type PanelKind, type PanelLoadContext, 
 export { type GridViewSettings } from './GridScreen';
 export { fetchSource } from './source';
 export { gridView, type GridViewOptions } from './view';
+export { dashboardView, type DashboardViewOptions } from './dashboard/view';
+export { type DashboardViewSettings } from './dashboard/DashboardScreen';
+export { dashboardPanels } from './panels/catalog.web';
 export { defaultConfig, validConfig, validGridItems, type GridItem, type PanelConfig, type PanelField } from '@deckbuilderkit/ui';

@@ -15,6 +15,8 @@ export interface PanelRenderProps<C, D> {
   size: { w: number; h: number };
   /** Loads again now (a no-op for a kind without `load`). */
   refresh(): void;
+  /** Opens the panel's config dialog (a no-op when the host has none). */
+  configure(): void;
 }
 
 export interface PanelKind<C extends PanelConfig = PanelConfig, D = any> {
@@ -33,7 +35,7 @@ export interface PanelKind<C extends PanelConfig = PanelConfig, D = any> {
   config?: { fields: readonly PanelField[] };
   load?: (config: C, ctx: PanelLoadContext) => Promise<D>;
   /** Reload interval in milliseconds (0 or omitted: never). */
-  refreshMs?: number | ((config: C) => number);
+  refreshMs?: number | ((config: C, data: D | undefined) => number);
   render: (props: PanelRenderProps<C, D>) => ReactNode;
   /** More than one instance may be on the grid; true when omitted. */
   allowMultiple?: boolean;

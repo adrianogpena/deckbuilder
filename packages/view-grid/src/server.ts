@@ -2,6 +2,8 @@ import { defineServerView, type RouteContext, type Routes } from '@deckbuilderki
 import { validConfig, validGridItems, type GridItem, type PanelConfig, type PanelField, type PanelKindSpec } from '@deckbuilderkit/ui/grid';
 
 export { CLOCK_FIELDS, CLOCK_SPEC } from './clock-fields';
+export { dashboardServerView, type DashboardServerOptions, type DashboardServerSettings } from './dashboard/server';
+export { dashboardSources, dashboardSpecs } from './panels/catalog.server';
 
 /** The part of the server settings the Grid view owns; the app's `Settings` extends it. */
 export interface GridServerSettings {

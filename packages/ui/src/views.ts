@@ -126,7 +126,7 @@ export function createViews<const Defs extends readonly AnyView[]>(defs: Defs, o
   for (const d of defs) {
     for (const lang of ['en', 'pt-BR'] as const) {
       for (const [key, text] of Object.entries(d.messages[lang])) {
-        if (Object.hasOwn(messages[lang], key)) throw new Error(`Duplicate message key (${lang}): ${key}`);
+        if (Object.hasOwn(messages[lang], key) && messages[lang][key] !== text) throw new Error(`Duplicate message key (${lang}): ${key}`);
         messages[lang][key] = text;
       }
     }

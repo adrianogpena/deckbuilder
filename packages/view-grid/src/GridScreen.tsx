@@ -73,7 +73,8 @@ export function GridScreen({ settings, onSave, panels, defaultLayout }: GridScre
           defs={defs}
           render={(item) => {
             const kind = kindOf(item.kind);
-            return kind ? <PanelHost kind={kind} item={item} /> : null;
+            if (!kind) return null;
+            return <PanelHost kind={kind} item={item} onConfigure={fieldsOf(kind).length > 0 ? () => setConfiguring(item.id) : undefined} />;
           }}
           itemMenu={itemMenu}
           onChange={change}

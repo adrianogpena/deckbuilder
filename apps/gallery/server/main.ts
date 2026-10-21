@@ -22,7 +22,7 @@ import type { AgentsServerSettings } from '@deckbuilderkit/view-agents/server';
 import { restHistorySizeOf, type RestServerSettings } from '@deckbuilderkit/view-rest/server';
 import type { TerminalServerSettings } from '@deckbuilderkit/view-terminal/server';
 import { historySizeOf, type WorkbenchServerSettings } from '@deckbuilderkit/view-workbench/server';
-import type { GridServerSettings } from '@deckbuilderkit/view-grid/server';
+import type { DashboardServerSettings, GridServerSettings } from '@deckbuilderkit/view-grid/server';
 import { validKeymap, type Keymap } from '@deckbuilderkit/ui/keybindings';
 import { type FileAssociation, validFileAssociations } from '@deckbuilderkit/ui/file-associations';
 import { type FileSettings, validFileSettings } from '@deckbuilderkit/ui/file-settings';
@@ -33,7 +33,7 @@ import { routes } from './routes.ts';
 import { stores } from './stores.ts';
 import { serverViews, setAppLink } from './views.ts';
 
-export interface Settings extends BaseSettings, TerminalServerSettings, WorkbenchServerSettings, RestServerSettings, GitServerSettings, GridServerSettings, ExplorerServerSettings, AgentsServerSettings {
+export interface Settings extends BaseSettings, TerminalServerSettings, WorkbenchServerSettings, RestServerSettings, GitServerSettings, GridServerSettings, DashboardServerSettings, ExplorerServerSettings, AgentsServerSettings {
   /** Start at Windows login (exe only). */
   autostart: boolean;
   /** Tray icon, so closing the window keeps the app running; read at startup. */
@@ -101,7 +101,7 @@ const WINDOW_SPEC: Record<string, FieldSpec> = {
 const GENERAL_SPEC: Record<string, FieldSpec> = {
   confirmCloseDirty: 'boolean',
   toastDuration: [1000, 60_000],
-  startScreen: ['home', 'tabs', 'grid', 'explorer', 'workbench', 'rest', 'terminal', 'git', 'agents'],
+  startScreen: ['home', 'tabs', 'grid', 'dashboard', 'explorer', 'workbench', 'rest', 'terminal', 'git', 'agents'],
   browser: 'string',
 };
 const KEYBOARD_SPEC: Record<string, FieldSpec> = {

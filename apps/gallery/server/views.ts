@@ -2,7 +2,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { appHome } from '@deckbuilderkit/platform';
 import type { ServerViewDef } from '@deckbuilderkit/server-core';
-import { CLOCK_SPEC, gridServerView } from '@deckbuilderkit/view-grid/server';
+import { CLOCK_SPEC, dashboardServerView, dashboardSources, dashboardSpecs, gridServerView } from '@deckbuilderkit/view-grid/server';
 import { explorerServerView } from '@deckbuilderkit/view-explorer/server';
 import { gitServerView } from '@deckbuilderkit/view-git/server';
 import { restServerView } from '@deckbuilderkit/view-rest/server';
@@ -32,6 +32,7 @@ export const serverViews: ServerViewDef[] = [
   restServerView(),
   gitServerView(),
   gridServerView({ panels: [CLOCK_SPEC, { kind: 'info', allowMultiple: false }, { kind: 'update', allowMultiple: false }, { kind: 'list', allowMultiple: false }] }),
+  dashboardServerView({ panels: dashboardSpecs, sources: dashboardSources }),
   agentsServerView({
     home: agentsHome,
     link: () => appLink,
