@@ -69,6 +69,8 @@ States, built into the classes:
 - Focus: `:focus-visible` → `outline: 2px solid var(--accent); outline-offset: 1px`.
 - Toggle: `pressed` → accent on `--accent-soft`.
 
+`bun run typecheck` fails on a raw `<button>` beyond the per-file counts in `scripts/check-buttons.ts` (`RAW_BUTTONS`: tabs, tree rows, menu items, chips, nav items). A new generic button uses `Button`/`IconButton`; a new non-button control adds its file there.
+
 Every button has a text label or an icon plus `title`; actions get an icon when one exists (`play` start/run, `square` stop/cancel, `rotate-ccw` restart/rollback, `check` commit, `log` logs, `copy`, `download` export).
 
 Dialog footers: buttons right-aligned, Cancel (`default`) then `primary` or `danger`. Button text names the result ("Delete branch"), not "OK".
