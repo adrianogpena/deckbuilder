@@ -129,6 +129,9 @@ export const BREAKPOINTS: Record<Breakpoint, number> = { lg: 1200, md: 768, sm: 
 export const COLS: Record<Breakpoint, number> = { lg: 12, md: 6, sm: 1 };
 export const ROW_HEIGHT = 24;
 export const COLLAPSED_H = 2;
+/** Smallest size any panel can be resized to; a kind's `minW`/`minH` only guide its default size. */
+export const MIN_PANEL_W = 1;
+export const MIN_PANEL_H = 2;
 
 export const MAX_GRID_ITEMS = 50;
 export const MAX_GRID_Y = 1000;
@@ -196,8 +199,8 @@ export function toGridLayout(items: readonly GridItem[], defs: readonly PanelDef
       y: item.y,
       w: item.w,
       h: collapsed ? COLLAPSED_H : item.h,
-      minW: def.minW,
-      minH: collapsed ? COLLAPSED_H : def.minH,
+      minW: MIN_PANEL_W,
+      minH: collapsed ? COLLAPSED_H : MIN_PANEL_H,
       isResizable: !collapsed,
     }];
   });

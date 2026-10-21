@@ -1,4 +1,4 @@
-import { addItem, MAX_ID, validGridItems, type GridItem, type PanelConfig, type PanelDef, type PanelKindSpec } from '@deckbuilderkit/ui/grid';
+import { addItem, MAX_ID, MIN_PANEL_H, MIN_PANEL_W, validGridItems, type GridItem, type PanelConfig, type PanelDef, type PanelKindSpec } from '@deckbuilderkit/ui/grid';
 
 type IconName = NonNullable<GridItem['icon']>;
 
@@ -105,9 +105,9 @@ export function newPresetId(presets: readonly DashboardPreset[]): string {
   for (let n = presets.length + 1; ; n++) if (!used.has(`preset-${n}`)) return `preset-${n}`;
 }
 
-/** `items` plus a new item for `preset` at the preset size (at least the kind's minimum), with the preset's title, icon and config. */
+/** `items` plus a new item for `preset` at the preset size (at least the grid minimum), with the preset's title, icon and config. */
 export function itemFromPreset(items: readonly GridItem[], preset: DashboardPreset, def: PanelDef): GridItem[] {
-  const sized: PanelDef = { ...def, defaultSize: { w: Math.max(preset.w, def.minW), h: Math.max(preset.h, def.minH) } };
+  const sized: PanelDef = { ...def, defaultSize: { w: Math.max(preset.w, MIN_PANEL_W), h: Math.max(preset.h, MIN_PANEL_H) } };
   const next = addItem(items, sized, preset.config);
   const added = next[next.length - 1]!;
   const extra: Partial<GridItem> = {};

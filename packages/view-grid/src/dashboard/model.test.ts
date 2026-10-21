@@ -69,9 +69,9 @@ describe('presets to items', () => {
     expect(next[0]).toMatchObject({ kind: 'clock', w: 5, h: 3, title: 'Lisbon', icon: 'home', config: { timeZone: 'Europe/Lisbon' } });
   });
 
-  test('itemFromPreset clamps to the minimum size', () => {
+  test('itemFromPreset clamps to the grid minimum', () => {
     const next = itemFromPreset([], { id: 'p', name: 'n', kind: 'clock', w: 1, h: 1 }, def);
-    expect(next[0]).toMatchObject({ w: 2, h: 2 });
+    expect(next[0]).toMatchObject({ w: 1, h: 2 });
   });
 
   test('newPresetId avoids used ids', () => {

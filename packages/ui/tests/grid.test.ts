@@ -35,7 +35,7 @@ describe('breakpointOf', () => {
 describe('toGridLayout', () => {
   test('maps position, size and minimums from the definition', () => {
     expect(toGridLayout([item('a', 6, 8, 4, 5)], defs)).toEqual([
-      { i: 'a', x: 6, y: 8, w: 4, h: 5, minW: 3, minH: 4, isResizable: true },
+      { i: 'a', x: 6, y: 8, w: 4, h: 5, minW: 1, minH: 2, isResizable: true },
     ]);
   });
 
