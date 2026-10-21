@@ -250,7 +250,6 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
       : f.node.path.slice(0, -1).every((_, i) => expanded.has(sectionKey(f.node.path.slice(0, i + 1))));
   const selected = flat.find((f) => f.key === section) ?? flat[0];
   // A node is marked when a setting in it (or under it) differs from its default.
-  const modifiedIn = (path: readonly string[]) => settingsRegistry.settingsIn(path, true).some((s) => handled(s) && isModified(s, settings));
   // `#setting.id#` links in descriptions: open the target's section (unless search already shows it), then its row.
   const reveal = useRevealSetting(body);
   // Up/Down/Home/End/PageUp/PageDown between rows; Enter or F2 into a row's control, Escape back to the row.
@@ -357,9 +356,6 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
                   ▶
                 </span>
                 {sectionLabel(f.node)}
-                {modifiedIn(f.node.path) && (
-                  <span className="settings-nav-modified" title={t('settings.row.modified')} aria-label={t('settings.row.modified')} />
-                )}
                 {searching && <span className="settings-nav-count">{deepCount(f.key)}</span>}
               </button>
             );

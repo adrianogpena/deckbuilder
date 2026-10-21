@@ -1115,7 +1115,6 @@ html[data-status-bar="false"] .status-bar { display: none; }
 }
 .setting-link:hover { text-decoration: underline; }
 .setting-link:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; border-radius: var(--radius-2xs); }
-.settings-nav-modified { width: 6px; height: 6px; flex: none; border-radius: 50%; background: var(--accent); }
 /* Settings as a full page in the app content area; the view underneath stays mounted but hidden. */
 .main-view { display: contents; }
 .main-view[hidden] { display: none; }
