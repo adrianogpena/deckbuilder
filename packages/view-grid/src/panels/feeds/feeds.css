@@ -10,6 +10,10 @@
 .wx-day { display: flex; align-items: center; gap: var(--space-8); padding: var(--space-2) 0; border-bottom: 1px solid var(--border-soft); }
 .wx-day-name { width: 3em; text-transform: capitalize; }
 .wx-day-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wx-current { align-items: center; justify-content: center; text-align: center; }
+.wx-current .wx-now { flex-direction: column; gap: var(--space-4); }
+.wx-current .wx-temp { font-size: 2.5em; line-height: 1; }
+.wx-current .wx-now-meta { align-items: center; }
 .wx-range { font-variant-numeric: tabular-nums; }
 
 .fx { display: flex; flex-direction: column; gap: var(--space-8); }

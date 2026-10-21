@@ -27,6 +27,9 @@ export const en = {
   'dash.misc.health.empty': 'No URLs to check. Add some in the panel settings.',
   'dash.misc.health.timeout': 'Timeout',
   'dash.misc.health.down': 'Down',
+  'dash.misc.health.layout': 'Layout',
+  'dash.misc.health.layout.list': 'List',
+  'dash.misc.health.layout.dots': 'Dots',
   'dash.misc.json': 'JSON metric',
   'dash.misc.json.description': 'One number from a JSON endpoint, with a sparkline.',
   'dash.misc.json.title': 'Metric',
@@ -44,6 +47,9 @@ export const en = {
   'dash.misc.system.show.disk': 'Disk free',
   'dash.misc.system.show.uptime': 'Uptime',
   'dash.misc.system.diskTotal': 'of {total}',
+  'dash.misc.system.layout': 'Layout',
+  'dash.misc.system.layout.tiles': 'Tiles',
+  'dash.misc.system.layout.bars': 'Bars',
 };
 
 export const ptBR: Messages<typeof en> = {
@@ -73,6 +79,9 @@ export const ptBR: Messages<typeof en> = {
   'dash.misc.health.empty': 'Nenhuma URL para verificar. Adicione nas configurações do painel.',
   'dash.misc.health.timeout': 'Tempo esgotado',
   'dash.misc.health.down': 'Fora do ar',
+  'dash.misc.health.layout': 'Layout',
+  'dash.misc.health.layout.list': 'Lista',
+  'dash.misc.health.layout.dots': 'Pontos',
   'dash.misc.json': 'Métrica JSON',
   'dash.misc.json.description': 'Um número de um endpoint JSON, com gráfico de linha.',
   'dash.misc.json.title': 'Métrica',
@@ -90,4 +99,7 @@ export const ptBR: Messages<typeof en> = {
   'dash.misc.system.show.disk': 'Disco livre',
   'dash.misc.system.show.uptime': 'Tempo ligado',
   'dash.misc.system.diskTotal': 'de {total}',
+  'dash.misc.system.layout': 'Layout',
+  'dash.misc.system.layout.tiles': 'Blocos',
+  'dash.misc.system.layout.bars': 'Barras',
 };

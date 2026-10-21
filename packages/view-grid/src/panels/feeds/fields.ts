@@ -5,6 +5,7 @@ export const WEATHER_FIELDS: readonly PanelField[] = [
   { key: 'units', kind: 'enum', label: 'dash.feeds.weather.units', default: 'metric', values: ['metric', 'imperial'], optionLabel: 'dash.feeds.weather.units' },
   { key: 'show', kind: 'multi', label: 'dash.feeds.weather.show', default: ['now', 'daily'], values: ['now', 'hourly', 'daily'], optionLabel: 'dash.feeds.weather.show' },
   { key: 'days', kind: 'number', label: 'dash.feeds.weather.days', default: 5, min: 1, max: 7 },
+  { key: 'layout', kind: 'enum', label: 'dash.feeds.weather.layout', default: 'full', values: ['full', 'current', 'forecastRow', 'forecastColumn'], optionLabel: 'dash.feeds.weather.layout' },
 ];
 
 /** What a Weather panel sends to the `feeds-weather` source. */

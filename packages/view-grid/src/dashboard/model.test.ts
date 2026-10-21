@@ -11,7 +11,7 @@ describe('validDashboardLayouts', () => {
     const v = validDashboardLayouts({ active: 'b', layouts: [layout('a'), layout('b', ' Two ', [{ ...item, config: { hour12: 'x', junk: 1 } }])] }, kinds);
     expect(v?.active).toBe('b');
     expect(v?.layouts[1]?.name).toBe('Two');
-    expect(v?.layouts[1]?.items[0]?.config).toEqual({ timeZone: '', hour12: false, showSeconds: true, showDate: true });
+    expect(v?.layouts[1]?.items[0]?.config).toEqual({ timeZone: '', hour12: false, showSeconds: true, showDate: true, layout: 'digital' });
   });
 
   test('rejects bad shapes', () => {
@@ -46,7 +46,7 @@ describe('validDashboardPresets', () => {
 
   test('cleans config and drops unknown kinds and bad entries', () => {
     const v = validDashboardPresets([preset, { ...preset, id: 'p2', kind: 'nope' }, { ...preset, id: 'p3', name: '' }, { ...preset, id: 'p1' }, 5], kinds);
-    expect(v).toEqual([{ id: 'p1', name: 'Lisbon', kind: 'clock', config: { timeZone: 'Europe/Lisbon', hour12: false, showSeconds: true, showDate: true }, w: 3, h: 4 }]);
+    expect(v).toEqual([{ id: 'p1', name: 'Lisbon', kind: 'clock', config: { timeZone: 'Europe/Lisbon', hour12: false, showSeconds: true, showDate: true, layout: 'digital' }, w: 3, h: 4 }]);
   });
 
   test('rejects a non-list and more than 50', () => {

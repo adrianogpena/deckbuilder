@@ -17,3 +17,4 @@
 .grid-creator-text { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
 .grid-creator-title { font-weight: 600; }
 .grid-creator-desc { font-size: var(--fs-sm); color: var(--text-3); }
+.grid-clock-face { display: block; width: 100%; max-width: 160px; aspect-ratio: 1; margin: 0 auto var(--space-4); color: var(--text); }

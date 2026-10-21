@@ -8,3 +8,17 @@
 .misc-metric { display: flex; flex-direction: column; justify-content: center; height: 100%; padding: var(--space-4) var(--space-8); color: var(--text-3); }
 .misc-metric .kit-spark { width: 100%; height: 32px; }
 .misc-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: var(--space-4); align-content: center; height: 100%; }
+.misc-dots { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: var(--space-4); padding: var(--space-8); height: 100%; overflow-y: auto; align-content: start; }
+.misc-dot { display: flex; align-items: center; gap: var(--space-4); min-width: 0; padding: var(--space-4) var(--space-8); border: 1px solid var(--border); border-radius: 999px; color: var(--text-1); text-decoration: none; }
+.misc-dot:hover { background: var(--surface-2, var(--surface)); }
+.misc-dot-led { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--ok, #2e9e5b); }
+.misc-dot.is-down .misc-dot-led { background: var(--danger, #d64545); }
+.misc-dot-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sm); }
+.misc-bars { display: flex; flex-direction: column; justify-content: center; gap: var(--space-8); height: 100%; padding: var(--space-8); }
+.misc-bar-row { display: grid; grid-template-columns: minmax(60px, 90px) 1fr auto; align-items: center; gap: var(--space-8); }
+.misc-bar-label { color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.misc-bar-track { height: 8px; border-radius: 4px; background: var(--border); overflow: hidden; }
+.misc-bar-fill { height: 100%; border-radius: 4px; background: var(--ok, #2e9e5b); }
+.misc-bar-fill.warn { background: var(--warn, #d9a21b); }
+.misc-bar-fill.danger { background: var(--danger, #d64545); }
+.misc-bar-value { font-variant-numeric: tabular-nums; }

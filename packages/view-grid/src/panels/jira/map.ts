@@ -125,6 +125,15 @@ export function groupIssues(issues: readonly JiraIssue[], by: GroupBy): IssueGro
   return [...groups.entries()].map(([key, list]) => ({ key, issues: list }));
 }
 
+const TONE_ORDER: Record<StatusTone, number> = { neutral: 0, info: 1, ok: 2 };
+
+/** Board columns: by status (to do, in progress, done, then first appearance) when `by` is none or status, else `groupIssues`. */
+export function boardLanes(issues: readonly JiraIssue[], by: GroupBy): IssueGroup[] {
+  if (by !== 'none' && by !== 'status') return groupIssues(issues, by);
+  const tone = (g: IssueGroup): number => TONE_ORDER[g.issues[0].tone];
+  return groupIssues(issues, 'status').sort((a, b) => tone(a) - tone(b));
+}
+
 export interface Slice {
   /** Empty for issues without a value. */
   label: string;

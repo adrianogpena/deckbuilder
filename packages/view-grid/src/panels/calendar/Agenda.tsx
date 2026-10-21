@@ -10,6 +10,7 @@ export interface AgendaConfig {
   icsUrl: string;
   days: number;
   showLocation: boolean;
+  layout: 'list' | 'compact';
   [key: string]: unknown;
 }
 
@@ -45,7 +46,7 @@ export function AgendaPanel({ config, events }: { config: AgendaConfig; events: 
   if (!config.icsUrl.trim()) return <p className="kit-empty">{tKey('dash.calendar.icsMissing')}</p>;
   if (groups.length === 0) return <p className="kit-empty">{tKey('dash.calendar.agendaEmpty')}</p>;
   return (
-    <div className="agenda">
+    <div className={config.layout === 'compact' ? 'agenda agenda-compact' : 'agenda'}>
       {groups.map(({ day, entries }) => (
         <section key={day} className="agenda-day">
           <h4 className="agenda-day-title">
@@ -62,7 +63,7 @@ export function AgendaPanel({ config, events }: { config: AgendaConfig; events: 
                   ) : (
                     <span title={event.summary}>{event.summary}</span>
                   )}
-                  {config.showLocation && event.location && <span className="agenda-loc">{event.location}</span>}
+                  {config.showLocation && config.layout !== 'compact' && event.location && <span className="agenda-loc">{event.location}</span>}
                 </span>
               </li>
             ))}

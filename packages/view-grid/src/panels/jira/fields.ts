@@ -7,6 +7,7 @@ export const DEFAULT_JQL = 'assignee = currentUser() AND resolution = Unresolved
 export const ISSUE_COLUMNS = ['type', 'priority', 'status', 'assignee', 'reporter', 'updated', 'due', 'sprint'] as const;
 export const SPRINT_COLUMNS = ['assignee', 'points', 'type'] as const;
 export const GROUP_BY = ['none', 'status', 'assignee', 'priority'] as const;
+export const VIEWS = ['list', 'board'] as const;
 export const DISPLAYS = ['number', 'status', 'assignee', 'priority'] as const;
 export const REFRESH_MINUTES = [1, 5, 15, 30] as const;
 
@@ -14,6 +15,7 @@ export const ISSUES_FIELDS: readonly PanelField[] = [
   connection,
   { key: 'jql', kind: 'text', label: 'dash.jira.jql', description: 'dash.jira.jql.hint', default: DEFAULT_JQL, rows: 3, maxLength: 2000 },
   { key: 'max', kind: 'number', label: 'dash.jira.max', default: 15, min: 1, max: 50 },
+  { key: 'view', kind: 'enum', label: 'dash.jira.view', description: 'dash.jira.view.hint', default: 'list', values: VIEWS, optionLabel: 'dash.jira.view' },
   { key: 'columns', kind: 'multi', label: 'dash.jira.columns', default: ['status', 'priority', 'updated'], values: ISSUE_COLUMNS, optionLabel: 'dash.jira.col' },
   { key: 'groupBy', kind: 'enum', label: 'dash.jira.groupBy', default: 'none', values: GROUP_BY, optionLabel: 'dash.jira.groupBy' },
   { key: 'refreshMin', kind: 'enum', label: 'dash.jira.refreshMin', default: 5, values: REFRESH_MINUTES, optionLabel: 'dash.jira.refreshMin' },

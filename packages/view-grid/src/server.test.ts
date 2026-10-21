@@ -16,7 +16,7 @@ describe('gridServerView', () => {
   const box = { x: 0, y: 0, w: 6, h: 8 };
 
   test('validates gridLayout against the registered kinds', () => {
-    expect(validate([{ id: 'clock', ...box }])).toEqual([{ id: 'clock', kind: 'clock', config: { timeZone: '', hour12: false, showSeconds: true, showDate: true }, ...box }]);
+    expect(validate([{ id: 'clock', ...box }])).toEqual([{ id: 'clock', kind: 'clock', config: { timeZone: '', hour12: false, showSeconds: true, showDate: true, layout: 'digital' }, ...box }]);
     expect(validate([{ id: 'zzz', ...box }])).toBeNull();
   });
 

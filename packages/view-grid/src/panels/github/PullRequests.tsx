@@ -5,6 +5,7 @@ import type { PrItem, SearchData } from './map';
 
 export interface PullRequestsConfig {
   columns: string[];
+  density?: string;
   [key: string]: unknown;
 }
 
@@ -32,6 +33,7 @@ export function prRows(config: PullRequestsConfig, items: readonly PrItem[]): Li
       has('branch') ? pr.branch : '',
       has('labels') ? pr.labels.join(', ') : '',
     ].filter(Boolean);
+    if (config.density === 'compact') return { id: pr.id, title: `#${pr.number} ${pr.title}`, href: pr.url, chip };
     return { id: pr.id, title: pr.title, href: pr.url, chip, meta, trailing: has('updated') ? relTime(pr.updatedAt) : undefined };
   });
 }
@@ -39,7 +41,7 @@ export function prRows(config: PullRequestsConfig, items: readonly PrItem[]): Li
 export function PullRequestsPanel({ config, data }: { config: PullRequestsConfig; data: SearchData<PrItem> | undefined }) {
   const items = data?.items ?? [];
   return (
-    <div className="gh">
+    <div className={config.density === 'compact' ? 'gh gh-compact' : 'gh'}>
       <div className="gh-head muted">{tKey('dash.github.count', { n: data?.total ?? 0 })}</div>
       <ListRows rows={prRows(config, items)} empty={tKey('dash.github.empty')} />
     </div>

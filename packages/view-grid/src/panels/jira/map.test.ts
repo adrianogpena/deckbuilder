@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { isNotFound, searchV2Request, searchV3Request } from './client';
-import { breakdown, daysLeft, groupIssues, mapIssue, mapSprint, pickFieldIds, refreshMs, requestFields, sprintName, statusTone } from './map';
+import { boardLanes, breakdown, daysLeft, groupIssues, mapIssue, mapSprint, pickFieldIds, refreshMs, requestFields, sprintName, statusTone } from './map';
 
 const cloud = { baseUrl: 'https://x.atlassian.net/', user: 'me@x.com', token: 'tok' };
 const dc = { baseUrl: 'https://jira.corp', token: 'pat' };
@@ -83,6 +83,12 @@ describe('grouping', () => {
     expect(groupIssues(issues, 'none')).toHaveLength(1);
     expect(groupIssues(issues, 'status').map((g) => [g.key, g.issues.length])).toEqual([['Open', 2], ['Done', 1]]);
     expect(groupIssues(issues, 'assignee').map((g) => g.key)).toEqual(['Ann', '']);
+  });
+
+  test('board lanes order statuses by category', () => {
+    const withDoneFirst = [issues[1], issues[0], mapIssue(raw('A-4', 'Review', 'indeterminate'), 'https://j')];
+    expect(boardLanes(withDoneFirst, 'none').map((g) => g.key)).toEqual(['Open', 'Review', 'Done']);
+    expect(boardLanes(withDoneFirst, 'assignee').map((g) => g.key)).toEqual(['', 'Ann']);
   });
 
   test('breakdown sorts by count', () => {

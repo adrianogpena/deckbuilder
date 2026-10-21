@@ -3,11 +3,12 @@ import { IconButton } from '@deckbuilderkit/ui';
 import { tKey } from '../../i18n';
 import { Chip, ListRows, type ListRow } from '../../kit';
 import './calendar.css';
-import { addMonths, dayKey, inSprint, isoWeek, monthMatrix, parseDated, sprintInfo, type WeekStart } from './dates';
-import { dayTitle, monthTitle, timeOf, useToday, weekdayName } from './format';
+import { addDays, addMonths, dayKey, inSprint, isoWeek, monthMatrix, parseDated, sprintInfo, weekRows, type WeekStart } from './dates';
+import { dayTitle, monthTitle, rangeTitle, timeOf, useToday, weekdayName } from './format';
 import { eventDays, type IcsEvent } from './ics';
 
 export interface CalendarConfig {
+  layout: 'month' | 'twoWeeks' | 'week';
   weekStart: WeekStart;
   showWeekNumbers: boolean;
   icsUrl: string;
@@ -15,6 +16,7 @@ export interface CalendarConfig {
   sprintStart: string;
   sprintLengthDays: number;
   cutoffDays: number;
+  cutoffLabel: string;
   markedDates: string;
   [key: string]: unknown;
 }
@@ -22,10 +24,16 @@ export interface CalendarConfig {
 export function CalendarPanel({ config, events }: { config: CalendarConfig; events: readonly IcsEvent[] }) {
   const today = useToday();
   const [shown, setShown] = useState<string | null>(null);
-  const month = shown ?? `${today.slice(0, 8)}01`;
+  const weekCount = config.layout === 'week' ? 1 : config.layout === 'twoWeeks' ? 2 : 0;
+  const month = weekCount ? (shown ?? today) : (shown ?? `${today.slice(0, 8)}01`);
   const [year, month1] = [Number(month.slice(0, 4)), Number(month.slice(5, 7))];
 
-  const weeks = useMemo(() => monthMatrix(year, month1 - 1, config.weekStart), [year, month1, config.weekStart]);
+  const weeks = useMemo(
+    () => (weekCount ? weekRows(month, config.weekStart, weekCount) : monthMatrix(year, month1 - 1, config.weekStart)),
+    [month, year, month1, weekCount, config.weekStart],
+  );
+  const step = (dir: number) => setShown(weekCount ? addDays(month, dir * 7 * weekCount) : addMonths(month, dir));
+  const title = weekCount ? rangeTitle(weeks[0]![0]!, weeks[weekCount - 1]![6]!) : monthTitle(month);
   const sprint = useMemo(() => sprintInfo(config, today), [config.sprintStart, config.sprintLengthDays, config.cutoffDays, today]);
   const notes = useMemo(() => {
     const map = new Map<string, string[]>();
@@ -54,10 +62,10 @@ export function CalendarPanel({ config, events }: { config: CalendarConfig; even
   return (
     <div className="cal">
       <div className="cal-head">
-        <IconButton icon="back" label={tKey('dash.calendar.prev')} onClick={() => setShown(addMonths(month, -1))} />
-        <span className="cal-title">{monthTitle(month)}</span>
+        <IconButton icon="back" label={tKey('dash.calendar.prev')} onClick={() => step(-1)} />
+        <span className="cal-title">{title}</span>
         <IconButton icon="locate" label={tKey('dash.calendar.today')} onClick={() => setShown(null)} />
-        <IconButton icon="forward" label={tKey('dash.calendar.next')} onClick={() => setShown(addMonths(month, 1))} />
+        <IconButton icon="forward" label={tKey('dash.calendar.next')} onClick={() => step(1)} />
       </div>
       {sprint && (
         <div className="cal-sprint">
@@ -83,11 +91,11 @@ export function CalendarPanel({ config, events }: { config: CalendarConfig; even
                   'cal-day',
                   key === today && 'cal-today',
                   key < today && 'cal-past',
-                  key.slice(0, 7) !== month.slice(0, 7) && 'cal-other',
+                  !weekCount && key.slice(0, 7) !== month.slice(0, 7) && 'cal-other',
                   inSprint(sprint, key) && 'cal-sprint-day',
                   sprint?.cutoff === key && 'cal-cutoff',
                 ].filter(Boolean).join(' ');
-                const title = [...(sprint?.cutoff === key ? [tKey('dash.calendar.cutoff')] : []), ...(note ?? [])].join('\n');
+                const title = [...(sprint?.cutoff === key ? [config.cutoffLabel.trim() || tKey('dash.calendar.cutoff')] : []), ...(note ?? [])].join('\n');
                 return (
                   <td key={key} className={cls} title={title || undefined}>
                     <span>{Number(key.slice(8))}</span>

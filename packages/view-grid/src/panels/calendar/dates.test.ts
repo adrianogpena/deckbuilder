@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { addDays, addMonths, daysBetween, isoWeek, monthMatrix, parseDated, sprintInfo, sprintName, sprintWorkingDays, weekdayOf } from './dates.ts';
+import { addDays, addMonths, daysBetween, isoWeek, monthMatrix, parseDated, sprintInfo, sprintName, sprintWorkingDays, splitWeeks, weekdayOf, weekRows, weekStartOf } from './dates.ts';
 
 describe('day math', () => {
   test('addDays crosses months and years', () => {
@@ -42,7 +42,7 @@ describe('monthMatrix', () => {
 describe('sprintInfo', () => {
   const cfg = { sprintStart: '2026-10-05', sprintLengthDays: 14, cutoffDays: 2 };
   test('first day', () => {
-    expect(sprintInfo(cfg, '2026-10-05')).toEqual({ number: 1, start: '2026-10-05', end: '2026-10-18', day: 1, length: 14, cutoff: '2026-10-16', daysLeft: 13 });
+    expect(sprintInfo(cfg, '2026-10-05')).toEqual({ number: 1, start: '2026-10-05', end: '2026-10-18', day: 1, length: 14, cutoff: '2026-10-15', daysLeft: 13 });
   });
   test('later sprint and last day', () => {
     const info = sprintInfo(cfg, '2026-11-01')!;
@@ -61,6 +61,8 @@ describe('sprintInfo', () => {
     const days = sprintWorkingDays(sprintInfo(cfg, '2026-10-05')!);
     expect(days).toHaveLength(10);
     expect(days[5]).toBe('2026-10-12');
+    expect(splitWeeks(days).map((w) => w.length)).toEqual([5, 5]);
+    expect(splitWeeks(sprintWorkingDays(sprintInfo({ ...cfg, sprintStart: '2026-10-07' }, '2026-10-07')!)).map((w) => w.length)).toEqual([3, 5, 2]);
   });
   test('sprintName', () => {
     expect(sprintName('Sprint {n}', 7)).toBe('Sprint 7');
@@ -76,5 +78,14 @@ describe('parseDated', () => {
       { date: '2026-06-01', label: 'Mid' },
       { date: '2026-12-25', label: 'Christmas' },
     ]);
+  });
+});
+
+describe('weekRows', () => {
+  test('starts on the configured weekday and spans the weeks', () => {
+    expect(weekStartOf('2026-10-21', 'mon')).toBe('2026-10-19');
+    expect(weekStartOf('2026-10-21', 'sun')).toBe('2026-10-18');
+    const rows = weekRows('2026-10-18', 'mon', 2);
+    expect(rows.map((r) => [r[0], r[6]])).toEqual([['2026-10-12', '2026-10-18'], ['2026-10-19', '2026-10-25']]);
   });
 });

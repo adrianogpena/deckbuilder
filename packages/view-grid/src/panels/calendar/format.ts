@@ -28,3 +28,9 @@ export function useToday(): string {
   }, []);
   return today;
 }
+
+/** "Oct 19 – Nov 1". */
+export const rangeTitle = (from: string, to: string): string => {
+  const short = (key: string) => utcFormat({ month: 'short', day: 'numeric' }, key);
+  return `${short(from)} – ${short(to)}`;
+};

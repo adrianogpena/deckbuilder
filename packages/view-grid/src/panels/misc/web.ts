@@ -38,7 +38,7 @@ const notesPanel = definePanel<{ text: string }>({
   render: ({ config, configure }) => createElement(Notes, { text: config.text, configure }),
 });
 
-const urlHealthPanel = definePanel<{ urls: string; timeoutMs: number; refreshMin: number }, HealthResult[]>({
+const urlHealthPanel = definePanel<{ urls: string; layout: string; timeoutMs: number; refreshMin: number }, HealthResult[]>({
   kind: 'url-health',
   title: 'dash.misc.health',
   description: 'dash.misc.health.description',
@@ -49,7 +49,7 @@ const urlHealthPanel = definePanel<{ urls: string; timeoutMs: number; refreshMin
   allowMultiple: true,
   load: (config) => fetchSource<HealthResult[]>('url-health', config),
   refreshMs: minutes,
-  render: ({ data }) => createElement(UrlHealth, { results: data }),
+  render: ({ config, data }) => createElement(UrlHealth, { results: data, layout: config.layout }),
 });
 
 const jsonMetricPanel = definePanel<{ url: string; path: string; label: string; unit: string; refreshMin: number }, JsonMetricData>({
@@ -66,7 +66,7 @@ const jsonMetricPanel = definePanel<{ url: string; path: string; label: string; 
   render: ({ config, data }) => createElement(JsonMetric, { data, label: config.label, unit: config.unit }),
 });
 
-const systemPanel = definePanel<{ show: string[] }, SystemStats>({
+const systemPanel = definePanel<{ show: string[]; layout: string }, SystemStats>({
   kind: 'system',
   title: 'dash.misc.system',
   description: 'dash.misc.system.description',

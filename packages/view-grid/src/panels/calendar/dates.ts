@@ -73,7 +73,7 @@ export interface SprintInfo {
   /** 1-based day of the sprint that `today` is. */
   day: number;
   length: number;
-  /** The cut-off day, or null when `cutoffDays` is 0 or it falls before the sprint. */
+  /** The cut-off day (`cutoffDays` = 1 for the last working day, 2 for the one before...), or null when it is 0 or past the first working day. */
   cutoff: string | null;
   /** Days after `today` up to and including the last day. */
   daysLeft: number;
@@ -88,14 +88,16 @@ export function sprintInfo(config: SprintConfig, today: string): SprintInfo | nu
   const index = Math.floor(offset / length);
   const start = addDays(config.sprintStart, index * length);
   const end = addDays(start, length - 1);
-  const cutoff = config.cutoffDays > 0 ? addDays(end, -Math.floor(config.cutoffDays)) : null;
+  const back = Math.floor(config.cutoffDays);
+  const working = back > 0 ? workingDays(start, length) : [];
+  const cutoff = working[working.length - back] ?? null;
   return {
     number: index + 1,
     start,
     end,
     day: offset - index * length + 1,
     length,
-    cutoff: cutoff !== null && daysBetween(start, cutoff) >= 0 ? cutoff : null,
+    cutoff,
     daysLeft: daysBetween(today, end),
   };
 }
@@ -103,15 +105,28 @@ export function sprintInfo(config: SprintConfig, today: string): SprintInfo | nu
 /** Whether `key` is inside the sprint. */
 export const inSprint = (info: SprintInfo | null, key: string): boolean => info !== null && key >= info.start && key <= info.end;
 
-/** The Monday-Friday days of the sprint, in order. */
-export function sprintWorkingDays(info: SprintInfo): string[] {
+function workingDays(start: string, length: number): string[] {
   const days: string[] = [];
-  for (let i = 0; i < info.length; i++) {
-    const key = addDays(info.start, i);
+  for (let i = 0; i < length; i++) {
+    const key = addDays(start, i);
     const wd = weekdayOf(key);
     if (wd !== 0 && wd !== 6) days.push(key);
   }
   return days;
+}
+
+/** The Monday-Friday days of the sprint, in order. */
+export const sprintWorkingDays = (info: SprintInfo): string[] => workingDays(info.start, info.length);
+
+/** Working days split into runs of consecutive days (a weekend starts a new run): one run per week. */
+export function splitWeeks(days: readonly string[]): string[][] {
+  const weeks: string[][] = [];
+  for (const key of days) {
+    const last = weeks[weeks.length - 1];
+    if (last && daysBetween(last[last.length - 1], key) === 1) last.push(key);
+    else weeks.push([key]);
+  }
+  return weeks;
 }
 
 /** "Sprint {n}" with `{n}` replaced; an empty pattern gives the number alone. */
@@ -132,4 +147,13 @@ export function parseDated(text: string): DatedLabel[] {
     out.push({ date, label: bar < 0 ? '' : line.slice(bar + 1).trim() });
   }
   return out.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+}
+
+/** The first day of the week holding `key`. */
+export const weekStartOf = (key: string, weekStart: WeekStart): string => addDays(key, -((weekdayOf(key) - (weekStart === 'mon' ? 1 : 0) + 7) % 7));
+
+/** `count` weeks of seven keys, the first one holding `key`. */
+export function weekRows(key: string, weekStart: WeekStart, count: number): string[][] {
+  const start = weekStartOf(key, weekStart);
+  return Array.from({ length: count }, (_, w) => Array.from({ length: 7 }, (_, d) => addDays(start, w * 7 + d)));
 }

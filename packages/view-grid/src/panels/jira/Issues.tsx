@@ -1,12 +1,14 @@
 import { tKey } from '../../i18n';
 import { Chip, ListRows, relTime, type ListRow } from '../../kit';
 import './jira.css';
-import { groupIssues, type GroupBy, type JiraIssue } from './map';
+import { boardLanes, groupIssues, type GroupBy, type JiraIssue } from './map';
 import type { IssuesData } from './server';
+import { Card } from './SprintBoard';
 
 export interface IssuesConfig {
   columns: string[];
   groupBy: GroupBy;
+  view: 'list' | 'board';
   [key: string]: unknown;
 }
 
@@ -34,8 +36,34 @@ const rowOf = (issue: JiraIssue, config: IssuesConfig): ListRow => ({
   meta: metaOf(issue, config),
 });
 
+function Board({ issues, config }: { issues: readonly JiraIssue[]; config: IssuesConfig }) {
+  const lanes = boardLanes(issues, config.groupBy);
+  return (
+    <div className="jira-lanes jira-board" style={{ gridTemplateColumns: `repeat(${lanes.length}, minmax(160px, 1fr))` }}>
+      {lanes.map((lane) => (
+        <section key={lane.key || '-'} className="jira-lane">
+          <h4 className="jira-group-title">{lane.key || tKey('dash.jira.none')} <span className="muted">{lane.issues.length}</span></h4>
+          <ul className="jira-cards">
+            {lane.issues.map((i) => (
+              <Card key={i.key} issue={i} extra={metaOf(i, config)} />
+            ))}
+          </ul>
+        </section>
+      ))}
+    </div>
+  );
+}
+
 export function IssuesPanel({ config, data }: { config: IssuesConfig; data: IssuesData | undefined }) {
   const issues = data?.issues ?? [];
+  if (config.view === 'board' && issues.length > 0) {
+    return (
+      <div className="jira">
+        <div className="jira-head">{tKey(issues.length === 1 ? 'dash.jira.count.one' : 'dash.jira.count.other', { n: issues.length })}</div>
+        <Board issues={issues} config={config} />
+      </div>
+    );
+  }
   const groups = groupIssues(issues, config.groupBy);
   return (
     <div className="jira">

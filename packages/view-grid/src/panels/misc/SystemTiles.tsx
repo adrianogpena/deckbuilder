@@ -18,6 +18,24 @@ function uptime(sec: number): string {
 export function System({ data, config }: { data: SystemStats; config: Record<string, unknown> }) {
   const memPct = pct(data.memory.usedBytes, data.memory.totalBytes);
   const diskUsed = data.disk ? pct(data.disk.totalBytes - data.disk.freeBytes, data.disk.totalBytes) : 0;
+  if (config.layout === 'bars') {
+    const rows: { key: string; label: string; value: string; percent?: number }[] = [];
+    if (hasColumn(config, 'show', 'cpu')) rows.push({ key: 'cpu', label: tKey('dash.misc.system.show.cpu'), value: `${data.cpu}%`, percent: data.cpu });
+    if (hasColumn(config, 'show', 'memory')) rows.push({ key: 'memory', label: tKey('dash.misc.system.show.memory'), value: `${gb(data.memory.usedBytes)} / ${gb(data.memory.totalBytes)}`, percent: memPct });
+    if (hasColumn(config, 'show', 'disk') && data.disk) rows.push({ key: 'disk', label: tKey('dash.misc.system.show.disk'), value: `${gb(data.disk.freeBytes)} ${tKey('dash.misc.system.diskTotal', { total: gb(data.disk.totalBytes) })}`, percent: diskUsed });
+    if (hasColumn(config, 'show', 'uptime')) rows.push({ key: 'uptime', label: tKey('dash.misc.system.show.uptime'), value: uptime(data.uptimeSec) });
+    return (
+      <div className="misc-bars">
+        {rows.map((r) => (
+          <div key={r.key} className="misc-bar-row">
+            <span className="misc-bar-label">{r.label}</span>
+            <div className="misc-bar-track">{r.percent !== undefined && <div className={`misc-bar-fill ${load(r.percent)}`} style={{ width: `${Math.min(100, r.percent)}%` }} />}</div>
+            <span className="misc-bar-value">{r.value}</span>
+          </div>
+        ))}
+      </div>
+    );
+  }
   return (
     <div className="misc-system">
       {hasColumn(config, 'show', 'cpu') && <StatTile value={`${data.cpu}%`} label={tKey('dash.misc.system.show.cpu')} tone={load(data.cpu)} />}

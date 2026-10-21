@@ -10,23 +10,28 @@ export interface BoardConfig {
   [key: string]: unknown;
 }
 
-function Card({ issue, columns }: { issue: JiraIssue; columns: readonly string[] }) {
-  const extra: string[] = [];
-  if (columns.includes('type') && issue.type) extra.push(issue.type);
-  if (columns.includes('assignee') && issue.assignee) extra.push(issue.assignee);
+/** A board card; `extra` is the meta line, `points` shows a points chip. */
+export function Card({ issue, extra, points }: { issue: JiraIssue; extra: readonly string[]; points?: boolean }) {
   return (
     <li className="jira-card">
       <a href={issue.url} target="_blank" rel="noreferrer" title={issue.summary}>
         <span className="jira-card-key">{issue.key}</span> {issue.summary}
       </a>
-      {(extra.length > 0 || (columns.includes('points') && issue.points !== null)) && (
+      {(extra.length > 0 || (points && issue.points !== null)) && (
         <span className="jira-card-meta">
           {extra.join(' · ')}
-          {columns.includes('points') && issue.points !== null && <Chip>{tKey('dash.jira.points', { n: issue.points })}</Chip>}
+          {points && issue.points !== null && <Chip>{tKey('dash.jira.points', { n: issue.points })}</Chip>}
         </span>
       )}
     </li>
   );
+}
+
+function sprintMeta(issue: JiraIssue, columns: readonly string[]): string[] {
+  const extra: string[] = [];
+  if (columns.includes('type') && issue.type) extra.push(issue.type);
+  if (columns.includes('assignee') && issue.assignee) extra.push(issue.assignee);
+  return extra;
 }
 
 export function SprintBoardPanel({ config, data, configure }: { config: BoardConfig; data: SprintData | null | undefined; configure: () => void }) {
@@ -58,7 +63,7 @@ export function SprintBoardPanel({ config, data, configure }: { config: BoardCon
           <section key={lane} className="jira-lane">
             <h4 className="jira-group-title">{tKey(`dash.jira.lane.${lane}`)} <span className="muted">{issues.length}</span></h4>
             <ul className="jira-cards">
-              {issues.map((i) => <Card key={i.key} issue={i} columns={config.columns} />)}
+              {issues.map((i) => <Card key={i.key} issue={i} extra={sprintMeta(i, config.columns)} points={config.columns.includes('points')} />)}
             </ul>
           </section>
         ))}

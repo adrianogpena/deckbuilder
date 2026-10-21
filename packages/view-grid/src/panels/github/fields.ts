@@ -9,6 +9,7 @@ const connection: PanelField = { key: 'connection', kind: 'connection', connecti
 const repo: PanelField = { key: 'repo', kind: 'string', label: 'dash.github.repo', description: 'dash.github.repo.hint', placeholder: 'dash.github.repo.placeholder', default: '', maxLength: 100 };
 const query: PanelField = { key: 'query', kind: 'string', label: 'dash.github.query', description: 'dash.github.query.hint', default: '', maxLength: 300 };
 const max: PanelField = { key: 'max', kind: 'number', label: 'dash.github.max', default: 15, min: 1, max: 50 };
+const density: PanelField = { key: 'density', kind: 'enum', label: 'dash.github.density', default: 'detailed', values: ['detailed', 'compact'], optionLabel: 'dash.github.density' };
 
 export const PULL_REQUESTS_FIELDS: readonly PanelField[] = [
   connection,
@@ -17,6 +18,7 @@ export const PULL_REQUESTS_FIELDS: readonly PanelField[] = [
   query,
   max,
   { key: 'columns', kind: 'multi', label: 'dash.github.columns', default: ['repo', 'review', 'checks', 'updated'], values: PR_COLUMNS, optionLabel: 'dash.github.col' },
+  density,
   { key: 'ticketPattern', kind: 'string', label: 'dash.github.ticketPattern', description: 'dash.github.ticketPattern.hint', default: DEFAULT_TICKET_PATTERN, maxLength: 100 },
 ];
 
@@ -27,11 +29,12 @@ export const ISSUES_FIELDS: readonly PanelField[] = [
   query,
   max,
   { key: 'columns', kind: 'multi', label: 'dash.github.columns', default: ['repo', 'labels', 'updated'], values: ISSUE_COLUMNS, optionLabel: 'dash.github.col' },
+  density,
 ];
 
 /** What a panel sends to the github search sources. */
-export const PR_SOURCE_FIELDS: readonly PanelField[] = PULL_REQUESTS_FIELDS.filter((f) => f.key !== 'columns');
-export const ISSUE_SOURCE_FIELDS: readonly PanelField[] = ISSUES_FIELDS.filter((f) => f.key !== 'columns');
+export const PR_SOURCE_FIELDS: readonly PanelField[] = PULL_REQUESTS_FIELDS.filter((f) => f.key !== 'columns' && f.key !== 'density');
+export const ISSUE_SOURCE_FIELDS: readonly PanelField[] = ISSUES_FIELDS.filter((f) => f.key !== 'columns' && f.key !== 'density');
 
 const maxRows: PanelField = { key: 'max', kind: 'number', label: 'dash.github.max', default: 10, min: 1, max: 50 };
 
