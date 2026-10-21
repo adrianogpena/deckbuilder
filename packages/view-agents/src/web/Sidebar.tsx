@@ -635,6 +635,8 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
   useEffect(() => {
     if (!selectedId || jumped.current === selectedId || !tree) return;
     jumped.current = selectedId;
+    // Keyboard navigation in the tree: focusing a collapsed project can report its focused agent; do not expand it.
+    if (ref.current?.contains(document.activeElement)) return;
     const s = sessions.find((x) => x.id === selectedId);
     const p = s && !s.archived ? projects.find((x) => x.id === s.project) : undefined;
     if (!s || !p) return;
