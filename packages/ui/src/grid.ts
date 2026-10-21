@@ -16,9 +16,15 @@ export type PanelField =
   | (PanelFieldBase & { kind: 'boolean'; default: boolean })
   | (PanelFieldBase & { kind: 'number'; default: number; min?: number; max?: number })
   | (PanelFieldBase & { kind: 'string'; default: string; placeholder?: string; maxLength?: number })
-  | (PanelFieldBase & { kind: 'enum'; default: string | number; values: readonly (string | number)[]; /** i18n key prefix: `<prefix>.<value>` is the option text when it exists. */ optionLabel?: string });
+  | (PanelFieldBase & { kind: 'enum'; default: string | number; values: readonly (string | number)[]; /** i18n key prefix: `<prefix>.<value>` is the option text when it exists. */ optionLabel?: string })
+  | (PanelFieldBase & { kind: 'multi'; default: string[]; values: readonly string[]; /** i18n key prefix: `<prefix>.<value>` is the option text when it exists. */ optionLabel?: string })
+  | (PanelFieldBase & { kind: 'text'; default: string; maxLength?: number; rows?: number; placeholder?: string })
+  | (PanelFieldBase & { kind: 'date'; default: '' });
 
 export const MAX_FIELD_TEXT = 200;
+export const MAX_TEXT_FIELD = 4000;
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 /** The config every field's default makes. */
 export const defaultConfig = (fields: readonly PanelField[]): PanelConfig =>
@@ -47,6 +53,17 @@ export function validConfig(fields: readonly PanelField[], raw: unknown): PanelC
         break;
       case 'enum':
         out[f.key] = (typeof v === 'string' || typeof v === 'number') && f.values.includes(v) ? v : f.default;
+        break;
+      case 'multi': {
+        const picked = Array.isArray(v) ? v : f.default;
+        out[f.key] = f.values.filter((x) => picked.includes(x));
+        break;
+      }
+      case 'text':
+        out[f.key] = typeof v === 'string' && v.length <= (f.maxLength ?? MAX_TEXT_FIELD) ? v : f.default;
+        break;
+      case 'date':
+        out[f.key] = typeof v === 'string' && DATE_RE.test(v) && !Number.isNaN(Date.parse(v)) ? v : f.default;
         break;
     }
   }
@@ -196,11 +213,14 @@ export const sameGeometry = (a: readonly GridItem[], b: readonly GridItem[]): bo
     return !!y && x.id === y.id && x.x === y.x && x.y === y.y && x.w === y.w && x.h === y.h;
   });
 
+const sameValue = (a: unknown, b: unknown): boolean =>
+  a === b || (Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((v, i) => v === b[i]));
+
 export const sameConfig = (a: PanelConfig | undefined, b: PanelConfig | undefined): boolean => {
   const x = a ?? {};
   const y = b ?? {};
   const keys = Object.keys(x);
-  return keys.length === Object.keys(y).length && keys.every((k) => Object.hasOwn(y, k) && x[k] === y[k]);
+  return keys.length === Object.keys(y).length && keys.every((k) => Object.hasOwn(y, k) && sameValue(x[k], y[k]));
 };
 
 /** Geometry plus the kind, config, collapsed flag, title and icon: what the Save button compares. */

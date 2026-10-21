@@ -1,0 +1,28 @@
+.kit-chip { display: inline-flex; align-items: center; flex: none; padding: 0 var(--space-6); border-radius: var(--radius-sm); font-family: var(--font-mono); font-size: var(--fs-2xs); line-height: 16px; white-space: nowrap; }
+.kit-tone-ok { color: var(--ok); background: var(--ok-soft); }
+.kit-tone-warn { color: var(--warn); background: var(--warn-soft); }
+.kit-tone-danger { color: var(--err); background: var(--err-soft); }
+.kit-tone-info { color: var(--info); background: var(--info-soft); }
+.kit-tone-neutral { color: var(--text-2); background: var(--muted-soft); }
+.kit-text-ok { color: var(--ok); }
+.kit-text-warn { color: var(--warn); }
+.kit-text-danger { color: var(--err); }
+.kit-text-info { color: var(--info); }
+.kit-text-neutral { color: var(--text); }
+
+.kit-rows { list-style: none; margin: 0; padding: 0; height: 100%; overflow-y: auto; }
+.kit-row { display: flex; align-items: center; gap: var(--space-8); padding: var(--space-4) var(--space-2); border-bottom: 1px solid var(--border-soft); min-width: 0; }
+.kit-row:last-child { border-bottom: 0; }
+.kit-row-main { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.kit-row-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); text-decoration: none; }
+a.kit-row-title:hover { color: var(--accent-2); text-decoration: underline; }
+.kit-row-meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sm); color: var(--text-3); }
+.kit-row-trailing { flex: none; font-family: var(--font-mono); font-size: var(--fs-sm); color: var(--text-3); }
+.kit-empty { margin: 0; padding: var(--space-8); color: var(--text-3); font-size: var(--fs-sm); }
+
+.kit-stat { display: flex; flex-direction: column; justify-content: center; gap: var(--space-2); min-width: 0; padding: var(--space-4) var(--space-8); }
+.kit-stat-value { font-size: 28px; font-weight: 500; line-height: 1.1; }
+.kit-stat-label { font-size: var(--fs-sm); color: var(--text-3); }
+.kit-stat-delta { font-family: var(--font-mono); font-size: var(--fs-sm); }
+
+.kit-spark { display: block; width: 100%; height: 100%; min-height: 16px; color: var(--accent); }

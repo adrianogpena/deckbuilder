@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button, Modal, OnOffField, validConfig, type PanelConfig, type PanelField } from '@deckbuilderkit/ui';
+import { Button, IconButton, MAX_TEXT_FIELD, Modal, OnOffField, validConfig, type PanelConfig, type PanelField } from '@deckbuilderkit/ui';
 import { tKey } from './i18n';
 
 function NumberInput({ field, value, onChange }: { field: Extract<PanelField, { kind: 'number' }>; value: number; onChange: (n: number) => void }) {
@@ -60,6 +60,53 @@ function FieldRow({ field, value, onChange }: { field: PanelField; value: unknow
           {hint && <span className="muted">{hint}</span>}
         </label>
       );
+    case 'multi': {
+      const picked = Array.isArray(value) ? (value as unknown[]) : field.default;
+      return (
+        <fieldset className="field grid-config-multi">
+          <legend className="mono-label">{tKey(field.label)}</legend>
+          {field.values.map((v) => (
+            <label key={v} className="grid-config-check">
+              <input
+                type="checkbox"
+                checked={picked.includes(v)}
+                onChange={(e) => onChange(field.values.filter((x) => (x === v ? e.target.checked : picked.includes(x))))}
+              />
+              <span>{field.optionLabel ? tKey(`${field.optionLabel}.${v}`) : v}</span>
+            </label>
+          ))}
+          {hint && <span className="muted">{hint}</span>}
+        </fieldset>
+      );
+    }
+    case 'text':
+      return (
+        <label className="field">
+          <span className="mono-label">{tKey(field.label)}</span>
+          <textarea
+            value={typeof value === 'string' ? value : field.default}
+            rows={field.rows ?? 4}
+            placeholder={field.placeholder ? tKey(field.placeholder) : undefined}
+            maxLength={field.maxLength ?? MAX_TEXT_FIELD}
+            spellCheck={false}
+            onChange={(e) => onChange(e.target.value)}
+          />
+          {hint && <span className="muted">{hint}</span>}
+        </label>
+      );
+    case 'date': {
+      const date = typeof value === 'string' ? value : field.default;
+      return (
+        <label className="field">
+          <span className="mono-label">{tKey(field.label)}</span>
+          <span className="grid-config-date">
+            <input type="date" value={date} onChange={(e) => onChange(e.target.value)} />
+            <IconButton icon="close" label={tKey('grid.field.clearDate')} disabled={date === ''} onClick={() => onChange('')} />
+          </span>
+          {hint && <span className="muted">{hint}</span>}
+        </label>
+      );
+    }
   }
 }
 

@@ -2,6 +2,10 @@
 
 .grid-config-form { display: flex; flex-direction: column; gap: var(--space-12); min-width: 320px; }
 .grid-config-form input:not([type='checkbox']) { width: 100%; }
+.grid-config-form textarea { width: 100%; resize: vertical; font-family: var(--font-mono, monospace); }
+.grid-config-multi { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-4, 4px); min-width: 0; }
+.grid-config-check { display: flex; align-items: center; gap: var(--space-8); }
+.grid-config-date { display: flex; align-items: center; gap: var(--space-6); }
 
 .grid-creator-group + .grid-creator-group { margin-top: var(--space-12); }
 .grid-creator-group h3 { margin: 0 0 var(--space-6); }

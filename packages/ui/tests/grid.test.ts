@@ -1,10 +1,12 @@
 import { describe, expect, test } from 'bun:test';
 import {
   COLLAPSED_H,
+  MAX_TEXT_FIELD,
   addItem,
   breakpointOf,
   findFreeSpot,
   fromGridLayout,
+  sameConfig,
   sameGeometry,
   sameItems,
   toGridLayout,
@@ -184,6 +186,44 @@ describe('validConfig', () => {
     expect(validConfig(fields, { n: -4 }).n).toBe(1);
     expect(validConfig(fields, { n: NaN }).n).toBe(5);
     expect(validConfig(fields, { zone: 'x'.repeat(11) }).zone).toBe('');
+  });
+});
+
+const richFields: PanelField[] = [
+  { key: 'cols', kind: 'multi', label: 'l', default: ['a'], values: ['a', 'b', 'c'] },
+  { key: 'notes', kind: 'text', label: 'l', default: '', maxLength: 10 },
+  { key: 'big', kind: 'text', label: 'l', default: '' },
+  { key: 'since', kind: 'date', label: 'l', default: '' },
+];
+
+describe('multi, text and date fields', () => {
+  test('multi keeps known values in order, deduplicated', () => {
+    expect(validConfig(richFields, { cols: ['c', 'x', 'a', 'c'] }).cols).toEqual(['a', 'c']);
+    expect(validConfig(richFields, { cols: [] }).cols).toEqual([]);
+    expect(validConfig(richFields, { cols: 'a' }).cols).toEqual(['a']);
+    expect(validConfig(richFields, {}).cols).toEqual(['a']);
+  });
+
+  test('text honours maxLength and the default cap', () => {
+    expect(validConfig(richFields, { notes: 'a\nb' }).notes).toBe('a\nb');
+    expect(validConfig(richFields, { notes: 'x'.repeat(11) }).notes).toBe('');
+    expect(validConfig(richFields, { big: 'x'.repeat(MAX_TEXT_FIELD) }).big).toHaveLength(MAX_TEXT_FIELD);
+    expect(validConfig(richFields, { big: 'x'.repeat(MAX_TEXT_FIELD + 1) }).big).toBe('');
+    expect(validConfig(richFields, { notes: 4 }).notes).toBe('');
+  });
+
+  test('date accepts YYYY-MM-DD or empty', () => {
+    expect(validConfig(richFields, { since: '2026-03-09' }).since).toBe('2026-03-09');
+    expect(validConfig(richFields, { since: '' }).since).toBe('');
+    expect(validConfig(richFields, { since: '09/03/2026' }).since).toBe('');
+    expect(validConfig(richFields, { since: '2026-13-40' }).since).toBe('');
+    expect(validConfig(richFields, { since: 5 }).since).toBe('');
+  });
+
+  test('sameConfig compares arrays by value', () => {
+    expect(sameConfig({ cols: ['a', 'b'] }, { cols: ['a', 'b'] })).toBe(true);
+    expect(sameConfig({ cols: ['a', 'b'] }, { cols: ['b', 'a'] })).toBe(false);
+    expect(sameConfig({ cols: ['a'] }, { cols: ['a', 'b'] })).toBe(false);
   });
 });
 
