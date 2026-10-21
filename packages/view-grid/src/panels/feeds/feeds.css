@@ -1,0 +1,16 @@
+.wx { display: flex; flex-direction: column; gap: var(--space-8); height: 100%; overflow-y: auto; min-height: 0; }
+.wx-place { font-size: var(--fs-sm); color: var(--text-3); }
+.wx-now { display: flex; align-items: center; gap: var(--space-8); }
+.wx-temp { font-size: 2em; font-weight: 600; font-variant-numeric: tabular-nums; }
+.wx-now-meta { display: flex; flex-direction: column; font-size: var(--fs-sm); color: var(--text-2); min-width: 0; }
+.wx-sub { color: var(--text-3); font-size: var(--fs-sm); }
+.wx-hourly { list-style: none; margin: 0; padding: 0 0 var(--space-4); display: flex; gap: var(--space-8); overflow-x: auto; flex: none; }
+.wx-hour { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); font-variant-numeric: tabular-nums; }
+.wx-daily { list-style: none; margin: 0; padding: 0; }
+.wx-day { display: flex; align-items: center; gap: var(--space-8); padding: var(--space-2) 0; border-bottom: 1px solid var(--border-soft); }
+.wx-day-name { width: 3em; text-transform: capitalize; }
+.wx-day-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wx-range { font-variant-numeric: tabular-nums; }
+
+.fx { display: flex; flex-direction: column; gap: var(--space-8); }
+.fx .kit-spark { width: 100%; height: 40px; color: var(--accent-2); }
