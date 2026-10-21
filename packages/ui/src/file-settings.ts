@@ -50,7 +50,7 @@ export const FILE_DEFAULTS: Required<FileSettings> = {
   trimTrailingWhitespace: false,
   insertFinalNewline: false,
   previewTabs: true,
-  autoReveal: true,
+  autoReveal: false,
   breadcrumbs: true,
   compactFolders: true,
   fileNesting: false,
