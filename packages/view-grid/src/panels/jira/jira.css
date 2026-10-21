@@ -1,0 +1,23 @@
+.jira { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.jira-head { display: flex; flex-wrap: wrap; gap: var(--space-8); align-items: baseline; padding: var(--space-4) var(--space-2); font-size: var(--fs-sm); color: var(--text-2); }
+.jira-body { flex: 1; min-height: 0; overflow-y: auto; }
+.jira-body .kit-rows { height: auto; overflow: visible; }
+.jira-group-title { margin: 0; padding: var(--space-6) var(--space-2) var(--space-2); font-size: var(--fs-sm); font-weight: 500; color: var(--text-2); }
+.jira-goal { padding: 0 var(--space-2) var(--space-4); font-size: var(--fs-sm); color: var(--text-3); }
+.jira-progress { width: 100%; height: 6px; margin-bottom: var(--space-6); accent-color: var(--ok); }
+
+.jira-bars { list-style: none; margin: 0; padding: 0; overflow-y: auto; }
+.jira-bar { display: grid; grid-template-columns: minmax(60px, 30%) 1fr auto; align-items: center; gap: var(--space-8); padding: var(--space-2); }
+.jira-bar-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sm); }
+.jira-bar-track { height: 8px; border-radius: var(--radius-sm); background: var(--muted-soft); overflow: hidden; }
+.jira-bar-fill { display: block; height: 100%; background: var(--accent); }
+.jira-bar-count { font-family: var(--font-mono); font-size: var(--fs-sm); color: var(--text-2); }
+
+.jira-lanes { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-8); }
+.jira-lane { min-width: 0; overflow-y: auto; }
+.jira-cards { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-4); }
+.jira-card { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-4) var(--space-6); border: 1px solid var(--border-soft); border-radius: var(--radius-sm); font-size: var(--fs-sm); }
+.jira-card a { color: var(--text); text-decoration: none; }
+.jira-card a:hover { color: var(--accent-2); text-decoration: underline; }
+.jira-card-key { font-family: var(--font-mono); color: var(--text-3); }
+.jira-card-meta { display: flex; justify-content: space-between; gap: var(--space-4); color: var(--text-3); }
