@@ -1,4 +1,4 @@
-import { PanelBanner, t } from '@deckbuilderkit/ui';
+import { Button, IconButton, PanelBanner, t } from '@deckbuilderkit/ui';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CodeView } from './CodeView';
 
@@ -139,20 +139,20 @@ export function SvgView({ url, source, name, onInfo }: { url: string; source?: s
   return (
     <div className="file-preview">
       <div className="file-preview-bar svg-bar">
-        <button className="btn btn-ghost btn-sm" onClick={() => zoomAt(1 / 1.25, 0, 0)} aria-label={t('pdf.zoomOut')} title={t('pdf.zoomOut')}>−</button>
+        <Button variant="ghost" size="sm" className="btn-icon" onClick={() => zoomAt(1 / 1.25, 0, 0)} aria-label={t('pdf.zoomOut')} title={t('pdf.zoomOut')}>−</Button>
         <span className="svg-zoom">{Math.round(shownView.zoom * 100)}%</span>
-        <button className="btn btn-ghost btn-sm" onClick={() => zoomAt(1.25, 0, 0)} aria-label={t('pdf.zoomIn')} title={t('pdf.zoomIn')}>+</button>
-        <button title={fit ? '100%' : t('svg.actual')} className="btn btn-ghost btn-sm" onClick={toggle}>{fit ? '100%' : t('svg.actual')}</button>
-        <button title={light ? t('svg.bgLight') : t('svg.bgDark')} className="btn btn-ghost btn-sm" onClick={() => setLight(!light)} aria-pressed={light}>{light ? t('svg.bgLight') : t('svg.bgDark')}</button>
+        <IconButton icon="plus" onClick={() => zoomAt(1.25, 0, 0)} label={t('pdf.zoomIn')} />
+        <Button title={fit ? '100%' : t('svg.actual')} variant="ghost" size="sm" onClick={toggle}>{fit ? '100%' : t('svg.actual')}</Button>
+        <Button title={light ? t('svg.bgLight') : t('svg.bgDark')} variant="ghost" size="sm" onClick={() => setLight(!light)} pressed={light}>{light ? t('svg.bgLight') : t('svg.bgDark')}</Button>
         {parsed && parsed.layers.length > 0 && (
-          <button title={t('pdf.layers')} className="btn btn-ghost btn-sm" onClick={() => setShowLayers(!showLayers)} aria-pressed={showLayers}>
+          <Button title={t('pdf.layers')} variant="ghost" size="sm" onClick={() => setShowLayers(!showLayers)} pressed={showLayers}>
             {t('pdf.layers')} ({parsed.layers.length})
-          </button>
+          </Button>
         )}
         {source !== undefined && (
-          <button title={showSource ? t('svg.image') : t('svg.source')} className="btn btn-ghost btn-sm" onClick={() => setShowSource(!showSource)} aria-pressed={showSource}>
+          <Button title={showSource ? t('svg.image') : t('svg.source')} variant="ghost" size="sm" onClick={() => setShowSource(!showSource)} pressed={showSource}>
             {showSource ? t('svg.image') : t('svg.source')}
-          </button>
+          </Button>
         )}
       </div>
       {parsed?.error && <PanelBanner tone="err" icon="alert">{t('svg.invalid', { message: parsed.error })}</PanelBanner>}

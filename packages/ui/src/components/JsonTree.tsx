@@ -2,6 +2,7 @@ import { createContext, Fragment, useContext, useEffect, useMemo, useRef, useSta
 import { copyText } from '../hooks';
 import { t } from '../i18n';
 import { pathOf } from '../json-path';
+import { Button, IconButton } from './Button';
 import { Icon } from './ui';
 
 const PAGE = 200;
@@ -89,14 +90,11 @@ export function JsonTree({ value, initialDepth = 1, onCopyPath }: { value: unkno
       }}
     >
       <div className="json-bar">
-        <button
-          className="btn btn-ghost btn-sm btn-icon"
+        <IconButton
+          icon={command.kind === 'none' ? 'chevron-down' : 'chevron-up'}
+          label={t(command.kind === 'none' ? 'json.expandAll' : 'json.collapseAll')}
           onClick={() => issue(command.kind === 'none' ? 'all' : 'none')}
-          title={t(command.kind === 'none' ? 'json.expandAll' : 'json.collapseAll')}
-          aria-label={t(command.kind === 'none' ? 'json.expandAll' : 'json.collapseAll')}
-        >
-          <Icon name={command.kind === 'none' ? 'chevron-down' : 'chevron-up'} size={14} />
-        </button>
+        />
         <span className="spacer" />
         <Icon name="search" size={13} />
         <input
@@ -113,12 +111,8 @@ export function JsonTree({ value, initialDepth = 1, onCopyPath }: { value: unkno
           }}
         />
         {q && <span className="json-hits">{found.matches.length ? `${at + 1}/${found.matches.length}${found.matches.length >= MAX_MATCHES ? '+' : ''}` : t('json.noMatches')}</span>}
-        <button className="btn btn-ghost btn-sm btn-icon" onClick={() => step(-1)} disabled={!found.matches.length} aria-label={t('json.prevMatch')} title={t('json.prevMatch')}>
-          <Icon name="chevron-up" size={14} />
-        </button>
-        <button className="btn btn-ghost btn-sm btn-icon" onClick={() => step(1)} disabled={!found.matches.length} aria-label={t('json.nextMatch')} title={t('json.nextMatch')}>
-          <Icon name="chevron-down" size={14} />
-        </button>
+        <IconButton icon="chevron-up" label={t('json.prevMatch')} onClick={() => step(-1)} disabled={!found.matches.length} />
+        <IconButton icon="chevron-down" label={t('json.nextMatch')} onClick={() => step(1)} disabled={!found.matches.length} />
       </div>
       <TreeContext.Provider value={state}>
         <JsonNode label={null} value={value} path={[]} depth={0} initialDepth={initialDepth} onCopyPath={onCopyPath} />
@@ -204,23 +198,24 @@ function JsonNode({ label, value, path, depth, initialDepth, onCopyPath }: NodeP
           <JsonValue value={value} />
         )}
         <span className="json-actions">
-          <button
-            className="btn btn-ghost btn-sm btn-icon"
-            title={t('json.copyValue')}
+          <IconButton
+            size="xs"
+            icon="copy"
+            label={t('json.copyValue')}
             onClick={() => copyText(typeof value === 'string' ? value : JSON.stringify(value, null, 2) ?? String(value))}
-          >
-            <Icon name="copy" size={12} />
-          </button>
-          <button
-            className="btn btn-ghost btn-sm"
+          />
+          <Button
+            variant="ghost"
+            size="xs"
             title={t('json.copyPath')}
+            aria-label={t('json.copyPath')}
             onClick={async () => {
               const p = pathOf(path);
               if (await copyText(p)) onCopyPath?.(p);
             }}
           >
             $
-          </button>
+          </Button>
         </span>
       </div>
       {open && entries.slice(0, shown).map(([k, v]) => (
@@ -229,9 +224,9 @@ function JsonNode({ label, value, path, depth, initialDepth, onCopyPath }: NodeP
       {open && entries.length > shown && (
         <div className="json-row" style={{ paddingLeft: (depth + 1) * 16 }}>
           <span className="json-toggle" />
-          <button title={t('json.showMore', { n: Math.min(PAGE, entries.length - shown), total: entries.length - shown })} className="btn btn-ghost btn-sm" onClick={() => setShown(shown + PAGE)}>
+          <Button variant="ghost" size="xs" title={t('json.showMore', { n: Math.min(PAGE, entries.length - shown), total: entries.length - shown })} onClick={() => setShown(shown + PAGE)}>
             {t('json.showMore', { n: Math.min(PAGE, entries.length - shown), total: entries.length - shown })}
-          </button>
+          </Button>
         </div>
       )}
     </>

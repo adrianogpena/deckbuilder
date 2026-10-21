@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { request, stream } from '@deckbuilderkit/ui';
+import { Button, request, stream } from '@deckbuilderkit/ui';
 import { t } from '../../../i18n';
 import type { PanelModule, PanelProps, SectionProps } from '../../workspace/types';
 import { lineText, parseLines, splitHits, stripAnsi } from './ansi';
@@ -122,7 +122,7 @@ function OutputBody({ project, sessionId, visible = true }: { project: string | 
   const hint = !payload.live && (!run || (running && !run.background)) && (
     <div className="agents-output-note">
       {t('panel.output.liveHint')}{' '}
-      <button type="button" className="agents-output-btn" onClick={() => flash('hook', hookSnippet(payload.hook))}>{copied === 'hook' ? t('panel.output.copied') : t('panel.output.copySnippet')}</button>
+      <Button size="xs" icon="copy" onClick={() => flash('hook', hookSnippet(payload.hook))}>{copied === 'hook' ? t('panel.output.copied') : t('panel.output.copySnippet')}</Button>
     </div>
   );
   if (!run) {
@@ -152,9 +152,9 @@ function OutputBody({ project, sessionId, visible = true }: { project: string | 
           {payload.runs.map((r) => <option key={r.toolUseId} value={r.toolUseId}>{`${t(`panel.output.${r.status}`)} · ${label(r)}`}</option>)}
         </select>
         <input type="search" value={query} placeholder={t('panel.output.filter')} aria-label={t('panel.output.filter')} onChange={(e) => setQuery(e.target.value)} />
-        <button type="button" className="agents-output-btn" aria-pressed={wrap} onClick={() => setWrap((w) => !w)}>{t('panel.output.wrap')}</button>
-        <button type="button" className="agents-output-btn" onClick={() => flash('out', stripAnsi(run.output))}>{copied === 'out' ? t('panel.output.copied') : t('panel.output.copy')}</button>
-        <button type="button" className="agents-output-btn" onClick={() => setCleared(run.toolUseId)}>{t('panel.output.clear')}</button>
+        <Button variant="ghost" size="xs" pressed={wrap} onClick={() => setWrap((w) => !w)}>{t('panel.output.wrap')}</Button>
+        <Button variant="ghost" size="xs" icon="copy" onClick={() => flash('out', stripAnsi(run.output))}>{copied === 'out' ? t('panel.output.copied') : t('panel.output.copy')}</Button>
+        <Button variant="ghost" size="xs" onClick={() => setCleared(run.toolUseId)}>{t('panel.output.clear')}</Button>
       </div>
       {run.truncated && !hidden && <div className="agents-output-note">{t('panel.output.truncated')}</div>}
       {hint}

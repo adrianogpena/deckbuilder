@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import {
   addItem,
   Badge,
+  Button,
   errorMessage,
   Icon,
   type IconName,
@@ -71,18 +72,18 @@ export function GridScreen({ settings, onSave }: { settings: Settings; onSave: (
   return (
     <div className="content">
       <PageHead title={t('nav.grid')}>
-        <button title={t('grid.save')} className={`btn btn-sm${dirty ? ' btn-primary' : ''}`} onClick={save} disabled={!dirty}>
+        <Button size="sm" variant={dirty ? 'primary' : 'default'} icon="check" title={t('grid.save')} onClick={save} disabled={!dirty}>
           {dirty && <span className="dirty-dot" aria-hidden="true" />} {t('grid.save')}
-        </button>
-        <button title={t('grid.reset')} className="btn btn-sm" onClick={reset} disabled={!dirty}>{t('grid.reset')}</button>
-        <button title={t('grid.restoreDefault')} className="btn btn-sm" onClick={() => change(DEFAULT_ITEMS)} disabled={sameItems(items, DEFAULT_ITEMS)}>
+        </Button>
+        <Button size="sm" icon="rotate-ccw" title={t('grid.reset')} onClick={reset} disabled={!dirty}>{t('grid.reset')}</Button>
+        <Button size="sm" icon="rotate-ccw" title={t('grid.restoreDefault')} onClick={() => change(DEFAULT_ITEMS)} disabled={sameItems(items, DEFAULT_ITEMS)}>
           {t('grid.restoreDefault')}
-        </button>
+        </Button>
         {removed.length > 0 && (
           <div className="menu-wrap">
-            <button title={t('grid.add')} className="btn btn-sm" onClick={() => setMenu(!menu)} aria-expanded={menu}>
-              <Icon name="plus" /> {t('grid.add')}
-            </button>
+            <Button size="sm" icon="plus" title={t('grid.add')} onClick={() => setMenu(!menu)} aria-expanded={menu}>
+              {t('grid.add')}
+            </Button>
             {menu && (
               <div className="menu" role="menu" onKeyDown={(e) => e.key === 'Escape' && setMenu(false)}>
                 {removed.map((d) => (
@@ -144,7 +145,7 @@ function InfoPanel() {
         tone="err"
         title={t('grid.loadFailed')}
         message={errorMessage(info.error)}
-        action={<button title={t('common.retry')} className="btn btn-sm" onClick={info.reload}><Icon name="refresh" /> {t('common.retry')}</button>}
+        action={<Button size="sm" icon="refresh" title={t('common.retry')} onClick={info.reload}>{t('common.retry')}</Button>}
       />
     );
   }
@@ -178,7 +179,7 @@ function UpdatePanel() {
         tone="err"
         title={t('grid.loadFailed')}
         message={errorMessage(state.error)}
-        action={<button title={t('common.retry')} className="btn btn-sm" onClick={state.reload}><Icon name="refresh" /> {t('common.retry')}</button>}
+        action={<Button size="sm" icon="refresh" title={t('common.retry')} onClick={state.reload}>{t('common.retry')}</Button>}
       />
     );
   }

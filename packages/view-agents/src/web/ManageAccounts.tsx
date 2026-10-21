@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { errorOf, Modal, useDialogs, useRovingList, useToast } from '@deckbuilderkit/ui';
+import { Button, errorOf, Modal, useDialogs, useRovingList, useToast } from '@deckbuilderkit/ui';
 import { t } from '../i18n';
 import { AGENT_SHARE_DEFAULT, AGENT_SHARE_ENTRIES, type AgentAccountAdminError, type AgentShareEntry, type AgentShareReport } from '../protocol.ts';
 import { type AgentAccount, addAccount, applySharedEntries, deleteAccount, listAccounts, readSharedEntries } from './api';
@@ -114,7 +114,7 @@ export function ManageAccounts({ mode, onAdded, onChanged, onClose }: ManageAcco
       <Modal
         title={t('agents.accounts.addTitle')}
         onClose={onClose}
-        footer={<button type="button" className="btn btn-primary" title={t('agents.accounts.create')} disabled={busy || !name.trim()} onClick={() => void create()}>{t('agents.accounts.create')}</button>}
+        footer={<Button variant="primary" title={t('agents.accounts.create')} disabled={busy || !name.trim()} onClick={() => void create()}>{t('agents.accounts.create')}</Button>}
       >
         <form className="agents-acct-form" onSubmit={(e) => { e.preventDefault(); if (name.trim()) void create(); }}>
           <label className="agents-acct-field">
@@ -136,8 +136,8 @@ export function ManageAccounts({ mode, onAdded, onChanged, onClose }: ManageAcco
         onClose={onClose}
         footer={
           <>
-            <button type="button" className="btn" title={t('agents.accounts.back')} onClick={() => { setError(''); setView({ kind: 'list' }); }}>{t('agents.accounts.back')}</button>
-            <button type="button" className="btn btn-primary" title={t('agents.accounts.apply')} disabled={busy} onClick={() => void apply(view.folder)}>{t('agents.accounts.apply')}</button>
+            <Button title={t('agents.accounts.back')} onClick={() => { setError(''); setView({ kind: 'list' }); }}>{t('agents.accounts.back')}</Button>
+            <Button variant="primary" icon="check" title={t('agents.accounts.apply')} disabled={busy} onClick={() => void apply(view.folder)}>{t('agents.accounts.apply')}</Button>
           </>
         }
       >
@@ -165,8 +165,8 @@ export function ManageAccounts({ mode, onAdded, onChanged, onClose }: ManageAcco
               <span className="agents-acct-note">{t('agents.accounts.defaultNote')}</span>
             ) : (
               <span className="agents-acct-actions">
-                <button type="button" className="btn btn-sm" title={t('agents.accounts.edit')} disabled={busy} onClick={() => void openEdit(a.id)}>{t('agents.accounts.edit')}</button>
-                <button type="button" className="btn btn-sm btn-danger" title={t('agents.accounts.delete')} disabled={busy} onClick={() => void remove(a.id)}>{t('agents.accounts.delete')}</button>
+                <Button size="xs" icon="edit" title={t('agents.accounts.edit')} disabled={busy} onClick={() => void openEdit(a.id)}>{t('agents.accounts.edit')}</Button>
+                <Button size="xs" variant="danger" icon="trash" title={t('agents.accounts.delete')} disabled={busy} onClick={() => void remove(a.id)}>{t('agents.accounts.delete')}</Button>
               </span>
             )}
           </div>

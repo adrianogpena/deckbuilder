@@ -1,4 +1,4 @@
-import { useShortcutTip } from '@deckbuilderkit/ui';
+import { Button, useShortcutTip } from '@deckbuilderkit/ui';
 import { t } from '../i18n';
 
 /** Exit codes that read as a normal stop: 0, Ctrl+C (130), SIGTERM (143) and Windows Ctrl+C (0xC000013A). */
@@ -14,8 +14,8 @@ export function ExitBar({ code, userStopped, onRestart, onClose }: { code: numbe
   return (
     <div className={`agents-bar agents-exit-bar${clean ? '' : ' is-error'}`} role="status">
       <span className="agents-bar-text">{clean ? t('agents.exitBar.stopped') : t('agents.exitBar.exited', { code: code == null ? '?' : String(code) })}</span>
-      <button type="button" className="agents-bar-btn" title={tip(t('agents.exitBar.restart'), 'agents.restart')} onClick={onRestart}>{t('agents.exitBar.restart')}</button>
-      <button type="button" className="agents-bar-btn" title={t('agents.exitBar.close')} onClick={onClose}>{t('agents.exitBar.close')}</button>
+      <Button size="xs" icon="rotate-ccw" title={tip(t('agents.exitBar.restart'), 'agents.restart')} onClick={onRestart}>{t('agents.exitBar.restart')}</Button>
+      <Button variant="ghost" size="xs" icon="close" title={t('agents.exitBar.close')} onClick={onClose}>{t('agents.exitBar.close')}</Button>
     </div>
   );
 }

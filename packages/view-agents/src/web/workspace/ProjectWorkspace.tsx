@@ -1,5 +1,5 @@
 import { type MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ContextMenu, type ContextMenuItem, Icon } from '@deckbuilderkit/ui';
+import { Button, ContextMenu, type ContextMenuItem, Icon } from '@deckbuilderkit/ui';
 import { t } from '../../i18n';
 import { EmptyCard } from './EmptyCard';
 import { useAgentsHost } from './host';
@@ -181,10 +181,9 @@ export function ProjectWorkspace({ project, hidden, register, onFocusedAgent }: 
       </div>
       {sideOpen && (
         <aside className="agents-dock-side">
-          <button type="button" className="agents-section-add agents-dock-side-add" title={t('agents.section.add')} aria-label={t('agents.section.add')} aria-haspopup="menu" onClick={addMenu}>
-            <Icon name="plus" size={14} />
+          <Button variant="ghost" size="sm" icon="plus" className="agents-dock-side-add" title={t('agents.section.add')} aria-label={t('agents.section.add')} aria-haspopup="menu" onClick={addMenu}>
             <span className="agents-label">{t('agents.section.add')}</span>
-          </button>
+          </Button>
           <div className="agents-dock-side-list">
           {side.map((kind, at) => {
             const mod = panelOf(kind);

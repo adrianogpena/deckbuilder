@@ -1,4 +1,4 @@
-import { Icon, PanelNotice, t } from '@deckbuilderkit/ui';
+import { Button, Icon, IconButton, PanelNotice, t } from '@deckbuilderkit/ui';
 import { type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { SqlProblem } from './sql/lint';
 import { type LayoutPoint, type LineageEdge, type LineageNode, layoutGraph, lineageGraph, lineageOf, sqlNameKey } from './sql/lineage';
@@ -201,15 +201,11 @@ export function SqlGraph({ outline, problems, cursor, onJump }: SqlGraphProps) {
             <option key={i} value={i}>{t('sqlSteps.graph.option', { n: i + 1, title: statementTitle(s) })}</option>
           ))}
         </select>
-        <button className="btn btn-ghost btn-sm btn-icon" onClick={fit} title={t('sqlSteps.graph.fit')} aria-label={t('sqlSteps.graph.fit')}>
-          <Icon name="maximize" />
-        </button>
-        <button className="btn btn-ghost btn-sm btn-icon" onClick={() => zoomAt(1.2)} title={t('sqlSteps.graph.zoomIn')} aria-label={t('sqlSteps.graph.zoomIn')}>
-          <Icon name="plus" />
-        </button>
-        <button className="btn btn-ghost btn-sm btn-icon" onClick={() => zoomAt(1 / 1.2)} title={t('sqlSteps.graph.zoomOut')} aria-label={t('sqlSteps.graph.zoomOut')}>
+        <IconButton icon="maximize" onClick={fit} label={t('sqlSteps.graph.fit')} />
+        <IconButton icon="plus" onClick={() => zoomAt(1.2)} label={t('sqlSteps.graph.zoomIn')} />
+        <Button variant="ghost" size="sm" className="btn-icon" onClick={() => zoomAt(1 / 1.2)} title={t('sqlSteps.graph.zoomOut')} aria-label={t('sqlSteps.graph.zoomOut')}>
           <span className="sqlgraph-minus" aria-hidden="true">−</span>
-        </button>
+        </Button>
       </div>
       <div
         ref={box}

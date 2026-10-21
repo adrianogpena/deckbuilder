@@ -1,4 +1,4 @@
-import { Icon, t } from '@deckbuilderkit/ui';
+import { IconButton, Button, t } from '@deckbuilderkit/ui';
 import { useMemo, useState } from 'react';
 import { parseEnv } from './table';
 
@@ -19,9 +19,9 @@ export function EnvView({ text }: { text: string }) {
   return (
     <div className="file-preview">
       <div className="file-preview-bar">
-        <button title={allShown ? t('preview.hideAll') : t('preview.revealAll')} className="btn btn-ghost btn-sm" onClick={() => setShown(allShown ? new Set() : new Set(keys))}>
+        <Button title={allShown ? t('preview.hideAll') : t('preview.revealAll')} variant="ghost" size="sm" icon={allShown ? 'eye-off' : 'eye'} onClick={() => setShown(allShown ? new Set() : new Set(keys))}>
           {allShown ? t('preview.hideAll') : t('preview.revealAll')}
-        </button>
+        </Button>
       </div>
       <div className="file-preview-body">
         {keys.length === 0 && <div className="archive-empty">{t('preview.empty')}</div>}
@@ -31,9 +31,7 @@ export function EnvView({ text }: { text: string }) {
             <div key={i} className="env-row">
               <span className="env-key">{l.key}</span>
               <span className="env-value">{shown.has(l.key) ? l.value : l.value ? '••••••••' : ''}</span>
-              <button className="btn btn-ghost btn-sm btn-icon" onClick={() => toggle(l.key!)} aria-label={shown.has(l.key) ? t('preview.hide') : t('preview.reveal')} title={shown.has(l.key) ? t('preview.hide') : t('preview.reveal')}>
-                <Icon name={shown.has(l.key) ? 'lock' : 'key'} size={14} />
-              </button>
+              <IconButton icon={shown.has(l.key) ? 'lock' : 'key'} label={shown.has(l.key) ? t('preview.hide') : t('preview.reveal')} onClick={() => toggle(l.key!)} />
             </div>
           ))}
       </div>

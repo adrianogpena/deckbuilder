@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PALETTES } from '@deckbuilderkit/server-core/palettes';
-import { CommandPalette, DialogHost, detectLanguage, effectiveKeys, ErrorBanner, GLOBAL, AppFrame, Icon, isDesktop, KeybindingProvider, LayoutProvider, type PaletteItem, popOut, popoutView, usePopouts,setFileAssociations, setLanguage, setViewTitle, Sidebar, Spinner, titleWithBadge, ToastProvider, type ApiError, errorMessage, errorOf, useToast, useAsync, useCommand, useCommandPalette, useHashRoute, useHeartbeat, useKeybindings, useRunCommand, useTheme, useTitleBadge,useViewTitle,useZen, useZoom } from '@deckbuilderkit/ui';
+import { CommandPalette, DialogHost, detectLanguage, effectiveKeys, ErrorBanner, GLOBAL, AppFrame, IconButton, isDesktop, KeybindingProvider, LayoutProvider, type PaletteItem, popOut, popoutView, usePopouts,setFileAssociations, setLanguage, setViewTitle, Sidebar, Spinner, titleWithBadge, ToastProvider, type ApiError, errorMessage, errorOf, useToast, useAsync, useCommand, useCommandPalette, useHashRoute, useHeartbeat, useKeybindings, useRunCommand, useTheme, useTitleBadge,useViewTitle,useZen, useZoom } from '@deckbuilderkit/ui';
 import { EditorOptionsContext } from '@deckbuilderkit/editor/options';
 import { APP } from '../../app';
 import { api, type Settings } from './api';
@@ -199,21 +199,15 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
   const popOutChord = chordOf(POPOUT_COMMAND);
   const popOutTitle = popOutChord ? `${t('window.popOut')} (${popOutChord})` : t('window.popOut');
   const gear = (
-    <button className={`btn btn-ghost btn-sm${overlay ? ' active' : ''} btn-icon`} onClick={() => setOverlay('settings')} title={settingsTitle} aria-label={settingsTitle}>
-      <Icon name="settings" />
-    </button>
+    <IconButton icon="settings" label={settingsTitle} pressed={!!overlay} onClick={() => setOverlay('settings')} />
   );
   const footer = (
     <>
       {popouts.supported && !inPopout && (
-        <button className="btn btn-ghost btn-sm btn-icon" onClick={() => void runCommand(POPOUT_COMMAND)} title={popOutTitle} aria-label={popOutTitle}>
-          <Icon name="popout" />
-        </button>
+        <IconButton icon="popout" label={popOutTitle} onClick={() => void runCommand(POPOUT_COMMAND)} />
       )}
       {gear}
-      <button className="btn btn-ghost btn-sm btn-icon" onClick={() => palette.setOpen(true)} title={t('nav.palette')} aria-label={t('nav.palette')}>
-        <Icon name="search" />
-      </button>
+      <IconButton icon="search" label={t('nav.palette')} onClick={() => palette.setOpen(true)} />
     </>
   );
   const popoutTools = viewSettingsSection(screen) ? gear : undefined;

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { type ApiError, Badge, errorOf, ErrorBanner, type FieldSpec, Icon, Modal, ResourceForm, ResourceList, Spinner, useAsync } from '@deckbuilderkit/ui';
+import { type ApiError, Badge, Button, errorOf, ErrorBanner, type FieldSpec, Modal, ResourceForm, ResourceList, Spinner, useAsync } from '@deckbuilderkit/ui';
 import type { DbConnection } from '@deckbuilderkit/sql-ui';
 import type { WorkbenchClient } from '../client';
 import { t } from '../i18n';
@@ -77,7 +77,7 @@ export function Connections({ client, onClose, onChanged }: { client: WorkbenchC
   };
 
   return (
-    <Modal title={t('workbench.conn.title')} onClose={onClose} footer={<button className="btn" onClick={onClose} title={t('workbench.conn.close')}>{t('workbench.conn.close')}</button>}>
+    <Modal title={t('workbench.conn.title')} onClose={onClose} footer={<Button onClick={onClose} title={t('workbench.conn.close')}>{t('workbench.conn.close')}</Button>}>
       {mode.kind === 'list' ? (
         <>
           {error && <ErrorBanner error={error} compact />}
@@ -107,9 +107,9 @@ export function Connections({ client, onClose, onChanged }: { client: WorkbenchC
             onCancel={() => setMode({ kind: 'list' })}
             error={error}
             actions={(values) => (
-              <button type="button" className="btn wb-test-btn" onClick={() => test(values())} disabled={testing} title={t('workbench.conn.test')}>
-                <Icon name="refresh" /> {t('workbench.conn.test')}
-              </button>
+              <Button className="wb-test-btn" icon="refresh" onClick={() => test(values())} disabled={testing} title={t('workbench.conn.test')}>
+                {t('workbench.conn.test')}
+              </Button>
             )}
           />
           {(testing || tested) && (

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { errorMessage, errorOf, Icon, Spinner, useToast } from '@deckbuilderkit/ui';
+import { Button, errorMessage, errorOf, IconButton, Spinner, useToast } from '@deckbuilderkit/ui';
 import type { SqlHistoryEntry } from '@deckbuilderkit/server-core/protocol';
 import type { WorkbenchClient } from '../client';
 import { t } from '../i18n';
@@ -79,7 +79,7 @@ export function HistoryPanel({ client, connection, refresh, connectionName, onIn
       <div className="wb-schema-head">
         <span className="mono-label">{t('workbench.history')}</span>
         {loading && <Spinner small />}
-        <button className="btn btn-ghost btn-sm" onClick={clear} disabled={entries.length === 0} title={t('workbench.history.clear')}>{t('workbench.history.clear')}</button>
+        <Button size="sm" variant="ghost" icon="trash" onClick={clear} disabled={entries.length === 0} title={t('workbench.history.clear')}>{t('workbench.history.clear')}</Button>
       </div>
       <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('workbench.history.search')} aria-label={t('workbench.history.search')} />
       <ul className="wb-history-list">
@@ -101,9 +101,7 @@ export function HistoryPanel({ client, connection, refresh, connectionName, onIn
                 <span className="muted">{t('workbench.history.result', { rows: e.rows ?? '-', ms: e.ms })}</span>
               )}
             </button>
-            <button className="btn btn-ghost btn-sm btn-icon" onClick={() => remove(e.id)} title={t('workbench.history.delete')} aria-label={t('workbench.history.delete')}>
-              <Icon name="trash" />
-            </button>
+            <IconButton size="xs" icon="trash" onClick={() => remove(e.id)} label={t('workbench.history.delete')} />
           </li>
         ))}
       </ul>

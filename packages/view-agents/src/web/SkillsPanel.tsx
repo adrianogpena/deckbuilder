@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Empty, ErrorBanner, Icon, Spinner, useAsync, useRovingList } from '@deckbuilderkit/ui';
+import { Empty, ErrorBanner, IconButton, Spinner, useAsync, useRovingList } from '@deckbuilderkit/ui';
 import { t } from '../i18n';
 import type { AgentSkillState } from '../protocol';
 import { listSkills } from './api';
@@ -21,14 +21,12 @@ export function SkillsPanel({ onClose }: SkillsPanelProps) {
     <div className="agents-skills-page">
       <div className="agents-skills-bar">
         <h3>{t('agents.skills')}</h3>
-        <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={onClose} title={t('common.close')} aria-label={t('common.close')}>
-          <Icon name="close" />
-        </button>
+        <IconButton icon="close" label={t('common.close')} onClick={onClose} />
       </div>
       <div className="agents-skills">
-        <div className="agents-skills-tabs" role="tablist">
+        <div className="req-tabs" role="tablist">
           {(['skills', 'agents'] as const).map((k) => (
-            <button key={k} type="button" role="tab" title={t(`agents.skills.tab.${k}`)} aria-selected={tab === k} className="agents-skills-tab" onClick={() => setTab(k)}>
+            <button key={k} type="button" role="tab" title={t(`agents.skills.tab.${k}`)} aria-selected={tab === k} className={`req-tab${tab === k ? ' active' : ''}`} onClick={() => setTab(k)}>
               {t(`agents.skills.tab.${k}`)}
             </button>
           ))}

@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { t } from '../i18n';
 import { addHighlight, type HighlightTerm, MAX_HIGHLIGHT_CHARS, MAX_HIGHLIGHTS, nextColor } from '../log';
-import { Icon } from './ui';
+import { Button, IconButton } from './Button';
 
 interface LogHighlightBarProps {
   highlights: HighlightTerm[];
@@ -19,9 +19,7 @@ export function LogHighlightBar({ highlights, onHighlightsChange }: LogHighlight
         <span key={h.text} className={`log-chip log-c-${h.color}`}>
           <button className="log-dot" title={t('log.highlightColor')} aria-label={t('log.highlightColor')} onClick={() => onHighlightsChange(highlights.map((x, j) => (j === i ? { ...x, color: nextColor(x.color) } : x)))} />
           <span className="log-chip-text">{h.text}</span>
-          <button className="log-chip-x" title={t('log.highlightRemove')} aria-label={t('log.highlightRemove')} onClick={() => onHighlightsChange(highlights.filter((_, j) => j !== i))}>
-            <Icon name="close" size={12} />
-          </button>
+          <IconButton size="xs" icon="close" label={t('log.highlightRemove')} onClick={() => onHighlightsChange(highlights.filter((_, j) => j !== i))} />
         </span>
       ))}
       <form
@@ -33,9 +31,9 @@ export function LogHighlightBar({ highlights, onHighlightsChange }: LogHighlight
         }}
       >
         <input value={term} placeholder={t('log.highlightPlaceholder')} aria-label={t('log.highlightPlaceholder')} spellCheck={false} maxLength={MAX_HIGHLIGHT_CHARS} disabled={full} onChange={(e) => setTerm(e.target.value)} />
-        <button title={t('log.highlightAdd')} type="submit" className="btn btn-ghost btn-sm" disabled={!term.trim() || full}>
-          <Icon name="plus" size={14} /> {t('log.highlightAdd')}
-        </button>
+        <Button variant="ghost" size="sm" icon="plus" title={t('log.highlightAdd')} type="submit" disabled={!term.trim() || full}>
+          {t('log.highlightAdd')}
+        </Button>
       </form>
     </div>
   );

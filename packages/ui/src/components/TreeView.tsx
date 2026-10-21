@@ -16,6 +16,7 @@ import { highlightRuns } from '../fuzzy';
 import { t } from '../i18n';
 import type { IconName } from '../icons';
 import { firstChildId, isInside, locate, nextId, parentId, prevId, subtreeIds, visibleRows, type TreeRow } from '../tree';
+import { Button } from './Button';
 import { Icon, Spinner, type Tone } from './ui';
 
 export const TREE_DRAG_TYPE = 'application/x-deckbuilder-tree';
@@ -590,9 +591,9 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
                 <div className="tree-status tree-error" style={{ paddingLeft: INDENT + 4 }}>
                   <Icon name="alert" size={14} />
                   <span className="tree-label" title={entry.error.detail}>{errorMessage(entry.error)}</span>
-                  <button title={t('common.retry')} className="btn btn-ghost btn-sm" onClick={() => load(root, id)}>
+                  <Button variant="ghost" size="xs" icon="refresh" title={t('common.retry')} onClick={() => load(root, id)}>
                     {t('common.retry')}
-                  </button>
+                  </Button>
                 </div>
               )}
             </Fragment>
@@ -733,9 +734,9 @@ function TreeViewInner<N>(props: TreeViewProps<N>, ref: Ref<TreeViewHandle<N>>) 
               <div className="tree-status tree-error" style={statusIndent}>
                 <Icon name="alert" size={14} />
                 <span className="tree-label" title={entry.error.detail}>{errorMessage(entry.error)}</span>
-                <button title={t('common.retry')} className="btn btn-ghost btn-sm" onClick={() => load(node, id)}>
+                <Button variant="ghost" size="xs" icon="refresh" title={t('common.retry')} onClick={() => load(node, id)}>
                   {t('common.retry')}
-                </button>
+                </Button>
               </div>
             )}
             {newEntry && newEntryAfter === id && <NewEntryInput key={`new-${newEntry.parentId}`} kind={newEntry.kind} depth={newEntryDepth} onSubmit={newEntry.onSubmit} onCancel={newEntry.onCancel} />}

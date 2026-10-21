@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { type ApiError, Badge, CopyButton, ErrorBanner, errorOf, Icon, isDesktop, PageHead, Spinner, useAsync } from '@deckbuilderkit/ui';
+import { type ApiError, Badge, Button, CopyButton, ErrorBanner, errorOf, Icon, isDesktop, PageHead, Spinner, useAsync } from '@deckbuilderkit/ui';
 import { api } from '../api';
 import { t } from '../i18n';
 
@@ -9,7 +9,7 @@ export function Home() {
   return (
     <div className="content">
       <PageHead title={t('home.title')}>
-        <button title={t('common.retry')} className="btn btn-sm" onClick={info.reload}><Icon name="refresh" /> {t('common.retry')}</button>
+        <Button size="sm" icon="refresh" title={t('common.retry')} onClick={info.reload}>{t('common.retry')}</Button>
       </PageHead>
       <div className="scroll">
         {info.error && <ErrorBanner error={info.error} onRetry={info.reload} />}
@@ -75,9 +75,9 @@ function ToastCard() {
       <div className="card">
         <p className="muted small">{t('home.toastHint')}</p>
         <div className="row">
-          <button title={t('home.toastSend')} className="btn" disabled={busy} onClick={() => void send()}>
+          <Button title={t('home.toastSend')} disabled={busy} onClick={() => void send()}>
             {busy ? <Spinner small /> : <Icon name="send" />} {t('home.toastSend')}
-          </button>
+          </Button>
         </div>
         {error && <ErrorBanner error={error} compact />}
         {sent && <p className="tone-ok small">{t('home.toastSent')}</p>}
@@ -112,9 +112,9 @@ function EchoCard() {
         <p className="muted small">{t('home.echoHint')}</p>
         <form className="row" onSubmit={(e) => { e.preventDefault(); void send(); }}>
           <input value={text} onChange={(e) => setText(e.target.value)} placeholder={t('home.echoPlaceholder')} />
-          <button title={t('home.send')} className="btn btn-primary" disabled={busy}>
+          <Button variant="primary" type="submit" title={t('home.send')} disabled={busy}>
             {busy ? <Spinner small /> : <Icon name="send" />} {t('home.send')}
-          </button>
+          </Button>
         </form>
         {error && <ErrorBanner error={error} compact />}
         {result && <p className="tone-ok small">{t('home.echoResult', { length: result.length, at: new Date(result.at).toLocaleTimeString() })}</p>}

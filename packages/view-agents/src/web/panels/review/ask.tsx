@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { Button } from '@deckbuilderkit/ui';
 import { t } from '../../../i18n';
 import { listAgentSessions, type AgentSessionView } from '../../api';
 import { fs, relativeTo } from '../code/fs';
@@ -80,13 +81,13 @@ function AskMenu({ project, picked, api, onClose }: { project: string; picked: P
         )}
         <div className="agents-ask-actions">
           {ACTIONS.map((a) => (
-            <button key={a.key} type="button" disabled={!target} onClick={() => send(a.text)}>
+            <Button key={a.key} size="xs" disabled={!target} onClick={() => send(a.text)}>
               {t(a.key)}
-            </button>
+            </Button>
           ))}
-          <button type="button" disabled={!target} onClick={() => setCustom(true)}>
+          <Button size="xs" disabled={!target} onClick={() => setCustom(true)}>
             {t('panel.ask.custom')}
-          </button>
+          </Button>
         </div>
         {custom && (
           <form
@@ -97,7 +98,7 @@ function AskMenu({ project, picked, api, onClose }: { project: string; picked: P
             }}
           >
             <input autoFocus value={text} placeholder={t('panel.ask.customPlaceholder')} onChange={(e) => setText(e.target.value)} />
-            <button type="submit" disabled={!text.trim()}>{t('panel.ask.send')}</button>
+            <Button type="submit" variant="primary" size="xs" disabled={!text.trim()}>{t('panel.ask.send')}</Button>
           </form>
         )}
       </div>

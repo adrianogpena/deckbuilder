@@ -1,6 +1,6 @@
 import { type ReactNode, useMemo, useRef, useState } from 'react';
 import { type CodeEditorHandle, type CodeEditorProps, langOfFile, resolveMarkers, type RunMode, sqlMarkers, sqlParams, type SqlParam } from '@deckbuilderkit/editor';
-import { Badge, ErrorBanner, Icon, Modal, SplitView, type TabAction, useAsync, useCommand, useViewLink } from '@deckbuilderkit/ui';
+import { Badge, Button, ErrorBanner, Icon, IconButton, Modal, SplitView, type TabAction, useAsync, useCommand, useViewLink } from '@deckbuilderkit/ui';
 import { DEFAULT_RESULTS, SqlResults, useSqlRunner, useSqlSchema } from '@deckbuilderkit/sql-ui';
 import { type ExplorerWorkbench, sqlRunnerSettings, withWorkbenchDefaults } from '../settings';
 import { explorerCommandById as commandById } from '../commands';
@@ -50,8 +50,8 @@ function ParamsDialog({ params, initial, onSubmit, onClose }: { params: SqlParam
       onClose={onClose}
       footer={(
         <>
-          <button className="btn" onClick={onClose} title={t('explorer.shared.cancel')}>{t('explorer.shared.cancel')}</button>
-          <button className="btn btn-primary" onClick={submit} title={t('explorer.sql.paramsRun')}>{t('explorer.sql.paramsRun')}</button>
+          <Button onClick={onClose} title={t('explorer.shared.cancel')}>{t('explorer.shared.cancel')}</Button>
+          <Button variant="primary" icon="play" onClick={submit} title={t('explorer.sql.paramsRun')}>{t('explorer.sql.paramsRun')}</Button>
         </>
       )}
     >
@@ -195,13 +195,11 @@ export function useExplorerSql({ project, name, asSql, active, focused, draft, s
               <span>{connection?.name}</span>
               {status?.pending && <Badge tone="warn">{t('explorer.shared.txPending')}</Badge>}
               <span className="spacer" />
-              {runner.running && <button className="btn btn-sm" onClick={runner.cancel} title={t('explorer.shared.cancel')}>{t('explorer.shared.cancel')}</button>}
-              <button className="btn btn-sm" onClick={runner.copy} disabled={runner.tableRows.length === 0} title={t(runner.selection.length > 0 ? 'explorer.shared.copySelected' : 'explorer.shared.copy')}>{t(runner.selection.length > 0 ? 'explorer.shared.copySelected' : 'explorer.shared.copy')}</button>
-              <button className="btn btn-sm" onClick={runner.commit} disabled={!status?.connected || starting} title={t('explorer.shared.txCommit')}>{t('explorer.shared.txCommit')}</button>
-              <button className="btn btn-sm" onClick={runner.rollback} disabled={!status?.connected || starting} title={t('explorer.shared.txRollback')}>{t('explorer.shared.txRollback')}</button>
-              <button className="btn btn-ghost btn-sm btn-icon" onClick={() => setOpen(false)} title={t('explorer.sql.close')} aria-label={t('explorer.sql.close')}>
-                <Icon name="close" />
-              </button>
+              {runner.running && <Button size="sm" variant="danger" icon="square" onClick={runner.cancel} title={t('explorer.shared.cancel')}>{t('explorer.shared.cancel')}</Button>}
+              <Button size="sm" variant="ghost" icon="copy" onClick={runner.copy} disabled={runner.tableRows.length === 0} title={t(runner.selection.length > 0 ? 'explorer.shared.copySelected' : 'explorer.shared.copy')}>{t(runner.selection.length > 0 ? 'explorer.shared.copySelected' : 'explorer.shared.copy')}</Button>
+              <Button size="sm" icon="check" onClick={runner.commit} disabled={!status?.connected || starting} title={t('explorer.shared.txCommit')}>{t('explorer.shared.txCommit')}</Button>
+              <Button size="sm" icon="rotate-ccw" onClick={runner.rollback} disabled={!status?.connected || starting} title={t('explorer.shared.txRollback')}>{t('explorer.shared.txRollback')}</Button>
+              <IconButton icon="close" onClick={() => setOpen(false)} label={t('explorer.sql.close')} />
             </div>
             {paramError && <ErrorBanner error={{ kind: 'client', code: 'raw', message: paramError }} compact />}
             {runner.actionError && <ErrorBanner error={runner.actionError} compact />}

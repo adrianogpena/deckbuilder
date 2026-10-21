@@ -2,9 +2,10 @@ import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type 
 import { errorMessage, type ApiError } from '../api';
 import { copyText } from '../hooks';
 import { t } from '../i18n';
-import { type IconName, IMAGE_ICONS, type ImageIconName, iconSetById } from '../icons';
 import { useLayout } from '../layout';
 import { LayoutMark } from '../layout-marks';
+import { Button, IconButton } from './Button';
+import { Icon } from './Icon';
 
 export type Tone = 'ok' | 'warn' | 'err' | 'info' | 'muted';
 
@@ -52,14 +53,14 @@ export function ErrorBanner({ error, onRetry, compact }: { error: ApiError; onRe
         </div>
         <div className="error-actions">
           {error.detail && (
-            <button title={open ? t('common.hideDetails') : t('common.details')} className="btn btn-ghost btn-sm" onClick={() => setOpen(!open)}>
+            <Button variant="ghost" size="sm" title={open ? t('common.hideDetails') : t('common.details')} onClick={() => setOpen(!open)}>
               {open ? t('common.hideDetails') : t('common.details')}
-            </button>
+            </Button>
           )}
           {onRetry && (
-            <button title={t('common.retry')} className="btn btn-sm" onClick={onRetry}>
-              <Icon name="refresh" /> {t('common.retry')}
-            </button>
+            <Button size="sm" icon="refresh" title={t('common.retry')} onClick={onRetry}>
+              {t('common.retry')}
+            </Button>
           )}
         </div>
       </div>
@@ -73,8 +74,10 @@ export function CopyButton({ text, label = t('common.copy') }: { text: string; l
   const timer = useRef<ReturnType<typeof setTimeout>>();
   useEffect(() => () => clearTimeout(timer.current), []);
   return (
-    <button
-      className="btn btn-ghost btn-sm"
+    <Button
+      variant="ghost"
+      size="sm"
+      icon={done ? 'check' : 'copy'}
       onClick={async (e) => {
         e.stopPropagation();
         if (await copyText(text)) {
@@ -85,9 +88,8 @@ export function CopyButton({ text, label = t('common.copy') }: { text: string; l
       }}
       title={label}
     >
-      <Icon name={done ? 'check' : 'copy'} />
       {label && <span>{done ? t('common.copied') : label}</span>}
-    </button>
+    </Button>
   );
 }
 
@@ -183,16 +185,13 @@ export function Modal({ title, onClose, children, footer, large }: { title: stri
           <h3>{title}</h3>
           {large && <span className="spacer" />}
           {large && (
-            <button
-              className="btn btn-ghost btn-sm btn-icon"
+            <IconButton
+              icon={maximized ? 'restore' : 'maximize'}
+              label={t(maximized ? 'common.restore' : 'common.maximize')}
               onClick={() => setMaximized((m) => !m)}
-              title={t(maximized ? 'common.restore' : 'common.maximize')}
-              aria-label={t(maximized ? 'common.restore' : 'common.maximize')}
-            >
-              <Icon name={maximized ? 'restore' : 'maximize'} />
-            </button>
+            />
           )}
-          <button className="btn btn-ghost btn-sm btn-icon" onClick={onClose} title={t('common.close')} aria-label={t('common.close')}><Icon name="close" /></button>
+          <IconButton icon="close" label={t('common.close')} onClick={onClose} />
         </div>
         <div className="modal-body">{children}</div>
         {footer && <div className="modal-foot">{footer}</div>}
@@ -238,10 +237,10 @@ function ConfirmDialog({ opts, onDone }: { opts: ConfirmOptions; onDone: (ok: bo
       onClose={() => onDone(false)}
       footer={
         <>
-          <button title={t('dialog.cancel')} className="btn" onClick={() => onDone(false)} autoFocus={opts.danger}>{t('dialog.cancel')}</button>
-          <button title={opts.okLabel ?? t('dialog.ok')} className={`btn ${opts.danger ? 'btn-danger' : 'btn-primary'}`} onClick={() => onDone(true)} autoFocus={!opts.danger}>
+          <Button title={t('dialog.cancel')} onClick={() => onDone(false)} autoFocus={opts.danger}>{t('dialog.cancel')}</Button>
+          <Button variant={opts.danger ? 'danger' : 'primary'} title={opts.okLabel ?? t('dialog.ok')} onClick={() => onDone(true)} autoFocus={!opts.danger}>
             {opts.okLabel ?? t('dialog.ok')}
-          </button>
+          </Button>
         </>
       }
     >
@@ -258,11 +257,11 @@ function ChoiceDialog({ opts, onDone }: { opts: ChoiceOptions; onDone: (id: stri
       onClose={() => onDone(null)}
       footer={
         <>
-          <button title={t('dialog.cancel')} className="btn" onClick={() => onDone(null)}>{t('dialog.cancel')}</button>
+          <Button title={t('dialog.cancel')} onClick={() => onDone(null)}>{t('dialog.cancel')}</Button>
           {opts.choices.map((c, i) => (
-            <button title={c.label} key={c.id} className={`btn ${c.danger ? 'btn-danger' : i === 0 ? 'btn-primary' : ''}`} onClick={() => onDone(c.id)} autoFocus={i === 0}>
+            <Button title={c.label} key={c.id} variant={c.danger ? 'danger' : i === 0 ? 'primary' : 'default'} onClick={() => onDone(c.id)} autoFocus={i === 0}>
               {c.label}
-            </button>
+            </Button>
           ))}
         </>
       }
@@ -297,8 +296,8 @@ function PromptDialog({ opts, onDone }: { opts: PromptOptions; onDone: (value: s
       onClose={() => onDone(null)}
       footer={
         <>
-          <button title={t('dialog.cancel')} className="btn" onClick={() => onDone(null)}>{t('dialog.cancel')}</button>
-          <button title={t('dialog.ok')} type="submit" form={id} className="btn btn-primary" disabled={message !== null}>{t('dialog.ok')}</button>
+          <Button title={t('dialog.cancel')} onClick={() => onDone(null)}>{t('dialog.cancel')}</Button>
+          <Button variant="primary" title={t('dialog.ok')} type="submit" form={id} disabled={message !== null}>{t('dialog.ok')}</Button>
         </>
       }
     >
@@ -374,29 +373,4 @@ export function BrandMark({ size = 30 }: { size?: number }) {
   return <LayoutMark className="brand-mark" layoutId={markId} size={size} />;
 }
 
-export function Icon({ name, size = 16 }: { name: IconName | ImageIconName; size?: number }) {
-  const set = iconSetById(useLayout().iconSet);
-  if (name in IMAGE_ICONS) return <img className="icon" width={size} height={size} src={IMAGE_ICONS[name as ImageIconName]} alt="" aria-hidden="true" />;
-  // `<icon>:<ext>` names come from fileIconOf under a set with fileVariants; other sets draw `<icon>`.
-  const variant = set.fileVariants?.[name];
-  const path = set.paths[name.split(':')[0] as IconName];
-  if (set.markup) {
-    return (
-      <svg className="icon" width={size} height={size} viewBox={set.viewBox} fill="currentColor" aria-hidden="true"
-        dangerouslySetInnerHTML={{ __html: variant ?? path }} />
-    );
-  }
-  if (set.mode === 'fill') {
-    return (
-      <svg className="icon" width={size} height={size} viewBox={set.viewBox} fill="currentColor" aria-hidden="true">
-        <path d={path} />
-      </svg>
-    );
-  }
-  return (
-    <svg className="icon" width={size} height={size} viewBox={set.viewBox} fill="none" stroke="currentColor"
-      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d={path} />
-    </svg>
-  );
-}
+export { Icon };

@@ -1,7 +1,7 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { type CodeEditorHandle, type CodeEditorProps, curlAt, draftToSpec, type HttpHeaderDraft, type ImportedRequest, parseCurl, ResponseView, warningText } from '@deckbuilderkit/editor';
 import type { HttpResponseInfo } from '@deckbuilderkit/server-core/protocol';
-import { type ApiError, dialogs, errorOf, Icon, PanelBanner, SplitView, type TabAction, useViewLink } from '@deckbuilderkit/ui';
+import { type ApiError, Button, dialogs, errorOf, Icon, IconButton, PanelBanner, SplitView, type TabAction, useViewLink } from '@deckbuilderkit/ui';
 import { explorerApi as api } from '../client';
 import { httpClient } from '../client';
 import { t } from '../i18n';
@@ -129,10 +129,8 @@ export function useExplorerCurl({ name, active, draft, sql }: Options) {
             <div className="xp-bar">
               <Icon name="send" size={12} />
               <span className="spacer" />
-              {sending && <button className="btn btn-sm" onClick={cancel} title={t('explorer.shared.cancel')}>{t('explorer.shared.cancel')}</button>}
-              <button className="btn btn-ghost btn-sm btn-icon" onClick={() => setOpen(false)} title={t('explorer.curl.close')} aria-label={t('explorer.curl.close')}>
-                <Icon name="close" />
-              </button>
+              {sending && <Button size="sm" variant="danger" icon="square" onClick={cancel} title={t('explorer.shared.cancel')}>{t('explorer.shared.cancel')}</Button>}
+              <IconButton icon="close" onClick={() => setOpen(false)} label={t('explorer.curl.close')} />
             </div>
             {notice && <PanelBanner tone={notice.tone}>{notice.text}</PanelBanner>}
             <ResponseView response={response} error={error} sending={sending} onSave={response ? () => void saveResponse(response) : undefined} />

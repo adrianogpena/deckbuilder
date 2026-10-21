@@ -1,5 +1,5 @@
 import { type CSSProperties, type DragEvent, type MouseEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { ContextMenu, type ContextMenuItem, fuzzyScore, highlightRuns, Icon, KEY_SCOPE_ATTR, useCommand, useDialogs, useRovingList, useRunCommand, useShortcutTip, useToast } from '@deckbuilderkit/ui';
+import { Button, ContextMenu, IconButton, type ContextMenuItem, fuzzyScore, highlightRuns, Icon, KEY_SCOPE_ATTR, useCommand, useDialogs, useRovingList, useRunCommand, useShortcutTip, useToast } from '@deckbuilderkit/ui';
 import './sidebar.css';
 import { AGENTS_LIST_SCOPE, agentsCommands } from '../commands';
 import { t } from '../i18n';
@@ -1025,8 +1025,8 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
     });
     const extra = (
       <span className="agents-node-actions">
-        <button type="button" className="agents-new" title={t('agents.new.title')} aria-label={t('agents.new.title')} onClick={() => onQuickNew(p.id)}><Icon name="plus" size={12} /></button>
-        <button type="button" className="agents-remove" title={t('agents.remove')} aria-label={t('agents.remove')} onClick={() => void confirmRemove(p)}><Icon name="close" size={12} /></button>
+        <IconButton size="xs" icon="plus" label={t('agents.new.title')} onClick={() => onQuickNew(p.id)} />
+        <IconButton size="xs" icon="close" label={t('agents.remove')} onClick={() => void confirmRemove(p)} />
       </span>
     );
     const activity = activityStatus(projectActivity(r.sessions));
@@ -1131,7 +1131,7 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
           <span className="agents-sidebar-empty-icon" aria-hidden="true"><Icon name="plus" size={20} /></span>
           <p className="agents-sidebar-empty-title">{t('agents.noAccount')}</p>
           <p className="agents-sidebar-empty-desc">{t('agents.noAccountHint')}</p>
-          <button type="button" className="btn btn-primary btn-sm agents-sidebar-empty-btn" onClick={() => setManageOpen('add')}>{t('agents.noAccountAdd')}</button>
+          <Button variant="primary" icon="plus" className="agents-sidebar-empty-btn" onClick={() => setManageOpen('add')}>{t('agents.noAccountAdd')}</Button>
         </div>
       )}
       {accountCount !== 0 && projects.length === 0 && (
@@ -1139,7 +1139,7 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
           <span className="agents-sidebar-empty-icon" aria-hidden="true"><Icon name="folder-plus" size={20} /></span>
           <p className="agents-sidebar-empty-title">{t('agents.empty')}</p>
           <p className="agents-sidebar-empty-desc">{t('agents.emptyHint')}</p>
-          <button type="button" title={tip(t('keys.agents.addProject'), 'agents.addProject')} className="btn btn-primary btn-sm agents-sidebar-empty-btn" onClick={() => void runCommand('agents.addProject')}>{t('keys.agents.addProject')}</button>
+          <Button variant="primary" icon="folder-plus" title={tip(t('keys.agents.addProject'), 'agents.addProject')} className="agents-sidebar-empty-btn" onClick={() => void runCommand('agents.addProject')}>{t('keys.agents.addProject')}</Button>
         </div>
       )}
       {projects.length > 0 && sessions.length === 0 && <p className="agents-empty">{t('agents.filter.noSessions')}</p>}
@@ -1242,10 +1242,9 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
       <div className="agents-sidebar-scroll">
         {order.filter(isTreeSection).map(renderSection)}
         {restorable.length > 0 && (
-          <button type="button" className="agents-section-add" title={t('agents.section.add')} aria-label={t('agents.section.add')} aria-haspopup="menu" onClick={addSectionMenu}>
-            <Icon name="plus" size={14} />
+          <Button variant="ghost" size="sm" icon="plus" title={t('agents.section.add')} aria-label={t('agents.section.add')} aria-haspopup="menu" onClick={addSectionMenu}>
             <span className="agents-label">{t('agents.section.add')}</span>
-          </button>
+          </Button>
         )}
       </div>
       <div className="agents-sidebar-islands">

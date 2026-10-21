@@ -30,6 +30,7 @@ import {
   type Tab,
 } from '../tabs';
 import { useLayout } from '../layout';
+import { IconButton } from './Button';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { useCommand, useKeybindings, withChord } from './Keybindings';
 import { SplitView } from './SplitView';
@@ -180,12 +181,8 @@ export function BaseTabBar<R>(props: TabBarProps<R>) {
     >
       {hasHistory && (
         <div className="tabbar-tools">
-          <button className="btn btn-ghost btn-sm btn-icon" onClick={props.onBack} disabled={!active?.back.length} title={t('tabs.back')}>
-            <Icon name="back" size={15} />
-          </button>
-          <button className="btn btn-ghost btn-sm btn-icon" onClick={props.onForward} disabled={!active?.forward.length} title={t('tabs.forward')}>
-            <Icon name="forward" size={15} />
-          </button>
+          <IconButton icon="back" label={t('tabs.back')} onClick={props.onBack} disabled={!active?.back.length} />
+          <IconButton icon="forward" label={t('tabs.forward')} onClick={props.onForward} disabled={!active?.forward.length} />
         </div>
       )}
       <div className="tabs-strip" role="tablist">
@@ -248,32 +245,29 @@ export function BaseTabBar<R>(props: TabBarProps<R>) {
             </div>
           );
         })}
-        <button
+        <IconButton
           ref={newButton}
-          className="btn btn-ghost btn-sm tab-new btn-icon"
+          icon="plus"
+          label={t('tabs.new')}
+          className="tab-new"
           onClick={props.onNew}
           onContextMenu={(e) => {
             if (!props.newMenu) return;
             e.preventDefault();
             setMenu({ at: { x: e.clientX, y: e.clientY }, items: props.newMenu(pane.id) });
           }}
-          title={t('tabs.new')}
-        >
-          <Icon name="plus" />
-        </button>
+        />
         {props.newMenu && (
-          <button
-            className="btn btn-ghost btn-sm tab-new-menu btn-icon"
-            title={t('tabs.newMenu')}
-            aria-label={t('tabs.newMenu')}
+          <IconButton
+            icon="chevron-down"
+            label={t('tabs.newMenu')}
+            className="tab-new-menu"
             aria-haspopup="menu"
             onClick={(e) => {
               const r = e.currentTarget.getBoundingClientRect();
               setMenu({ at: { x: r.left, y: r.bottom }, items: props.newMenu!(pane.id) });
             }}
-          >
-            <Icon name="chevron-down" size={12} />
-          </button>
+          />
         )}
       </div>
       <div className="tabbar-tools">
@@ -292,41 +286,34 @@ export function BaseTabBar<R>(props: TabBarProps<R>) {
             ))}
           </select>
         ) : (
-          <button
+          <IconButton
             key={a.id}
-            className={`btn btn-ghost btn-sm btn-icon${a.checked ? ' active' : ''}`}
+            icon={a.icon ?? 'more'}
+            label={a.label}
+            title={withHint(a.label, a.hint)}
+            pressed={a.checked}
             onClick={() => a.run()}
             disabled={a.disabled}
-            title={withHint(a.label, a.hint)}
-            aria-label={a.label}
-            aria-pressed={a.checked}
-          >
-            <Icon name={a.icon ?? 'more'} size={15} />
-          </button>
+          />
         ))}
         {props.actions.some((a) => a.group === 'primary') && <span className="tabbar-sep" />}
-        <button
-          className="btn btn-ghost btn-sm btn-icon"
+        <IconButton
+          icon="split"
+          label={t('tabs.splitRight')}
+          title={t('tabs.split')}
           onClick={(e) => props.onSplit(e.altKey ? 'down' : 'right')}
           disabled={!props.canSplit}
-          title={t('tabs.split')}
-          aria-label={t('tabs.splitRight')}
           data-split-right
-        >
-          <Icon name="split" size={15} />
-        </button>
-        <button
-          className="btn btn-ghost btn-sm btn-icon"
-          title={t('tabs.more')}
-          aria-label={t('tabs.more')}
+        />
+        <IconButton
+          icon="more"
+          label={t('tabs.more')}
           aria-haspopup="menu"
           onClick={(e) => {
             const r = e.currentTarget.getBoundingClientRect();
             setMenu({ at: { x: r.right, y: r.bottom + 2 }, items: moreItems() });
           }}
-        >
-          <Icon name="more" size={15} />
-        </button>
+        />
       </div>
       {menu && <ContextMenu at={menu.at} items={menu.items} onClose={() => setMenu(null)} />}
     </div>

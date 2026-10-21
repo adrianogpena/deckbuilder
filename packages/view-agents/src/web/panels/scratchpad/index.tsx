@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { request } from '@deckbuilderkit/ui';
+import { Button, IconButton, request } from '@deckbuilderkit/ui';
 import { t } from '../../../i18n';
 import type { PanelModule, PanelProps, SectionProps } from '../../workspace/types';
 import './style.css';
@@ -92,15 +92,9 @@ function ScratchpadBody({ project }: { project: string | undefined }) {
               onChange={(e) => setTodos(pad.todos.map((y) => (y.id === x.id ? { ...y, done: e.target.checked } : y)))}
             />
             <span className="agents-scratchpad-text">{x.text}</span>
-            <button type="button" className="agents-scratchpad-btn" title={t('panel.scratchpad.up')} aria-label={t('panel.scratchpad.up')} disabled={i === 0} onClick={() => move(i, -1)}>
-              ↑
-            </button>
-            <button type="button" className="agents-scratchpad-btn" title={t('panel.scratchpad.down')} aria-label={t('panel.scratchpad.down')} disabled={i === pad.todos.length - 1} onClick={() => move(i, 1)}>
-              ↓
-            </button>
-            <button type="button" className="agents-scratchpad-btn" title={t('panel.scratchpad.delete')} aria-label={t('panel.scratchpad.delete')} onClick={() => setTodos(pad.todos.filter((y) => y.id !== x.id))}>
-              ×
-            </button>
+            <IconButton size="xs" icon="arrow-up" label={t('panel.scratchpad.up')} disabled={i === 0} onClick={() => move(i, -1)} />
+            <IconButton size="xs" icon="chevron-down" label={t('panel.scratchpad.down')} disabled={i === pad.todos.length - 1} onClick={() => move(i, 1)} />
+            <IconButton size="xs" icon="close" label={t('panel.scratchpad.delete')} onClick={() => setTodos(pad.todos.filter((y) => y.id !== x.id))} />
           </li>
         ))}
       </ul>
@@ -112,7 +106,7 @@ function ScratchpadBody({ project }: { project: string | undefined }) {
         }}
       >
         <input className="agents-scratchpad-input" value={draft} placeholder={t('panel.scratchpad.addPlaceholder')} onChange={(e) => setDraft(e.target.value)} />
-        <button type="submit" className="agents-scratchpad-btn" disabled={!draft.trim()}>{t('panel.scratchpad.add')}</button>
+        <Button type="submit" size="sm" disabled={!draft.trim()}>{t('panel.scratchpad.add')}</Button>
       </form>
     </div>
   );

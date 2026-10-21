@@ -1,5 +1,5 @@
 import { useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
-import { Icon, ProjectPicker, type ProjectPickerProps, useCommand, useShortcutTip } from '@deckbuilderkit/ui';
+import { Icon, IconButton, ProjectPicker, type ProjectPickerProps, useCommand, useShortcutTip } from '@deckbuilderkit/ui';
 import type { Project, SearchHit } from '../client';
 import { explorerCommandById as commandById } from '../commands';
 import { nodeId } from '../explorer-paths';
@@ -146,19 +146,11 @@ export function TreePane({ focused, showHidden = false, onFocus, exclude, sort, 
         onRemove={onRemove}
         actions={
           <>
-            <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={() => own.current?.newFile()} title={t('explorer.newFile')} aria-label={t('explorer.newFile')}>
-              <Icon name="file-plus" />
-            </button>
-            <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={toggleAll} title={tip(t(collapsible ? 'explorer.collapseAll' : 'explorer.expandAll'), collapsible ? 'explorer.collapseAll' : undefined)} aria-label={t(collapsible ? 'explorer.collapseAll' : 'explorer.expandAll')}>
-              <Icon name={collapsible ? 'collapse-all' : 'expand-all'} />
-            </button>
-            <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={onGoToFile} disabled={!onGoToFile} title={t('explorer.goToFile')} aria-label={t('explorer.goToFile')}>
-              <Icon name="locate" />
-            </button>
+            <IconButton icon="file-plus" onClick={() => own.current?.newFile()} label={t('explorer.newFile')} />
+            <IconButton icon={collapsible ? 'collapse-all' : 'expand-all'} onClick={toggleAll} title={tip(t(collapsible ? 'explorer.collapseAll' : 'explorer.expandAll'), collapsible ? 'explorer.collapseAll' : undefined)} label={t(collapsible ? 'explorer.collapseAll' : 'explorer.expandAll')} />
+            <IconButton icon="locate" onClick={onGoToFile} disabled={!onGoToFile} label={t('explorer.goToFile')} />
             <div className="menu-wrap" ref={moreWrap} onKeyDown={(e) => e.key === 'Escape' && setMoreOpen(false)}>
-              <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={() => setMoreOpen(!moreOpen)} aria-expanded={moreOpen} aria-haspopup="menu" title={t('explorer.more')} aria-label={t('explorer.more')}>
-                <Icon name="more" />
-              </button>
+              <IconButton icon="more" onClick={() => setMoreOpen(!moreOpen)} aria-expanded={moreOpen} aria-haspopup="menu" label={t('explorer.more')} />
               {moreOpen && moreBox && (
                 <div className="menu" role="menu" style={{ position: 'fixed', overflowY: 'auto', ...moreBox }}>
                   {item('search', t('explorer.search.open'), openSearch)}
@@ -202,9 +194,7 @@ export function TreePane({ focused, showHidden = false, onFocus, exclude, sort, 
           <button type="button" className={`chip${filterMode ? ' chip-on' : ''}`} onClick={() => setFilterMode(!filterMode)} aria-pressed={filterMode} title={t('explorer.find.filterHint')}>
             {t('explorer.find.filter')}
           </button>
-          <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={closeFind} title={t('explorer.search.close')} aria-label={t('explorer.search.close')}>
-            <Icon name="close" />
-          </button>
+          <IconButton icon="close" onClick={closeFind} label={t('explorer.search.close')} />
         </div>
       )}
       <div className="xp-pane-body">

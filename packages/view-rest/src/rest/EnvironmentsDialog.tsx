@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { RestEnvironment, RestEnvVarInput } from '@deckbuilderkit/server-core/protocol';
-import { type ApiError, ErrorBanner, errorOf, Icon, Modal, useDialogs, useToast } from '@deckbuilderkit/ui';
+import { type ApiError, Button, ErrorBanner, errorOf, IconButton, Modal, useDialogs, useToast } from '@deckbuilderkit/ui';
 import { restApi as api } from '../client';
 import { t } from '../i18n';
 
@@ -125,8 +125,8 @@ export function EnvironmentsDialog({ environments, onChanged, onDeleted, onClose
 
   const footer = (
     <>
-      <button className="btn" onClick={() => void close()} title={t('rest.import.close')}>{t('rest.import.close')}</button>
-      <button className="btn btn-primary" disabled={busy || !env || !dirty} onClick={() => void save()} title={t('rest.save')}>{t('rest.save')}</button>
+      <Button onClick={() => void close()} title={t('rest.import.close')}>{t('rest.import.close')}</Button>
+      <Button variant="primary" icon="check" disabled={busy || !env || !dirty} onClick={() => void save()} title={t('rest.save')}>{t('rest.save')}</Button>
     </>
   );
 
@@ -137,7 +137,7 @@ export function EnvironmentsDialog({ environments, onChanged, onDeleted, onClose
         <aside className="rest-env-list">
           <div className="rest-list-head">
             <span className="mono-label">{t('rest.env.list')}</span>
-            <button className="btn btn-sm" disabled={busy} onClick={() => void add()} title={t('rest.new')}><Icon name="plus" /> {t('rest.new')}</button>
+            <Button size="sm" icon="plus" disabled={busy} onClick={() => void add()} title={t('rest.new')}>{t('rest.new')}</Button>
           </div>
           {environments?.length === 0 && <p className="muted">{t('rest.env.empty')}</p>}
           {environments?.map((e) => (
@@ -147,12 +147,8 @@ export function EnvironmentsDialog({ environments, onChanged, onDeleted, onClose
               </button>
               {e.id === selected && (
                 <span className="rest-item-actions">
-                  <button className="btn btn-ghost btn-sm btn-icon" disabled={busy} onClick={() => void rename()} aria-label={t('rest.rename')} title={t('rest.rename')}>
-                    <Icon name="edit" />
-                  </button>
-                  <button className="btn btn-ghost btn-sm btn-icon" disabled={busy} onClick={() => void remove()} aria-label={t('rest.delete')} title={t('rest.delete')}>
-                    <Icon name="trash" />
-                  </button>
+                  <IconButton size="xs" icon="edit" disabled={busy} onClick={() => void rename()} label={t('rest.rename')} />
+                  <IconButton size="xs" icon="trash" disabled={busy} onClick={() => void remove()} label={t('rest.delete')} />
                 </span>
               )}
             </div>
@@ -183,7 +179,7 @@ export function EnvironmentsDialog({ environments, onChanged, onDeleted, onClose
                       {r.secret && !r.replace ? (
                         <span className="row">
                           <span className="muted">{r.set ? t('rest.env.var.set') : t('rest.env.var.notSet')}</span>
-                          <button className="btn btn-ghost btn-sm" onClick={() => patch(i, { replace: true, value: '' })} title={t('rest.env.var.replace')}>{t('rest.env.var.replace')}</button>
+                          <Button size="xs" variant="ghost" onClick={() => patch(i, { replace: true, value: '' })} title={t('rest.env.var.replace')}>{t('rest.env.var.replace')}</Button>
                         </span>
                       ) : (
                         <input
@@ -206,16 +202,14 @@ export function EnvironmentsDialog({ environments, onChanged, onDeleted, onClose
                       />
                     </td>
                     <td>
-                      <button className="btn btn-ghost btn-sm btn-icon" onClick={() => setRows(rows.filter((_, j) => j !== i))} aria-label={t('rest.env.var.remove')} title={t('rest.env.var.remove')}>
-                        <Icon name="trash" />
-                      </button>
+                      <IconButton size="xs" icon="trash" onClick={() => setRows(rows.filter((_, j) => j !== i))} label={t('rest.env.var.remove')} />
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
             <div>
-              <button className="btn btn-sm" onClick={() => setRows([...rows, blank()])} title={t('rest.env.var.add')}><Icon name="plus" /> {t('rest.env.var.add')}</button>
+              <Button size="sm" icon="plus" onClick={() => setRows([...rows, blank()])} title={t('rest.env.var.add')}>{t('rest.env.var.add')}</Button>
             </div>
             <p className="muted">{t('rest.env.hint')}</p>
           </div>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { GitFile } from '@deckbuilderkit/server-core/protocol';
-import { errorOf, ErrorBanner, PanelLoading, useAsync, useDialogs, useToast } from '@deckbuilderkit/ui';
+import { Button, IconButton, ToolbarSep, errorOf, ErrorBanner, PanelLoading, useAsync, useDialogs, useToast } from '@deckbuilderkit/ui';
 import { t } from '../../../i18n';
 import type { PanelModule, PanelProps, SectionProps, WorkspaceApi } from '../../workspace/types';
 import { codeOf, gitClient } from '../diff/git-client';
@@ -106,25 +106,25 @@ function ChangesView({ project, api, visible }: ChangesViewProps) {
             </option>
           ))}
         </select>
-        <button type="button" disabled={busy} onClick={() => void newBranch()}>
+        <Button size="sm" icon="plus" disabled={busy} onClick={() => void newBranch()}>
           {t('panel.changes.newBranch')}
-        </button>
+        </Button>
+        <ToolbarSep />
         <span className="agents-chg-sync">{ahead || behind ? `↑${ahead} ↓${behind}` : ''}</span>
-        <button type="button" disabled={busy} onClick={() => void run('pull')}>
+        <Button size="sm" icon="download" disabled={busy} onClick={() => void run('pull')}>
           {t('panel.changes.pull')}
-        </button>
-        <button type="button" disabled={busy} onClick={() => void run('push')}>
+        </Button>
+        <Button size="sm" icon="arrow-up" disabled={busy} onClick={() => void run('push')}>
           {t('panel.changes.push')}
-        </button>
-        <button type="button" disabled={busy || !hasChanges} onClick={() => void run('stash')}>
+        </Button>
+        <ToolbarSep />
+        <Button size="sm" disabled={busy || !hasChanges} onClick={() => void run('stash')}>
           {t('panel.changes.stash')}
-        </button>
-        <button type="button" disabled={busy} onClick={() => void run('stash', { pop: true })}>
+        </Button>
+        <Button size="sm" disabled={busy} onClick={() => void run('stash', { pop: true })}>
           {t('panel.changes.pop')}
-        </button>
-        <button type="button" title={t('agents.changes.refresh')} aria-label={t('agents.changes.refresh')} onClick={refresh}>
-          ↻
-        </button>
+        </Button>
+        <IconButton icon="refresh" label={t('agents.changes.refresh')} onClick={refresh} />
       </div>
 
       <div className="agents-chg-commit">
@@ -136,19 +136,19 @@ function ChangesView({ project, api, visible }: ChangesViewProps) {
           onChange={(e) => setMessage(e.target.value)}
         />
         <div className="agents-chg-commit-row">
-          <button type="button" disabled={!canCommit} onClick={() => void commit(false)}>
+          <Button variant="primary" size="sm" icon="check" disabled={!canCommit} onClick={() => void commit(false)}>
             {t('panel.changes.commit')}
-          </button>
-          <button type="button" disabled={!canCommit} onClick={() => void commit(true)}>
+          </Button>
+          <Button size="sm" icon="arrow-up" disabled={!canCommit} onClick={() => void commit(true)}>
             {t('panel.changes.commitPush')}
-          </button>
+          </Button>
           <label className="agents-chg-amend">
             <input type="checkbox" checked={amend} onChange={(e) => setAmend(e.target.checked)} />
             {t('panel.changes.amend')}
           </label>
-          <button type="button" disabled={busy} onClick={() => void undo()}>
+          <Button size="sm" icon="rotate-ccw" disabled={busy} onClick={() => void undo()}>
             {t('panel.changes.undo')}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -166,17 +166,17 @@ function ChangesView({ project, api, visible }: ChangesViewProps) {
                     {t(`panel.changes.group.${key}`)} ({list.length})
                   </span>
                   {group === 'staged' ? (
-                    <button type="button" disabled={busy} onClick={() => void run('unstage', { all: true })}>
+                    <Button size="xs" disabled={busy} onClick={() => void run('unstage', { all: true })}>
                       {t('panel.changes.unstageAll')}
-                    </button>
+                    </Button>
                   ) : (
                     <>
-                      <button type="button" disabled={busy} onClick={() => void run('stage', { paths: list.map((f) => f.path) })}>
+                      <Button size="xs" icon="plus" disabled={busy} onClick={() => void run('stage', { paths: list.map((f) => f.path) })}>
                         {t('panel.changes.stageAll')}
-                      </button>
-                      <button type="button" disabled={busy} onClick={() => void discard(list)}>
+                      </Button>
+                      <Button variant="danger" size="xs" disabled={busy} onClick={() => void discard(list)}>
                         {t('panel.changes.discardAll')}
-                      </button>
+                      </Button>
                     </>
                   )}
                 </header>
@@ -193,17 +193,11 @@ function ChangesView({ project, api, visible }: ChangesViewProps) {
                         <span className="agents-chg-path">{f.path}</span>
                       </button>
                       {group === 'staged' ? (
-                        <button type="button" disabled={busy} title={t('panel.changes.unstage')} aria-label={t('panel.changes.unstage')} onClick={() => void run('unstage', { paths: [f.path] })}>
-                          −
-                        </button>
+                        <IconButton size="xs" icon="chevron-down" disabled={busy} label={t('panel.changes.unstage')} onClick={() => void run('unstage', { paths: [f.path] })} />
                       ) : (
                         <>
-                          <button type="button" disabled={busy} title={t('panel.changes.stage')} aria-label={t('panel.changes.stage')} onClick={() => void run('stage', { paths: [f.path] })}>
-                            +
-                          </button>
-                          <button type="button" disabled={busy} title={t('panel.changes.discard')} aria-label={t('panel.changes.discard')} onClick={() => void discard([f])}>
-                            ×
-                          </button>
+                          <IconButton size="xs" icon="plus" disabled={busy} label={t('panel.changes.stage')} onClick={() => void run('stage', { paths: [f.path] })} />
+                          <IconButton variant="danger" size="xs" icon="trash" disabled={busy} label={t('panel.changes.discard')} onClick={() => void discard([f])} />
                         </>
                       )}
                     </li>

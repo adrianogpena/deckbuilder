@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { CodeEditor } from '@deckbuilderkit/editor';
-import { type ApiError, copyText, dialogs, ErrorBanner, errorOf, Modal } from '@deckbuilderkit/ui';
+import { type ApiError, Button, copyText, dialogs, ErrorBanner, errorOf, Modal } from '@deckbuilderkit/ui';
 import { restApi as api } from '../client';
 import { t } from '../i18n';
 
@@ -31,9 +31,9 @@ export function CurlDialog({ curl, onClose }: { curl: string; onClose: () => voi
 
   const footer = (
     <>
-      <button className="btn" onClick={onClose} title={t('rest.import.close')}>{t('rest.import.close')}</button>
-      <button className="btn" onClick={save} title={t('rest.code.save')}>{t('rest.code.save')}</button>
-      <button className="btn btn-primary" onClick={copy} title={copied ? t('rest.code.copied') : t('rest.code.copy')}>{copied ? t('rest.code.copied') : t('rest.code.copy')}</button>
+      <Button onClick={onClose} title={t('rest.import.close')}>{t('rest.import.close')}</Button>
+      <Button icon="download" onClick={save} title={t('rest.code.save')}>{t('rest.code.save')}</Button>
+      <Button variant="primary" icon="copy" onClick={copy} title={copied ? t('rest.code.copied') : t('rest.code.copy')}>{copied ? t('rest.code.copied') : t('rest.code.copy')}</Button>
     </>
   );
 

@@ -1,5 +1,5 @@
 import type { HttpResponseInfo } from '@deckbuilderkit/server-core/protocol';
-import { type ApiError, Badge, CopyButton, ErrorBanner, formatBytes, Icon, JsonTree, PanelBanner, PanelNotice, Spinner, t } from '@deckbuilderkit/ui';
+import { type ApiError, Badge, Button, CopyButton, ErrorBanner, formatBytes, Icon, JsonTree, PanelBanner, PanelNotice, Spinner, t } from '@deckbuilderkit/ui';
 import { useMemo, useState } from 'react';
 import { CodeView } from './CodeView';
 import { bodyView, formatMs, statusTone } from './http';
@@ -33,7 +33,7 @@ function ResponseBody({ response, sending, onSave }: { response: HttpResponseInf
         <span className="spacer" />
         {sending && <Spinner small />}
         {onSave && (
-          <button title={t('http.save')} className="btn btn-sm" onClick={onSave}><Icon name="download" /> {t('http.save')}</button>
+          <Button title={t('http.save')} size="sm" icon="download" onClick={onSave}>{t('http.save')}</Button>
         )}
       </div>
       {response.truncated && <PanelBanner tone="warn" icon="alert">{t('http.truncated', { size: formatBytes(response.size) })}</PanelBanner>}
@@ -60,7 +60,7 @@ function BodyPane({ response }: { response: HttpResponseInfo }) {
   return (
     <>
       <div className="file-preview-bar">
-        <button title={raw ? t('http.tree') : t('http.raw')} className="btn btn-ghost btn-sm" onClick={() => setRaw(!raw)} aria-pressed={raw}>{raw ? t('http.tree') : t('http.raw')}</button>
+        <Button title={raw ? t('http.tree') : t('http.raw')} variant="ghost" size="sm" onClick={() => setRaw(!raw)} pressed={raw}>{raw ? t('http.tree') : t('http.raw')}</Button>
         <CopyButton text={view.pretty} />
       </div>
       <div className="resp-body">

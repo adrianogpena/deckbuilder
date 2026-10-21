@@ -1,4 +1,4 @@
-import { Badge, Icon, PanelNotice, t } from '@deckbuilderkit/ui';
+import { Badge, Button, Icon, IconButton, PanelNotice, t } from '@deckbuilderkit/ui';
 import { type KeyboardEvent, type PointerEvent, type ReactNode, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { SqlGraph } from './SqlGraph';
 import { type SqlLintSeverity, type SqlProblem, sqlLint } from './sql/lint';
@@ -77,7 +77,7 @@ function ProblemList({ problems, text, outline, filter, onClearFilter, onJump }:
     <>
       <div className="sqlsteps-chips">
         {SQL_SEVERITIES.map((s) => (
-          <button title={t(`sqlSteps.severity.${s}`)} key={s} className={`sqlsteps-chip is-${s}`} aria-pressed={!hidden.has(s)} onClick={() => toggle(s)} disabled={counts[s] === 0}>
+          <button title={t(`sqlSteps.severity.${s}`)} key={s} className={`chip${hidden.has(s) ? '' : ' chip-on'} is-${s}`} aria-pressed={!hidden.has(s)} onClick={() => toggle(s)} disabled={counts[s] === 0}>
             <SeverityIcon severity={s} /> {t(`sqlSteps.severity.${s}`)} <span className="sqlsteps-chip-count">{counts[s]}</span>
           </button>
         ))}
@@ -85,7 +85,7 @@ function ProblemList({ problems, text, outline, filter, onClearFilter, onJump }:
       {filter && (
         <div className="sqlsteps-infilter">
           <span className="muted">{t('sqlSteps.problems.inStep', { step: filter.step || t('sqlSteps.main') })}</span>
-          <button title={t('sqlSteps.problems.showAll')} className="sqlsteps-feed" onClick={onClearFilter}>{t('sqlSteps.problems.showAll')}</button>
+          <Button title={t('sqlSteps.problems.showAll')} variant="ghost" size="xs" onClick={onClearFilter}>{t('sqlSteps.problems.showAll')}</Button>
         </div>
       )}
       <div className="sqlsteps-list">
@@ -338,7 +338,7 @@ export function SqlSteps({ text, onJump, cursor, onClose, tab: tabProp, onTab, w
       <div className="sqlsteps-head">
         <div className="sqlsteps-tabs" role="tablist">
           {TABS.map((id) => (
-            <button title={t(`sqlSteps.tab.${id}`)} key={id} role="tab" className="sqlsteps-tab" aria-selected={tab === id} onClick={() => { if (id === 'problems') setProblemFilter(undefined); setTab(id); }}>
+            <button title={t(`sqlSteps.tab.${id}`)} key={id} role="tab" className={`req-tab${tab === id ? ' active' : ''}`} aria-selected={tab === id} onClick={() => { if (id === 'problems') setProblemFilter(undefined); setTab(id); }}>
               {t(`sqlSteps.tab.${id}`)}
               {id === 'params' && params.length > 0 && <span className="sqlsteps-count">{params.length}</span>}
               {id === 'problems' && problems.length > 0 && <span className={`sqlsteps-count is-${worst}`}>{problems.length}</span>}
@@ -347,9 +347,7 @@ export function SqlSteps({ text, onJump, cursor, onClose, tab: tabProp, onTab, w
         </div>
         <span className="spacer" />
         {onClose && (
-          <button className="btn btn-ghost btn-sm btn-icon" onClick={onClose} title={t('sqlSteps.close')} aria-label={t('sqlSteps.close')}>
-            <Icon name="close" />
-          </button>
+          <IconButton icon="close" onClick={onClose} label={t('sqlSteps.close')} />
         )}
       </div>
       {tab === 'graph' ? (

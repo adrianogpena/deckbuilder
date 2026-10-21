@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { errorOf } from '@deckbuilderkit/ui';
+import { Button, IconButton, errorOf } from '@deckbuilderkit/ui';
 import { t } from '../../../i18n';
 import { formatCost, liveLimit, resetLabel, shownPercent } from '../../usage-format';
 import { useAgentsHost } from '../../workspace/host';
@@ -150,7 +150,7 @@ function UsagePanel({ visible }: PanelProps) {
       <span className="usage-name" title={scope}>{name}</span>
       <LimitInputs value={v} onChange={onChange} />
       <span>{formatCost(spentOf(scope, 'day'))} / {formatCost(spentOf(scope, 'month'))} {t('panel.usage.spent')}</span>
-      {onRemove && <button type="button" onClick={onRemove}>{t('panel.usage.remove')}</button>}
+      {onRemove && <Button variant="ghost" size="xs" onClick={onRemove}>{t('panel.usage.remove')}</Button>}
     </div>
   );
 
@@ -159,8 +159,8 @@ function UsagePanel({ visible }: PanelProps) {
       <div className="usage-bar">
         <h2>{t('panel.usage.title')}</h2>
         {error && <span className="error">{error}</span>}
-        <button type="button" aria-pressed={split} onClick={() => setSplit((v) => !v)}>{split ? t('panel.usage.combined') : t('panel.usage.split')}</button>
-        <button type="button" onClick={() => void refresh()}>{t('panel.usage.refresh')}</button>
+        <Button variant="ghost" size="sm" pressed={split} onClick={() => setSplit((v) => !v)}>{split ? t('panel.usage.combined') : t('panel.usage.split')}</Button>
+        <IconButton icon="refresh" label={t('panel.usage.refresh')} onClick={() => void refresh()} />
       </div>
       {!s ? (
         <div>{t('panel.usage.loading')}</div>
@@ -217,7 +217,7 @@ function UsagePanel({ visible }: PanelProps) {
                   <option key={p.id} value={p.path}>{nameOf(p.path)}</option>
                 ))}
               </select>
-              <button type="button" onClick={() => void save()}>{saved ? t('panel.usage.saved') : t('panel.usage.save')}</button>
+              <Button variant="primary" size="sm" icon="check" onClick={() => void save()}>{saved ? t('panel.usage.saved') : t('panel.usage.save')}</Button>
             </div>
           </section>
         </>

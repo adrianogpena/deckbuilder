@@ -4,6 +4,7 @@ import { dialogs } from '../dialogs';
 import { isAbsolutePath, isValidFileName, joinPath, matchesPatterns, splitPath, withFilterExtension } from '../file-dialog';
 import { t } from '../i18n';
 import { useRovingList } from '../roving-list';
+import { Button, IconButton } from './Button';
 import { type FileDialogEntry, FileDialogList } from './FileDialogList';
 import { Icon, Modal } from './ui';
 
@@ -249,14 +250,16 @@ export function FileDialog({ mode, title, filters, start, purpose, suggestedName
       onClose={() => onDone(null)}
       footer={
         <>
-          <button className="btn" onClick={() => onDone(null)}>{t('dialog.cancel')}</button>
-          <button className="btn btn-primary" disabled={busy || (mode !== 'folder' && name.trim() === '')} onClick={() => void submit()}>{t('dialog.ok')}</button>
+          <Button onClick={() => onDone(null)}>{t('dialog.cancel')}</Button>
+          <Button variant="primary" disabled={busy || (mode !== 'folder' && name.trim() === '')} onClick={() => void submit()}>
+            {t(mode === 'save' ? 'fileDialog.save' : mode === 'folder' ? 'fileDialog.choose' : 'fileDialog.open')}
+          </Button>
         </>
       }
     >
       <div ref={root} className="fd" onKeyDown={onRootKey}>
         <div className="fd-toolbar">
-          <button className="btn btn-ghost btn-sm btn-icon" disabled={!listing?.parent} onClick={up} title={t('fileDialog.up')} aria-label={t('fileDialog.up')}><Icon name="arrow-up" /></button>
+          <IconButton icon="arrow-up" label={t('fileDialog.up')} disabled={!listing?.parent} onClick={up} />
           {editing ? (
             <input
               className="fd-path-input"
@@ -279,11 +282,11 @@ export function FileDialog({ mode, title, filters, start, purpose, suggestedName
           ) : (
             <div ref={crumbs} className="fd-path" aria-label={t('fileDialog.path')} onClick={(e) => e.target === e.currentTarget && startEdit()}>
               {segments.map((s, i) => (
-                <button key={s.path} className={`fd-crumb${i === segments.length - 1 ? ' current' : ''}`} onClick={() => void go(s.path)}>{s.label}</button>
+                <button key={s.path} className={`breadcrumbs-seg fd-crumb${i === segments.length - 1 ? ' current' : ''}`} onClick={() => void go(s.path)}>{s.label}</button>
               ))}
             </div>
           )}
-          <button className="btn btn-ghost btn-sm btn-icon" disabled={!listing} onClick={() => void makeFolder()} title={t('fileDialog.newFolder')} aria-label={t('fileDialog.newFolder')}><Icon name="folder-plus" /></button>
+          <IconButton icon="folder-plus" label={t('fileDialog.newFolder')} disabled={!listing} onClick={() => void makeFolder()} />
         </div>
         <div className="fd-main">
           <div ref={side} className="fd-side">

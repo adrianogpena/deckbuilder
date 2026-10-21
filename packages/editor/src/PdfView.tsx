@@ -1,5 +1,5 @@
 /// <reference path="./pdf-url.d.ts" />
-import { ErrorBanner, errorOf, Icon, PanelLoading, t } from '@deckbuilderkit/ui';
+import { Button, ErrorBanner, errorOf, IconButton, PanelLoading, t } from '@deckbuilderkit/ui';
 import * as pdfjs from 'pdfjs-dist';
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import type { PDFDocumentProxy, RenderTask } from 'pdfjs-dist/types/src/display/api';
@@ -154,9 +154,7 @@ export function PdfView({ data }: { data: Uint8Array }) {
   return (
     <div className="file-preview">
       <div className="file-preview-bar pdf-bar">
-        <button className="btn btn-ghost btn-sm" disabled={page <= 1} onClick={() => goTo(page - 1)} title={t('pdf.prev')} aria-label={t('pdf.prev')}>
-          <span className="pdf-prev"><Icon name="chevron" /></span>
-        </button>
+        <IconButton icon="chevron" className="pdf-prev" disabled={page <= 1} onClick={() => goTo(page - 1)} label={t('pdf.prev')} />
         <input
           className="pdf-page-input"
           value={pageText}
@@ -169,18 +167,14 @@ export function PdfView({ data }: { data: Uint8Array }) {
           onFocus={(e) => e.target.select()}
         />
         <span className="pdf-page">{t('pdf.of', { count })}</span>
-        <button className="btn btn-ghost btn-sm" disabled={page >= count} onClick={() => goTo(page + 1)} title={t('pdf.next')} aria-label={t('pdf.next')}>
-          <Icon name="chevron" />
-        </button>
-        <button className="btn btn-ghost btn-sm" onClick={() => setZoom(clampZoom(scale / ZOOM_STEP))} title={t('pdf.zoomOut')} aria-label={t('pdf.zoomOut')}>−</button>
+        <IconButton icon="chevron" disabled={page >= count} onClick={() => goTo(page + 1)} label={t('pdf.next')} />
+        <Button variant="ghost" size="sm" className="btn-icon" onClick={() => setZoom(clampZoom(scale / ZOOM_STEP))} title={t('pdf.zoomOut')} aria-label={t('pdf.zoomOut')}>−</Button>
         <span className="svg-zoom">{Math.round(scale * 100)}%</span>
-        <button className="btn btn-ghost btn-sm btn-icon" onClick={() => setZoom(clampZoom(scale * ZOOM_STEP))} title={t('pdf.zoomIn')} aria-label={t('pdf.zoomIn')}>
-          <Icon name="plus" />
-        </button>
-        <button title={t('pdf.fit')} className="btn btn-ghost btn-sm" onClick={() => setZoom('fit')} aria-pressed={zoom === 'fit'}>{t('pdf.fit')}</button>
-        <button title={t('pdf.layers')} className="btn btn-ghost btn-sm" onClick={() => setShowLayers(!showLayers)} aria-pressed={showLayers}>
+        <IconButton icon="plus" onClick={() => setZoom(clampZoom(scale * ZOOM_STEP))} label={t('pdf.zoomIn')} />
+        <Button title={t('pdf.fit')} variant="ghost" size="sm" onClick={() => setZoom('fit')} pressed={zoom === 'fit'}>{t('pdf.fit')}</Button>
+        <Button title={t('pdf.layers')} variant="ghost" size="sm" onClick={() => setShowLayers(!showLayers)} pressed={showLayers}>
           {t('pdf.layers')}{layers.length > 0 && ` (${layers.length})`}
-        </button>
+        </Button>
       </div>
       <div className="pdf-main">
         <div className="file-preview-body pdf-body" ref={body} onScroll={onScroll}>

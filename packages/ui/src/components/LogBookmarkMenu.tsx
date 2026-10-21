@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { t } from '../i18n';
 import { firstLineAtOrAfter, isStale, type LogBookmark, type LogLine, MAX_LABEL_CHARS } from '../log';
+import { Button, IconButton } from './Button';
 import { Icon, useDialogs } from './ui';
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -62,9 +63,9 @@ export function LogBookmarkMenu({ bookmarks, onBookmarksChange, lines, endOffset
 
   return (
     <div className="menu-wrap" ref={wrap}>
-      <button title={t('log.bookmarks')} className="btn btn-sm" aria-expanded={open} onClick={() => setOpen(!open)}>
+      <Button size="sm" icon="bookmark" title={t('log.bookmarks')} aria-expanded={open} onClick={() => setOpen(!open)}>
         {t('log.bookmarks')} <span className="log-level-count">{bookmarks.length}</span> <Icon name="chevron-down" size={12} />
-      </button>
+      </Button>
       {open && (
         <div className="menu log-bookmarks" onKeyDown={(e) => e.key === 'Escape' && setOpen(false)}>
           {sorted.length === 0 && <div className="log-bm-empty">{t('log.noBookmarks')}</div>}
@@ -80,23 +81,21 @@ export function LogBookmarkMenu({ bookmarks, onBookmarksChange, lines, endOffset
                 </div>
                 {stale ? <div className="log-bm-hint">{t('log.stale')}</div> : b.preview && <div className="log-bm-preview">{b.preview}</div>}
                 <div className="log-bm-actions">
-                  <button title={t('log.goTo')} className="btn btn-ghost btn-sm" disabled={hidden} onClick={() => { setOpen(false); onGoTo(b); }}>
-                    <Icon name="forward" size={14} /> {t('log.goTo')}
-                  </button>
+                  <Button variant="ghost" size="xs" icon="forward" title={t('log.goTo')} disabled={hidden} onClick={() => { setOpen(false); onGoTo(b); }}>
+                    {t('log.goTo')}
+                  </Button>
                   {onCopyFrom && (
-                    <button title={t('log.copyToEnd')} className="btn btn-ghost btn-sm" disabled={stale} onClick={() => onCopyFrom(b)}>
-                      <Icon name="copy" size={14} /> {t('log.copyToEnd')}
-                    </button>
+                    <Button variant="ghost" size="xs" icon="copy" title={t('log.copyToEnd')} disabled={stale} onClick={() => onCopyFrom(b)}>
+                      {t('log.copyToEnd')}
+                    </Button>
                   )}
                   {onSaveFrom && (
-                    <button title={t('log.saveToEnd')} className="btn btn-ghost btn-sm" disabled={stale} onClick={() => onSaveFrom(b)}>
-                      <Icon name="download" size={14} /> {t('log.saveToEnd')}
-                    </button>
+                    <Button variant="ghost" size="xs" icon="download" title={t('log.saveToEnd')} disabled={stale} onClick={() => onSaveFrom(b)}>
+                      {t('log.saveToEnd')}
+                    </Button>
                   )}
                   <span className="spacer" />
-                  <button className="btn btn-ghost btn-sm log-icon-btn btn-icon" title={t('log.delete')} aria-label={t('log.delete')} onClick={() => onBookmarksChange(bookmarks.filter((x) => !same(b)(x)))}>
-                    <Icon name="trash" size={14} />
-                  </button>
+                  <IconButton size="xs" icon="trash" label={t('log.delete')} onClick={() => onBookmarksChange(bookmarks.filter((x) => !same(b)(x)))} />
                 </div>
               </div>
             );

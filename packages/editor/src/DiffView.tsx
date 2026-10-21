@@ -2,6 +2,7 @@ import { getOriginalDoc, goToNextChunk, goToPreviousChunk, MergeView, originalDo
 import { searchKeymap } from '@codemirror/search';
 import { ChangeSet, Compartment, EditorState, type Extension } from '@codemirror/state';
 import { drawSelection, EditorView, keymap, lineNumbers } from '@codemirror/view';
+import { Button } from '@deckbuilderkit/ui';
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { type Lang, languageFor } from './languages';
 import { themeExtension } from './theme';
@@ -127,9 +128,9 @@ export const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffV
       {onModeChange && (
         <div className="diff-view-bar" role="group">
           {(['split', 'inline'] as const).map((m) => (
-            <button title={modeLabels[m]} key={m} type="button" className={m === mode ? 'active' : undefined} aria-pressed={m === mode} onClick={() => onModeChange(m)}>
+            <Button title={modeLabels[m]} key={m} variant="ghost" size="sm" pressed={m === mode} onClick={() => onModeChange(m)}>
               {modeLabels[m]}
-            </button>
+            </Button>
           ))}
         </div>
       )}

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { t } from '../i18n';
 import { chordOf, conflictsOf, effectiveKeys, GLOBAL, MAX_STEPS, relatedChords, stepsOf, type CommandDef, type Keymap } from '../keybindings';
-import { Icon, useDialogs } from './ui';
+import { Button, IconButton } from './Button';
+import { useDialogs } from './ui';
 
 const MAX_CHORDS = 4;
 /** Keys pressed within this many ms of each other make one multi-step shortcut. */
@@ -94,8 +95,7 @@ export function KeybindingsEditor({ defs, keymap, onChange, scopeLabel }: Keybin
     <div className="keys">
       <div className="keys-bar">
         <input value={filter} placeholder={t('keys.filter')} aria-label={t('keys.filter')} onChange={(e) => setFilter(e.target.value)} />
-        <button title={finding ? t('keys.finding') : t('keys.find')}
-          className={`btn btn-sm${finding ? ' btn-primary' : ''}`}
+        <Button size="sm" icon="search" pressed={finding} title={finding ? t('keys.finding') : t('keys.find')}
           data-keys-search
           onClick={() => {
             setFound(null);
@@ -105,20 +105,18 @@ export function KeybindingsEditor({ defs, keymap, onChange, scopeLabel }: Keybin
             setFinding(!finding);
           }}
         >
-          <Icon name="search" /> {finding ? t('keys.finding') : t('keys.find')}
-        </button>
+          {finding ? t('keys.finding') : t('keys.find')}
+        </Button>
         {found && (
           <span className="chip chip-on keys-found">
             <kbd>{found}</kbd>
-            <button className="keys-x" onClick={() => setFound(null)} title={t('output.clear')} aria-label={t('output.clear')}>
-              <Icon name="close" size={12} />
-            </button>
+            <IconButton size="xs" icon="close" label={t('output.clear')} onClick={() => setFound(null)} />
           </span>
         )}
         <span className="spacer" />
-        <button title={t('keys.resetAll')} className="btn btn-sm" disabled={Object.keys(keymap).length === 0} onClick={resetAll}>
-          <Icon name="refresh" /> {t('keys.resetAll')}
-        </button>
+        <Button size="sm" icon="refresh" title={t('keys.resetAll')} disabled={Object.keys(keymap).length === 0} onClick={resetAll}>
+          {t('keys.resetAll')}
+        </Button>
       </div>
       <span className="muted small">{t('keys.browserNote')}</span>
       {found && visible.length === 0 && <span className="muted">{t('keys.noUse', { chord: found })}</span>}
@@ -150,36 +148,31 @@ export function KeybindingsEditor({ defs, keymap, onChange, scopeLabel }: Keybin
                         <button className="keys-chord-key" onClick={() => setEdit({ id: def.id, index: i })} title={t('keys.edit')}>
                           <kbd>{chord}</kbd>
                         </button>
-                        <button
-                          className="keys-x"
+                        <IconButton
+                          size="xs"
+                          icon="close"
+                          label={`${t('keys.remove')}: ${chord}`}
+                          title={t('keys.remove')}
                           onClick={() => {
                             setEdit(null);
                             setKeys(def, chords.filter((_, j) => j !== i));
                           }}
-                          title={t('keys.remove')}
-                          aria-label={`${t('keys.remove')}: ${chord}`}
-                        >
-                          <Icon name="close" size={12} />
-                        </button>
+                        />
                       </span>
                     ))}
                     {chords.length < MAX_CHORDS && (
-                      <button className="btn btn-ghost btn-sm btn-icon" onClick={() => setEdit({ id: def.id, index: -1 })} title={t('keys.add')} aria-label={t('keys.add')}>
-                        <Icon name="plus" />
-                      </button>
+                      <IconButton size="xs" icon="plus" label={t('keys.add')} onClick={() => setEdit({ id: def.id, index: -1 })} />
                     )}
                     {Object.hasOwn(keymap, def.id) && (
-                      <button
-                        className="btn btn-ghost btn-sm btn-icon"
+                      <IconButton
+                        size="xs"
+                        icon="refresh"
+                        label={t('keys.reset')}
                         onClick={() => {
                           setEdit(null);
                           setKeys(def, [...def.keys]);
                         }}
-                        title={t('keys.reset')}
-                        aria-label={t('keys.reset')}
-                      >
-                        <Icon name="refresh" />
-                      </button>
+                      />
                     )}
                   </div>
                   {editing && (
@@ -267,10 +260,10 @@ function ChordRecorder({ def, defs, keymap, chords, index, scopeLabel, labelOf, 
       <span className="keys-press">{candidate ? <kbd>{candidate}</kbd> : <span className="muted">{t('keys.press')}</span>}</span>
       {problems.map((p) => <span key={p} className="tone-err small">{p}</span>)}
       <span className="spacer" />
-      <button title={t('dialog.cancel')} className="btn btn-sm" onClick={onCancel}>{t('dialog.cancel')}</button>
-      <button title={t('resource.save')} className="btn btn-sm btn-primary" disabled={!candidate || problems.length > 0} onClick={() => candidate && onSave(withCandidate(candidate))}>
+      <Button size="sm" title={t('dialog.cancel')} onClick={onCancel}>{t('dialog.cancel')}</Button>
+      <Button variant="primary" size="sm" title={t('resource.save')} disabled={!candidate || problems.length > 0} onClick={() => candidate && onSave(withCandidate(candidate))}>
         {t('resource.save')}
-      </button>
+      </Button>
     </div>
   );
 }

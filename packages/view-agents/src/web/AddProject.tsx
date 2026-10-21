@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { dialogs, ErrorBanner, errorOf, Modal, Spinner, useAsync, useRovingList } from '@deckbuilderkit/ui';
+import { Button, dialogs, ErrorBanner, errorOf, Modal, Spinner, useAsync, useRovingList } from '@deckbuilderkit/ui';
 import { t } from '../i18n';
 import { addAgentProject, type AgentProject, listProjectSuggestions } from './api';
 
@@ -46,8 +46,8 @@ export function AddProject({ added, onAdded, onClose }: { added: AgentProject[];
       onClose={onClose}
       footer={
         <>
-          <button type="button" title={t('agents.new.cancel')} onClick={onClose}>{t('agents.new.cancel')}</button>
-          <button type="button" title={t('agents.add.confirm')} disabled={!path} onClick={() => void add({ name: name.trim() || undefined, path })}>{t('agents.add.confirm')}</button>
+          <Button title={t('agents.new.cancel')} onClick={onClose}>{t('agents.new.cancel')}</Button>
+          <Button variant="primary" title={t('agents.add.confirm')} disabled={!path} onClick={() => void add({ name: name.trim() || undefined, path })}>{t('agents.add.confirm')}</Button>
         </>
       }
     >
@@ -72,7 +72,7 @@ export function AddProject({ added, onAdded, onClose }: { added: AgentProject[];
         <h4>{t('agents.add.folder')}</h4>
         <div className="agents-add-folder">
           <input readOnly value={path} placeholder={t('agents.add.noFolder')} aria-label={t('agents.add.folder')} />
-          <button type="button" title={t('agents.add.browse')} onClick={() => void browse()}>{t('agents.add.browse')}</button>
+          <Button size="sm" icon="folder" title={t('agents.add.browse')} onClick={() => void browse()}>{t('agents.add.browse')}</Button>
         </div>
         <label>
           {t('agents.add.name')}

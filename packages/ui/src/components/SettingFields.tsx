@@ -1,5 +1,6 @@
 import { createContext, Fragment, type ReactNode, type RefObject, useContext, useEffect, useRef, useState } from 'react';
 import { tryT } from '../i18n';
+import { IconButton } from './Button';
 import { isModified, resetPatch, type SettingDef } from '../settings-schema';
 
 const tr = (key: string): string => tryT(key) ?? key;
@@ -209,7 +210,7 @@ export function SettingItem({ id, modified, onReset, children }: { id: string; m
     <div className={`setting-item${modified ? ' modified' : ''}${error ? ' invalid' : ''}`} data-setting={id}>
       {modified && <span className="setting-modified" title={tryT('settings.row.modified') ?? 'Modified'} />}
       {children}
-      {modified && onReset && <button type="button" className="setting-reset" title={resetLabel} aria-label={resetLabel} onClick={onReset}>↺</button>}
+      {modified && onReset && <IconButton icon="rotate-ccw" size="xs" className="setting-reset" label={resetLabel} onClick={onReset} />}
       {error && <span className="setting-error" role="alert">{error}</span>}
     </div>
   );

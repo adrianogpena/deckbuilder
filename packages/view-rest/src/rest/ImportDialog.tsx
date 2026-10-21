@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { type ImportedRequest, parseImport, warningText } from '@deckbuilderkit/editor';
-import { type ApiError, dialogs, ErrorBanner, errorOf, Modal } from '@deckbuilderkit/ui';
+import { type ApiError, Button, dialogs, ErrorBanner, errorOf, Modal } from '@deckbuilderkit/ui';
 import { restApi as api } from '../client';
 import { t } from '../i18n';
 
@@ -82,18 +82,18 @@ export function ImportDialog({ onLoad, onSaveMany, onClose }: Props) {
   const loadedOne = parsed !== undefined && parsed.length === 1;
   const footer = several ? (
     <>
-      <button className="btn" onClick={onClose} title={t('dialog.cancel')}>{t('dialog.cancel')}</button>
-      <button className="btn btn-primary" disabled={busy || !checked.some(Boolean)} onClick={saveSelected} title={t('rest.import.saveSelected')}>
+      <Button onClick={onClose} title={t('dialog.cancel')}>{t('dialog.cancel')}</Button>
+      <Button variant="primary" icon="check" disabled={busy || !checked.some(Boolean)} onClick={saveSelected} title={t('rest.import.saveSelected')}>
         {t('rest.import.saveSelected')}
-      </button>
+      </Button>
     </>
   ) : loadedOne ? (
-    <button className="btn btn-primary" onClick={onClose} title={t('rest.import.close')}>{t('rest.import.close')}</button>
+    <Button variant="primary" onClick={onClose} title={t('rest.import.close')}>{t('rest.import.close')}</Button>
   ) : (
     <>
-      <button className="btn" onClick={onClose} title={t('dialog.cancel')}>{t('dialog.cancel')}</button>
-      <button className="btn" onClick={openFile} title={t('rest.import.openFile')}>{t('rest.import.openFile')}</button>
-      <button className="btn btn-primary" disabled={text.trim() === ''} onClick={() => parse(text)} title={t('rest.import.parse')}>{t('rest.import.parse')}</button>
+      <Button onClick={onClose} title={t('dialog.cancel')}>{t('dialog.cancel')}</Button>
+      <Button icon="folder" onClick={openFile} title={t('rest.import.openFile')}>{t('rest.import.openFile')}</Button>
+      <Button variant="primary" disabled={text.trim() === ''} onClick={() => parse(text)} title={t('rest.import.parse')}>{t('rest.import.parse')}</Button>
     </>
   );
   const warnings = parsed?.flatMap((r) => r.warnings.map((w) => (several ? `${requestLabel(r)}: ${warningText(w)}` : warningText(w)))) ?? [];

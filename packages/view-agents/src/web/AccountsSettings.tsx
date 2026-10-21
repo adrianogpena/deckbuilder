@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { errorOf, SettingItem, useDialogs, useToast } from '@deckbuilderkit/ui';
+import { Button, errorOf, SettingItem, useDialogs, useToast } from '@deckbuilderkit/ui';
 import { t, type AgentsMessageKey } from '../i18n';
 import { ACCOUNT_STATUS_ICONS, ACCOUNT_STATUS_KEYS, ACCOUNT_USAGE_BOOL_KEYS, type AccountPrefs, type AccountStatusKey, type AccountUsagePrefs } from '../protocol.ts';
 import { statusIconFor, withAccountPrefs, defaultStatusIcon } from './account-prefs';
@@ -49,10 +49,10 @@ function IconPicker({ status, value, onPick }: { status: AccountStatusKey; value
   const nameOf = (id: string) => msg(`settings.agents.accounts.icon.id.${id}`);
   return (
     <span className="agents-icon-picker" ref={ref}>
-      <button type="button" className="agents-icon-btn" aria-haspopup="listbox" aria-expanded={open} title={t('settings.agents.accounts.icon.choose', { status: statusLabel })} onClick={() => setOpen((o) => !o)}>
+      <Button size="sm" aria-haspopup="listbox" aria-expanded={open} title={t('settings.agents.accounts.icon.choose', { status: statusLabel })} onClick={() => setOpen((o) => !o)}>
         <StatusIcon status={status} icon={value} />
         <span>{nameOf(value)}</span>
-      </button>
+      </Button>
       {open && (
         <div className="agents-icon-pop" role="listbox" aria-label={t('settings.agents.accounts.icon.choose', { status: statusLabel })}>
           {ACCOUNT_STATUS_ICONS[status].map((id) => {
@@ -169,9 +169,9 @@ export function AccountsSettings({ activeAccount = '' }: { activeAccount?: strin
               {accounts?.map((a) => <option key={a.id} value={a.id}>{label(a)}</option>)}
             </select>
           )}
-          <button type="button" className="agents-statusline-btn" title={t('settings.agents.accounts.add')} onClick={() => setAdding(true)}>{t('settings.agents.accounts.add')}</button>
+          <Button size="sm" icon="plus" className="agents-statusline-btn" title={t('settings.agents.accounts.add')} onClick={() => setAdding(true)}>{t('settings.agents.accounts.add')}</Button>
           {current && !current.isDefault && (
-            <button type="button" className="agents-statusline-btn" disabled={busy} title={t('settings.agents.accounts.remove')} onClick={() => void remove(current.id)}>{t('settings.agents.accounts.remove')}</button>
+            <Button size="sm" variant="danger" icon="trash" className="agents-statusline-btn" disabled={busy} title={t('settings.agents.accounts.remove')} onClick={() => void remove(current.id)}>{t('settings.agents.accounts.remove')}</Button>
           )}
         </div>
         <span className="muted">{t('settings.agents.accounts.hint')}</span>

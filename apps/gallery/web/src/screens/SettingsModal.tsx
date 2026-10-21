@@ -1,5 +1,5 @@
 import { type CSSProperties, Fragment, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { AppearanceFields, DockField, IconsField, LayoutIconField, LayoutField, MainMenuField, SettingLinksProvider, SettingErrorsContext, type SettingLinks, SettingRow, useRevealSetting, useRovingList, SETTING_ROW_CONTROLS,ZoomField, type ApiError, detectLanguage, type FileAssociation, validFileAssociations, deepEqual, dialogs, ErrorBanner, errorMessage, errorOf, GLOBAL, isDesktop, KeybindingsEditor, LANGUAGES, isModified, Modal, parseSettingsQuery, settingDescriptionText, toggleModifiedFilter, Spinner, useAsync, useKeybindings, tryT, type Language, type SettingDef, type SettingsSectionNode, sectionKey } from '@deckbuilderkit/ui';
+import { Button, IconButton, AppearanceFields, DockField, IconsField, LayoutIconField, LayoutField, MainMenuField, SettingLinksProvider, SettingErrorsContext, type SettingLinks, SettingRow, useRevealSetting, useRovingList, SETTING_ROW_CONTROLS,ZoomField, type ApiError, detectLanguage, type FileAssociation, validFileAssociations, deepEqual, dialogs, ErrorBanner, errorMessage, errorOf, GLOBAL, isDesktop, KeybindingsEditor, LANGUAGES, isModified, Modal, parseSettingsQuery, settingDescriptionText, toggleModifiedFilter, Spinner, useAsync, useKeybindings, tryT, type Language, type SettingDef, type SettingsSectionNode, sectionKey } from '@deckbuilderkit/ui';
 import { APP } from '../../../app';
 import { views } from '../views';
 import { api, type BackupInfo, type EditorInfo, type ImportResult, type Settings } from '../api';
@@ -342,8 +342,8 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
           {searching && <span className="settings-count">{t(total === 1 ? 'settings.search.count.one' : 'settings.search.count', { n: total })}</span>}
         <span className="settings-head-spacer" />
         {fileError && <span className="tone-err small">{fileError}</span>}
-        <button type="button" className="btn btn-sm" title={t('settings.openFile')} onClick={() => { setFileError(null); api.openSettingsFile().catch((err) => setFileError(errorMessage(errorOf(err)))); }}>{t('settings.openFile')}</button>
-        <button type="button" className="btn btn-ghost btn-sm btn-icon" title={t('settings.close')} aria-label={t('settings.close')} onClick={onClose}>✕</button>
+        <Button size="sm" icon="file" title={t('settings.openFile')} onClick={() => { setFileError(null); api.openSettingsFile().catch((err) => setFileError(errorMessage(errorOf(err)))); }}>{t('settings.openFile')}</Button>
+        <IconButton icon="close" label={t('settings.close')} onClick={onClose} />
       </header>
       {problemSettings.length > 0 && (
         <div className="settings-problems" style={{ padding: '8px 16px' }}>
@@ -420,7 +420,7 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
           {searching && hits.size === 0 && (
             <div className="settings-empty">
               <span className="muted">{t('settings.search.none')}</span>
-              <button title={t('settings.search.clear')} className="btn btn-sm" onClick={() => setQuery('')}>{t('settings.search.clear')}</button>
+              <Button size="sm" variant="ghost" icon="close" title={t('settings.search.clear')} onClick={() => setQuery('')}>{t('settings.search.clear')}</Button>
             </div>
           )}
         </div>
@@ -539,9 +539,9 @@ function GeneralCard({ onQuit }: { onQuit: () => void }) {
       <div className="card form">
         <div className="field">
           <div className="row">
-            <button title={t('settings.quit')} className="btn btn-sm btn-danger" disabled={busy} onClick={quit}>
+            <Button size="sm" variant="danger" icon="square" title={t('settings.quit')} disabled={busy} onClick={quit}>
               {t('settings.quit')}
-            </button>
+            </Button>
           </div>
           <span className="muted">{t(isDesktop ? 'settings.quit.hintTray' : 'settings.quit.hint', { name: APP.name })}</span>
         </div>
@@ -580,11 +580,11 @@ function FileTypesCard({ value, onChange }: { value: FileAssociation[]; onChange
               {!ASSOCIATION_TARGETS.includes(row.as as never) && <option value={row.as}>{targetLabel(row.as)}</option>}
               {ASSOCIATION_TARGETS.map((as) => <option key={as} value={as}>{targetLabel(as)}</option>)}
             </select>
-            <button title={t('settings.files.remove')} className="btn btn-sm" onClick={() => update(rows.filter((_, j) => j !== i))}>{t('settings.files.remove')}</button>
+            <Button size="xs" variant="ghost" icon="trash" title={t('settings.files.remove')} onClick={() => update(rows.filter((_, j) => j !== i))}>{t('settings.files.remove')}</Button>
           </div>
         ))}
         <div className="row">
-          <button title={t('settings.files.add')} className="btn btn-sm" onClick={() => setRows([...rows, { pattern: '', as: 'log' }])}>{t('settings.files.add')}</button>
+          <Button size="sm" icon="plus" title={t('settings.files.add')} onClick={() => setRows([...rows, { pattern: '', as: 'log' }])}>{t('settings.files.add')}</Button>
         </div>
       </div>
     </section>
@@ -621,7 +621,7 @@ function EditorsCard() {
               <Fragment key={editor.id}>
                 <span className="mono-label">{editor.name}</span>
                 <span className="mono editor-path">{editor.path ?? t('settings.editors.notFound')}</span>
-                <button title={t('settings.editors.choose')} className="btn btn-sm" disabled={busy} onClick={() => run(async () => {
+                <Button size="sm" title={t('settings.editors.choose')} disabled={busy} onClick={() => run(async () => {
                   const path = await dialogs.pickFile({
                     title: `${t('settings.editors.choose')} (${editor.name})`,
                     purpose: 'editor',
@@ -630,11 +630,11 @@ function EditorsCard() {
                   return path === null ? editors : api.pickEditor(editor.id, path);
                 })}>
                   {t('settings.editors.choose')}
-                </button>
+                </Button>
                 {editor.custom ? (
-                  <button title={t('settings.editors.reset')} className="btn btn-sm" disabled={busy} onClick={() => run(() => api.resetEditor(editor.id))}>
+                  <Button size="sm" variant="ghost" icon="rotate-ccw" title={t('settings.editors.reset')} disabled={busy} onClick={() => run(() => api.resetEditor(editor.id))}>
                     {t('settings.editors.reset')}
-                  </button>
+                  </Button>
                 ) : (
                   <span />
                 )}
@@ -688,8 +688,7 @@ function UpdatesCard({ folder, onFolder }: { folder: string; onFolder: (folder: 
           <label className="mono-label" htmlFor="update-folder">{t('settings.updateFolder')}</label>
           <div className="row">
             <input id="update-folder" value={folder} placeholder={t('settings.updateFolder.none')} readOnly />
-            <button title={t('settings.updateFolder.browse')}
-              className="btn btn-sm"
+            <Button size="sm" icon="folder" title={t('settings.updateFolder.browse')}
               disabled={busy}
               onClick={() => run(async () => {
                 const path = await dialogs.pickFolder({ title: t('settings.updateFolder.pick'), purpose: 'updateFolder', start: folder || undefined });
@@ -699,11 +698,11 @@ function UpdatesCard({ folder, onFolder }: { folder: string; onFolder: (folder: 
               })}
             >
               {t('settings.updateFolder.browse')}
-            </button>
+            </Button>
             {folder && (
-              <button title={t('settings.updateFolder.clear')} className="btn btn-sm" disabled={busy} onClick={() => onFolder('')}>
+              <Button size="sm" variant="ghost" title={t('settings.updateFolder.clear')} disabled={busy} onClick={() => onFolder('')}>
                 {t('settings.updateFolder.clear')}
-              </button>
+              </Button>
             )}
           </div>
           <span className="muted">{t('settings.updateFolder.hint')}</span>
@@ -719,17 +718,16 @@ function UpdatesCard({ folder, onFolder }: { folder: string; onFolder: (folder: 
             {u.available && u.notes && <pre className="mono muted">{u.notes}</pre>}
             {u.available && !u.canApply && <span className="muted">{t('settings.update.fromSource')}</span>}
             <div className="row">
-              <button title={t('settings.update.check')} className="btn btn-sm" disabled={busy || !u.source} onClick={() => run(() => api.checkUpdate().then(() => state.reload()))}>
+              <Button size="sm" icon="refresh" title={t('settings.update.check')} disabled={busy || !u.source} onClick={() => run(() => api.checkUpdate().then(() => state.reload()))}>
                 {t('settings.update.check')}
-              </button>
+              </Button>
               {u.available && u.canApply && (
-                <button title={t('settings.update.apply')}
-                  className="btn btn-sm btn-primary"
+                <Button size="sm" variant="primary" icon="download" title={t('settings.update.apply')}
                   disabled={busy || restarting !== null}
                   onClick={() => run(async () => setRestarting((await api.applyUpdate()).version))}
                 >
                   {t('settings.update.apply')}
-                </button>
+                </Button>
               )}
             </div>
           </div>
@@ -797,8 +795,7 @@ function BackupCard({ onSettings }: { onSettings: (settings: Settings) => void }
             </div>
             <span className="muted">{t('settings.backup.hint')}</span>
             <div className="row">
-              <button title={t('settings.backup.export')}
-                className="btn btn-sm"
+              <Button size="sm" icon="download" title={t('settings.backup.export')}
                 disabled={busy || (!settings && chosen.length === 0)}
                 onClick={() => run(async () => {
                   const d = new Date();
@@ -813,9 +810,8 @@ function BackupCard({ onSettings }: { onSettings: (settings: Settings) => void }
                 })}
               >
                 {t('settings.backup.export')}
-              </button>
-              <button title={t('settings.backup.import')}
-                className="btn btn-sm"
+              </Button>
+              <Button size="sm" icon="download" title={t('settings.backup.import')}
                 disabled={busy}
                 onClick={() => run(async () => {
                   const path = await dialogs.pickFile({ title: t('settings.backup.import'), purpose: 'backup', filters: [{ name: 'JSON', patterns: ['*.json'] }] });
@@ -825,7 +821,7 @@ function BackupCard({ onSettings }: { onSettings: (settings: Settings) => void }
                 })}
               >
                 {t('settings.backup.import')}
-              </button>
+              </Button>
             </div>
             {saved && <span className="muted">{t('settings.backup.saved', { path: saved })}</span>}
           </div>
@@ -860,13 +856,13 @@ function ImportDialog({ info, onSettings, onClose }: { info: Inspected; onSettin
   };
 
   const footer = result ? (
-    <button title={t('settings.backup.close')} className="btn btn-primary" onClick={onClose}>{t('settings.backup.close')}</button>
+    <Button variant="primary" title={t('settings.backup.close')} onClick={onClose}>{t('settings.backup.close')}</Button>
   ) : (
     <>
-      <button title={t('dialog.cancel')} className="btn" onClick={onClose}>{t('dialog.cancel')}</button>
-      <button title={t('settings.backup.importNow')} className="btn btn-primary" disabled={busy || (!settings && stores.length === 0)} onClick={start}>
+      <Button title={t('dialog.cancel')} onClick={onClose}>{t('dialog.cancel')}</Button>
+      <Button variant="primary" title={t('settings.backup.importNow')} disabled={busy || (!settings && stores.length === 0)} onClick={start}>
         {t('settings.backup.importNow')}
-      </button>
+      </Button>
     </>
   );
   const date = info.exportedAt ? new Date(info.exportedAt).toLocaleString() : '?';

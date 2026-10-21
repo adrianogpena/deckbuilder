@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import type { DiffMode, DiffViewHandle } from '@deckbuilderkit/editor';
 import type { GitFile, GitRepoInfo, GitStatus } from '@deckbuilderkit/server-core/protocol';
-import { type ApiError, copyText, useShortcutTip, Empty, ErrorBanner, errorMessage, errorOf, Explorer, fileIconOf, Icon, ProjectPicker, statusOf, useCommand, useDebouncedSave, useRovingList, useToast, useViewLink } from '@deckbuilderkit/ui';
+import { type ApiError, copyText, useShortcutTip, Empty, ErrorBanner, errorMessage, errorOf, Explorer, fileIconOf, Icon, IconButton, ProjectPicker, statusOf, useCommand, useDebouncedSave, useRovingList, useToast, useViewLink } from '@deckbuilderkit/ui';
 import { type GitProject as Project, gitApi as api } from './client';
 import { gitCommands } from './commands';
 import { t } from './i18n';
@@ -308,9 +308,7 @@ export function GitScreen({ settings, onSave }: { settings: GitViewSettings; onS
 
   const tree = view.view === 'tree';
   const iconButton = (icon: 'refresh' | 'list-flat' | 'list-tree' | 'collapse-all' | 'expand-all', label: string, act: () => void, disabled = false, commandId?: string) => (
-    <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={act} disabled={disabled} title={tip(label, commandId)} aria-label={label}>
-      <Icon name={icon} />
-    </button>
+    <IconButton icon={icon} onClick={act} disabled={disabled} title={tip(label, commandId)} label={label} />
   );
   const actions = (
     <>
@@ -320,9 +318,7 @@ export function GitScreen({ settings, onSave }: { settings: GitViewSettings; onS
         : iconButton('list-tree', t('git.viewTree'), () => update((v) => ({ ...v, view: 'tree' })))}
       {tree && iconButton(anyOpen ? 'collapse-all' : 'expand-all', t(anyOpen ? 'git.collapseAll' : 'git.expandAll'), toggleAll)}
       <div className="menu-wrap" ref={moreWrap} onKeyDown={(e) => e.key === 'Escape' && setMoreOpen(false)}>
-        <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={() => setMoreOpen(!moreOpen)} aria-expanded={moreOpen} aria-haspopup="menu" title={t('git.more')} aria-label={t('git.more')}>
-          <Icon name="more" />
-        </button>
+        <IconButton icon="more" onClick={() => setMoreOpen(!moreOpen)} aria-expanded={moreOpen} aria-haspopup="menu" label={t('git.more')} />
         {moreOpen && moreBox && (
           <div className="menu" role="menu" style={{ position: 'fixed', overflowY: 'auto', ...moreBox }}>
             {item('copy', t('git.copyPatch'), () => void copyPatch(), !selected)}

@@ -1,3 +1,4 @@
+import { Button } from '@deckbuilderkit/ui';
 import { t } from '../i18n';
 
 /** One batch action button; later batches (archive, delete) append entries. */
@@ -21,9 +22,9 @@ export function BatchBar({ count, actions, onClear }: BatchBarProps) {
       <span className="agents-batch-count">{t('agents.note.selected', { count: String(count) })}</span>
       <span className="agents-batch-actions">
         {actions.map((a) => (
-          <button key={a.id} type="button" title={a.label} className={`btn btn-sm${a.danger ? ' danger' : ''}`} onClick={a.run}>{a.label}</button>
+          <Button key={a.id} size="sm" variant={a.danger ? 'danger' : 'default'} title={a.label} onClick={a.run}>{a.label}</Button>
         ))}
-        <button type="button" title={t('agents.batch.clear')} className="btn btn-sm" onClick={onClear}>{t('agents.batch.clear')}</button>
+        <Button size="sm" variant="ghost" icon="close" title={t('agents.batch.clear')} onClick={onClear}>{t('agents.batch.clear')}</Button>
       </span>
     </div>
   );

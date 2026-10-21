@@ -1,4 +1,4 @@
-import { Icon } from '@deckbuilderkit/ui';
+import { Button, Icon } from '@deckbuilderkit/ui';
 import { t } from '../../i18n';
 
 /** The center of a project with no session selected: start a Claude session. */
@@ -9,7 +9,7 @@ export function EmptyCard({ onNewSession }: { onNewSession(): void }) {
       <h2 className="agents-dock-card-title">{t('workspace.empty.title')}</h2>
       <p className="agents-dock-card-desc">{t('workspace.empty.desc')}</p>
       <div className="agents-dock-card-actions">
-        <button type="button" className="agents-empty-btn" title={t('workspace.empty.newSession')} onClick={onNewSession}>{t('workspace.empty.newSession')}</button>
+        <Button variant="primary" icon="plus" onClick={onNewSession}>{t('workspace.empty.newSession')}</Button>
       </div>
     </div>
   );

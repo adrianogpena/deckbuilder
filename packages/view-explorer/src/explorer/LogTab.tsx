@@ -9,6 +9,7 @@ import {
   dialogs,
   LogView,
   MAX_LOG_KEY_CHARS,
+  Button,
   PanelBanner,
   PanelLoading,
   type TabAction,
@@ -113,7 +114,7 @@ export function LogTab({ project, path, focused, logs, onLogsChange, onActions }
     <div className="xp-file">
       {note && <div className="xp-bar muted">{note}</div>}
       {tail.rotated && (
-        <PanelBanner tone="warn" icon="alert" action={<button className="btn btn-sm" onClick={tail.dismissRotated} title={t('explorer.logDismiss')}>{t('explorer.logDismiss')}</button>}>
+        <PanelBanner tone="warn" icon="alert" action={<Button size="sm" onClick={tail.dismissRotated} title={t('explorer.logDismiss')}>{t('explorer.logDismiss')}</Button>}>
           {t('explorer.logRotated')}
         </PanelBanner>
       )}

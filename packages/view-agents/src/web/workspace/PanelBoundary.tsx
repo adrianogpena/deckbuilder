@@ -1,5 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
-import { Icon } from '@deckbuilderkit/ui';
+import { Button, Icon } from '@deckbuilderkit/ui';
 import { t } from '../../i18n';
 
 interface State {
@@ -27,7 +27,7 @@ export class PanelBoundary extends Component<{ children: ReactNode }, State> {
         <h2 className="agents-dock-card-title">{t('workspace.crashed')}</h2>
         <p className="agents-dock-card-desc">{error.message}</p>
         <div className="agents-dock-card-actions">
-          <button type="button" className="agents-empty-btn" title={t('workspace.reload')} onClick={() => this.setState({ error: undefined })}>{t('workspace.reload')}</button>
+          <Button variant="primary" icon="rotate-ccw" onClick={() => this.setState({ error: undefined })}>{t('workspace.reload')}</Button>
         </div>
       </div>
     );

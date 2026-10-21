@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { langOfFile } from '@deckbuilderkit/editor';
-import { type ApiError, ErrorBanner, errorOf, PanelLoading } from '@deckbuilderkit/ui';
+import { type ApiError, Button, ErrorBanner, errorOf, PanelLoading } from '@deckbuilderkit/ui';
 import { t } from '../../../i18n';
 import type { PanelModule, PanelProps } from '../../workspace/types';
 import { fs, relativeTo } from './fs';
@@ -93,22 +93,22 @@ function CodePanel({ project, params, visible }: PanelProps) {
           {path}
           {dirty ? ' •' : ''}
         </span>
-        <button type="button" className="agents-empty-btn" disabled={!dirty} onClick={() => void save()}>
+        <Button variant="primary" size="sm" icon="check" disabled={!dirty} onClick={() => void save()}>
           {t('panel.code.save')}
-        </button>
-        <button type="button" className="agents-empty-btn" onClick={() => void external()}>
+        </Button>
+        <Button size="sm" onClick={() => void external()}>
           {t('panel.code.external')}
-        </button>
+        </Button>
       </div>
       {stale && (
         <div className="agents-code-changed" role="alert">
           <span>{t('panel.code.changed')}</span>
-          <button type="button" className="agents-empty-btn" onClick={() => void load()}>
+          <Button variant="primary" size="xs" icon="rotate-ccw" onClick={() => void load()}>
             {t('panel.code.reload')}
-          </button>
-          <button type="button" className="agents-empty-btn" onClick={() => setStale(false)}>
+          </Button>
+          <Button size="xs" onClick={() => setStale(false)}>
             {t('panel.code.keep')}
-          </button>
+          </Button>
         </div>
       )}
       {error && <ErrorBanner error={error} />}

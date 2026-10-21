@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { JsonTree } from '@deckbuilderkit/ui';
+import { Button, JsonTree } from '@deckbuilderkit/ui';
 import { t } from '../../../i18n';
 import type { PanelModule } from '../../workspace/types';
 import { format, minify, validate } from './json-tools';
@@ -22,25 +22,24 @@ function JsonPanel() {
   return (
     <div className="agents-panel-json">
       <div className="agents-json-bar">
-        <button type="button" className="agents-empty-btn" onClick={() => apply(format)}>
+        <Button size="sm" onClick={() => apply(format)}>
           {t('panel.json.format')}
-        </button>
-        <button type="button" className="agents-empty-btn" onClick={() => apply(minify)}>
+        </Button>
+        <Button size="sm" onClick={() => apply(minify)}>
           {t('panel.json.minify')}
-        </button>
-        <button
-          type="button"
-          className="agents-empty-btn"
+        </Button>
+        <Button
+          size="sm"
           onClick={() => {
             const r = validate(text);
             setStatus(r.ok ? { kind: 'valid' } : { kind: 'error', message: r.message, line: r.line, col: r.col });
           }}
         >
           {t('panel.json.validate')}
-        </button>
-        <button type="button" className="agents-empty-btn" onClick={() => void navigator.clipboard.writeText(text)}>
+        </Button>
+        <Button size="sm" icon="copy" onClick={() => void navigator.clipboard.writeText(text)}>
           {t('panel.json.copy')}
-        </button>
+        </Button>
         <span className={`agents-json-status${status.kind === 'error' ? ' error' : ''}`} role="status">
           {status.kind === 'valid' && t('panel.json.valid')}
           {status.kind === 'error' && t('panel.json.error', { line: status.line, col: status.col, message: status.message })}

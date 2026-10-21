@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PALETTES } from '@deckbuilderkit/server-core/palettes';
-import { type ApiError, errorOf, AppFrame, DialogHost, type CommandDef, CommandPalette, detectLanguage, effectiveKeys, ErrorBanner, GLOBAL, Icon, isDesktop, KeybindingProvider, LayoutProvider, paletteCommand, type PaletteItem, popOut, popoutView, usePopouts, setLanguage, setViewTitle, Sidebar, Spinner, useAsync, useCommand, useCommandPalette, useHashRoute, useHeartbeat, useKeybindings, useRunCommand, useTheme, useViewTitle, useZoom } from '@deckbuilderkit/ui';
+import { type ApiError, errorOf, AppFrame, DialogHost, type CommandDef, CommandPalette, detectLanguage, effectiveKeys, ErrorBanner, GLOBAL, IconButton, isDesktop, KeybindingProvider, LayoutProvider, paletteCommand, type PaletteItem, popOut, popoutView, usePopouts, setLanguage, setViewTitle, Sidebar, Spinner, useAsync, useCommand, useCommandPalette, useHashRoute, useHeartbeat, useKeybindings, useRunCommand, useTheme, useViewTitle, useZoom } from '@deckbuilderkit/ui';
 import { APP } from '../../app';
 import { api, type Settings } from './api';
 import { type MessageKey, t } from './i18n';
@@ -181,25 +181,17 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
   const popOutChord = chordOf(POPOUT_COMMAND);
   const popOutTitle = popOutChord ? `${t('window.popOut')} (${popOutChord})` : t('window.popOut');
   const gear = (
-    <button className={`btn btn-ghost btn-sm${overlay ? ' active' : ''} btn-icon`} onClick={() => setOverlay('settings')} title={t('nav.settings')} aria-label={t('nav.settings')}>
-      <Icon name="settings" />
-    </button>
+    <IconButton icon="settings" label={t('nav.settings')} pressed={!!overlay} onClick={() => setOverlay('settings')} />
   );
   const popoutTools = viewSettingsSection(screen) ? gear : undefined;
   const footer = (
         <>
-          <button className="btn btn-ghost btn-sm btn-icon" onClick={() => save({ theme: nextTheme })} title={t(`nav.theme.${nextTheme}`)} aria-label={t(`nav.theme.${nextTheme}`)}>
-            <Icon name={kind === 'dark' ? 'sun' : 'moon'} />
-          </button>
+          <IconButton icon={kind === 'dark' ? 'sun' : 'moon'} label={t(`nav.theme.${nextTheme}`)} onClick={() => save({ theme: nextTheme })} />
           {popouts.supported && !inPopout && (
-            <button className="btn btn-ghost btn-sm btn-icon" onClick={() => void runCommand(POPOUT_COMMAND)} title={popOutTitle} aria-label={popOutTitle}>
-              <Icon name="popout" />
-            </button>
+            <IconButton icon="popout" label={popOutTitle} onClick={() => void runCommand(POPOUT_COMMAND)} />
           )}
           {gear}
-          <button className="btn btn-ghost btn-sm btn-icon" onClick={() => palette.setOpen(true)} title={t('nav.palette')} aria-label={t('nav.palette')}>
-            <Icon name="search" />
-          </button>
+          <IconButton icon="search" label={t('nav.palette')} onClick={() => palette.setOpen(true)} />
         </>
   );
 

@@ -1,4 +1,4 @@
-import { copyText, Icon, useToast } from '@deckbuilderkit/ui';
+import { Button, copyText, IconButton, useToast } from '@deckbuilderkit/ui';
 import { t } from './i18n';
 import type { DbPlanRow } from './types';
 
@@ -50,10 +50,10 @@ export function PlanView({ rows, onClose }: Props) {
     <div className="wb-plan">
       <div className="row wb-plan-bar">
         <span className="mono-label">{t('workbench.plan.title')}</span>
-        <button title={t('workbench.plan.copy')} className="btn btn-sm" onClick={copy} disabled={rows.length === 0}>
-          <Icon name="copy" /> {t('workbench.plan.copy')}
-        </button>
-        {onClose && <button title={t('workbench.plan.close')} className="btn btn-sm" onClick={onClose}>{t('workbench.plan.close')}</button>}
+        <Button title={t('workbench.plan.copy')} size="sm" icon="copy" onClick={copy} disabled={rows.length === 0}>
+          {t('workbench.plan.copy')}
+        </Button>
+        {onClose && <IconButton icon="close" label={t('workbench.plan.close')} onClick={onClose} />}
       </div>
       {rows.length === 0 ? (
         <p className="muted wb-plan-empty">{t('workbench.plan.empty')}</p>

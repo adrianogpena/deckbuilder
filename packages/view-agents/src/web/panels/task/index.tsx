@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { MarkdownView } from '@deckbuilderkit/editor';
-import { errorOf, useDialogs } from '@deckbuilderkit/ui';
+import { Button, errorOf, useDialogs } from '@deckbuilderkit/ui';
 import { t } from '../../../i18n';
 import type { AgentsCapWarn } from '../../../protocol';
 import { stopSession } from '../../api';
@@ -170,9 +170,9 @@ function TaskPanel({ project, api, visible }: PanelProps) {
             {t('panel.task.reviewWhenDone')}
           </label>
           <span style={{ flex: 1 }} />
-          <button type="button" title={t('panel.task.start')} disabled={busy || !text.trim() || !account} onClick={() => void start()}>
+          <Button variant="primary" size="sm" icon="play" disabled={busy || !text.trim() || !account} onClick={() => void start()}>
             {busy ? t('panel.task.starting') : t('panel.task.start')}
-          </button>
+          </Button>
         </div>
         {!account && <div className="agents-task-hint">{t('panel.task.noAccount')}</div>}
         {error && (
@@ -210,28 +210,28 @@ function TaskPanel({ project, api, visible }: PanelProps) {
           {current.state === 'planning' && <div className="agents-task-hint">{t('panel.task.waitingPlan')}</div>}
           {current.plan && <MarkdownView markdown={current.plan} />}
           <div className="agents-task-row end">
-            <button type="button" title={t('panel.task.openSession')} onClick={() => api.open('agent', { sessionId: planning ? current.planSession : (current.implSession ?? current.planSession) })}>
+            <Button size="sm" icon="popout" onClick={() => api.open('agent', { sessionId: planning ? current.planSession : (current.implSession ?? current.planSession) })}>
               {t('panel.task.openSession')}
-            </button>
+            </Button>
             {planning && (
-              <button type="button" title={t('panel.task.cancel')} onClick={() => remove(current, true)}>
+              <Button variant="danger" size="sm" icon="square" onClick={() => remove(current, true)}>
                 {t('panel.task.cancel')}
-              </button>
+              </Button>
             )}
             {current.state === 'planned' && (
               <>
-                <button type="button" title={t('panel.task.revise')} onClick={() => setRevising((v) => !v)}>
+                <Button size="sm" pressed={revising} onClick={() => setRevising((v) => !v)}>
                   {t('panel.task.revise')}
-                </button>
-                <button type="button" title={t('panel.task.approve')} disabled={busy || !account} onClick={() => void approve(current)}>
+                </Button>
+                <Button variant="primary" size="sm" icon="check" disabled={busy || !account} onClick={() => void approve(current)}>
                   {t('panel.task.approve')}
-                </button>
+                </Button>
               </>
             )}
             {current.state === 'done' && (
-              <button type="button" title={t('panel.task.remove')} onClick={() => remove(current, false)}>
+              <Button variant="danger" size="sm" icon="trash" onClick={() => remove(current, false)}>
                 {t('panel.task.remove')}
-              </button>
+              </Button>
             )}
           </div>
           {revising && current.state === 'planned' && (
@@ -242,9 +242,9 @@ function TaskPanel({ project, api, visible }: PanelProps) {
               <textarea id="agents-task-revision" value={revision} onChange={(e) => setRevision(e.target.value)} />
               <div className="agents-task-hint">{t('panel.task.reviseHint')}</div>
               <div className="agents-task-row end">
-                <button type="button" title={t('panel.task.reviseSend')} disabled={!revision.trim()} onClick={() => revise(current)}>
+                <Button variant="primary" size="sm" disabled={!revision.trim()} onClick={() => revise(current)}>
                   {t('panel.task.reviseSend')}
-                </button>
+                </Button>
               </div>
             </div>
           )}

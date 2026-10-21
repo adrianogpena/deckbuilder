@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { ErrorBanner, fileIconOf, Icon, Spinner, useStream } from '@deckbuilderkit/ui';
+import { ErrorBanner, fileIconOf, Icon, IconButton, Spinner, useStream } from '@deckbuilderkit/ui';
 import type { Project, SearchHit } from '../client';
 import { t } from '../i18n';
 
@@ -71,9 +71,7 @@ export function ProjectSearch({ project, exclude, onOpenFile, onClose, focusSign
         <button type="button" className={`chip${content ? ' chip-on' : ''}`} onClick={toggleContent} aria-pressed={content} title={t('explorer.search.content')}>
           {t('explorer.search.content')}
         </button>
-        <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={close} title={t('explorer.search.close')} aria-label={t('explorer.search.close')}>
-          <Icon name="close" />
-        </button>
+        <IconButton icon="close" onClick={close} label={t('explorer.search.close')} />
       </div>
       {searched && (
         <div className="xp-results">

@@ -1,6 +1,6 @@
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
 import { type IconName } from '../icons';
-import { Icon } from './ui';
+import { Icon } from './Icon';
 
 /** Button roles from docs/DESIGN.md: default (secondary), primary, ghost, danger. */
 export type ButtonVariant = 'default' | 'primary' | 'ghost' | 'danger';

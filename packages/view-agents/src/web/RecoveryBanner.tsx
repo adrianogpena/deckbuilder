@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Button } from '@deckbuilderkit/ui';
 import { t } from '../i18n';
 import type { AgentRunning } from './api';
 import { ResumeBar } from './ResumeBar';
@@ -22,13 +23,13 @@ export function RecoveryBanner({ items, onResume, onDismiss }: RecoveryBannerPro
     });
   const actions = picking ? (
     <>
-      <button type="button" className="agents-bar-btn is-primary" title={t('agents.recovery.resume')} disabled={chosen.size === 0} onClick={() => onResume(items.filter((x) => chosen.has(x.id)))}>{t('agents.recovery.resume')}</button>
-      <button type="button" className="agents-bar-btn" title={t('agents.recovery.back')} onClick={() => setPicking(false)}>{t('agents.recovery.back')}</button>
+      <Button variant="primary" size="xs" icon="play" title={t('agents.recovery.resume')} disabled={chosen.size === 0} onClick={() => onResume(items.filter((x) => chosen.has(x.id)))}>{t('agents.recovery.resume')}</Button>
+      <Button size="xs" title={t('agents.recovery.back')} onClick={() => setPicking(false)}>{t('agents.recovery.back')}</Button>
     </>
   ) : (
     <>
-      <button type="button" className="agents-bar-btn is-primary" title={t('agents.recovery.resumeAll')} onClick={() => onResume(items)}>{t('agents.recovery.resumeAll')}</button>
-      <button type="button" className="agents-bar-btn" title={t('agents.recovery.pick')} onClick={() => setPicking(true)}>{t('agents.recovery.pick')}</button>
+      <Button variant="primary" size="xs" icon="play" title={t('agents.recovery.resumeAll')} onClick={() => onResume(items)}>{t('agents.recovery.resumeAll')}</Button>
+      <Button size="xs" title={t('agents.recovery.pick')} onClick={() => setPicking(true)}>{t('agents.recovery.pick')}</Button>
     </>
   );
   return (

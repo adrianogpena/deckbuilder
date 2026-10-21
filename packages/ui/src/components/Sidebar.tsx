@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from 'react';
 import { useLayout } from '../layout';
 import { t } from '../i18n';
+import { IconButton } from './Button';
 import { HeaderNav } from './HeaderNav';
 import { BrandMark, Icon, type IconName } from './ui';
 
@@ -109,9 +110,7 @@ export function BaseSidebar<Id extends string>({ name, sections, current, onSele
         <div className="side-footer">
           {footer}
           {onCollapsedChange && (
-            <button className="btn btn-ghost btn-sm side-toggle btn-icon" onClick={() => onCollapsedChange(!collapsed)} title={toggleLabel} aria-label={toggleLabel} aria-pressed={collapsed}>
-              <Icon name="sidebar" />
-            </button>
+            <IconButton icon="sidebar" label={toggleLabel ?? t('explorer.toggleSidebar')} className="side-toggle" pressed={collapsed} onClick={() => onCollapsedChange(!collapsed)} />
           )}
         </div>
       )}

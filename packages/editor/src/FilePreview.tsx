@@ -1,4 +1,4 @@
-import { type HighlightTerm, Icon, JsonTree, linesOf, LogView, PanelBanner, PanelLoading, PanelNotice, t } from '@deckbuilderkit/ui';
+import { Button, type HighlightTerm, Icon, JsonTree, linesOf, LogView, PanelBanner, PanelLoading, PanelNotice, t } from '@deckbuilderkit/ui';
 import { lazy, Suspense, useMemo, useState } from 'react';
 import { type ArchiveContent, ArchiveView } from './ArchiveView';
 import { CodeView } from './CodeView';
@@ -72,9 +72,9 @@ function MarkdownPreview({ text, resolveImage, toc }: { text: string; resolveIma
   return (
     <>
       <div className="file-preview-bar">
-        <button title={source ? t('preview.rendered') : t('preview.source')} className="btn btn-ghost btn-sm" onClick={() => setSource(!source)} aria-pressed={source}>
+        <Button title={source ? t('preview.rendered') : t('preview.source')} variant="ghost" size="sm" onClick={() => setSource(!source)} pressed={source}>
           {source ? t('preview.rendered') : t('preview.source')}
-        </button>
+        </Button>
       </div>
       <div className="file-preview-body">
         {source ? <CodeView value={text} lang="markdown" wrap lineNumbers /> : <MarkdownView markdown={text} resolveImage={resolveImage} toc={toc} />}

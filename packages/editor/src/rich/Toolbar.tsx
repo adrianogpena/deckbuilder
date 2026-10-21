@@ -1,5 +1,5 @@
 import './toolbar.css';
-import { ContextMenu, type ContextMenuItem, createT, Icon, type IconName } from '@deckbuilderkit/ui';
+import { ContextMenu, type ContextMenuItem, createT, Icon, IconButton, type IconName } from '@deckbuilderkit/ui';
 import { redoCommand, undoCommand } from '@milkdown/plugin-history';
 import { redoDepth, undoDepth } from '@milkdown/prose/history';
 import { Plugin, PluginKey } from '@milkdown/prose/state';
@@ -190,21 +190,17 @@ function Toolbar({ api }: { api: RichApi }) {
           </button>
         ))}
         {hidden.length > 0 && (
-          <button
+          <IconButton
             ref={more}
-            type="button"
-            className="btn btn-ghost btn-sm btn-icon"
-            title={t('explorer.md.more')}
-            aria-label={t('explorer.md.more')}
+            icon="more"
+            label={t('explorer.md.more')}
             aria-haspopup="menu"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
               const r = more.current?.getBoundingClientRect();
               if (r) setMenuAt({ x: r.left, y: r.bottom + 4 });
             }}
-          >
-            <Icon name="more" />
-          </button>
+          />
         )}
       </div>
       {menuAt && <ContextMenu at={menuAt} items={menuItems} onClose={() => setMenuAt(null)} />}

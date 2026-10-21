@@ -1,5 +1,5 @@
 import { HTTP_MAX_FORM_FIELDS, HTTP_METHODS, HTTP_TIMEOUT_MAX_MS, HTTP_TIMEOUT_MIN_MS, type HttpMethod, type RestEnvVar, restVarRefs } from '@deckbuilderkit/server-core/protocol';
-import { Icon, Spinner, t } from '@deckbuilderkit/ui';
+import { Button, IconButton, Spinner, t } from '@deckbuilderkit/ui';
 import { type MouseEvent, type ReactNode, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { CodeEditor } from './CodeEditor';
 import {
@@ -69,11 +69,11 @@ export function RequestEditor({ value, onChange, onSend, onCancel, sending, head
         </select>
         <UrlInput value={value.url} onChange={(url) => set({ url })} onEnter={send} variables={variables} />
         {sending ? (
-          <button title={t('dialog.cancel')} className="btn" onClick={onCancel} disabled={!onCancel}>{t('dialog.cancel')}</button>
+          <Button title={t('dialog.cancel')} variant="danger" icon="square" onClick={onCancel} disabled={!onCancel}>{t('dialog.cancel')}</Button>
         ) : (
-          <button title={t('http.send')} className="btn btn-primary req-send" onClick={send} disabled={!canSend}>
-            <Icon name="send" /> {t('http.send')}
-          </button>
+          <Button title={t('http.send')} variant="primary" icon="send" className="req-send" onClick={send} disabled={!canSend}>
+            {t('http.send')}
+          </Button>
         )}
         {sending && <Spinner small />}
       </div>
@@ -182,13 +182,14 @@ function HeadersTab({ headers, onChange, authKind, variables }: { headers: HttpH
   const toggle = (
     <div className="req-body-bar">
       <span className="spacer" />
-      <button title={t('http.bulkEdit')}
-        className={`btn btn-sm${bulk !== null ? ' btn-primary' : ' btn-ghost'}`}
-        aria-pressed={bulk !== null}
+      <Button title={t('http.bulkEdit')}
+        variant="ghost"
+        size="sm"
+        pressed={bulk !== null}
         onClick={() => setBulk(bulk === null ? headersToText(headers) : null)}
       >
         {t('http.bulkEdit')}
-      </button>
+      </Button>
     </div>
   );
   if (bulk !== null) {
@@ -233,15 +234,12 @@ function HeadersTab({ headers, onChange, authKind, variables }: { headers: HttpH
             <input type="checkbox" checked={h.enabled} disabled={isBlank} aria-label={t('http.headerEnabled')} onChange={(e) => update(i, { enabled: e.target.checked })} />
             <input value={h.name} placeholder={t('http.headerName')} spellCheck={false} aria-label={t('http.headerName')} onChange={(e) => update(i, { name: e.target.value })} />
             <VarInput value={h.value} placeholder={t('http.headerValue')} spellCheck={false} aria-label={t('http.headerValue')} variables={variables} onValueChange={(v) => update(i, { value: v })} />
-            <button
-              className="btn btn-ghost btn-sm btn-icon"
+            <IconButton
+              icon="close"
               disabled={isBlank}
-              title={t('http.removeHeader')}
-              aria-label={t('http.removeHeader')}
+              label={t('http.removeHeader')}
               onClick={() => onChange(headers.filter((_, j) => j !== i))}
-            >
-              <Icon name="close" />
-            </button>
+            />
           </div>
         );
       })}
@@ -263,15 +261,12 @@ function ParamsTab({ params, onChange, removeLabel = 'http.removeParam', max = I
           <div key={i} className="req-header-row req-param-row">
             <input value={p.name} placeholder={t('http.paramName')} spellCheck={false} aria-label={t('http.paramName')} onChange={(e) => update(i, { name: e.target.value })} />
             <VarInput value={p.value} placeholder={t('http.paramValue')} spellCheck={false} aria-label={t('http.paramValue')} variables={variables} onValueChange={(v) => update(i, { value: v })} />
-            <button
-              className="btn btn-ghost btn-sm btn-icon"
+            <IconButton
+              icon="close"
               disabled={isBlank}
-              title={t(removeLabel)}
-              aria-label={t(removeLabel)}
+              label={t(removeLabel)}
               onClick={() => onChange(params.filter((_, j) => j !== i))}
-            >
-              <Icon name="close" />
-            </button>
+            />
           </div>
         );
       })}
@@ -296,15 +291,16 @@ function AuthTab({ value, onChange, auth, variables }: { value: HttpRequestDraft
     <div className="req-options req-auth">
       <div className="req-body-bar">
         {([undefined, 'basic', 'bearer'] as const).map((k) => (
-          <button title={t(`http.auth.${k ?? 'none'}`)}
+          <Button title={t(`http.auth.${k ?? 'none'}`)}
             key={k ?? 'none'}
-            className={`btn btn-sm${kind === k ? ' btn-primary' : ' btn-ghost'}`}
-            aria-pressed={kind === k}
+            variant="ghost"
+            size="sm"
+            pressed={kind === k}
             disabled={auth.disabled}
             onClick={() => setKind(k)}
           >
             {t(`http.auth.${k ?? 'none'}`)}
-          </button>
+          </Button>
         ))}
       </div>
       {kind === 'basic' && (
@@ -347,21 +343,22 @@ function BodyTab({ value, onChange, onSend, variables }: { value: HttpRequestDra
     <div className="req-body">
       <div className="req-body-bar">
         {(['json', 'xml', 'text', 'form', 'multipart'] as const).map((lang) => (
-          <button title={t(`http.lang.${lang}`)}
+          <Button title={t(`http.lang.${lang}`)}
             key={lang}
-            className={`btn btn-sm${value.bodyLang === lang ? ' btn-primary' : ' btn-ghost'}`}
-            aria-pressed={value.bodyLang === lang}
+            variant="ghost"
+            size="sm"
+            pressed={value.bodyLang === lang}
             onClick={() => {
               setFormatError(null);
               onChange({ bodyLang: lang });
             }}
           >
             {t(`http.lang.${lang}`)}
-          </button>
+          </Button>
         ))}
         <span className="spacer" />
         {(value.bodyLang === 'json' || value.bodyLang === 'xml') && (
-          <button title={t('http.format')} className="btn btn-ghost btn-sm" onClick={format} disabled={value.body.trim() === ''}>{t('http.format')}</button>
+          <Button title={t('http.format')} variant="ghost" size="sm" icon="braces" onClick={format} disabled={value.body.trim() === ''}>{t('http.format')}</Button>
         )}
       </div>
       {formatError && <span className="field-error">{t(value.bodyLang === 'xml' ? 'preview.xmlError' : 'preview.jsonError', { message: formatError })}</span>}

@@ -9,4 +9,3 @@
 .agents-scratchpad-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .agents-scratchpad-add { display: flex; gap: 4px; }
 .agents-scratchpad-input { flex: 1; min-width: 0; }
-.agents-scratchpad-btn { cursor: pointer; }

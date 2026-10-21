@@ -14,7 +14,6 @@
 .agents-review-line[data-kind='hunk'] { opacity: 0.6; cursor: default; }
 .agents-review-no { width: 4ch; text-align: right; opacity: 0.5; flex: none; user-select: none; }
 .agents-review-comment { display: flex; gap: 8px; justify-content: space-between; margin: 2px 8px 2px 10ch; padding: 4px 8px; border-left: 3px solid var(--accent, #4a9eff); background: rgba(74, 158, 255, 0.1); font-family: inherit; white-space: pre-wrap; }
-.agents-review-comment button { background: none; border: 0; cursor: pointer; color: inherit; }
 .agents-review-draft { display: flex; gap: 4px; margin: 2px 8px 2px 10ch; align-items: flex-start; }
 .agents-review-draft textarea { flex: 1; min-width: 0; font: inherit; }
 .agents-review-send { display: flex; flex-direction: column; gap: 6px; padding: 8px; border-top: 1px solid var(--border, #444); }

@@ -6,7 +6,7 @@ import {
   SqlSteps, type SqlStepsTab, useEditorOptions,
 } from '@deckbuilderkit/editor';
 import {
-  type ApiError, type BreadcrumbEntry, Breadcrumbs, dialogs, errorOf, ErrorBanner, FILE_DEFAULTS, type FileSettings, formatBytes, Icon, PanelBanner, PanelLoading,
+  type ApiError, type BreadcrumbEntry, Breadcrumbs, Button, dialogs, errorOf, ErrorBanner, FILE_DEFAULTS, type FileSettings, formatBytes, Icon, PanelBanner, PanelLoading,
   relPath, requestBlob, StatusBar, type StatusItem, type TabAction, useCommand, useDialogs, useViewLink,
 } from '@deckbuilderkit/ui';
 import { explorerApi as api, type LogSettings, type TextEncoding } from '../client';
@@ -470,14 +470,14 @@ function TextFileTab({ project, projectName, projectPath, path, focused, preview
       {conflict ? (
         <PanelBanner tone="err" icon="alert" action={
           <>
-            <button className="btn btn-sm" onClick={reload} title={t('explorer.reload')}>{t('explorer.reload')}</button>
-            <button className="btn btn-sm" onClick={overwrite} title={t('explorer.overwrite')}>{t('explorer.overwrite')}</button>
+            <Button size="sm" icon="refresh" onClick={reload} title={t('explorer.reload')}>{t('explorer.reload')}</Button>
+            <Button size="sm" variant="danger" onClick={overwrite} title={t('explorer.overwrite')}>{t('explorer.overwrite')}</Button>
           </>
         }>
           {t('explorer.staleSave', { name })}
         </PanelBanner>
       ) : lockedFile ? (
-        <PanelBanner tone="err" icon="lock" action={<button className="btn btn-sm" onClick={() => void save({ unlock: true })} title={t('explorer.makeWritable')}>{t('explorer.makeWritable')}</button>}>
+        <PanelBanner tone="err" icon="lock" action={<Button size="sm"onClick={() => void save({ unlock: true })} title={t('explorer.makeWritable')}>{t('explorer.makeWritable')}</Button>}>
           {t('explorer.readOnlySave', { name })}
         </PanelBanner>
       ) : saveError && <ErrorBanner error={saveError} compact />}

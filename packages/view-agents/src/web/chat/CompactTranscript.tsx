@@ -1,5 +1,6 @@
 import { useLayoutEffect, useMemo, useRef } from 'react';
 import { MarkdownView } from '@deckbuilderkit/editor';
+import { Button } from '@deckbuilderkit/ui';
 import { t } from '../../i18n';
 import { compactTurns, type CompactTurn } from '../session-summary';
 import { toolSummary } from './chat-model';
@@ -36,7 +37,7 @@ export function CompactTranscript({ events, limit, onMore, resetKey }: { events:
     <div className="chat-transcript" ref={ref} role="log">
       {all.length === 0 && <p className="agents-empty chat-empty">{t('agents.chat.empty')}</p>}
       {turns.length < all.length && (
-        <button type="button" title={t('agents.stopped.loadEarlier', { n: all.length - turns.length })} className="chat-more" onClick={onMore}>{t('agents.stopped.loadEarlier', { n: all.length - turns.length })}</button>
+        <Button variant="ghost" size="xs" onClick={onMore}>{t('agents.stopped.loadEarlier', { n: all.length - turns.length })}</Button>
       )}
       {turns.map((turn, i) => (
         <div key={all.length - turns.length + i} className="chat-turn">

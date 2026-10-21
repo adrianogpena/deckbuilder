@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import {
+  Button,
   type Layout,
   newTab,
   PageHead,
@@ -68,12 +69,14 @@ function TabPage({ tab, ctx }: { tab: Tab<Route>; ctx: TabContext<Route> }) {
   return (
     <div className="content">
       <PageHead title={titleOf(route).title}>
-        <div className="chips">
+        <div className="req-tabs" role="tablist">
           {PAGES.map((page) => (
             <button
               key={page}
               title={t(`tabs.page.${page}`)}
-              className={`chip${page === route.page ? ' chip-on' : ''}`}
+              role="tab"
+              aria-selected={page === route.page}
+              className={`req-tab${page === route.page ? ' active' : ''}`}
               onClick={() => ctx.navigate({ page, n: route.n })}
             >
               {t(`tabs.page.${page}`)}
@@ -92,7 +95,7 @@ function TabPage({ tab, ctx }: { tab: Tab<Route>; ctx: TabContext<Route> }) {
           <section className="section">
             <h4 className="mono-label">{t('tabs.counter.hint')}</h4>
             <div className="row">
-              <button className="btn btn-primary" title={t('tabs.counter.increment')} onClick={() => setCount(count + 1)}>+1</button>
+              <Button variant="primary" icon="plus" title={t('tabs.counter.increment')} onClick={() => setCount(count + 1)}>1</Button>
               <span className="mono">{count}</span>
             </div>
           </section>

@@ -1,5 +1,5 @@
 import { type CSSProperties, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { AppearanceFields, DockField, IconsField, LayoutIconField, LayoutField, MainMenuField, ZoomField, type ApiError, detectLanguage, dialogs, ErrorBanner, errorMessage, errorOf, GLOBAL, isDesktop, KeybindingsEditor, LANGUAGES, isModified, parseSettingsQuery, settingDescriptionText, toggleModifiedFilter, SettingLinksProvider, SettingErrorsContext, type SettingLinks, SettingRow, Spinner, useRevealSetting, useRovingList, SETTING_ROW_CONTROLS, useAsync, useKeybindings, type Language, type SettingDef, type SettingsSectionNode, sectionKey } from '@deckbuilderkit/ui';
+import { Button, IconButton, AppearanceFields, DockField, IconsField, LayoutIconField, LayoutField, MainMenuField, ZoomField, type ApiError, detectLanguage, dialogs, ErrorBanner, errorMessage, errorOf, GLOBAL, isDesktop, KeybindingsEditor, LANGUAGES, isModified, parseSettingsQuery, settingDescriptionText, toggleModifiedFilter, SettingLinksProvider, SettingErrorsContext, type SettingLinks, SettingRow, Spinner, useRevealSetting, useRovingList, SETTING_ROW_CONTROLS, useAsync, useKeybindings, type Language, type SettingDef, type SettingsSectionNode, sectionKey } from '@deckbuilderkit/ui';
 import { APP } from '../../../app';
 import { api, type Settings } from '../api';
 import { type MessageKey, t } from '../i18n';
@@ -313,8 +313,8 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
           {searching && <span className="settings-count">{t(total === 1 ? 'settings.search.count.one' : 'settings.search.count', { n: total })}</span>}
         <span className="settings-head-spacer" />
         {fileError && <span className="tone-err small">{fileError}</span>}
-        <button type="button" className="btn btn-sm" title={t('settings.openFile')} onClick={() => { setFileError(null); api.openSettingsFile().catch((err) => setFileError(errorMessage(errorOf(err)))); }}>{t('settings.openFile')}</button>
-        <button type="button" className="btn btn-ghost btn-sm btn-icon" title={t('settings.close')} aria-label={t('settings.close')} onClick={onClose}>✕</button>
+        <Button size="sm" icon="file" title={t('settings.openFile')} onClick={() => { setFileError(null); api.openSettingsFile().catch((err) => setFileError(errorMessage(errorOf(err)))); }}>{t('settings.openFile')}</Button>
+        <IconButton icon="close" label={t('settings.close')} onClick={onClose} />
       </header>
       {problemSettings.length > 0 && (
         <div className="settings-problems" style={{ padding: '8px 16px' }}>
@@ -391,7 +391,7 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
           {searching && hits.size === 0 && (
             <div className="settings-empty">
               <span className="muted">{t('settings.search.none')}</span>
-              <button title={t('settings.search.clear')} className="btn btn-sm" onClick={() => setQuery('')}>{t('settings.search.clear')}</button>
+              <Button size="sm" variant="ghost" icon="close" title={t('settings.search.clear')} onClick={() => setQuery('')}>{t('settings.search.clear')}</Button>
             </div>
           )}
         </div>
@@ -469,9 +469,9 @@ function GeneralCard({ onQuit }: { onQuit: () => void }) {
       <div className="card form">
         <div className="field">
           <div className="row">
-            <button title={t('settings.quit')} className="btn btn-sm btn-danger" disabled={busy} onClick={quit}>
+            <Button size="sm" variant="danger" icon="square" title={t('settings.quit')} disabled={busy} onClick={quit}>
               {t('settings.quit')}
-            </button>
+            </Button>
           </div>
           <span className="muted">{t(isDesktop ? 'settings.quit.hintTray' : 'settings.quit.hint', { name: APP.name })}</span>
         </div>
@@ -521,8 +521,7 @@ function UpdatesCard({ folder, onFolder }: { folder: string; onFolder: (folder: 
           <label className="mono-label" htmlFor="update-folder">{t('settings.updateFolder')}</label>
           <div className="row">
             <input id="update-folder" value={folder} placeholder={t('settings.updateFolder.none')} readOnly />
-            <button title={t('settings.updateFolder.browse')}
-              className="btn btn-sm"
+            <Button size="sm" icon="folder" title={t('settings.updateFolder.browse')}
               disabled={busy}
               onClick={() => run(async () => {
                 const path = await dialogs.pickFolder({ title: t('settings.updateFolder.pick'), purpose: 'updateFolder', start: folder || undefined });
@@ -532,11 +531,11 @@ function UpdatesCard({ folder, onFolder }: { folder: string; onFolder: (folder: 
               })}
             >
               {t('settings.updateFolder.browse')}
-            </button>
+            </Button>
             {folder && (
-              <button title={t('settings.updateFolder.clear')} className="btn btn-sm" disabled={busy} onClick={() => onFolder('')}>
+              <Button size="sm" variant="ghost" title={t('settings.updateFolder.clear')} disabled={busy} onClick={() => onFolder('')}>
                 {t('settings.updateFolder.clear')}
-              </button>
+              </Button>
             )}
           </div>
           <span className="muted">{t('settings.updateFolder.hint')}</span>
@@ -552,17 +551,16 @@ function UpdatesCard({ folder, onFolder }: { folder: string; onFolder: (folder: 
             {u.available && u.notes && <pre className="mono muted">{u.notes}</pre>}
             {u.available && !u.canApply && <span className="muted">{t('settings.update.fromSource')}</span>}
             <div className="row">
-              <button title={t('settings.update.check')} className="btn btn-sm" disabled={busy || !u.source} onClick={() => run(() => api.checkUpdate().then(() => state.reload()))}>
+              <Button size="sm" icon="refresh" title={t('settings.update.check')} disabled={busy || !u.source} onClick={() => run(() => api.checkUpdate().then(() => state.reload()))}>
                 {t('settings.update.check')}
-              </button>
+              </Button>
               {u.available && u.canApply && (
-                <button title={t('settings.update.apply')}
-                  className="btn btn-sm btn-primary"
+                <Button size="sm" variant="primary" icon="download" title={t('settings.update.apply')}
                   disabled={busy || restarting !== null}
                   onClick={() => run(async () => setRestarting((await api.applyUpdate()).version))}
                 >
                   {t('settings.update.apply')}
-                </button>
+                </Button>
               )}
             </div>
           </div>

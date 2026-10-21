@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { t } from '../i18n';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
+import { IconButton } from './Button';
 import { Icon, type IconName, type Tone } from './ui';
 
 /** Class of the panel header, the drag handle for `PanelGrid`. */
@@ -41,28 +42,19 @@ export function PanelFrame({ title, icon, actions, collapsed: controlled, onColl
         <div className={`panel-tools ${PANEL_NO_DRAG}`}>
           {actions}
           {menu && menu.length > 0 && (
-            <button
-              className="btn btn-ghost btn-sm panel-btn btn-icon"
+            <IconButton
+              icon="more"
+              label={t('panel.menu')}
               data-panel-menu
-              title={t('panel.menu')}
-              aria-label={t('panel.menu')}
               aria-haspopup="menu"
               onClick={(e) => {
                 const r = e.currentTarget.getBoundingClientRect();
                 setMenuAt({ x: r.left, y: r.bottom + 4 });
               }}
-            >
-              <Icon name="more" />
-            </button>
+            />
           )}
-          <button className="btn btn-ghost btn-sm panel-btn" onClick={toggle} title={label} aria-label={label} aria-expanded={!collapsed}>
-            <span className={`panel-chevron${collapsed ? ' collapsed' : ''}`}><Icon name="chevron-down" /></span>
-          </button>
-          {onRemove && (
-            <button className="btn btn-ghost btn-sm panel-btn panel-remove btn-icon" onClick={onRemove} title={t('panel.remove')} aria-label={t('panel.remove')}>
-              <Icon name="close" />
-            </button>
-          )}
+          <IconButton icon="chevron-down" label={label} className={`panel-collapse${collapsed ? ' collapsed' : ''}`} onClick={toggle} aria-expanded={!collapsed} />
+          {onRemove && <IconButton icon="close" label={t('panel.remove')} className="panel-remove" onClick={onRemove} />}
         </div>
       </header>
       {menuAt && menu && <ContextMenu at={menuAt} items={menu} onClose={() => setMenuAt(null)} />}

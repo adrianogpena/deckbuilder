@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { errorOf } from '@deckbuilderkit/ui';
+import { Button, errorOf } from '@deckbuilderkit/ui';
 import { t } from '../i18n';
 import { type AgentAccount, type AgentsCapWarn, CapDeclined, listAccounts, startSession } from './api';
 
@@ -67,13 +67,13 @@ export function NewSession({ projects, projectId, lastAccount, onStarted, onCanc
       {ask && (
         <div role="alert" className="agents-cap-warn">
           {t('agents.cap.warn', { live: ask.warn.live, cap: ask.warn.cap })}
-          <button type="button" title={t('agents.new.cancel')} onClick={() => ask.answer(false)}>{t('agents.new.cancel')}</button>
-          <button type="button" title={t('agents.cap.confirm')} onClick={() => ask.answer(true)}>{t('agents.cap.confirm')}</button>
+          <Button title={t('agents.new.cancel')} onClick={() => ask.answer(false)}>{t('agents.new.cancel')}</Button>
+          <Button variant="primary" title={t('agents.cap.confirm')} onClick={() => ask.answer(true)}>{t('agents.cap.confirm')}</Button>
         </div>
       )}
       <div className="agents-new-session-actions">
-        {onCancel && <button type="button" title={t('agents.new.cancel')} onClick={onCancel}>{t('agents.new.cancel')}</button>}
-        {error && <button type="button" title={t('agents.new.start')} disabled={busy || !!ask || !dir || !account} onClick={() => void start()}>{t('agents.new.start')}</button>}
+        {onCancel && <Button title={t('agents.new.cancel')} onClick={onCancel}>{t('agents.new.cancel')}</Button>}
+        {error && <Button variant="primary" icon="play" title={t('agents.new.start')} disabled={busy || !!ask || !dir || !account} onClick={() => void start()}>{t('agents.new.start')}</Button>}
       </div>
     </div>
   );

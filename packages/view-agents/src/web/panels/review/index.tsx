@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GitDiff, GitFile } from '@deckbuilderkit/server-core/protocol';
-import { ErrorBanner, PanelLoading, request, useAsync } from '@deckbuilderkit/ui';
+import { Button, ErrorBanner, IconButton, PanelLoading, request, useAsync } from '@deckbuilderkit/ui';
 import { t } from '../../../i18n';
 import { useAgentsHost } from '../../workspace/host';
 import type { PanelModule, PanelProps } from '../../workspace/types';
@@ -116,7 +116,7 @@ function FileBlock({
                   {here.map((c) => (
                     <div key={c.id} className="agents-review-comment">
                       <span>{c.removed ? `(${t('panel.review.removedLine')}) ` : ''}{c.text}</span>
-                      <button type="button" aria-label={t('panel.review.remove')} title={t('panel.review.remove')} onClick={() => onRemove(c.id)}>×</button>
+                      <IconButton size="xs" icon="close" label={t('panel.review.remove')} onClick={() => onRemove(c.id)} />
                     </div>
                   ))}
                   {draftAt === key && (
@@ -132,8 +132,8 @@ function FileBlock({
                           if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) submit(l);
                         }}
                       />
-                      <button type="submit" disabled={!draft.trim()}>{t('panel.review.add')}</button>
-                      <button type="button" onClick={() => setDraftAt(undefined)}>{t('panel.review.cancel')}</button>
+                      <Button size="xs" onClick={() => setDraftAt(undefined)}>{t('panel.review.cancel')}</Button>
+                      <Button type="submit" variant="primary" size="xs" disabled={!draft.trim()}>{t('panel.review.add')}</Button>
                     </form>
                   )}
                 </div>
@@ -230,9 +230,9 @@ function ReviewPanel({ project, api, visible }: PanelProps) {
               ))}
             </select>
           )}
-          <button type="button" disabled={!chosen || state.comments.length === 0} onClick={send}>
+          <Button variant="primary" size="sm" disabled={!chosen || state.comments.length === 0} onClick={send}>
             {t('panel.review.send')} ({state.comments.length})
-          </button>
+          </Button>
         </div>
       </footer>
     </div>

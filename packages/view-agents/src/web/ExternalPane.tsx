@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Button } from '@deckbuilderkit/ui';
 import { t } from '../i18n';
 import { Transcript } from './chat/Transcript';
 import { onTail, reportPreview, type TailEvent } from './api';
@@ -19,9 +20,9 @@ export function ExternalPane({ sessionId, external, hanging, onTakeOver }: { ses
     <div className="agents-external">
       <div className="agents-external-bar">
         <span>{hanging ? t('agents.hanging.note') : t('agents.external.note')}</span>
-        <button type="button" title={hanging ? t('agents.hanging.closeHint') : external ? t('agents.external.takeoverHint') : t('agents.external.takeover')} onClick={onTakeOver}>
+        <Button size="xs" variant={hanging ? 'danger' : 'primary'} icon={hanging ? 'close' : 'play'} title={hanging ? t('agents.hanging.closeHint') : external ? t('agents.external.takeoverHint') : t('agents.external.takeover')} onClick={onTakeOver}>
           {hanging ? t('agents.hanging.close') : t('agents.external.takeover')}
-        </button>
+        </Button>
       </div>
       <Transcript events={events} />
     </div>

@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
 import { t } from '../i18n';
 import type { CommandDef } from '../keybindings';
+import { IconButton } from './Button';
 import { useCommand } from './Keybindings';
 import { SplitView } from './SplitView';
-import { Icon } from './ui';
 
 const MIN = [180];
 const DEFAULT_SIZES = [0.25, 0.75];
@@ -47,9 +47,7 @@ export function Explorer({ sidebar, sizes, onResize, collapsed: stored, onCollap
     <div className={className ? `explorer ${className}` : 'explorer'}>
       {collapsed && !hidden && (
         <div className="explorer-rail" style={{ order: right ? 1 : 0, ...(right ? { borderRight: 0, borderLeft: '1px solid var(--border-soft)' } : null) }}>
-          <button className="btn btn-ghost btn-sm btn-icon" onClick={() => onCollapsedChange(false)} title={t('explorer.toggleSidebar')} aria-label={t('explorer.toggleSidebar')}>
-            <Icon name="sidebar" />
-          </button>
+          <IconButton icon="sidebar" label={t('explorer.toggleSidebar')} onClick={() => onCollapsedChange(false)} />
         </div>
       )}
       <SplitView

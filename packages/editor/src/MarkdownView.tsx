@@ -1,4 +1,4 @@
-import { copyText, t } from '@deckbuilderkit/ui';
+import { buttonClass, copyText, t } from '@deckbuilderkit/ui';
 import { classHighlighter, highlightTree } from '@lezer/highlight';
 import { type MouseEvent, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { langOfFile, type Parser, parserOf } from './languages';
@@ -43,7 +43,7 @@ export function MarkdownView({ markdown, resolveImage, toc }: { markdown: string
     for (const pre of host.current?.querySelectorAll<HTMLElement>('pre') ?? []) {
       const button = document.createElement('button');
       button.type = 'button';
-      button.className = 'md-code-copy';
+      button.className = buttonClass('ghost', 'xs', false, 'md-code-copy');
       button.textContent = t('output.copyAll');
       const wrap = document.createElement('div');
       wrap.className = 'md-code';

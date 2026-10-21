@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Button } from '@deckbuilderkit/ui';
 import { t } from '../i18n';
 import { getNotes, putNotes } from './api';
 
@@ -81,9 +82,9 @@ export function NotesTab({ project, canSend, onSend }: NotesTabProps) {
         onBlur={flush}
       />
       <div className="agents-notes-actions">
-        <button type="button" className="primary" disabled={!canSend || !loaded || (!hasSelection && !text.trim())} title={t('agents.notes.send.hint')} onMouseDown={(e) => e.preventDefault()} onClick={send}>
+        <Button variant="primary" size="sm" icon="send" disabled={!canSend || !loaded || (!hasSelection && !text.trim())} title={t('agents.notes.send.hint')} onMouseDown={(e) => e.preventDefault()} onClick={send}>
           {t('agents.notes.send')}
-        </button>
+        </Button>
       </div>
     </div>
   );

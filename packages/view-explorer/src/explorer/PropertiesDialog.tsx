@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { copyText, errorMessage, errorOf, formatBytes, Modal, useToast } from '@deckbuilderkit/ui';
+import { Button, copyText, errorMessage, errorOf, formatBytes, Modal, useToast } from '@deckbuilderkit/ui';
 import { explorerApi as api, type FsDuProgress, type FsInfo } from '../client';
 import { t } from '../i18n';
 
@@ -74,9 +74,9 @@ export function PropertiesDialog({ root, path, onClose }: { root: string; path: 
       title={t('explorer.properties')}
       onClose={onClose}
       footer={
-        <button className="btn" onClick={onClose} title={t('explorer.props.close')}>
+        <Button onClick={onClose} title={t('explorer.props.close')}>
           {t('explorer.props.close')}
-        </button>
+        </Button>
       }
     >
       {error && <p className="error">{error}</p>}
@@ -87,9 +87,9 @@ export function PropertiesDialog({ root, path, onClose }: { root: string; path: 
             t('explorer.props.path'),
             <span style={ROW}>
               <span style={WRAP}>{info.fullPath}</span>
-              <button className="btn btn-sm" onClick={() => copy(info.fullPath)} title={t('explorer.props.copy')}>
+              <Button size="xs" variant="ghost" icon="copy" onClick={() => copy(info.fullPath)} title={t('explorer.props.copy')}>
                 {t('explorer.props.copy')}
-              </button>
+              </Button>
             </span>,
           )}
           {row(t('explorer.props.type'), t(`explorer.props.${info.type}`))}
@@ -104,13 +104,13 @@ export function PropertiesDialog({ root, path, onClose }: { root: string; path: 
                     </span>
                   )}
                   {counting ? (
-                    <button className="btn btn-sm" onClick={cancel} title={t('explorer.props.cancel')}>
+                    <Button size="xs" variant="danger" icon="square" onClick={cancel} title={t('explorer.props.cancel')}>
                       {t('explorer.props.cancel')}
-                    </button>
+                    </Button>
                   ) : (
-                    <button className="btn btn-sm" onClick={count} title={t('explorer.props.calcSize')}>
+                    <Button size="xs" onClick={count} title={t('explorer.props.calcSize')}>
                       {t('explorer.props.calcSize')}
-                    </button>
+                    </Button>
                   )}
                 </span>,
               )
@@ -126,14 +126,14 @@ export function PropertiesDialog({ root, path, onClose }: { root: string; path: 
                 {hash ? (
                   <>
                     <code style={WRAP}>{hash}</code>
-                    <button className="btn btn-sm" onClick={() => copy(hash)} title={t('explorer.props.copy')}>
+                    <Button size="xs" variant="ghost" icon="copy" onClick={() => copy(hash)} title={t('explorer.props.copy')}>
                       {t('explorer.props.copy')}
-                    </button>
+                    </Button>
                   </>
                 ) : (
-                  <button className="btn btn-sm" disabled={hashing} onClick={hashIt} title={t('explorer.props.sha256')}>
+                  <Button size="xs" disabled={hashing} onClick={hashIt} title={t('explorer.props.sha256')}>
                     {hashing ? t('explorer.props.hashing') : t('explorer.props.sha256')}
-                  </button>
+                  </Button>
                 )}
               </span>,
             )}

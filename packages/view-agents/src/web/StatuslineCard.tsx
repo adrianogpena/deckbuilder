@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ErrorBanner, SettingItem, Spinner, useAsync, type SettingsCardProps } from '@deckbuilderkit/ui';
+import { Button, ErrorBanner, SettingItem, Spinner, useAsync, type SettingsCardProps } from '@deckbuilderkit/ui';
 import { agentsSettingDefs, type AgentsViewSettings } from '../settings';
 import { t, type AgentsMessageKey } from '../i18n';
 import { AccountsSettings } from './AccountsSettings';
@@ -87,15 +87,17 @@ function StatuslineSection() {
             <SettingItem key={s.account} id={`agents.statusline.${s.account}`} modified={false}>
               <div className="field agents-statusline">
                 <span className="mono-label">{s.label}</span>
-                <button
-                  type="button"
+                <Button
+                  size="sm"
+                  variant={s.installed ? 'danger' : 'default'}
+                  icon={s.installed ? 'trash' : 'download'}
                   className="agents-statusline-btn"
                   title={t(s.installed ? 'settings.agents.statusline.uninstall' : 'settings.agents.statusline.install')}
                   disabled={busy !== undefined || blocked}
                   onClick={() => void run(s)}
                 >
                   {t(s.installed ? 'settings.agents.statusline.uninstall' : 'settings.agents.statusline.install')}
-                </button>
+                </Button>
                 {s.previous && <span className="muted">{t('settings.agents.statusline.previous', { command: s.previous })}</span>}
                 {blocked && <span className="muted">{t('settings.agents.statusline.invalid')}</span>}
                 {error && <span className="agents-statusline-error" role="alert">{error}</span>}

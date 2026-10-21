@@ -2,6 +2,7 @@ import { useState, type FormEvent, type ReactNode } from 'react';
 import { errorOf, type ApiError } from '../api';
 import { t } from '../i18n';
 import type { IconName } from '../icons';
+import { Button, IconButton } from './Button';
 import { Empty, ErrorBanner, Icon, useDialogs } from './ui';
 
 export interface ResourceListProps<T extends { id: string }> {
@@ -36,9 +37,9 @@ export function ResourceList<T extends { id: string }>({ items, titleOf, subtitl
     <div className="resource-list">
       {element}
       <div className="resource-head">
-        <button title={t('resource.add')} className="btn btn-primary btn-sm" onClick={onAdd}>
-          <Icon name="plus" /> {t('resource.add')}
-        </button>
+        <Button variant="primary" size="sm" icon="plus" title={t('resource.add')} onClick={onAdd}>
+          {t('resource.add')}
+        </Button>
       </div>
       {items.length === 0 ? (
         <Empty title={emptyTitle} />
@@ -56,12 +57,8 @@ export function ResourceList<T extends { id: string }>({ items, titleOf, subtitl
                     {subtitle && <span className="resource-sub">{subtitle}</span>}
                   </span>
                 </button>
-                <button className="btn btn-ghost btn-sm resource-btn btn-icon" onClick={() => onEdit(item)} title={t('resource.edit')} aria-label={t('resource.edit')}>
-                  <Icon name="edit" />
-                </button>
-                <button className="btn btn-ghost btn-sm resource-btn btn-icon" onClick={() => askDelete(item)} title={t('resource.delete')} aria-label={t('resource.delete')}>
-                  <Icon name="trash" />
-                </button>
+                <IconButton size="xs" icon="edit" label={t('resource.edit')} onClick={() => onEdit(item)} />
+                <IconButton size="xs" icon="trash" label={t('resource.delete')} onClick={() => askDelete(item)} />
               </li>
             );
           })}
@@ -158,7 +155,7 @@ export function ResourceForm({ fields, value, onSubmit, onCancel, onBrowse, erro
               <div className="row">
                 <input {...common} type="text" readOnly={!!onBrowse} />
                 {onBrowse && (
-                  <button title={t('resource.browse')} type="button" className="btn btn-sm" onClick={async () => {
+                  <Button size="sm" title={t('resource.browse')} onClick={async () => {
                     try {
                       const picked = await onBrowse(f.key);
                       setBrowseError(undefined);
@@ -168,16 +165,16 @@ export function ResourceForm({ fields, value, onSubmit, onCancel, onBrowse, erro
                     }
                   }}>
                     {t('resource.browse')}
-                  </button>
+                  </Button>
                 )}
               </div>
             ) : f.kind === 'password' ? (
               <div className="row">
                 <input {...common} type="password" autoComplete="new-password" />
                 {saved && (
-                  <button title={t('resource.clear')} type="button" className="btn btn-sm" onClick={() => set(f.key, '')}>
+                  <Button size="sm" title={t('resource.clear')} onClick={() => set(f.key, '')}>
                     {t('resource.clear')}
-                  </button>
+                  </Button>
                 )}
               </div>
             ) : (
@@ -189,8 +186,8 @@ export function ResourceForm({ fields, value, onSubmit, onCancel, onBrowse, erro
       })}
       <div className="resource-actions">
         {actions?.(values)}
-        {onCancel && <button title={t('resource.cancel')} type="button" className="btn" onClick={onCancel}>{t('resource.cancel')}</button>}
-        <button title={t('resource.save')} type="submit" className="btn btn-primary">{t('resource.save')}</button>
+        {onCancel && <Button title={t('resource.cancel')} onClick={onCancel}>{t('resource.cancel')}</Button>}
+        <Button variant="primary" title={t('resource.save')} type="submit">{t('resource.save')}</Button>
       </div>
     </form>
   );

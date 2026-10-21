@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { RestHistoryEntry } from '@deckbuilderkit/server-core/protocol';
-import { type ApiError, ErrorBanner, errorOf, Icon, useAsync, type useDialogs } from '@deckbuilderkit/ui';
+import { type ApiError, Button, ErrorBanner, errorOf, IconButton, useAsync, type useDialogs } from '@deckbuilderkit/ui';
 import { restApi as api } from '../client';
 import { t } from '../i18n';
 import { openRestTab } from './tabs-store';
@@ -40,10 +40,8 @@ export function HistoryPanel({ refresh, confirm, onClose }: { refresh: number; c
       <div className="rest-history-head">
         <span className="mono-label">{t('rest.history.title')}</span>
         <span className="spacer" />
-        <button className="btn btn-sm" onClick={() => void clear()} disabled={!history.data?.length} title={t('rest.history.clear')}>{t('rest.history.clear')}</button>
-        <button className="btn btn-ghost btn-sm btn-icon" onClick={onClose} title={t('rest.history.close')} aria-label={t('rest.history.close')}>
-          <Icon name="close" />
-        </button>
+        <Button size="sm" variant="ghost" icon="trash" onClick={() => void clear()} disabled={!history.data?.length} title={t('rest.history.clear')}>{t('rest.history.clear')}</Button>
+        <IconButton icon="close" onClick={onClose} label={t('rest.history.close')} />
       </div>
       <input
         className="rest-history-search"

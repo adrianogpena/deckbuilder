@@ -1,5 +1,5 @@
 import { type DragEvent, type MouseEvent, type ReactNode, useState } from 'react';
-import { Icon, type IconName, useShortcutTip } from '@deckbuilderkit/ui';
+import { Icon, IconButton, type IconName, useShortcutTip } from '@deckbuilderkit/ui';
 import { t } from '../i18n';
 import type { SectionId } from './sidebar-sections';
 
@@ -10,17 +10,18 @@ export const SECTION_DRAG_TYPE = 'application/x-agents-section';
 export function SectionButton({ icon, label, onClick, pressed, command }: { icon: IconName; label: string; onClick(): void; pressed?: boolean; command?: string }) {
   const tip = useShortcutTip();
   return (
-    <button
-      type="button"
+    <IconButton
+      size="xs"
+      icon={icon}
+      label={label}
       className="agents-section-btn"
       title={tip(label, command)}
-      aria-label={label}
-      aria-pressed={pressed}
+      pressed={pressed}
       onClick={(e) => {
         e.stopPropagation();
         onClick();
       }}
-    ><Icon name={icon} size={14} /></button>
+    />
   );
 }
 

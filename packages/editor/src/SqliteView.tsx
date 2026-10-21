@@ -1,4 +1,4 @@
-import { ErrorBanner, errorOf, Icon, type ApiError, PanelLoading, t } from '@deckbuilderkit/ui';
+import { ErrorBanner, errorOf, Icon, IconButton, type ApiError, PanelLoading, t } from '@deckbuilderkit/ui';
 import { useState } from 'react';
 import { DataGrid } from './TableView';
 
@@ -50,12 +50,8 @@ export function SqliteView({ content, load }: { content: SqliteContent; load(tab
         <div className="file-preview-bar archive-bar">
           <span className="archive-summary">{t('preview.sqliteRows', { from, to, total: current.total })}</span>
           <span>
-            <button title={t('preview.previous')} className="btn btn-ghost btn-sm" disabled={busy || current.offset === 0} onClick={() => void go(current.table!, Math.max(0, current.offset - PAGE))}>
-              {t('preview.previous')}
-            </button>
-            <button title={t('preview.next')} className="btn btn-ghost btn-sm" disabled={busy || to >= current.total} onClick={() => void go(current.table!, current.offset + PAGE)}>
-              {t('preview.next')}
-            </button>
+            <IconButton icon="chevron" className="pdf-prev" label={t('preview.previous')} disabled={busy || current.offset === 0} onClick={() => void go(current.table!, Math.max(0, current.offset - PAGE))} />
+            <IconButton icon="chevron" label={t('preview.next')} disabled={busy || to >= current.total} onClick={() => void go(current.table!, current.offset + PAGE)} />
           </span>
         </div>
         {error && <ErrorBanner error={error} compact />}

@@ -1,4 +1,4 @@
-import { copyText, Icon, effectiveKeys, errorMessage, errorOf, paletteCommand, t, useDialogs, useKeybindings, type CommandDef } from '@deckbuilderkit/ui';
+import { Button, copyText, IconButton, effectiveKeys, errorMessage, errorOf, paletteCommand, t, useDialogs, useKeybindings, type CommandDef } from '@deckbuilderkit/ui';
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { attachSession, closeSession, isSessionGone, openSession, socketUrl, type TerminalCwd, type TerminalLaunch } from './client.ts';
 import { withAppearance, type ProfileAppearance } from './appearance.ts';
@@ -537,15 +537,9 @@ export function TerminalPane(props: TerminalPaneProps) {
           <button type="button" className={`chip${regex ? ' chip-on' : ''}`} onClick={() => setRegex(!regex)} aria-pressed={regex} title={t('terminal.find.regex')}>
             .*
           </button>
-          <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={() => step(-1)} title={t('terminal.find.prev')} aria-label={t('terminal.find.prev')}>
-            <Icon name="chevron-up" />
-          </button>
-          <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={() => step(1)} title={t('terminal.find.next')} aria-label={t('terminal.find.next')}>
-            <Icon name="chevron-down" />
-          </button>
-          <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={closeFind} title={t('terminal.find.close')} aria-label={t('terminal.find.close')}>
-            <Icon name="close" />
-          </button>
+          <IconButton icon="chevron-up" onClick={() => step(-1)} label={t('terminal.find.prev')} />
+          <IconButton icon="chevron-down" onClick={() => step(1)} label={t('terminal.find.next')} />
+          <IconButton icon="close" onClick={closeFind} label={t('terminal.find.close')} />
         </div>
       )}
       {overlay && <div className="terminal-overlay">{overlay}</div>}
@@ -557,9 +551,9 @@ export function TerminalPane(props: TerminalPaneProps) {
 function overlayOf(status: Status, preview: boolean, controller: { current: Controller | null }) {
   const action = (label: string, run: (c: Controller) => void) =>
     preview ? null : (
-      <button title={label} type="button" className="btn btn-sm" onClick={() => controller.current && run(controller.current)}>
+      <Button title={label} size="sm" onClick={() => controller.current && run(controller.current)}>
         {label}
-      </button>
+      </Button>
     );
   switch (status.kind) {
     case 'live':

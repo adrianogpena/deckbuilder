@@ -23,6 +23,7 @@ import {
 } from '../log';
 import { visibleRange } from '../table';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
+import { Button, IconButton } from './Button';
 import { Icon } from './ui';
 import { wordUnder } from '../log-dom';
 import { clock, LogBookmarkMenu } from './LogBookmarkMenu';
@@ -239,13 +240,13 @@ export function LogView({
             onChange={(e) => changeQuery({ ...query, text: e.target.value })}
             onKeyDown={onSearchKey}
           />
-          <button className={`btn btn-ghost btn-sm log-toggle${query.caseSensitive ? ' active' : ''}`} aria-pressed={!!query.caseSensitive} title={t('log.caseSensitive')} onClick={() => changeQuery({ ...query, caseSensitive: !query.caseSensitive })}>Aa</button>
-          <button className={`btn btn-ghost btn-sm log-toggle${query.wholeWord ? ' active' : ''}`} aria-pressed={!!query.wholeWord} title={t('log.wholeWord')} onClick={() => changeQuery({ ...query, wholeWord: !query.wholeWord })}>ab</button>
-          <button className={`btn btn-ghost btn-sm log-toggle${query.regex ? ' active' : ''}`} aria-pressed={!!query.regex} title={t('log.regex')} onClick={() => changeQuery({ ...query, regex: !query.regex })}>.*</button>
+          <Button variant="ghost" size="sm" className="log-toggle" pressed={!!query.caseSensitive} title={t('log.caseSensitive')} aria-label={t('log.caseSensitive')} onClick={() => changeQuery({ ...query, caseSensitive: !query.caseSensitive })}>Aa</Button>
+          <Button variant="ghost" size="sm" className="log-toggle" pressed={!!query.wholeWord} title={t('log.wholeWord')} aria-label={t('log.wholeWord')} onClick={() => changeQuery({ ...query, wholeWord: !query.wholeWord })}>ab</Button>
+          <Button variant="ghost" size="sm" className="log-toggle" pressed={!!query.regex} title={t('log.regex')} aria-label={t('log.regex')} onClick={() => changeQuery({ ...query, regex: !query.regex })}>.*</Button>
         </div>
         {query.text && <span className="log-hits" role="status">{currentHit + 1}/{hits.length}</span>}
-        <button className="btn btn-ghost btn-sm log-icon-btn btn-icon" title={t('log.prev')} aria-label={t('log.prev')} disabled={!hits.length} onClick={() => step(-1)}><Icon name="chevron-up" size={14} /></button>
-        <button className="btn btn-ghost btn-sm log-icon-btn btn-icon" title={t('log.next')} aria-label={t('log.next')} disabled={!hits.length} onClick={() => step(1)}><Icon name="chevron-down" size={14} /></button>
+        <IconButton icon="chevron-up" label={t('log.prev')} disabled={!hits.length} onClick={() => step(-1)} />
+        <IconButton icon="chevron-down" label={t('log.next')} disabled={!hits.length} onClick={() => step(1)} />
         <div className="log-levels" role="group" aria-label={t('log.levels')}>
           {LOG_LEVELS.map((level) => (
             <button title={t(`log.level.${level}`)} key={level} className={`chip log-level lvl-${level}${levels.has(level) ? ' chip-on' : ''}`} aria-pressed={levels.has(level)} onClick={() => toggleLevel(level)}>
@@ -255,14 +256,14 @@ export function LogView({
         </div>
         <span className="spacer" />
         {onFollowChange && (
-          <button className={`btn btn-ghost btn-sm${follow ? ' active' : ''}`} aria-pressed={!!follow} title={t('log.followHint')} onClick={() => onFollowChange(!follow)}>
-            <Icon name="follow" size={14} /> {t('log.follow')}
-          </button>
+          <Button variant="ghost" size="sm" icon="follow" pressed={!!follow} title={t('log.followHint')} onClick={() => onFollowChange(!follow)}>
+            {t('log.follow')}
+          </Button>
         )}
         {marks && endOffset !== undefined && (
-          <button className="btn btn-ghost btn-sm" title={t('log.bookmarkEndHint')} onClick={bookmarkEnd}>
-            <Icon name="bookmark" size={14} /> {t('log.bookmarkEnd')}
-          </button>
+          <Button variant="ghost" size="sm" icon="bookmark" title={t('log.bookmarkEndHint')} onClick={bookmarkEnd}>
+            {t('log.bookmarkEnd')}
+          </Button>
         )}
         {marks && (
           <LogBookmarkMenu

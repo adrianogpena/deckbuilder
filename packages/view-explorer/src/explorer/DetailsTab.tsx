@@ -13,6 +13,7 @@ import {
   folderIconOf,
   formatBytes,
   Icon,
+  IconButton,
   relPath,
   type SortState,
   useDialogs,
@@ -246,9 +247,7 @@ export function DetailsTab({ project, path, exclude, showHidden = false, sort, o
     >
       {element}
       <div className="xp-bar">
-        <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={up} disabled={path === ''} title={t('explorer.details.up')} aria-label={t('explorer.details.up')}>
-          <Icon name="chevron-up" />
-        </button>
+        <IconButton icon="chevron-up" onClick={up} disabled={path === ''} label={t('explorer.details.up')} />
         <Breadcrumbs
           root={project.name}
           path={path}

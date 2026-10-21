@@ -1,6 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { t } from '../i18n';
-import { CopyButton, Icon, type Tone } from './ui';
+import { Button } from './Button';
+import { CopyButton, type Tone } from './ui';
 
 export interface OutputLine {
   text: string;
@@ -48,7 +49,7 @@ export function OutputPanel({ lines, onClear, maxLines = 5000 }: { lines: Output
           onChange={(e) => setFilter(e.target.value)}
         />
         <CopyButton text={shown.map(lineText).join('\n')} label={t('output.copyAll')} />
-        {onClear && <button title={t('output.clear')} className="btn btn-ghost btn-sm" onClick={onClear}>{t('output.clear')}</button>}
+        {onClear && <Button variant="ghost" size="sm" icon="trash" title={t('output.clear')} onClick={onClear}>{t('output.clear')}</Button>}
       </div>
       <div
         ref={scroller}
@@ -66,10 +67,9 @@ export function OutputPanel({ lines, onClear, maxLines = 5000 }: { lines: Output
         ))}
       </div>
       {!following && (
-        <button title={t('output.jumpToLatest')} className="btn btn-sm output-jump" onClick={() => { setFollowing(true); toBottom(); }}>
-          <Icon name="chevron-down" />
+        <Button size="sm" icon="chevron-down" className="output-jump" title={t('output.jumpToLatest')} onClick={() => { setFollowing(true); toBottom(); }}>
           <span>{t('output.jumpToLatest')}</span>
-        </button>
+        </Button>
       )}
     </div>
   );

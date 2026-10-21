@@ -1,5 +1,6 @@
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { t } from '../i18n';
+import { Button, IconButton } from './Button';
 import { Icon } from './ui';
 
 export interface ToastOptions {
@@ -96,11 +97,9 @@ function Toast({ entry, paused, defaultTimeout, onClose }: { entry: Entry; pause
       <Icon name={error ? 'alert' : 'check'} size={14} />
       <span className="toast-text">{entry.message}</span>
       {entry.action && (
-        <button title={entry.action.label} className="btn btn-ghost btn-sm" onClick={() => { entry.action!.run(); onClose(); }}>{entry.action.label}</button>
+        <Button variant="ghost" size="sm" title={entry.action.label} onClick={() => { entry.action!.run(); onClose(); }}>{entry.action.label}</Button>
       )}
-      <button className="btn btn-ghost btn-sm toast-close btn-icon" onClick={onClose} aria-label={t('common.close')} title={t('common.close')}>
-        <Icon name="close" size={12} />
-      </button>
+      <IconButton icon="close" label={t('common.close')} onClick={onClose} />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Badge, CopyButton, ErrorBanner, Icon, isDesktop, PageHead, Spinner, useAsync } from '@deckbuilderkit/ui';
+import { Badge, Button, CopyButton, ErrorBanner, isDesktop, PageHead, Spinner, useAsync } from '@deckbuilderkit/ui';
 import { api } from '../api';
 import { t } from '../i18n';
 
@@ -9,7 +9,7 @@ export function Home() {
   return (
     <div className="content">
       <PageHead title={t('home.title')}>
-        <button title={t('common.retry')} className="btn btn-sm" onClick={info.reload}><Icon name="refresh" /> {t('common.retry')}</button>
+        <Button size="sm" icon="refresh" title={t('common.retry')} onClick={info.reload}>{t('common.retry')}</Button>
       </PageHead>
       <div className="scroll">
         {info.error && <ErrorBanner error={info.error} onRetry={info.reload} />}
