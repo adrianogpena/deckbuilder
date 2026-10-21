@@ -559,7 +559,7 @@ export function AgentsScreen({ usageSettings, rightSidebarOpen = false, rightSid
 
   const sizeVars = { '--agents-sidebar-w': `${widths.sidebar}px` } as CSSProperties;
 
-  const { list: sharedSideList, setList: setSharedSideList, open: sharedSideOpen, setOpen: setSharedSideOpen } = useRightSide(SHARED_SCOPE, rightSidebarOpen);
+  const { list: sharedSideList, setList: setSharedSideList, open: sharedSideOpen, setOpen: setSharedSideOpen, folded: sharedFolded, setFolded: setSharedFolded } = useRightSide(SHARED_SCOPE, rightSidebarOpen);
   const host: AgentsHost = {
     sessions,
     git,
@@ -568,7 +568,7 @@ export function AgentsScreen({ usageSettings, rightSidebarOpen = false, rightSid
     rightSidebarOpen,
     taskSkill,
     rightSidebarPerProject,
-    sharedSide: { side: sharedSideList, setSide: setSharedSideList, open: sharedSideOpen, setOpen: setSharedSideOpen },
+    sharedSide: { side: sharedSideList, setSide: setSharedSideList, open: sharedSideOpen, setOpen: setSharedSideOpen, folded: sharedFolded, setFolded: setSharedFolded },
     projects,
     accounts,
     appKeys,

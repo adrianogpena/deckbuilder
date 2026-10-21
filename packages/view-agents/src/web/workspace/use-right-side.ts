@@ -10,6 +10,7 @@ import type { PanelKind } from './types';
  */
 export function useRightSide(scope: string, defaultOpen: boolean) {
   const [list, setList] = useState<PanelKind[]>([]);
+  const [folded, setFolded] = useState<PanelKind[]>([]);
   const [open, setOpen] = useState(defaultOpen);
   const [loaded, setLoaded] = useState(false);
   const baseline = useRef<string>();
@@ -24,6 +25,7 @@ export function useRightSide(scope: string, defaultOpen: boolean) {
       if (!live) return;
       const saved = parseRightSide(map, scope, isDockableKind);
       setList(saved.list);
+      setFolded(saved.folded ?? []);
       setOpen(saved.open ?? defaultRef.current);
       setLoaded(true);
     });
@@ -34,15 +36,15 @@ export function useRightSide(scope: string, defaultOpen: boolean) {
 
   useEffect(() => {
     if (!loaded) return;
-    const key = JSON.stringify([list, open]);
+    const key = JSON.stringify([list, open, folded]);
     if (baseline.current === undefined) {
       baseline.current = key;
       return;
     }
     if (baseline.current === key) return;
     baseline.current = key;
-    saveRightSide(scope, { list, open });
-  }, [loaded, scope, list, open]);
+    saveRightSide(scope, { list, open, folded });
+  }, [loaded, scope, list, open, folded]);
 
-  return { list, setList, open, setOpen };
+  return { list, setList, open, setOpen, folded, setFolded };
 }

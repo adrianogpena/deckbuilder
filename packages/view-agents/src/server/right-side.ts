@@ -9,6 +9,7 @@ const MAX_SCOPE_LEN = 1024;
 export interface RightSideEntry {
   list: string[];
   open?: boolean;
+  folded?: string[];
 }
 export type RightSideMap = Record<string, RightSideEntry>;
 
@@ -18,7 +19,8 @@ const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'obj
 export function cleanRightSide(raw: unknown): RightSideEntry | undefined {
   if (!isObject(raw)) return undefined;
   const list = Array.isArray(raw.list) ? [...new Set(raw.list.filter((k): k is string => typeof k === 'string' && k.length > 0 && k.length <= MAX_KIND_LEN))].slice(0, MAX_KINDS) : [];
-  return { list, ...(typeof raw.open === 'boolean' ? { open: raw.open } : {}) };
+  const folded = Array.isArray(raw.folded) ? [...new Set(raw.folded.filter((k): k is string => typeof k === 'string' && k.length > 0 && k.length <= MAX_KIND_LEN))].slice(0, MAX_KINDS) : [];
+  return { list, ...(typeof raw.open === 'boolean' ? { open: raw.open } : {}), ...(folded.length ? { folded } : {}) };
 }
 
 export function cleanRightSideMap(raw: unknown): RightSideMap {

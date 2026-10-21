@@ -26,7 +26,7 @@ export interface AgentsHost {
   taskSkill?: string;
   /** Setting `agents.rightSidebarPerProject`: false = every workspace uses the shared `sharedSide` state. */
   rightSidebarPerProject?: boolean;
-  sharedSide: { side: PanelKind[]; setSide: Dispatch<SetStateAction<PanelKind[]>>; open: boolean; setOpen: Dispatch<SetStateAction<boolean>> };
+  sharedSide: { side: PanelKind[]; setSide: Dispatch<SetStateAction<PanelKind[]>>; open: boolean; setOpen: Dispatch<SetStateAction<boolean>>; folded: PanelKind[]; setFolded: Dispatch<SetStateAction<PanelKind[]>> };
   projects: AgentProject[];
   accounts: AgentAccount[];
   /** App commands whose keys still work while a terminal has the focus. */

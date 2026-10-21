@@ -50,13 +50,16 @@ export function ProjectWorkspace({ project, hidden, register, onFocusedAgent }: 
   hostRef.current = host;
   const [agent, setAgent] = useState<AgentView>();
   const [tools, setTools] = useState<Tool[]>([]);
-  const { list: localSide, setList: setLocalSide, open: localSideOpen, setOpen: setLocalSideOpen } = useRightSide(project, host.rightSidebarOpen === true);
+  const { list: localSide, setList: setLocalSide, open: localSideOpen, setOpen: setLocalSideOpen, folded: localFolded, setFolded: setLocalFolded } = useRightSide(project, host.rightSidebarOpen === true);
   const shared = host.rightSidebarPerProject !== true;
   const side = shared ? host.sharedSide.side : localSide;
   const sideOpen = shared ? host.sharedSide.open : localSideOpen;
   const setSide = shared ? host.sharedSide.setSide : setLocalSide;
   const setSideOpen = shared ? host.sharedSide.setOpen : setLocalSideOpen;
   const [sideMenu, setSideMenu] = useState<{ at: { x: number; y: number }; items: ContextMenuItem[] }>();
+  const folded = shared ? host.sharedSide.folded : localFolded;
+  const setFolded = shared ? host.sharedSide.setFolded : setLocalFolded;
+  const toggleFolded = (kind: PanelKind) => setFolded((cur) => (cur.includes(kind) ? cur.filter((k) => k !== kind) : [...cur, kind]));
   const nonce = useRef(0);
   const tool = tools[tools.length - 1];
 
@@ -182,19 +185,25 @@ export function ProjectWorkspace({ project, hidden, register, onFocusedAgent }: 
             <Icon name="plus" size={14} />
             <span className="agents-label">{t('agents.section.add')}</span>
           </button>
+          <div className="agents-dock-side-list">
           {side.map((kind, at) => {
             const mod = panelOf(kind);
+            const isFolded = folded.includes(kind);
+            const toggleLabel = isFolded ? t('agents.section.expand') : t('agents.section.collapse');
             return (
-              <section key={kind} className="agents-dock-side-item" onContextMenu={(e) => { e.preventDefault(); setSideMenu({ at: { x: e.clientX, y: e.clientY }, items: [
+              <section key={kind} className={`agents-dock-side-item${isFolded ? ' collapsed' : ''}`} onContextMenu={(e) => { e.preventDefault(); setSideMenu({ at: { x: e.clientX, y: e.clientY }, items: [
                 { id: 'moveUp', label: t('agents.tree.moveUp'), disabled: at === 0, run: () => moveInSide(kind, at - 1) },
                 { id: 'moveDown', label: t('agents.tree.moveDown'), disabled: at === side.length - 1, run: () => moveInSide(kind, at + 1) },
                 { id: 'toLeft', label: t('agents.section.toLeft'), run: () => moveToLeft(kind) },
               ] }); }}>
-                <div className="agents-section-head agents-dock-side-head"><span className="agents-label">{mod ? t(mod.titleKey) : kind}</span><span className="agents-section-actions"><SectionButton icon="close" label={t('agents.section.hide')} onClick={() => setSide((cur) => cur.filter((k) => k !== kind))} /></span></div>
-                <PanelBoundary>{mod ? <mod.Panel {...panelProps(kind, {}, true, () => undefined)} /> : <MissingPanel kind={kind} />}</PanelBoundary>
+                <div className="agents-section-head agents-dock-side-head"><button type="button" className="agents-section-toggle" aria-expanded={!isFolded} title={toggleLabel} onClick={() => toggleFolded(kind)}><span className="agents-section-chevron" aria-hidden="true"><Icon name="chevron" size={14} /></span><span className="agents-label">{mod ? t(mod.titleKey) : kind}</span></button><span className="agents-section-actions"><SectionButton icon="close" label={t('agents.section.hide')} onClick={() => setSide((cur) => cur.filter((k) => k !== kind))} /></span></div>
+                <div className="agents-dock-side-body" hidden={isFolded}>
+                  <PanelBoundary>{mod ? <mod.Panel {...panelProps(kind, {}, !isFolded, () => undefined)} /> : <MissingPanel kind={kind} />}</PanelBoundary>
+                </div>
               </section>
             );
           })}
+          </div>
         </aside>
       )}
       {sideMenu && <ContextMenu at={sideMenu.at} items={sideMenu.items} onClose={() => setSideMenu(undefined)} />}

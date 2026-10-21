@@ -16,7 +16,7 @@ export function loadRightSideMap(): Promise<unknown> {
 }
 
 /** Saves one scope on the server (best effort) and keeps the cached map current. */
-export function saveRightSide(scope: string, value: { list: string[]; open?: boolean }): void {
+export function saveRightSide(scope: string, value: { list: string[]; open?: boolean; folded?: string[] }): void {
   rightSideMap = loadRightSideMap().then((m) => ({ ...(m && typeof m === 'object' ? m : {}), [scope]: value }));
   void request('PUT', '/api/agents/right-side', {}, { scope, value }).catch(() => undefined);
 }

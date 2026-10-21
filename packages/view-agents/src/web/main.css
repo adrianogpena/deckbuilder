@@ -61,6 +61,12 @@
 .view-agents .agents-dock-side-add { margin: var(--space-4); }
 .view-agents .agents-dock-side-item { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; }
 .view-agents .agents-dock-side-head { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 var(--space-6); color: var(--text-3); cursor: default; }
+.view-agents .agents-dock-side-list { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; }
+.view-agents .agents-dock-side-item:not(.collapsed):not(:only-child) { max-height: 50%; }
+.view-agents .agents-dock-side-item.collapsed { flex: none; }
+.view-agents .agents-dock-side-item.collapsed .agents-section-chevron { transform: none; }
+.view-agents .agents-dock-side-body { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; }
+.view-agents .agents-dock-side-body[hidden] { display: none; }
 .view-agents .agents-dock-side-item + .agents-dock-side-item { border-top: 1px solid var(--border); }
 .view-agents .agents-dock-view { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; }
 .view-agents .agents-dock-view[hidden] { display: none; }
