@@ -536,6 +536,45 @@ Atom packs are compiled into `packages/ui/src/icons.ts` by `bun scripts/build-ma
 `bun scripts/build-atom-icons.ts`; each reads the pack's `mapping.json`. Rerun the script after
 changing a pack or its mapping.
 
+## Adding a dashboard panel
+
+The Dashboard view (`packages/view-grid/src/dashboard/`) reuses the grid panel contract (`definePanel`,
+`defineSource`, `PanelField`). Panels live in area folders `packages/view-grid/src/panels/<area>/`
+(`github`, `jira`, `calendar`, `feeds`, `misc`). Every area folder has:
+
+- `fields.ts`: `PanelField` lists and pure types, no React.
+- `server.ts`: exports `specs: GridPanelSpec[]` and `sources: DataSource[]`, no React.
+- `web.ts`: exports `panels: AnyPanelKind[]` (`definePanel` calls).
+- `i18n.ts`: exports `en` and `ptBR: Messages<typeof en>`.
+
+Steps:
+
+1. Create or extend the area folder; add the area to `panels/catalog.web.ts` and `panels/catalog.server.ts`
+   (they spread `panels`, `specs`, `sources`, `en`/`ptBR`).
+2. Fields: besides the grid kinds there are `multi` (list of values), `text` (multi-line, up to
+   `MAX_TEXT_FIELD`), `date` and `connection` (`{kind: 'connection', connectionType, default: '', label}`;
+   a picker of the saved connections with "New connection..."). Labels are i18n keys, never inline.
+3. Source: `defineSource({id, fields, fetch})` in `server.ts` (route `POST /api/grid/source/<id>`); pure
+   mapping code goes in its own file with a test next to it. Reach the network with `sourceFetch(url, init, {signal})`
+   and throw `SourceError(code, msg)`, both re-exported by `view-grid/src/server.ts`. For a connection use
+   `ctx.connection(config.connection, 'github' | 'jira' | ...)` -> `{baseUrl, user?, token}`. Server-side
+   files import from `@deckbuilderkit/ui/grid` only (the React index breaks the server typecheck).
+4. Error codes reach the panel as `source-not-configured|auth|rate-limited|offline|upstream`; `PanelHost` shows
+   the matching notice (not-configured: Set up button; auth: Check the connection, Set up, Retry), so a panel
+   needs no notice of its own. An unset required field should throw `source-not-configured`.
+5. Panel: `definePanel({kind, title, description, icon, category, size, fields, load, refreshMs(config, data),
+   render, allowMultiple})`; `render` gets `configure()` to open the settings form. Use the kit
+   (`view-grid/src/kit`: `Chip`/`Tone` ok|warn|danger|info|neutral, `ListRows`, `StatTile`, `Sparkline`,
+   `relTime`, `fmtDuration`, `hasColumn`). Icons must be built-in names. File names must differ in more than
+   case from siblings (`weather.ts` next to `WeatherPanel.tsx`) or tsc fails on Windows.
+6. i18n: keys are prefixed `dash.<area>.*` (panel titles, fields, empty states) and `dash.category.<area>`;
+   errors `error.*` within the area. Params use single braces (`{name}`).
+7. Tests for the pure parts (mappers, parsers, refresh rules) next to the files; no live network.
+
+Layouts (named, up to 20) and presets ("Save as preset" in the panel menu, "My panels" in Add panel) are
+stored in the `dashboardLayouts` and `dashboardPresets` settings. Connections are stored server-side in
+`<dataDir>/grid/connections.json` (tokens never reach the web); GitHub falls back to `gh auth token`.
+
 ## Adding an Agents panel
 A tool in the Agents view is a panel module:
 - Create `packages/view-agents/src/web/panels/<kind>/` with `index.tsx` exporting `panel: PanelModule` (contract in `web/workspace/types.ts`), `i18n.ts` (`en` and `ptBR`) and `style.css`.

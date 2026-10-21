@@ -96,6 +96,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the other scripts.
 - **Workbench**: SQL client (Oracle) with history, explain plan and table details. Explorer opens `.sql` files in it.
 - **Git**: repository status and history.
 - **Tabs** and **Grid**: several views in one window; any view can also pop out into its own window.
+- **Dashboard**: named layouts of configurable panels, with presets ("Save as preset", "My panels"). Panel areas: GitHub (pull requests, issues, Actions, notifications, releases), Jira (issues, counts, sprint board), calendar (month, sprint, countdowns, agenda from an ICS URL), feeds (weather, RSS, exchange rates) and utilities (links, notes, URL health, JSON metric, system). Connections (GitHub, Jira) are stored server-side, never in the web app; GitHub falls back to the `gh` CLI login.
 - **Settings**: theme, language, layout, browser and shortcuts.
 
 All dialogs (file pickers, confirms) are in-app, themed and translated; no native OS dialogs.
