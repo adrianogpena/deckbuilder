@@ -14,6 +14,7 @@ import {
   type PanelDef,
 } from '../grid';
 import { t } from '../i18n';
+import type { ContextMenuItem } from './ContextMenu';
 import { IconPicker } from './IconPicker';
 import { Icon, useDialogs } from './ui';
 import { PANEL_HANDLE, PANEL_NO_DRAG, PanelFrame } from './Panel';
@@ -24,7 +25,9 @@ export interface PanelGridProps {
   items: GridItem[];
   defs: PanelDef[];
   /** Content of one panel; the grid adds the frame (title, icon, collapse, remove). */
-  render: (id: string) => ReactNode;
+  render: (item: GridItem) => ReactNode;
+  /** Extra menu entries of one panel, before the built-in ones. */
+  itemMenu?: (item: GridItem) => ContextMenuItem[];
   /** Called with the new items after a drag, resize, collapse or remove. */
   onChange: (items: GridItem[]) => void;
 }
@@ -33,10 +36,10 @@ export interface PanelGridProps {
  * Draggable, resizable panels. Only the full-width (lg) layout is editable and saved; the
  * narrower breakpoints show a layout the grid derives from it.
  */
-export function PanelGrid({ items, defs, render, onChange }: PanelGridProps) {
+export function PanelGrid({ items, defs, render, itemMenu, onChange }: PanelGridProps) {
   const { width, containerRef } = useContainerWidth({ initialWidth: 1280 });
   const editable = breakpointOf(width) === 'lg';
-  const known = useMemo(() => items.filter((i) => defs.some((d) => d.id === i.id)), [items, defs]);
+  const known = useMemo(() => items.filter((i) => defs.some((d) => d.id === i.kind)), [items, defs]);
   const layout = useMemo(() => toGridLayout(known, defs), [known, defs]);
   const dialogs = useDialogs();
   const [picking, setPicking] = useState<string | null>(null);
@@ -53,8 +56,7 @@ export function PanelGrid({ items, defs, render, onChange }: PanelGridProps) {
   const patch = (id: string, change: Partial<GridItem>) =>
     onChange(items.map((i) => (i.id === id ? { ...i, ...change } : i)));
 
-  const rename = async (item: GridItem, def: PanelDef) => {
-    const value = await dialogs.prompt({
+  const rename = async (item: GridItem, def: PanelDef) => {    const value = await dialogs.prompt({
       title: t('panel.rename'),
       label: t('panel.name'),
       value: item.title ?? def.title,
@@ -65,7 +67,7 @@ export function PanelGrid({ items, defs, render, onChange }: PanelGridProps) {
   };
 
   const pickingItem = picking ? items.find((i) => i.id === picking) : undefined;
-  const pickingDef = pickingItem && defs.find((d) => d.id === pickingItem.id);
+  const pickingDef = pickingItem && defs.find((d) => d.id === pickingItem.kind);
 
   return (
     <div ref={containerRef as RefObject<HTMLDivElement>} className="panel-grid">
@@ -83,13 +85,14 @@ export function PanelGrid({ items, defs, render, onChange }: PanelGridProps) {
         onResizeStop={commitLayout}
       >
         {known.map((item) => {
-          const def = defs.find((d) => d.id === item.id)!;
+          const def = defs.find((d) => d.id === item.kind)!;
           return (
             <div key={item.id}>
               <PanelFrame
                 title={item.title ?? def.title}
                 icon={<Icon name={item.icon ?? def.icon} />}
                 menu={[
+                  ...(itemMenu?.(item) ?? []),
                   { id: 'rename', label: t('panel.rename'), icon: 'edit', run: () => void rename(item, def) },
                   { id: 'icon', label: t('panel.changeIcon'), icon: 'cube', run: () => setPicking(item.id) },
                   { id: 'reset', label: t('panel.resetLook'), icon: 'refresh', disabled: !item.title && !item.icon, run: () => patch(item.id, { title: undefined, icon: undefined }) },
@@ -98,7 +101,7 @@ export function PanelGrid({ items, defs, render, onChange }: PanelGridProps) {
                 onCollapsedChange={(collapsed) => patch(item.id, { collapsed })}
                 onRemove={() => onChange(items.filter((i) => i.id !== item.id))}
               >
-                {render(item.id)}
+                {render(item)}
               </PanelFrame>
             </div>
           );

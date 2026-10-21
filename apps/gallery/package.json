@@ -25,6 +25,7 @@
     "@deckbuilderkit/view-agents": "workspace:*",
     "@deckbuilderkit/view-explorer": "workspace:*",
     "@deckbuilderkit/view-git": "workspace:*",
+    "@deckbuilderkit/view-grid": "workspace:*",
     "@deckbuilderkit/view-rest": "workspace:*",
     "@deckbuilderkit/view-terminal": "workspace:*",
     "@deckbuilderkit/view-workbench": "workspace:*",

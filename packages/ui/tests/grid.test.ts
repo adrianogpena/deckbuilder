@@ -8,14 +8,16 @@ import {
   sameGeometry,
   sameItems,
   toGridLayout,
+  validConfig,
   validGridItems,
   type GridItem,
+  type PanelField,
   type PanelDef,
 } from '../src/grid.ts';
 
 const def = (id: string, w = 6, h = 8): PanelDef => ({ id, title: id, icon: 'cube', defaultSize: { w, h }, minW: 3, minH: 4 });
 const defs = [def('a'), def('b'), def('c')];
-const item = (id: string, x: number, y: number, w = 6, h = 8, collapsed?: boolean): GridItem => ({ id, x, y, w, h, collapsed });
+const item = (id: string, x: number, y: number, w = 6, h = 8, collapsed?: boolean): GridItem => ({ id, kind: id, x, y, w, h, collapsed });
 
 describe('breakpointOf', () => {
   test('switches at 768 and 1200', () => {
@@ -54,7 +56,7 @@ describe('fromGridLayout', () => {
   test('takes positions and sizes from the layout', () => {
     const items = [item('a', 0, 0)];
     const layout = [{ i: 'a', x: 3, y: 2, w: 5, h: 7 }];
-    expect(fromGridLayout(layout, items)).toEqual([{ id: 'a', x: 3, y: 2, w: 5, h: 7, collapsed: undefined }]);
+    expect(fromGridLayout(layout, items)).toEqual([{ id: 'a', kind: 'a', x: 3, y: 2, w: 5, h: 7, collapsed: undefined }]);
   });
 
   test('a collapsed panel keeps its expanded height and the flag', () => {
@@ -89,7 +91,7 @@ describe('findFreeSpot / addItem', () => {
   test('fills a gap before appending at the bottom', () => {
     const items = [item('a', 0, 0), item('b', 6, 0, 6, 4), item('c', 0, 8)];
     expect(findFreeSpot(items, 6, 4)).toEqual({ x: 6, y: 4 });
-    expect(addItem(items, def('d', 6, 4)).at(-1)).toEqual({ id: 'd', x: 6, y: 4, w: 6, h: 4, collapsed: false });
+    expect(addItem(items, def('d', 6, 4)).at(-1)).toEqual({ id: 'd', kind: 'd', x: 6, y: 4, w: 6, h: 4, collapsed: false });
   });
 
   test('appends below when nothing fits', () => {
@@ -103,11 +105,11 @@ describe('findFreeSpot / addItem', () => {
 });
 
 describe('validGridItems', () => {
-  const ids = ['a', 'b', 'c'];
+  const ids = { a: {}, b: {}, c: {} };
 
   test('accepts a valid layout', () => {
     const layout = [item('a', 0, 0), item('b', 6, 0, 6, 8, true)];
-    expect(validGridItems(layout, ids)).toEqual([{ id: 'a', x: 0, y: 0, w: 6, h: 8 }, { id: 'b', x: 6, y: 0, w: 6, h: 8, collapsed: true }]);
+    expect(validGridItems(layout, ids)).toEqual([{ id: 'a', kind: 'a', x: 0, y: 0, w: 6, h: 8 }, { id: 'b', kind: 'b', x: 6, y: 0, w: 6, h: 8, collapsed: true }]);
   });
 
   test('rejects an unknown id', () => {
@@ -128,8 +130,8 @@ describe('validGridItems', () => {
 });
 
 describe('title and icon', () => {
-  const ids = ['a'];
-  const base = { id: 'a', x: 0, y: 0, w: 6, h: 8 };
+  const ids = { a: {} };
+  const base = { id: 'a', kind: 'a', x: 0, y: 0, w: 6, h: 8 };
 
   test('a valid title is trimmed and kept with the icon', () => {
     expect(validGridItems([{ ...base, title: '  Mine ', icon: 'cube' }], ids)).toEqual([{ ...base, title: 'Mine', icon: 'cube' }]);
@@ -153,5 +155,69 @@ describe('title and icon', () => {
     expect(sameItems(a, [{ ...base, icon: 'cube' }])).toBe(false);
     expect(sameItems(a, [{ ...base, collapsed: true }])).toBe(false);
     expect(sameGeometry(a, [{ ...base, title: 'X' }])).toBe(true);
+  });
+});
+
+const fields: PanelField[] = [
+  { key: 'zone', kind: 'string', label: 'l', default: '', maxLength: 10 },
+  { key: 'on', kind: 'boolean', label: 'l', default: true },
+  { key: 'n', kind: 'number', label: 'l', default: 5, min: 1, max: 10 },
+  { key: 'mode', kind: 'enum', label: 'l', default: 'a', values: ['a', 'b'] },
+];
+
+describe('validConfig', () => {
+  test('fills defaults for missing, non-object and unknown input', () => {
+    const defaults = { zone: '', on: true, n: 5, mode: 'a' };
+    expect(validConfig(fields, undefined)).toEqual(defaults);
+    expect(validConfig(fields, 'x')).toEqual(defaults);
+    expect(validConfig(fields, [])).toEqual(defaults);
+    expect(validConfig([], { a: 1 })).toEqual({});
+  });
+
+  test('keeps valid values and drops unknown keys', () => {
+    expect(validConfig(fields, { zone: 'UTC', on: false, n: 7, mode: 'b', extra: 1 })).toEqual({ zone: 'UTC', on: false, n: 7, mode: 'b' });
+  });
+
+  test('replaces wrong types and unlisted enum values with the default, clamps numbers', () => {
+    expect(validConfig(fields, { zone: 3, on: 'yes', n: 'x', mode: 'z' })).toEqual({ zone: '', on: true, n: 5, mode: 'a' });
+    expect(validConfig(fields, { n: 99 }).n).toBe(10);
+    expect(validConfig(fields, { n: -4 }).n).toBe(1);
+    expect(validConfig(fields, { n: NaN }).n).toBe(5);
+    expect(validConfig(fields, { zone: 'x'.repeat(11) }).zone).toBe('');
+  });
+});
+
+describe('kinds, config and migration', () => {
+  const kinds = { clock: { fields }, solo: { allowMultiple: false } };
+  const box = { x: 0, y: 0, w: 6, h: 8 };
+
+  test('an item without kind uses its id as kind', () => {
+    expect(validGridItems([{ id: 'solo', ...box }], kinds)).toEqual([{ id: 'solo', kind: 'solo', ...box }]);
+  });
+
+  test('several instances of a kind with their own ids and cleaned configs', () => {
+    const out = validGridItems([{ id: 'c1', kind: 'clock', config: { zone: 'UTC', junk: 1 }, ...box }, { id: 'c2', kind: 'clock', ...box, x: 6 }], kinds);
+    expect(out?.map((i) => i.config)).toEqual([{ zone: 'UTC', on: true, n: 5, mode: 'a' }, { zone: '', on: true, n: 5, mode: 'a' }]);
+  });
+
+  test('rejects an unknown kind, a repeated allowMultiple false kind and a non-object config', () => {
+    expect(validGridItems([{ id: 'x', kind: 'nope', ...box }], kinds)).toBeNull();
+    expect(validGridItems([{ id: 'a', kind: 'solo', ...box }, { id: 'b', kind: 'solo', ...box, x: 6 }], kinds)).toBeNull();
+    expect(validGridItems([{ id: 'c', kind: 'clock', config: 'x', ...box }], kinds)).toBeNull();
+  });
+
+  test('sameItems compares kind and config', () => {
+    const a: GridItem = { id: 'c', kind: 'clock', config: { on: true }, ...box };
+    expect(sameItems([a], [{ ...a, config: { on: true } }])).toBe(true);
+    expect(sameItems([a], [{ ...a, config: { on: false } }])).toBe(false);
+    expect(sameItems([a], [{ ...a, kind: 'other' }])).toBe(false);
+    expect(sameItems([{ ...a, config: undefined }], [{ ...a, config: {} }])).toBe(true);
+  });
+
+  test('addItem makes a unique id and keeps the config', () => {
+    const items = addItem([], def('clock'), { on: true });
+    const next = addItem(items, def('clock'));
+    expect(next.map((i) => i.id)).toEqual(['clock', 'clock-2']);
+    expect(items[0]!.config).toEqual({ on: true });
   });
 });

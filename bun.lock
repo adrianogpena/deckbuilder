@@ -25,6 +25,7 @@
         "@deckbuilderkit/view-agents": "workspace:*",
         "@deckbuilderkit/view-explorer": "workspace:*",
         "@deckbuilderkit/view-git": "workspace:*",
+        "@deckbuilderkit/view-grid": "workspace:*",
         "@deckbuilderkit/view-rest": "workspace:*",
         "@deckbuilderkit/view-terminal": "workspace:*",
         "@deckbuilderkit/view-workbench": "workspace:*",
@@ -266,6 +267,24 @@
         "react-dom": "^18.3.1",
       },
     },
+    "packages/view-grid": {
+      "name": "@deckbuilderkit/view-grid",
+      "version": "0.3.0",
+      "dependencies": {
+        "@deckbuilderkit/server-core": "workspace:*",
+        "@deckbuilderkit/ui": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/react": "^18.3.12",
+        "@types/react-dom": "^18.3.1",
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
+      },
+      "peerDependencies": {
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
+      },
+    },
     "packages/view-rest": {
       "name": "@deckbuilderkit/view-rest",
       "version": "0.3.0",
@@ -443,6 +462,8 @@
     "@deckbuilderkit/view-explorer": ["@deckbuilderkit/view-explorer@workspace:packages/view-explorer"],
 
     "@deckbuilderkit/view-git": ["@deckbuilderkit/view-git@workspace:packages/view-git"],
+
+    "@deckbuilderkit/view-grid": ["@deckbuilderkit/view-grid@workspace:packages/view-grid"],
 
     "@deckbuilderkit/view-rest": ["@deckbuilderkit/view-rest@workspace:packages/view-rest"],
 

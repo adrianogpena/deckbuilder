@@ -22,7 +22,7 @@ import type { AgentsServerSettings } from '@deckbuilderkit/view-agents/server';
 import { restHistorySizeOf, type RestServerSettings } from '@deckbuilderkit/view-rest/server';
 import type { TerminalServerSettings } from '@deckbuilderkit/view-terminal/server';
 import { historySizeOf, type WorkbenchServerSettings } from '@deckbuilderkit/view-workbench/server';
-import { type GridItem, validGridItems } from '@deckbuilderkit/ui/grid';
+import type { GridServerSettings } from '@deckbuilderkit/view-grid/server';
 import { validKeymap, type Keymap } from '@deckbuilderkit/ui/keybindings';
 import { type FileAssociation, validFileAssociations } from '@deckbuilderkit/ui/file-associations';
 import { type FileSettings, validFileSettings } from '@deckbuilderkit/ui/file-settings';
@@ -33,7 +33,7 @@ import { routes } from './routes.ts';
 import { stores } from './stores.ts';
 import { serverViews, setAppLink } from './views.ts';
 
-export interface Settings extends BaseSettings, TerminalServerSettings, WorkbenchServerSettings, RestServerSettings, GitServerSettings, ExplorerServerSettings, AgentsServerSettings {
+export interface Settings extends BaseSettings, TerminalServerSettings, WorkbenchServerSettings, RestServerSettings, GitServerSettings, GridServerSettings, ExplorerServerSettings, AgentsServerSettings {
   /** Start at Windows login (exe only). */
   autostart: boolean;
   /** Tray icon, so closing the window keeps the app running; read at startup. */
@@ -51,8 +51,6 @@ export interface Settings extends BaseSettings, TerminalServerSettings, Workbenc
   keybindings?: Keymap;
   /** Layout of the Tabs screen (`serialize` of `@deckbuilderkit/ui`'s tabs); the UI validates it on restore. */
   tabsLayout?: unknown;
-  /** Layout of the Grid screen, checked by `validGridItems`. */
-  gridLayout?: GridItem[];
   /** Log viewer: highlight words (global) and bookmarks per `<projectId>:<path>`. */
   logs?: LogSettings;
   /** Files opened as another type: a name glob and the extension to treat them as. */
@@ -71,8 +69,6 @@ export interface Settings extends BaseSettings, TerminalServerSettings, Workbenc
   keyboard?: Record<string, string | number | boolean>;
   git?: Record<string, string | number | boolean>;
 }
-
-const GRID_PANELS = ['clock', 'info', 'update', 'list'];
 
 const MAX_TABS_LAYOUT_BYTES = 64 * 1024;
 const APPEARANCE_SPEC: Record<string, FieldSpec> = {
@@ -132,8 +128,6 @@ const settings = settingsStore<Settings>({
     if (typeof patch.tabsLayout === 'object' && patch.tabsLayout !== null && JSON.stringify(patch.tabsLayout).length < MAX_TABS_LAYOUT_BYTES) {
       next.tabsLayout = patch.tabsLayout;
     }
-    const gridLayout = validGridItems(patch.gridLayout, GRID_PANELS);
-    if (gridLayout) next.gridLayout = gridLayout;
     const logs = validLogSettings(patch.logs);
     if (logs) next.logs = logs;
     const fileAssociations = validFileAssociations(patch.fileAssociations);

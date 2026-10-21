@@ -1,8 +1,73 @@
 /** Pure helpers for the panel grid (`PanelGrid`); ported from Dashboard's `PageGrid`. */
 import { PATHS, type IconName } from './icons';
 
+/** A panel's settings: field key to value (see `PanelField`, `validConfig`). */
+export type PanelConfig = Record<string, unknown>;
+
+interface PanelFieldBase {
+  key: string;
+  /** i18n key of the label. */
+  label: string;
+  /** i18n key of the description. */
+  description?: string;
+}
+
+export type PanelField =
+  | (PanelFieldBase & { kind: 'boolean'; default: boolean })
+  | (PanelFieldBase & { kind: 'number'; default: number; min?: number; max?: number })
+  | (PanelFieldBase & { kind: 'string'; default: string; placeholder?: string; maxLength?: number })
+  | (PanelFieldBase & { kind: 'enum'; default: string | number; values: readonly (string | number)[]; /** i18n key prefix: `<prefix>.<value>` is the option text when it exists. */ optionLabel?: string });
+
+export const MAX_FIELD_TEXT = 200;
+
+/** The config every field's default makes. */
+export const defaultConfig = (fields: readonly PanelField[]): PanelConfig =>
+  Object.fromEntries(fields.map((f) => [f.key, f.default]));
+
+/**
+ * `raw` cleaned against `fields`: unknown keys dropped, a value of the wrong type or outside the
+ * enum replaced by the default, numbers clamped to min/max. Never throws; no window needed.
+ */
+export function validConfig(fields: readonly PanelField[], raw: unknown): PanelConfig {
+  const src = typeof raw === 'object' && raw !== null && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
+  const out: PanelConfig = {};
+  for (const f of fields) {
+    const v = Object.hasOwn(src, f.key) ? src[f.key] : undefined;
+    switch (f.kind) {
+      case 'boolean':
+        out[f.key] = typeof v === 'boolean' ? v : f.default;
+        break;
+      case 'number': {
+        const n = typeof v === 'number' && Number.isFinite(v) ? Math.min(f.max ?? Infinity, Math.max(f.min ?? -Infinity, v)) : f.default;
+        out[f.key] = n;
+        break;
+      }
+      case 'string':
+        out[f.key] = typeof v === 'string' && v.length <= (f.maxLength ?? MAX_FIELD_TEXT) ? v : f.default;
+        break;
+      case 'enum':
+        out[f.key] = (typeof v === 'string' || typeof v === 'number') && f.values.includes(v) ? v : f.default;
+        break;
+    }
+  }
+  return out;
+}
+
+/** What validation needs to know of a registered panel kind. */
+export interface PanelKindSpec {
+  fields?: readonly PanelField[];
+  /** Several instances of the kind may exist; true when omitted. */
+  allowMultiple?: boolean;
+}
+
+export const MAX_ID = 64;
+
 export interface GridItem {
+  /** Unique instance id. */
   id: string;
+  /** The panel kind; older saved items without it use their id. */
+  kind: string;
+  config?: PanelConfig;
   x: number;
   y: number;
   w: number;
@@ -15,6 +80,7 @@ export interface GridItem {
 }
 
 export interface PanelDef {
+  /** The kind id. */
   id: string;
   title: string;
   icon: IconName;
@@ -52,24 +118,35 @@ const ICON_NAMES: readonly string[] = Object.keys(PATHS);
 const inRange = (n: unknown, min: number, max: number): n is number => Number.isInteger(n) && (n as number) >= min && (n as number) <= max;
 
 /**
- * A saved layout (e.g. from settings) as items, or null when it isn't valid: every id among `ids`
- * and unique, integer positions inside the 12 columns, sizes within the caps. Extra fields are dropped.
+ * A saved layout (e.g. from settings) as items, or null when it isn't valid: unique ids, every kind
+ * registered in `kinds` (an item without `kind` uses its id), a kind with `allowMultiple: false` at most once,
+ * integer positions inside the 12 columns, sizes within the caps. Each config is cleaned with `validConfig`;
+ * extra fields are dropped.
  */
-export function validGridItems(raw: unknown, ids: readonly string[]): GridItem[] | null {
+export function validGridItems(raw: unknown, kinds: Readonly<Record<string, PanelKindSpec>>): GridItem[] | null {
   if (!Array.isArray(raw) || raw.length > MAX_GRID_ITEMS) return null;
   const seen = new Set<string>();
+  const kindCount = new Map<string, number>();
   const items: GridItem[] = [];
   for (const entry of raw) {
     if (typeof entry !== 'object' || entry === null) return null;
-    const { id, x, y, w, h, collapsed, title, icon } = entry as Record<string, unknown>;
-    if (typeof id !== 'string' || !ids.includes(id) || seen.has(id)) return null;
+    const { id, kind: rawKind, config, x, y, w, h, collapsed, title, icon } = entry as Record<string, unknown>;
+    if (typeof id !== 'string' || id.length === 0 || id.length > MAX_ID || seen.has(id)) return null;
+    const kind = rawKind === undefined ? id : rawKind;
+    if (typeof kind !== 'string' || !Object.hasOwn(kinds, kind)) return null;
+    const spec = kinds[kind]!;
+    const count = (kindCount.get(kind) ?? 0) + 1;
+    kindCount.set(kind, count);
+    if (count > 1 && spec.allowMultiple === false) return null;
+    if (config !== undefined && (typeof config !== 'object' || config === null || Array.isArray(config))) return null;
     if (!inRange(x, 0, COLS.lg - 1) || !inRange(w, 1, COLS.lg) || x + w > COLS.lg) return null;
     if (!inRange(y, 0, MAX_GRID_Y) || !inRange(h, 1, MAX_GRID_H)) return null;
     if (collapsed !== undefined && typeof collapsed !== 'boolean') return null;
     if (title !== undefined && typeof title !== 'string') return null;
     if (icon !== undefined && (typeof icon !== 'string' || !ICON_NAMES.includes(icon))) return null;
     seen.add(id);
-    const clean: GridItem = { id, x, y, w, h };
+    const clean: GridItem = { id, kind, x, y, w, h };
+    if (spec.fields && spec.fields.length > 0) clean.config = validConfig(spec.fields, config);
     if (collapsed !== undefined) clean.collapsed = collapsed;
     const name = title?.trim();
     if (name) {
@@ -88,7 +165,7 @@ export const breakpointOf =(width: number): Breakpoint =>
 /** Items to the grid's layout; unknown ids are dropped, a collapsed panel gets a fixed height. */
 export function toGridLayout(items: readonly GridItem[], defs: readonly PanelDef[]): GridLayoutItem[] {
   return items.flatMap((item) => {
-    const def = defs.find((d) => d.id === item.id);
+    const def = defs.find((d) => d.id === item.kind);
     if (!def) return [];
     const { collapsed } = item;
     return [{
@@ -119,11 +196,18 @@ export const sameGeometry = (a: readonly GridItem[], b: readonly GridItem[]): bo
     return !!y && x.id === y.id && x.x === y.x && x.y === y.y && x.w === y.w && x.h === y.h;
   });
 
-/** Geometry plus the collapsed flag, title and icon: what the Save button compares. */
+export const sameConfig = (a: PanelConfig | undefined, b: PanelConfig | undefined): boolean => {
+  const x = a ?? {};
+  const y = b ?? {};
+  const keys = Object.keys(x);
+  return keys.length === Object.keys(y).length && keys.every((k) => Object.hasOwn(y, k) && x[k] === y[k]);
+};
+
+/** Geometry plus the kind, config, collapsed flag, title and icon: what the Save button compares. */
 export const sameItems = (a: readonly GridItem[], b: readonly GridItem[]): boolean =>
   sameGeometry(a, b) && a.every((x, i) => {
     const y = b[i]!;
-    return !!x.collapsed === !!y.collapsed && x.title === y.title && x.icon === y.icon;
+    return x.kind === y.kind && sameConfig(x.config, y.config) && !!x.collapsed === !!y.collapsed && x.title === y.title && x.icon === y.icon;
   });
 
 type Box = Pick<GridItem, 'x' | 'y' | 'w' | 'h'>;
@@ -142,8 +226,17 @@ export function findFreeSpot(items: readonly Box[], w: number, h: number, cols =
   return { x: 0, y: bottom };
 }
 
-/** Appends a panel at its default size on the first free spot. */
-export function addItem(items: readonly GridItem[], def: PanelDef): GridItem[] {
+/** An instance id for `kind` not used by `items`: the kind itself, then `kind-2`, `kind-3`… */
+export function newItemId(items: readonly GridItem[], kind: string): string {
+  const used = new Set(items.map((i) => i.id));
+  if (!used.has(kind)) return kind;
+  for (let n = 2; ; n++) if (!used.has(`${kind}-${n}`)) return `${kind}-${n}`;
+}
+
+/** Appends a new instance of the kind at its default size on the first free spot. */
+export function addItem(items: readonly GridItem[], def: PanelDef, config?: PanelConfig): GridItem[] {
   const { w, h } = def.defaultSize;
-  return [...items, { id: def.id, ...findFreeSpot(items, w, h), w, h, collapsed: false }];
+  const item: GridItem = { id: newItemId(items, def.id), kind: def.id, ...findFreeSpot(items, w, h), w, h, collapsed: false };
+  if (config) item.config = config;
+  return [...items, item];
 }

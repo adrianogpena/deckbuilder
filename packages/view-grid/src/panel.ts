@@ -1,0 +1,64 @@
+import type { ReactNode } from 'react';
+import { defaultConfig, type IconName, type PanelConfig, type PanelDef, type PanelField, type PanelKindSpec } from '@deckbuilderkit/ui';
+
+export interface PanelLoadContext {
+  /** Aborted when the panel is removed, reconfigured or collapsed away. */
+  signal: AbortSignal;
+}
+
+export interface PanelRenderProps<C, D> {
+  /** The instance's config, cleaned and with defaults filled in. */
+  config: C;
+  /** What `load` returned; undefined for a kind without `load`. */
+  data: D;
+  /** Size in grid units. */
+  size: { w: number; h: number };
+  /** Loads again now (a no-op for a kind without `load`). */
+  refresh(): void;
+}
+
+export interface PanelKind<C extends PanelConfig = PanelConfig, D = any> {
+  /** Kind id, stored in every instance. */
+  kind: string;
+  /** i18n key. */
+  title: string;
+  /** i18n key. */
+  description: string;
+  icon: IconName;
+  /** i18n key of the group in the panel creator. */
+  category?: string;
+  /** Default and minimum size in grid units. */
+  size: { w: number; h: number; minW: number; minH: number };
+  /** Fields the instance's settings form is built from; none means nothing to configure. */
+  config?: { fields: readonly PanelField[] };
+  load?: (config: C, ctx: PanelLoadContext) => Promise<D>;
+  /** Reload interval in milliseconds (0 or omitted: never). */
+  refreshMs?: number | ((config: C) => number);
+  render: (props: PanelRenderProps<C, D>) => ReactNode;
+  /** More than one instance may be on the grid; true when omitted. */
+  allowMultiple?: boolean;
+}
+
+/** Identity; types `config` and `data` of `render` from `load` and the fields. */
+export function definePanel<C extends PanelConfig = PanelConfig, D = undefined>(def: PanelKind<C, D>): PanelKind<C, D> {
+  return def;
+}
+
+export type AnyPanelKind = PanelKind<any, any>;
+
+/** The fields of a kind, empty when it has none. */
+export const fieldsOf = (kind: AnyPanelKind): readonly PanelField[] => kind.config?.fields ?? [];
+
+export const kindSpecs = (kinds: readonly AnyPanelKind[]): Record<string, PanelKindSpec> =>
+  Object.fromEntries(kinds.map((k) => [k.kind, { fields: k.config?.fields, allowMultiple: k.allowMultiple }]));
+
+export const initialConfig = (kind: AnyPanelKind): PanelConfig => defaultConfig(fieldsOf(kind));
+
+export const panelDef = (kind: AnyPanelKind, title: string): PanelDef => ({
+  id: kind.kind,
+  title,
+  icon: kind.icon,
+  defaultSize: { w: kind.size.w, h: kind.size.h },
+  minW: kind.size.minW,
+  minH: kind.size.minH,
+});
