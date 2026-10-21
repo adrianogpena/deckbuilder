@@ -1,5 +1,6 @@
 import type { PanelField } from '@deckbuilderkit/ui/grid';
 import { DEFAULT_TICKET_PATTERN, ISSUE_MODES, PR_MODES } from './map';
+import { NOTIFICATION_COLUMNS, OVERVIEW_STATS, RUN_COLUMNS } from './more';
 
 export const PR_COLUMNS = ['repo', 'author', 'review', 'checks', 'labels', 'branch', 'ticket', 'updated'] as const;
 export const ISSUE_COLUMNS = ['repo', 'author', 'labels', 'assignees', 'comments', 'milestone', 'updated'] as const;
@@ -32,8 +33,49 @@ export const ISSUES_FIELDS: readonly PanelField[] = [
 export const PR_SOURCE_FIELDS: readonly PanelField[] = PULL_REQUESTS_FIELDS.filter((f) => f.key !== 'columns');
 export const ISSUE_SOURCE_FIELDS: readonly PanelField[] = ISSUES_FIELDS.filter((f) => f.key !== 'columns');
 
+const maxRows: PanelField = { key: 'max', kind: 'number', label: 'dash.github.max', default: 10, min: 1, max: 50 };
+
+export const ACTIONS_FIELDS: readonly PanelField[] = [
+  connection,
+  repo,
+  { key: 'branch', kind: 'string', label: 'dash.github.branch', default: '', maxLength: 100 },
+  { key: 'workflow', kind: 'string', label: 'dash.github.workflow', description: 'dash.github.workflow.hint', placeholder: 'dash.github.workflow.placeholder', default: '', maxLength: 100 },
+  maxRows,
+  { key: 'columns', kind: 'multi', label: 'dash.github.columns', default: ['branch', 'duration', 'updated'], values: RUN_COLUMNS, optionLabel: 'dash.github.col' },
+];
+
+export const NOTIFICATIONS_FIELDS: readonly PanelField[] = [
+  connection,
+  { key: 'participatingOnly', kind: 'boolean', label: 'dash.github.participatingOnly', default: false },
+  maxRows,
+  { key: 'columns', kind: 'multi', label: 'dash.github.columns', default: ['repo', 'reason', 'updated'], values: NOTIFICATION_COLUMNS, optionLabel: 'dash.github.col' },
+];
+
+export const RELEASES_FIELDS: readonly PanelField[] = [
+  connection,
+  repo,
+  maxRows,
+  { key: 'includePrereleases', kind: 'boolean', label: 'dash.github.includePrereleases', default: false },
+];
+
+export const OVERVIEW_FIELDS: readonly PanelField[] = [
+  connection,
+  repo,
+  { key: 'show', kind: 'multi', label: 'dash.github.show', default: ['stars', 'forks', 'issues', 'prs'], values: OVERVIEW_STATS, optionLabel: 'dash.github.stat' },
+];
+
+/** Fields the sources of the more panels receive. */
+export const ACTIONS_SOURCE_FIELDS: readonly PanelField[] = ACTIONS_FIELDS.filter((f) => f.key !== 'columns');
+export const NOTIFICATIONS_SOURCE_FIELDS: readonly PanelField[] = NOTIFICATIONS_FIELDS.filter((f) => f.key !== 'columns');
+export const OVERVIEW_SOURCE_FIELDS: readonly PanelField[] = OVERVIEW_FIELDS.filter((f) => f.key !== 'show');
+
 /** Config field lists of the github panels (no React), by kind. */
 export const fields: Record<string, readonly PanelField[]> = {
   'github-prs': PULL_REQUESTS_FIELDS,
   'github-issues': ISSUES_FIELDS,
+  'github-actions': ACTIONS_FIELDS,
+  'github-notifications': NOTIFICATIONS_FIELDS,
+  'github-releases': RELEASES_FIELDS,
+  'github-overview': OVERVIEW_FIELDS,
 };
+

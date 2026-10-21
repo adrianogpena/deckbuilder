@@ -2,3 +2,4 @@
 .gh-head { flex: none; padding: var(--space-4) var(--space-8); font-size: var(--fs-xs); }
 .gh .kit-rows { flex: 1; min-height: 0; overflow: auto; }
 .gh-chips { display: inline-flex; flex-wrap: wrap; gap: var(--space-4); flex: none; }
+.gh-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: var(--space-8); padding: var(--space-8); overflow: auto; }
