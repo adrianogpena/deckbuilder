@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import type { DiffMode, DiffViewHandle } from '@deckbuilderkit/editor';
 import type { GitFile, GitRepoInfo, GitStatus } from '@deckbuilderkit/server-core/protocol';
-import { type ApiError, copyText, useShortcutTip, Empty, ErrorBanner, errorMessage, errorOf, Explorer, fileIconOf, Icon, IconButton, ProjectPicker, statusOf, useCommand, useDebouncedSave, useRovingList, useToast, useViewLink } from '@deckbuilderkit/ui';
+import { type ApiError, copyText, useShortcutTip, Empty, ErrorBanner, errorMessage, errorOf, Explorer, fileIconOf, Icon, IconButton, ProjectPicker, statusOf, useCommand, useDebouncedSave, useRovingList, useToast, useViewLink, useViewRequest } from '@deckbuilderkit/ui';
 import { type GitProject as Project, gitApi as api } from './client';
 import { gitCommands } from './commands';
 import { t } from './i18n';
@@ -67,6 +67,13 @@ interface ExplorerRequest {
   project: string;
   path: string;
   open: boolean;
+}
+
+/** A commit for the Git view to show (same shape it reads with `useViewRequest`). */
+interface GitCommitRequest {
+  project: string;
+  /** Full hash. */
+  commit: string;
 }
 
 export function GitScreen({ settings, onSave }: { settings: GitViewSettings; onSave: (patch: Partial<GitViewSettings>) => void }) {
@@ -168,6 +175,24 @@ export function GitScreen({ settings, onSave }: { settings: GitViewSettings; onS
     setClosedFolders(new Set());
     void refresh();
   };
+
+  // A commit sent by another screen (Agents): switch to its project, open History and reveal it.
+  const { request: pendingCommit, take: takeCommit } = useViewRequest<GitCommitRequest>('git');
+  const [reveal, setReveal] = useState<string>();
+  useEffect(() => {
+    if (!projects || !pendingCommit) return;
+    const request = takeCommit();
+    if (!request) return;
+    const norm = (p: string) => p.replaceAll('\\', '/').replace(/\/$/, '').toLowerCase();
+    const target = projects.find((p) => norm(p.path) === norm(request.project));
+    if (!target) {
+      toast({ message: t('git.projectMissing'), kind: 'error' });
+      return;
+    }
+    pick(target);
+    update((v) => ({ ...v, historyOpen: true }));
+    setReveal(request.commit);
+  }, [projects, pendingCommit]);
 
   const copyPatch = async () => {
     if (!selected) return;
@@ -371,6 +396,8 @@ export function GitScreen({ settings, onSave }: { settings: GitViewSettings; onS
         size={view.historySize}
         onToggle={() => update((v) => ({ ...v, historyOpen: !v.historyOpen }))}
         onResize={(historySize) => update((v) => ({ ...v, historySize }))}
+        reveal={reveal}
+        onRevealed={() => setReveal(undefined)}
         selected={selected?.commit !== undefined ? { commit: selected.commit, path: selected.file.path } : undefined}
         onSelect={(commit, file) => root && setSelected({ root, commit: commit.hash, file })}
         onOpen={(file) => root && file.status !== 'D' && toExplorer({ root, commit: '', file }, true)}

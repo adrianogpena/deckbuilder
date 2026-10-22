@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { GitFile } from '@deckbuilderkit/server-core/protocol';
-import { Button, IconButton, ToolbarSep, errorOf, ErrorBanner, PanelLoading, useAsync, useDialogs, useToast } from '@deckbuilderkit/ui';
+import { Button, IconButton, ToolbarSep, errorOf, ErrorBanner, PanelLoading, useAsync, useDialogs, useToast, useViewLink } from '@deckbuilderkit/ui';
 import { t } from '../../../i18n';
 import type { PanelModule, PanelProps, SectionProps, WorkspaceApi } from '../../workspace/types';
 import { codeOf, gitClient } from '../diff/git-client';
@@ -34,6 +34,7 @@ interface ChangesViewProps {
 
 function ChangesView({ project, api, visible, sessionId, sectionMode }: ChangesViewProps) {
   const toast = useToast();
+  const openInGit = useViewLink<{ project: string; commit: string }>('git');
   const dialogs = useDialogs();
   const [message, setMessage] = useState('');
   const [amend, setAmend] = useState(false);
@@ -176,8 +177,9 @@ function ChangesView({ project, api, visible, sessionId, sectionMode }: ChangesV
                 {commits.map((c) => (
                   <li key={c.hash} className="agents-chg-file">
                     <span className="agents-chg-path" title={c.files.join('\n')}>
-                      {c.hash} {c.subject}
+                      {c.hash.slice(0, 7)} {c.subject}
                     </span>
+                    {openInGit && <IconButton size="xs" icon="git-branch" label={t('agents.changes.openGit')} onClick={() => openInGit({ project, commit: c.hash })} />}
                   </li>
                 ))}
               </ul>

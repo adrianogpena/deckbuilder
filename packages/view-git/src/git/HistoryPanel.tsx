@@ -42,14 +42,18 @@ export interface HistoryPanelProps {
   selected?: { commit: string; path: string };
   onSelect: (commit: GitCommit, file: GitCommitFile) => void;
   onOpen: (file: GitCommitFile) => void;
+  /** Full hash of a commit to expand and select once the log has it (another screen asked for it). */
+  reveal?: string;
+  onRevealed?: () => void;
 }
 
 /** Commits touching the project, newest first; each expands to the files it changed. Read-only. */
-export function HistoryPanel({ root, tick, open, size, onToggle, onResize, selected, onSelect, onOpen }: HistoryPanelProps) {
+export function HistoryPanel({ root, tick, open, size, onToggle, onResize, selected, onSelect, onOpen, reveal, onRevealed }: HistoryPanelProps) {
   const [commits, setCommits] = useState<GitCommit[]>([]);
   const [more, setMore] = useState(false);
   const [error, setError] = useState<ApiError>();
   const [loading, setLoading] = useState(false);
+  const [logRoot, setLogRoot] = useState<string>();
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [files, setFiles] = useState<Map<string, Files>>(() => new Map());
   const count = useRef(0);
@@ -61,6 +65,7 @@ export function HistoryPanel({ root, tick, open, size, onToggle, onResize, selec
   useEffect(() => {
     count.current = 0;
     setCommits([]);
+    setLogRoot(undefined);
     setMore(false);
     setError(undefined);
     setExpanded(new Set());
@@ -79,6 +84,7 @@ export function HistoryPanel({ root, tick, open, size, onToggle, onResize, selec
         if (mine !== seq.current) return;
         count.current = next.length;
         setCommits(next);
+        setLogRoot(root);
         setMore(next.length === limit);
         setError(undefined);
       })
@@ -102,6 +108,26 @@ export function HistoryPanel({ root, tick, open, size, onToggle, onResize, selec
       .catch((e) => mine === seq.current && setError(errorOf(e)))
       .finally(() => mine === seq.current && setLoading(false));
   };
+
+  // Reveal: find the commit in the log (loading older pages as needed), expand it and select its first file.
+  useEffect(() => {
+    if (!reveal || !root || !open || loading || logRoot !== root) return;
+    const commit = commits.find((c) => c.hash === reveal);
+    if (!commit) {
+      if (more) loadMore();
+      else onRevealed?.();
+      return;
+    }
+    onRevealed?.();
+    setExpanded((was) => new Set(was).add(commit.hash));
+    api
+      .gitCommit(root, commit.hash)
+      .then((list) => {
+        setFiles((was) => new Map(was).set(commit.hash, list));
+        if (list[0]) onSelect(commit, list[0]);
+      })
+      .catch((e) => setFiles((was) => new Map(was).set(commit.hash, errorOf(e))));
+  }, [reveal, root, open, loading, logRoot, commits, more]);
 
   const toggle = (hash: string) => {
     const next = new Set(expanded);

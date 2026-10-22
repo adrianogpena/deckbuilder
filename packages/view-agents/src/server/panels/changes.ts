@@ -129,7 +129,7 @@ export const routes: PanelRoutes = (ctx: PanelCtx) => {
       const mine = new Set(files.map((f) => f.toLowerCase()));
       const commits: SessionCommit[] = [];
       if (mine.size && startedAt !== undefined) {
-        const log = await runGit(root, ['log', `--since=${new Date(startedAt).toISOString()}`, '--name-only', '--format=%x01%h%x02%s']);
+        const log = await runGit(root, ['log', `--since=${new Date(startedAt).toISOString()}`, '--name-only', '--format=%x01%H%x02%s']);
         if (log.code === 0) {
           for (const chunk of log.stdout.split('\x01').slice(1)) {
             const [head = '', rest = ''] = chunk.split('\n\n');
