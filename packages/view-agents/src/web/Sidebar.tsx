@@ -1065,14 +1065,6 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
       { id: 'hide', label: t('agents.section.hide'), run: () => setSections((st) => hideSection(st, id)) },
     ] });
   };
-  const restorable: SectionId[] = sections.hidden.filter((id) => id !== 'changes');
-  const addSectionMenu = (e: MouseEvent) => {
-    const box = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    setMenu({ at: { x: box.left, y: box.bottom }, items: [
-      ...restorable.map((id): ContextMenuItem => ({ id: `restore-${id}`, label: sectionTitle(id), run: () => setSections((st) => restoreSection(st, id)) })),
-      ...(restorable.length > 1 ? ['sep' as const, { id: 'reopenAll', label: t('agents.section.reopen'), run: () => setSections((st) => ({ ...st, hidden: st.hidden.filter((x) => !restorable.includes(x)) })) }] : []),
-    ] });
-  };
   const section = (id: SectionId, body: ReactNode, opts: { count?: number; note?: ReactNode; actions?: ReactNode; forceOpen?: boolean; className?: string } = {}) => (
     <SidebarSection
       key={id}
@@ -1241,11 +1233,6 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
       {usageTop && renderSection('usage')}
       <div className="agents-sidebar-scroll">
         {order.filter(isTreeSection).map(renderSection)}
-        {restorable.length > 0 && (
-          <Button variant="ghost" size="sm" icon="plus" title={t('agents.section.add')} aria-label={t('agents.section.add')} aria-haspopup="menu" onClick={addSectionMenu}>
-            <span className="agents-label">{t('agents.section.add')}</span>
-          </Button>
-        )}
       </div>
       <div className="agents-sidebar-islands">
         {order.filter((id) => !isTreeSection(id) && !(usageTop && id === 'usage')).map(renderSection)}
