@@ -1,5 +1,6 @@
 import { createElement, type ReactNode } from 'react';
 import type { DialogFilter } from './api';
+import { FileDialog } from './components/FileDialog';
 import type { ChoiceOptions, ConfirmOptions, PromptOptions } from './components/ui';
 
 /** What the mounted `<DialogHost/>` offers; g3 extends it with the file dialogs through `open`. */
@@ -40,7 +41,6 @@ export interface SaveOptions extends PickOptions {
 
 async function pick(mode: 'open' | 'save' | 'folder', opts: SaveOptions): Promise<string | null> {
   const host = current();
-  const { FileDialog } = await import('./components/FileDialog');
   return new Promise((resolve) => {
     let close = () => {};
     close = host.open(
