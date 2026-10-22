@@ -27,6 +27,7 @@ import { workbenchCommands } from './commands';
 import { Connections } from './workbench/Connections';
 import { HistoryPanel } from './workbench/HistoryPanel';
 import { SchemaPanel } from './workbench/SchemaPanel';
+import './workbench.css';
 
 const SAVE_DELAY = 500;
 const DEMO_SOURCE = 'demo';
