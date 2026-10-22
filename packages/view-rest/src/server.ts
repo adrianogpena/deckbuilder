@@ -66,6 +66,7 @@ interface SavedRequestRecord {
 export const restServerView = () =>
   defineServerView<RestServerSettings>({
     id: 'rest',
+    icon: 'send',
     shared: [{ id: 'http', routes: (ctx) => httpSharedRoutes(ctx.stores as unknown as AppStores) }],
     routes: (ctx): Routes => {
       const requests = ctx.stores.requests as RecordStore<SavedRequestRecord>;

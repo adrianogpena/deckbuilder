@@ -1,7 +1,7 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { appHome } from '@deckbuilderkit/platform';
-import type { ServerViewDef } from '@deckbuilderkit/server-core';
+import { appHome, createNotifications } from '@deckbuilderkit/platform';
+import { type ServerViewDef, viewIcons } from '@deckbuilderkit/server-core';
 import { CLOCK_SPEC, dashboardServerView, dashboardSources, dashboardSpecs, gridServerView } from '@deckbuilderkit/view-grid/server';
 import { explorerServerView } from '@deckbuilderkit/view-explorer/server';
 import { gitServerView } from '@deckbuilderkit/view-git/server';
@@ -25,6 +25,9 @@ export const setAppLink = (link: (path: string) => string) => {
   appLink = link;
 };
 
+/** The app's one notifier (OS toasts); each view sends through `notifications.for(viewId)` and gets its icon. */
+export const notifications = createNotifications({ appName: APP.name, link: () => appLink, viewIcons: (id) => viewIcons(serverViews)(id) });
+
 export const serverViews: ServerViewDef[] = [
   explorer,
   terminalServerView({ integrationDir: join(appHome(APP.id), 'shell-integration'), resolveCwd: explorer.resolveCwd, launchers: launchers({ claude: agentsLauncher({ home: agentsHome }) }), sessions: terminalStore }),
@@ -36,6 +39,7 @@ export const serverViews: ServerViewDef[] = [
   agentsServerView({
     home: agentsHome,
     link: () => appLink,
+    notifications,
     terminals: terminalStore,
     terminalScreens: () =>
       terminalStore

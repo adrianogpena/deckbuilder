@@ -78,6 +78,7 @@ export function gridServerView({ panels, sources = [] }: GridServerOptions) {
   }
   return defineServerView<GridServerSettings>({
     id: 'grid',
+    icon: 'cube',
     routes: (ctx): Routes => sourceRoutes(sources, ctx.dataDir),
     settings: { validate: { gridLayout: (raw) => validGridItems(raw, specs) } },
   });

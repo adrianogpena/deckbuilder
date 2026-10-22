@@ -1,6 +1,6 @@
 import { type UsageSettings } from './UsageView';
 import { type CSSProperties, type PointerEvent as ReactPointerEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { effectiveKeys, errorOf, setTitleBadge, useDialogs, setViewTitle, useCommand, useKeybindings, useRunCommand, useToast } from '@deckbuilderkit/ui';
+import { effectiveKeys, errorOf, setTitleBadge, useDialogs, setViewTitle, useCommand, useKeybindings, useRunCommand, useViewToast } from '@deckbuilderkit/ui';
 import { terminalAppKeys } from '@deckbuilderkit/terminal';
 import { closeSession, listSessions } from '@deckbuilderkit/terminal/session';
 import { agentsCommands } from '../commands';
@@ -82,7 +82,7 @@ function Sash({ edge, width, onWidth, onDone, onReset }: { edge: 'start' | 'end'
 /** Agents screen: the sessions sidebar and the dock workspace of the selected project (the selected session, or a tool opened over it). */
 export function AgentsScreen({ usageSettings, rightSidebarOpen = false, rightSidebarPerProject = false, taskSkill = '', dnd = false, onDnd }: { resumeOnSelect?: boolean; usageSettings?: UsageSettings; taskSkill?: string; rightSidebarOpen?: boolean; rightSidebarPerProject?: boolean; dnd?: boolean; onDnd?: (on: boolean) => void }) {
   const { sessions, usage, git } = useAgentsFeed();
-  const toast = useToast();
+  const toast = useViewToast('home');
   const dialogs = useDialogs();
   const [region, setRegion] = useState<FocusRegion | undefined>(focusMemory.region);
   const onFocusRegion = useCallback((e: { target: EventTarget | null }) => {

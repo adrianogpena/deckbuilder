@@ -149,6 +149,7 @@ export function terminalServerView({ integrationDir, resolveCwd, launchers, sess
   };
   return defineServerView<TerminalServerSettings>({
     id: 'terminal',
+    icon: 'terminal',
     routes: (ctx) => mount(ctx).routes,
     sockets: (ctx) => mount(ctx).sockets,
     onQuit: () => sessions.closeAll(),

@@ -15,7 +15,7 @@ import {
   type TreeViewHandle,
   useAsync,
   useDialogs,
-  useToast,
+  useViewToast,
 } from '@deckbuilderkit/ui';
 import { multiDeleteEnabled } from '../options';
 import { explorerApi as api, type FsEntry, type Project } from '../client';
@@ -159,7 +159,7 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
   const clipboard = useRef<{ mode: 'copy' | 'cut'; paths: string[] }>();
   const { confirm, choose, prompt, element } = useDialogs();
   const [creating, setCreating] = useState<{ dir: string; kind: 'file' | 'dir' }>();
-  const toast = useToast();
+  const toast = useViewToast('folder');
   const copyPath = useCopyPath();
   const [menu, setMenu] = useState<{ at: { x: number; y: number }; node: Node; selection: Node[] }>();
   const [properties, setProperties] = useState<string>();

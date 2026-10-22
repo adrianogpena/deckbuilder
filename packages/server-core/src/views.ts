@@ -37,6 +37,8 @@ export interface ServerViewContext<S> {
 
 export interface ServerViewDef<S = any> {
   id: string;
+  /** Icon name (as the web view's `nav.icon`) shown on this view's OS notifications. */
+  icon?: string;
   routes(ctx: ServerViewContext<S>): Routes;
   sockets?(ctx: ServerViewContext<S>): SocketRoutes;
   /** Routes outside the session token check (see `ServerOptions.unauthenticated`); each handler checks its own credentials. */
@@ -63,6 +65,11 @@ export interface ServerViewDef<S = any> {
 
 export function defineServerView<S = any>(def: ServerViewDef<S>): ServerViewDef<S> {
   return def;
+}
+
+/** View id -> icon name lookup over `defs`, for the notifications `viewIcons` option. */
+export function viewIcons(defs: readonly ServerViewDef[]): (id: string) => string | undefined {
+  return (id) => defs.find((d) => d.id === id)?.icon;
 }
 
 /**

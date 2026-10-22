@@ -152,6 +152,7 @@ export const historySizeOf = (s: WorkbenchServerSettings) => {
 export const workbenchServerView = () =>
   defineServerView<WorkbenchServerSettings>({
     id: 'workbench',
+    icon: 'play',
     shared: [{ id: 'db', routes: (ctx) => dbSharedRoutes(ctx.stores as unknown as DbStores, ctx.dataDir) }],
     routes: () => ({}),
     settings: { validate: { workbench: validWorkbench } },

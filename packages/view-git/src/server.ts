@@ -43,6 +43,7 @@ export function validGitView(raw: unknown): GitViewState | null {
 export const gitServerView = () =>
   defineServerView<GitServerSettings>({
     id: 'git',
+    icon: 'git-branch',
     routes: (ctx) => gitRoutes({ roots: ctx.stores.projectRoots as Parameters<typeof gitRoutes>[0]['roots'] }),
     settings: { validate: { gitView: validGitView, git: (raw) => validGroup(raw, GIT_SPEC) } },
   });

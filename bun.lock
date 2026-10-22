@@ -109,6 +109,10 @@
     "packages/platform": {
       "name": "@deckbuilderkit/platform",
       "version": "0.3.0",
+      "dependencies": {
+        "@deckbuilderkit/ui": "workspace:*",
+        "sharp": "^0.35.5",
+      },
     },
     "packages/server-core": {
       "name": "@deckbuilderkit/server-core",

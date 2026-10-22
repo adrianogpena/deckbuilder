@@ -1,11 +1,10 @@
-import { createToaster, writeFileAtomic } from '@deckbuilderkit/platform';
+import { writeFileAtomic } from '@deckbuilderkit/platform';
 import { forbidden, invalid, ndjson, type Routes } from '@deckbuilderkit/server-core';
 import { fromPlatform } from '@deckbuilderkit/server-mods';
 import type { StartContext } from '@deckbuilderkit/shell';
-import { APP } from '../app.ts';
 import { stores } from './stores.ts';
+import { notifications } from './views.ts';
 
-const toaster = createToaster();
 
 const MAX_DEMO_ROWS = 100_000;
 const DEMO_BATCH = 500;
@@ -15,7 +14,7 @@ const DEMO_PAUSE_MS = 20;
  * This app's own endpoints. Keys are "METHOD /path"; handlers return a JSON-serializable value
  * or throw an AppError (`invalid`, `notFound`) that the UI shows translated as `error.<code>`.
  */
-export const routes = (ctx: StartContext): Routes => ({
+export const routes = (_ctx: StartContext): Routes => ({
   'GET /api/demo/rows': ({ req, query }) => {
     const asked = Number(query.get('count') ?? 50_000);
     const count = Number.isInteger(asked) ? Math.min(Math.max(asked, 1), MAX_DEMO_ROWS) : 50_000;
@@ -41,7 +40,7 @@ export const routes = (ctx: StartContext): Routes => ({
   },
   // Example notification: a click opens the app on the Settings screen.
   'POST /api/toast/test': () => {
-    toaster.show({ title: APP.name, body: 'Click to open the Settings.', launch: ctx.link('settings') });
+    void notifications.for('explorer')({ body: 'Click to open the Settings.', path: 'settings' });
     return { ok: true };
   },
 });

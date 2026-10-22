@@ -28,6 +28,7 @@ export function dashboardServerView({ panels, sources = [] }: DashboardServerOpt
   }
   return defineServerView<DashboardServerSettings>({
     id: 'dashboard',
+    icon: 'cube',
     routes: (ctx): Routes => ({ ...sourceRoutes(sources, ctx.dataDir), ...connectionRoutes(ctx.dataDir) }),
     settings: {
       validate: {

@@ -1,5 +1,5 @@
 import { type CSSProperties, type DragEvent, type MouseEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { Button, ContextMenu, IconButton, type ContextMenuItem, fuzzyScore, highlightRuns, Icon, KEY_SCOPE_ATTR, useCommand, useDialogs, useRovingList, useRunCommand, useShortcutTip, useToast } from '@deckbuilderkit/ui';
+import { Button, ContextMenu, IconButton, type ContextMenuItem, fuzzyScore, highlightRuns, Icon, KEY_SCOPE_ATTR, useCommand, useDialogs, useRovingList, useRunCommand, useShortcutTip, useViewToast } from '@deckbuilderkit/ui';
 import './sidebar.css';
 import { AGENTS_LIST_SCOPE, agentsCommands } from '../commands';
 import { t } from '../i18n';
@@ -177,7 +177,7 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
     focusedList.current = true;
     if (!root.contains(document.activeElement)) (item ?? root).focus({ preventScroll: true });
   });
-  const toast = useToast();
+  const toast = useViewToast('home');
   const runCommand = useRunCommand();
   const tip = useShortcutTip();
   const { tree, patch } = useAgentTree();

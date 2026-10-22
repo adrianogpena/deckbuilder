@@ -110,6 +110,7 @@ export function explorerServerView(opts: ExplorerServerOptions = {}): ExplorerSe
   };
   const view = defineServerView<ExplorerServerSettings>({
     id: 'explorer',
+    icon: 'folder',
     shared: [
       { id: 'db', routes: (ctx) => dbSharedRoutes(ctx.stores as unknown as DbStores, ctx.dataDir) },
       { id: 'http', routes: (ctx) => httpSharedRoutes(ctx.stores as unknown as AppStores) },

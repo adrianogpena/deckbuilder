@@ -6,6 +6,8 @@ export interface Toast {
   body: string;
   /** URI Windows opens when the toast is clicked (http(s) opens the default browser). */
   launch: string;
+  /** Absolute path of a PNG shown as the toast's logo. */
+  icon?: string;
 }
 
 export interface Toaster {
@@ -24,12 +26,19 @@ function xmlEscape(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 }
 
+/** `file:///C:/dir/a%20b.png` for an absolute path. */
+export function fileUri(path: string): string {
+  const slashed = path.replace(/\\/g, '/');
+  return `file:///${encodeURI(slashed.replace(/^\/+/, '')).replace(/[#?]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`)}`;
+}
+
 // activationType="protocol": Windows opens `launch` itself, so no COM activator is registered.
 export function toastXml(toast: Toast): string {
   const body = toast.body === '' ? '' : `<text>${xmlEscape(toast.body)}</text>`;
+  const image = toast.icon ? `<image placement="appLogoOverride" src="${xmlEscape(fileUri(toast.icon))}"/>` : '';
   return (
     `<toast activationType="protocol" launch="${xmlEscape(toast.launch)}">` +
-    `<visual><binding template="ToastGeneric"><text>${xmlEscape(toast.title)}</text>${body}` +
+    `<visual><binding template="ToastGeneric">${image}<text>${xmlEscape(toast.title)}</text>${body}` +
     '</binding></visual></toast>'
   );
 }

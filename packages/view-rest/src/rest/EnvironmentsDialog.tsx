@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { RestEnvironment, RestEnvVarInput } from '@deckbuilderkit/server-core/protocol';
-import { type ApiError, Button, ErrorBanner, errorOf, IconButton, Modal, useDialogs, useToast } from '@deckbuilderkit/ui';
+import { type ApiError, Button, ErrorBanner, errorOf, IconButton, Modal, useDialogs, useViewToast } from '@deckbuilderkit/ui';
 import { restApi as api } from '../client';
 import { t } from '../i18n';
 
@@ -41,7 +41,7 @@ interface Props {
 /** "Manage environments…": add, rename and delete environments and edit their variables; secret values are write-only. */
 export function EnvironmentsDialog({ environments, onChanged, onDeleted, onClose }: Props) {
   const { confirm, prompt, element } = useDialogs();
-  const toast = useToast();
+  const toast = useViewToast('send');
   const [selected, setSelected] = useState<string | undefined>(environments?.[0]?.id);
   const env = environments?.find((e) => e.id === selected);
   const [rows, setRows] = useState<Row[]>(() => toRows(env));

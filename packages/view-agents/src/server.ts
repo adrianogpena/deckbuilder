@@ -2,7 +2,7 @@ import { t } from '@deckbuilderkit/ui/i18n';
 import { type FSWatcher, mkdirSync, readdirSync, readFileSync, rmSync, watch, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { createToaster } from '@deckbuilderkit/platform';
+import { createNotifications, type Notifications, type Toast } from '@deckbuilderkit/platform';
 import { editorRoutes, gitRoutes, pickedPaths, rootedFs } from '@deckbuilderkit/server-mods';
 import { defineServerView, invalid, ndjson, socketTickets, validGroup, type SocketData, type SocketRoutes } from '@deckbuilderkit/server-core';
 import type { ServerWebSocket } from 'bun';
@@ -75,6 +75,8 @@ export const validAgents = (raw: unknown): AgentsSettings | null => {
 };
 
 export const AGENTS_SOCKET_PATH = '/api/agents/socket';
+/** Same icon as the web view's `nav.icon`. */
+const AGENTS_ICON = 'home';
 const RESCAN_MS = 10_000;
 const LIFECYCLE_MS = 1_000;
 const DEBOUNCE_MS = 300;
@@ -102,8 +104,10 @@ export interface AgentsServerViewOptions {
   terminalScreens?: () => Iterable<[string, string[]]>;
   /** App link for a path (`StartContext.link`), read when a toast is shown; set by the host once the app started. */
   link?: () => ((path: string) => string) | undefined;
-  /** Toast sink (tests); defaults to the Windows toaster. */
-  toast?: (toast: { title: string; body: string; launch: string }) => void;
+  /** The app's shared notifier (`createNotifications`); without it the view makes its own. */
+  notifications?: Notifications;
+  /** Toast sink (tests) for the view's own notifier; defaults to the Windows toaster. */
+  toast?: (toast: Toast) => void;
   /** Asks the user to allow a new hook command; defaults to the OS Yes/No dialog (tests inject it). */
   confirm?: HookConfirm;
   /** Statusline installer overrides (tests). */
@@ -152,8 +156,9 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
   };
   /** Session the web reports as on screen (Agents view open and focused); no toast for it. */
   let shownId: string | undefined;
-  const toaster = opts.toast ? undefined : createToaster();
-  const show = opts.toast ?? ((x: { title: string; body: string; launch: string }) => toaster?.show(x));
+  const notifications = opts.notifications ?? createNotifications({ appName: 'Agents', link: () => opts.link?.(), sink: opts.toast });
+  const agentsNotify = notifications.for({ icon: AGENTS_ICON });
+  const show = (x: { title: string; body: string; launch: string }) => void agentsNotify(x);
   let approvalsFile: string | undefined;
   const approvals = createHookApprovals(() => approvalsFile);
   const hooks = createHooks({ settings: async () => (await loadSettings()).agents, flash: (message) => show({ title: 'Agents', body: message, launch: '' }), approvals }, createTransitions());
@@ -430,6 +435,7 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
 
   return defineServerView<AgentsServerSettings>({
     id: 'agents',
+    icon: AGENTS_ICON,
     settings: {
       validate: { agents: validAgents },
       check: (patch, prev) => checkHookSettings(patch, prev, { approvals, confirm: opts.confirm ?? ((o) => (uiBroker ? uiBroker.confirm(o) : Promise.resolve(false))) }),

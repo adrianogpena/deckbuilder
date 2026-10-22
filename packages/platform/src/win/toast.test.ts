@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { createToaster, type ToastProcess, toastLine, toastXml } from './toast.ts';
+import { createToaster, fileUri, type ToastProcess, toastLine, toastXml } from './toast.ts';
 
 test('XML escapes title, body and launch', () => {
   expect(toastXml({ title: 'Fix <thing> & "stuff"', body: "it's red", launch: 'https://x.test/?a=1&b=2' })).toBe(
@@ -10,6 +10,13 @@ test('XML escapes title, body and launch', () => {
       '</binding></visual></toast>',
   );
   expect(toastXml({ title: 'T', body: '', launch: 'x' })).toContain('<binding template="ToastGeneric"><text>T</text></binding>');
+});
+
+test('an icon becomes an app logo image before the text, as an escaped file URI', () => {
+  expect(fileUri('C:\\Users\\a b\\x#1.png')).toBe('file:///C:/Users/a%20b/x%231.png');
+  expect(toastXml({ title: 'T', body: '', launch: 'x', icon: 'C:\\i&c\\a.png' })).toContain(
+    '<binding template="ToastGeneric"><image placement="appLogoOverride" src="file:///C:/i&amp;c/a.png"/><text>T</text>',
+  );
 });
 
 test('a stdin line is one line of ASCII JSON carrying the XML', () => {

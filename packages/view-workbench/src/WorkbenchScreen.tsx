@@ -16,7 +16,7 @@ import {
   useShortcutTip,
   useDebouncedSave,
   useDialogs,
-  useToast,
+  useViewToast,
 } from '@deckbuilderkit/ui';
 import { EXPORT_ROWS, type ExportFormat, exportResults, DEFAULT_RESULTS, SqlResults, useSqlRunner, useSqlSchema, useTableDetails } from '@deckbuilderkit/sql-ui';
 import type { DbSchemaTable } from '@deckbuilderkit/sql-ui';
@@ -159,7 +159,7 @@ export function WorkbenchScreen({ settings, onSave, client }: { settings: Workbe
   const { cols, tableRows, selection, log, setActionError, shown, status } = runner;
   const exportCols = () => cols.map((c) => ({ label: c.label, value: c.value }));
 
-  const toast = useToast();
+  const toast = useViewToast('play');
   const [exportMenu, setExportMenu] = useState<{ x: number; y: number }>();
   const exportAs = async (format: ExportFormat) => {
     setActionError(undefined);
