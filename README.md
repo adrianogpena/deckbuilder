@@ -1,8 +1,5 @@
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/logo/logo-stack-wordmark-dark.svg">
-    <img src="docs/logo/logo-stack-wordmark-light.svg" alt="DeckBuilder" width="352">
-  </picture>
+  <img src="docs/logo/logo-readme.svg" alt="DeckBuilder" width="380">
 </p>
 
 Base for local-first desktop apps. A Bun workspace of shared packages plus thin apps on top; each app builds to one self-contained executable. The gallery app is the example, and it shows every view below.
