@@ -1,6 +1,16 @@
+import { readFileSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
 import { AppError, invalid, notFound } from '@deckbuilderkit/server-core';
+import { findSessionFile } from '../chat/normalize.ts';
 import type { PanelCtx, PanelRoutes } from './ctx.ts';
+import { repoRelative, touchedFiles } from './session-files.ts';
+
+export interface SessionCommit {
+  hash: string;
+  subject: string;
+  /** The commit's files that the session wrote. */
+  files: string[];
+}
 
 const GIT_TIMEOUT_MS = 60_000;
 const MAX_PATHS = 5000;
@@ -107,6 +117,29 @@ export const routes: PanelRoutes = (ctx: PanelCtx) => {
         .map((l) => ({ name: l.slice(l.indexOf('|') + 1).trim(), current: l.startsWith('*') }))
         .filter((b) => !b.name.startsWith('('));
       return { branches };
+    },
+    'GET /api/agents/git/session': async ({ query }) => {
+      const root = rootOf(query.get('project'));
+      const sessionId = query.get('sessionId') ?? '';
+      const file = sessionId ? (ctx.accountDirs?.() ?? []).map((d) => findSessionFile(d, sessionId)).find(Boolean) : undefined;
+      if (!file) return { files: [], commits: [] };
+      const { paths, startedAt } = touchedFiles(readFileSync(file, 'utf8'), root);
+      const top = (await runGit(root, ['rev-parse', '--show-toplevel'])).stdout.trim();
+      const files = top ? paths.map((p) => repoRelative(top, p)).filter((p): p is string => p !== undefined) : [];
+      const mine = new Set(files.map((f) => f.toLowerCase()));
+      const commits: SessionCommit[] = [];
+      if (mine.size && startedAt !== undefined) {
+        const log = await runGit(root, ['log', `--since=${new Date(startedAt).toISOString()}`, '--name-only', '--format=%x01%h%x02%s']);
+        if (log.code === 0) {
+          for (const chunk of log.stdout.split('\x01').slice(1)) {
+            const [head = '', rest = ''] = chunk.split('\n\n');
+            const [hash = '', subject = ''] = head.split('\x02');
+            const changed = rest.split('\n').map((l) => l.trim()).filter((l) => mine.has(l.toLowerCase()));
+            if (changed.length) commits.push({ hash, subject: subject.trim(), files: changed });
+          }
+        }
+      }
+      return { files, commits };
     },
     'POST /api/agents/git/stage': post(async (root, b) => {
       if (b.all === true) await ok(root, ['add', '-A']);

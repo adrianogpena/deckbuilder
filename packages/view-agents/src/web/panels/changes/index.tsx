@@ -4,7 +4,7 @@ import { Button, IconButton, ToolbarSep, errorOf, ErrorBanner, PanelLoading, use
 import { t } from '../../../i18n';
 import type { PanelModule, PanelProps, SectionProps, WorkspaceApi } from '../../workspace/types';
 import { codeOf, gitClient } from '../diff/git-client';
-import { gitAction, listBranches } from './git-api';
+import { gitAction, listBranches, sessionChanges } from './git-api';
 import './style.css';
 
 const POLL_MS = 3000;
@@ -26,9 +26,13 @@ interface ChangesViewProps {
   project: string;
   api: WorkspaceApi;
   visible: boolean;
+  /** Show only what this Claude session changed (files it wrote, commits since it started). */
+  sessionId?: string;
+  /** Sidebar card: file rows show only the file name. */
+  sectionMode?: boolean;
 }
 
-function ChangesView({ project, api, visible }: ChangesViewProps) {
+function ChangesView({ project, api, visible, sessionId, sectionMode }: ChangesViewProps) {
   const toast = useToast();
   const dialogs = useDialogs();
   const [message, setMessage] = useState('');
@@ -37,6 +41,7 @@ function ChangesView({ project, api, visible }: ChangesViewProps) {
   const status = useAsync(() => gitClient.gitStatus(project), [project], visible ? POLL_MS : 0);
   const refresh = status.reload;
   const branches = useAsync(() => listBranches(project), [project, status.data?.branch]);
+  const session = useAsync(() => (sessionId ? sessionChanges(project, sessionId) : Promise.resolve(undefined)), [project, sessionId], visible && sessionId ? POLL_MS : 0);
 
   const run = async (action: string, body?: Record<string, unknown>, done?: () => void) => {
     setBusy(true);
@@ -54,9 +59,13 @@ function ChangesView({ project, api, visible }: ChangesViewProps) {
 
   if (status.error && !status.data) return <ErrorBanner error={status.error} onRetry={status.reload} />;
   if (!status.data) return <PanelLoading />;
-  const { files, branch, ahead, behind } = status.data;
+  const { branch, ahead, behind } = status.data;
+  if (sessionId && !session.data && !session.error) return <PanelLoading />;
+  const mine = sessionId && session.data ? new Set(session.data.files.map((p) => p.toLowerCase())) : undefined;
+  const files = mine ? status.data.files.filter((f) => mine.has(f.path.toLowerCase())) : status.data.files;
+  const commits = mine ? (session.data?.commits ?? []) : [];
   const staged = files.filter((f) => f.group === 'staged');
-  const hasChanges = files.length > 0;
+  const hasChanges = files.length > 0 || commits.length > 0;
 
   const discard = async (list: GitFile[]) => {
     const ok = await dialogs.confirm({
@@ -153,9 +162,27 @@ function ChangesView({ project, api, visible }: ChangesViewProps) {
       </div>
 
       {!hasChanges ? (
-        <p className="agents-empty agents-placeholder">{t('agents.changes.clean')}</p>
+        <p className="agents-empty agents-placeholder">{t(mine ? 'panel.changes.sessionClean' : 'agents.changes.clean')}</p>
       ) : (
         <div className="agents-chg-groups">
+          {commits.length > 0 && (
+            <section className="agents-chg-group">
+              <header className="agents-chg-head">
+                <span>
+                  {t('panel.changes.group.commits')} ({commits.length})
+                </span>
+              </header>
+              <ul className="agents-chg-list">
+                {commits.map((c) => (
+                  <li key={c.hash} className="agents-chg-file">
+                    <span className="agents-chg-path" title={c.files.join('\n')}>
+                      {c.hash} {c.subject}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
           {GROUPS.map(({ group, key }) => {
             const list = files.filter((f) => f.group === group);
             if (list.length === 0) return null;
@@ -190,7 +217,7 @@ function ChangesView({ project, api, visible }: ChangesViewProps) {
                         onClick={() => openDiff(api, f)}
                       >
                         <span className={`agents-changes-code agents-changes-${f.group}`}>{codeOf(f)}</span>
-                        <span className="agents-chg-path">{f.path}</span>
+                        <span className="agents-chg-path">{sectionMode ? f.path.slice(f.path.lastIndexOf('/') + 1) : f.path}</span>
                       </button>
                       {group === 'staged' ? (
                         <IconButton size="xs" icon="chevron-down" disabled={busy} label={t('panel.changes.unstage')} onClick={() => void run('unstage', { paths: [f.path] })} />
@@ -212,17 +239,17 @@ function ChangesView({ project, api, visible }: ChangesViewProps) {
   );
 }
 
-function ChangesPanel({ project, api, visible }: PanelProps) {
+function ChangesPanel({ project, api, visible, sessionId }: PanelProps) {
   return (
     <div className="agents-panel-changes">
-      <ChangesView project={project} api={api} visible={visible} />
+      <ChangesView project={project} api={api} visible={visible} sessionId={sessionId} sectionMode />
     </div>
   );
 }
 
-function ChangesSection({ project, api }: SectionProps) {
+function ChangesSection({ project, api, sessionId }: SectionProps) {
   if (!project) return <p className="agents-empty agents-placeholder">{t('agents.panel.changes.empty')}</p>;
-  return <ChangesView project={project} api={api} visible />;
+  return <ChangesView project={project} api={api} visible sessionId={sessionId} sectionMode />;
 }
 
 export const panel: PanelModule = {

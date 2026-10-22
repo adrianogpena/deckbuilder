@@ -26,6 +26,8 @@ export const en = {
   'panel.changes.group.unstaged': 'Unstaged',
   'panel.changes.group.untracked': 'Untracked',
   'panel.changes.group.conflict': 'Conflicts',
+  'panel.changes.group.commits': 'Committed',
+  'panel.changes.sessionClean': 'No changes from this session',
 };
 
 export const ptBR: Messages<typeof en> = {
@@ -54,4 +56,6 @@ export const ptBR: Messages<typeof en> = {
   'panel.changes.group.unstaged': 'Não preparados',
   'panel.changes.group.untracked': 'Não rastreados',
   'panel.changes.group.conflict': 'Conflitos',
+  'panel.changes.group.commits': 'Commitados',
+  'panel.changes.sessionClean': 'Sem alterações desta sessão',
 };

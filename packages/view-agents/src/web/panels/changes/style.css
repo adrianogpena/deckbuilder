@@ -12,5 +12,6 @@
 .agents-chg-head > span { flex: 1; }
 .agents-chg-list { margin: 0; padding: 0; list-style: none; }
 .agents-chg-file { display: flex; align-items: center; gap: 2px; }
-.agents-chg-open { display: flex; flex: 1; align-items: center; gap: 6px; min-width: 0; text-align: left; }
+.agents-chg-open { display: flex; flex: 1; align-items: center; gap: 6px; min-width: 0; padding: 2px 4px; text-align: left; background: none; border: 0; border-radius: var(--radius-xs); color: inherit; font: inherit; cursor: pointer; }
+.agents-chg-open:hover { background: var(--bg-hover); }
 .agents-chg-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
