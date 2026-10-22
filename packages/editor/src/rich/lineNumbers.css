@@ -1,0 +1,8 @@
+.md-line-numbers .md-rich-doc { --md-gutter: 56px; position: relative; padding-left: var(--md-gutter); }
+.md-line-numbers .md-rich-root .ProseMirror > [data-md-line] { position: relative; }
+.md-line-numbers .md-rich-root [data-md-line]::before {
+  content: attr(data-md-line); position: absolute; left: 0; width: calc(var(--md-gutter) - 12px); text-align: right;
+  font: 12px/1.7 var(--font-mono, monospace); font-variant-numeric: tabular-nums; color: var(--text-dim, #888); opacity: .7;
+  user-select: none; pointer-events: none;
+}
+.md-line-numbers .md-rich-root .ProseMirror > [data-md-line]::before { left: calc(-1 * var(--md-gutter)); }

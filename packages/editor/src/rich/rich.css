@@ -10,5 +10,7 @@
 .md-rich-root .ProseMirror img { max-width: 100%; }
 .md-rich-root .ProseMirror .ProseMirror-selectednode { outline: 2px solid var(--accent); }
 
+.md-line-breaks .md-rich-root span[data-type="hardbreak"][data-is-inline="true"]::after { content: '\A'; white-space: pre; }
+
 .md-rich-root .md-html { display: block; max-width: 100%; }
 .md-rich-root .md-html > p[align="center"] { text-align: center; }

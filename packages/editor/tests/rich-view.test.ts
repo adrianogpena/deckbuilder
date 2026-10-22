@@ -22,5 +22,7 @@ describe('readingWidthCss', () => {
     expect(readingWidthCss(60)).toBe('60ch');
     expect(readingWidthCss(10)).toBe('40ch');
     expect(readingWidthCss(500)).toBe('120ch');
+    expect(readingWidthCss('70%')).toBe('max(min(72ch, 100%), 70%)');
+    expect(readingWidthCss('10%')).toBe('max(min(72ch, 100%), 50%)');
   });
 });

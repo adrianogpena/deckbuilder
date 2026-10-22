@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { deepEqual, FILE_DEFAULTS, fileSettingsOf, SettingDescription, SettingItem, type SettingsCardProps, type SettingsFieldProps, useResync } from '@deckbuilderkit/ui';
 import { t } from '../i18n';
 import type { ExplorerViewSettings } from '../settings';
-import { MARKDOWN_STORED_DEFAULTS, markdownStoredOf, READING_WIDTH_MAX, READING_WIDTH_MIN, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP, type MarkdownStored } from './markdown';
+import { MARKDOWN_STORED_DEFAULTS, markdownStoredOf, READING_PERCENT_MAX, READING_PERCENT_MIN, readingPercent, READING_WIDTH_MAX, READING_WIDTH_MIN, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP, type MarkdownStored } from './markdown';
 
 function NestingField({ value, onChange }: { value: Record<string, string>; onChange: (next: Record<string, string>) => void }) {
   const toText = (v: Record<string, string>) => Object.entries(v).map(([k, c]) => `${k}: ${c}`).join(String.fromCharCode(10));
@@ -71,15 +71,22 @@ export function ExcludeSettingField({ settings, onChange }: SettingsFieldProps<E
 
 function ReadingWidthField({ value, onChange }: { value: MarkdownStored['readingWidth']; onChange: (next: MarkdownStored['readingWidth']) => void }) {
   const custom = typeof value === 'number';
+  const percent = readingPercent(value);
+  const relative = percent !== null;
   const [text, setText] = useState(String(custom ? value : 80));
-  const kind = custom ? 'chars' : value;
-  const pick = (k: string) => onChange(k === 'chars' ? (Number(text) >= READING_WIDTH_MIN && Number(text) <= READING_WIDTH_MAX ? Number(text) : 80) : (k as 'comfortable' | 'full'));
+  const [pctText, setPctText] = useState(String(percent ?? 70));
+  const kind = custom ? 'chars' : relative ? 'relative' : value;
+  const pick = (k: string) => {
+    if (k === 'chars') onChange(Number(text) >= READING_WIDTH_MIN && Number(text) <= READING_WIDTH_MAX ? Number(text) : 80);
+    else if (k === 'relative') onChange(`${Number(pctText) >= READING_PERCENT_MIN && Number(pctText) <= READING_PERCENT_MAX ? Number(pctText) : 70}%`);
+    else onChange(k as 'comfortable' | 'full');
+  };
   return (
     <SettingItem id="markdown.readingWidth" modified={value !== MARKDOWN_STORED_DEFAULTS.readingWidth}>
       <div className="field">
         <span className="mono-label">{t('settings.explorer.markdownReadingWidth')}</span>
         <div className="chips">
-          {['comfortable', 'full', 'chars'].map((k) => (
+          {['comfortable', 'relative', 'full', 'chars'].map((k) => (
             <button key={k} className={`chip${kind === k ? ' chip-on' : ''}`} onClick={() => pick(k)} title={t(`settings.explorer.markdownReadingWidth.${k}` as 'settings.explorer.markdownReadingWidth.chars')}>
               {t(`settings.explorer.markdownReadingWidth.${k}` as 'settings.explorer.markdownReadingWidth.chars')}
             </button>
@@ -98,6 +105,21 @@ function ReadingWidthField({ value, onChange }: { value: MarkdownStored['reading
               if (e.target.value !== '' && Number.isInteger(n) && n >= READING_WIDTH_MIN && n <= READING_WIDTH_MAX) onChange(n);
             }}
             onBlur={() => setText(String(value))}
+          />
+        )}
+        {relative && (
+          <input
+            type="number"
+            min={READING_PERCENT_MIN}
+            max={READING_PERCENT_MAX}
+            value={pctText}
+            aria-label={t('settings.explorer.markdownReadingWidth.relative')}
+            onChange={(e) => {
+              setPctText(e.target.value);
+              const n = Number(e.target.value);
+              if (e.target.value !== '' && Number.isInteger(n) && n >= READING_PERCENT_MIN && n <= READING_PERCENT_MAX) onChange(`${n}%`);
+            }}
+            onBlur={() => setPctText(String(percent))}
           />
         )}
         <span className="muted"><SettingDescription text={t('settings.explorer.markdownReadingWidth.hint')} /></span>
@@ -163,6 +185,9 @@ export function ExplorerCard({ settings, onChange, row }: SettingsCardProps<Expl
           <ReadingWidthField value={md.readingWidth} onChange={(readingWidth) => setMd({ readingWidth })} />
           <ZoomField key={md.zoom} value={md.zoom} onChange={(zoom) => setMd({ zoom })} />
           {row('markdown.mermaid')}
+          {row('markdown.headingLinks')}
+          {row('markdown.lineNumbers')}
+          {row('markdown.lineBreaks')}
           {row('files.markdownToc')}
         </div>
       </section>

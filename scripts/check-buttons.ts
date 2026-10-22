@@ -20,6 +20,7 @@ const RAW_BUTTONS: Record<string, number> = {
   'packages/editor/src/MarkdownToc.tsx': 2,
   'packages/editor/src/MarkdownView.tsx': 1,
   'packages/editor/src/RequestEditor.tsx': 1,
+  'packages/editor/src/rich/headingLinks.ts': 1,
   'packages/editor/src/ResponseView.tsx': 1,
   'packages/editor/src/SqlSteps.tsx': 8,
   'packages/editor/src/SqliteView.tsx': 1,

@@ -18,6 +18,10 @@ export const stepZoom = (zoom: number, dir: 1 | -1): number => clampZoom(clampZo
 /** CSS `max-width` for the document column. */
 export function readingWidthCss(width: ReadingWidth): string {
   if (width === 'full') return 'none';
+  if (typeof width === 'string' && /^\d+(\.\d+)?%$/.test(width)) {
+    const pct = Math.min(100, Math.max(50, Math.round(parseFloat(width))));
+    return `max(min(72ch, 100%), ${pct}%)`;
+  }
   if (typeof width === 'number' && Number.isFinite(width)) return `${Math.min(120, Math.max(40, Math.round(width)))}ch`;
   return '72ch';
 }

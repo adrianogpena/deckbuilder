@@ -39,6 +39,9 @@ const ROWS: { key: keyof MarkdownSettings; label: string }[] = [
   { key: 'zoom', label: 'settings.explorer.markdownZoom' },
   { key: 'mermaid', label: 'settings.explorer.markdownMermaid' },
   { key: 'toc', label: 'settings.explorer.markdownToc' },
+  { key: 'headingLinks', label: 'settings.explorer.markdownHeadingLinks' },
+  { key: 'lineNumbers', label: 'settings.explorer.markdownLineNumbers' },
+  { key: 'lineBreaks', label: 'settings.explorer.markdownLineBreaks' },
 ];
 
 const show = (v: unknown) => (typeof v === 'boolean' ? (v ? 'on' : 'off') : String(v));

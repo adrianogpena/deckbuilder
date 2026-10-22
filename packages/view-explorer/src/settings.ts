@@ -125,4 +125,7 @@ export const explorerSettingDefs: SettingDef<ExplorerViewSettings>[] = [
   markdownDef('readingWidth', 150, 'settings.explorer.markdownReadingWidth', 'custom'),
   markdownDef('zoom', 160, 'settings.explorer.markdownZoom', 'custom'),
   markdownDef('mermaid', 170, 'settings.explorer.markdownMermaid', 'boolean'),
+  markdownDef('headingLinks', 180, 'settings.explorer.markdownHeadingLinks', 'boolean'),
+  markdownDef('lineNumbers', 190, 'settings.explorer.markdownLineNumbers', 'boolean'),
+  markdownDef('lineBreaks', 200, 'settings.explorer.markdownLineBreaks', 'boolean'),
 ];

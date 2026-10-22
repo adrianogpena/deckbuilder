@@ -1,0 +1,12 @@
+.md-rich-root .ProseMirror :is(h1, h2, h3, h4, h5, h6) { position: relative; }
+.md-heading-link {
+  position: absolute; right: 100%; top: 50%; transform: translateY(-50%);
+  display: none; align-items: center; justify-content: center; box-sizing: border-box; width: 28px; height: 22px; padding: 0 6px 0 0;
+  border: 0; border-radius: var(--radius-6, 6px); background: transparent; color: var(--text-dim, inherit);
+  font-size: 14px; line-height: 1; cursor: pointer; user-select: none;
+}
+.md-heading-link:hover { background: var(--surface-raised, var(--surface)); color: var(--accent); }
+.md-heading-link-done { color: var(--accent); }
+.md-heading-links .md-rich-root .ProseMirror :is(h1, h2, h3, h4, h5, h6):hover > .md-heading-link,
+.md-heading-links .md-heading-link:focus-visible,
+.md-heading-links .md-heading-link-done { display: inline-flex; }

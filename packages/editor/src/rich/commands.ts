@@ -24,8 +24,8 @@ export type MarkdownMode = 'rich' | 'source';
 
 export const MARKDOWN_MODES: readonly MarkdownMode[] = ['rich', 'source'];
 
-/** Text column width: a comfortable measure, the full pane, or a number of characters (40-120). */
-export type ReadingWidth = 'comfortable' | 'full' | number;
+/** Text column width: a comfortable measure, the full pane, a number of characters (40-120) or a percentage string like `"70%"` (50-100) of the pane, never narrower than comfortable. */
+export type ReadingWidth = 'comfortable' | 'full' | number | `${number}%`;
 
 /** The effective markdown settings the host passes to the pane. */
 export interface MarkdownSettings {
@@ -37,9 +37,17 @@ export interface MarkdownSettings {
   mermaid: boolean;
   /** Show the heading rail. */
   toc: boolean;
+  /** Link button at the left of a hovered heading. */
+  headingLinks: boolean;
+  /** Source line numbers in a gutter. */
+  lineNumbers: boolean;
+  /** A single newline in the text shows as a line break. */
+  lineBreaks: boolean;
 }
 
-export const MARKDOWN_SETTINGS_DEFAULTS: MarkdownSettings = { defaultMode: 'rich', readingWidth: 'comfortable', zoom: 100, mermaid: true, toc: true };
+export const MARKDOWN_SETTINGS_DEFAULTS: MarkdownSettings = {
+  defaultMode: 'rich', readingWidth: 'comfortable', zoom: 100, mermaid: true, toc: true, headingLinks: true, lineNumbers: false, lineBreaks: true,
+};
 
 /** What the pane asks of the app hosting it. */
 export interface RichHost {

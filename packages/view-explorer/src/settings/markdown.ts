@@ -14,10 +14,24 @@ export const MARKDOWN_STORED_DEFAULTS: MarkdownStored = {
   readingWidth: MARKDOWN_SETTINGS_DEFAULTS.readingWidth,
   zoom: MARKDOWN_SETTINGS_DEFAULTS.zoom,
   mermaid: MARKDOWN_SETTINGS_DEFAULTS.mermaid,
+  headingLinks: MARKDOWN_SETTINGS_DEFAULTS.headingLinks,
+  lineNumbers: MARKDOWN_SETTINGS_DEFAULTS.lineNumbers,
+  lineBreaks: MARKDOWN_SETTINGS_DEFAULTS.lineBreaks,
 };
 
+export const READING_PERCENT_MIN = 50;
+export const READING_PERCENT_MAX = 100;
+
+/** The percentage of a relative reading width like `"70%"`; null for any other value. */
+export function readingPercent(v: unknown): number | null {
+  if (typeof v !== 'string') return null;
+  const m = /^(\d{2,3})%$/.exec(v);
+  const n = m ? Number(m[1]) : NaN;
+  return n >= READING_PERCENT_MIN && n <= READING_PERCENT_MAX ? n : null;
+}
+
 const validWidth = (v: unknown): v is MarkdownStored['readingWidth'] =>
-  v === 'comfortable' || v === 'full' || (typeof v === 'number' && Number.isInteger(v) && v >= READING_WIDTH_MIN && v <= READING_WIDTH_MAX);
+  v === 'comfortable' || v === 'full' || readingPercent(v) !== null || (typeof v === 'number' && Number.isInteger(v) && v >= READING_WIDTH_MIN && v <= READING_WIDTH_MAX);
 
 const validZoom = (v: unknown): v is number =>
   typeof v === 'number' && Number.isInteger(v) && v >= ZOOM_MIN && v <= ZOOM_MAX && v % ZOOM_STEP === 0;
@@ -42,9 +56,10 @@ export function validMarkdown(raw: unknown): Partial<MarkdownStored> | null {
     if (!validZoom(r.zoom)) return null;
     out.zoom = r.zoom;
   }
-  if (r.mermaid !== undefined) {
-    if (typeof r.mermaid !== 'boolean') return null;
-    out.mermaid = r.mermaid;
+  for (const k of ['mermaid', 'headingLinks', 'lineNumbers', 'lineBreaks'] as const) {
+    if (r[k] === undefined) continue;
+    if (typeof r[k] !== 'boolean') return null;
+    out[k] = r[k] as boolean;
   }
   return out;
 }

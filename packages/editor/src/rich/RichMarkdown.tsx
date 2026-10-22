@@ -13,6 +13,7 @@ import { htmlView, imageView, refreshHtml, userEditPlugin } from './base';
 import { type RichApi, type RichCommandId, type RichHost, runRichCommand } from './commands';
 import { FEATURES } from './features';
 import { EXTERNAL_META, frontmatterYaml, richValue, splitFrontmatter } from './frontmatter';
+import { refreshLineNumbers } from './lineNumbers';
 
 export interface RichMarkdownHandle {
   /** Runs a command through the features' handlers; false when none took it or the pane is not ready. */
@@ -127,10 +128,18 @@ export const RichMarkdown = forwardRef<RichMarkdownHandle, RichMarkdownProps>(fu
     if (api && root.current) refreshHtml(root.current, resolveImage);
   }, [api, resolveImage]);
 
+  const lineNumbers = host.settings.lineNumbers;
+  useEffect(() => {
+    if (api) refreshLineNumbers(api.view);
+  }, [api, lineNumbers]);
+
   useImperativeHandle(ref, () => ({ run: (id) => (api ? runRichCommand(FEATURES, id, api) : false) }), [api]);
 
+  const { headingLinks, lineBreaks } = host.settings;
+  const cls = ['md-rich', headingLinks && 'md-heading-links', lineNumbers && 'md-line-numbers', lineBreaks && 'md-line-breaks'].filter(Boolean).join(' ');
+
   return (
-    <div className="md-rich">
+    <div className={cls}>
       {api && FEATURES.map((f, i) => {
         const Overlay = f.Overlay;
         return Overlay ? <Overlay key={i} api={api} /> : null;
