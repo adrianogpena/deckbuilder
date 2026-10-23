@@ -2,14 +2,9 @@ import { createElement } from 'react';
 import { definePanel, type AnyPanelKind } from '../../panel';
 import { fetchSource } from '../../source';
 import { PODS_FIELDS } from './fields';
-import { PodsPanel, type PodsConfig, type PodsPanelData } from './PodsPanel';
-import type { Pod } from './model';
+import { type PodsConfig, type PodsPanelData } from './PodsPanel';
+import { PodsWithLogs } from './PodLogsDialog';
 
-/** Set by the Logs step to open its viewer; the Pods panel shows a Logs entry once it is set. */
-let onLogs: ((pod: Pod) => void) | undefined;
-export const setPodsLogsHandler = (fn: ((pod: Pod) => void) | undefined): void => {
-  onLogs = fn;
-};
 
 const podsPanel = definePanel<PodsConfig, PodsPanelData>({
   kind: 'pods',
@@ -22,7 +17,7 @@ const podsPanel = definePanel<PodsConfig, PodsPanelData>({
   load: (config) => fetchSource<PodsPanelData>('pods', config),
   refreshMs: (config) => Math.max(5, config.refreshSec || 30) * 1000,
   allowMultiple: true,
-  render: ({ config, data, refresh }) => createElement(PodsPanel, { config, data, refresh, onLogs }),
+  render: ({ config, data, refresh }) => createElement(PodsWithLogs, { config, data, refresh }),
 });
 
 export const panels: AnyPanelKind[] = [podsPanel];

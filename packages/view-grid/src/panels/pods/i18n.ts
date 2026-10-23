@@ -20,6 +20,10 @@ export const en = {
   'dash.pods.describe': 'Describe',
   'dash.pods.describe.loading': 'Loading…',
   'dash.pods.logs': 'Logs',
+  'dash.pods.logs.clear': 'Clear',
+  'dash.pods.logs.status.running': 'Live',
+  'dash.pods.logs.status.restarting': 'Reconnecting…',
+  'dash.pods.logs.status.ended': 'Ended',
   'dash.pods.copyName': 'Copy name',
 };
 
@@ -43,5 +47,9 @@ export const ptBR: Messages<typeof en> = {
   'dash.pods.describe': 'Descrever',
   'dash.pods.describe.loading': 'Carregando…',
   'dash.pods.logs': 'Logs',
+  'dash.pods.logs.clear': 'Clear',
+  'dash.pods.logs.status.running': 'Live',
+  'dash.pods.logs.status.restarting': 'Reconnecting…',
+  'dash.pods.logs.status.ended': 'Ended',
   'dash.pods.copyName': 'Copiar nome',
 };

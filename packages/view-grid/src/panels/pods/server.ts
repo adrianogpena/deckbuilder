@@ -1,5 +1,6 @@
-import { AppError } from '@deckbuilderkit/server-core';
+import { AppError, ndjson } from '@deckbuilderkit/server-core';
 import { runCli } from '../../cli';
+import { parseTail, PodLogHub, validateTarget } from './logs';
 import { defineSource, SourceError, type DataSource, type GridPanelSpec } from '../../server';
 import { PODS_FIELDS } from './fields';
 import { DNS_1123, ingressUrls, mapPods, parseClusters, podConfigMaps, type Cluster, type Pod } from './model';
@@ -17,6 +18,8 @@ export interface PodsData {
 }
 
 const TIMEOUT_MS = 30_000;
+
+const logHub = new PodLogHub();
 
 let latest: Pod[] = [];
 
@@ -79,6 +82,30 @@ export const podsSource = defineSource<PodsConfig>({
     }
     latest = out.pods;
     return out;
+  },
+  streams: {
+    logs(query, ctx) {
+      const target = validateTarget({ context: query.get('context'), namespace: query.get('namespace'), pod: query.get('pod') });
+      if (!target) throw SourceError('upstream', 'Invalid pod, context or namespace.');
+      const tail = parseTail(query.get('tail'));
+      return ndjson(ctx.req, async (emit, signal) => {
+        let chain: Promise<void> = Promise.resolve();
+        let leave = () => {};
+        const done = new Promise<void>((resolve) => {
+          leave = logHub.subscribe(target, tail, (m) => {
+            chain = chain.then(() => emit(m));
+            if ('status' in m && m.status === 'ended') chain = chain.then(resolve);
+          });
+          signal.addEventListener('abort', () => resolve(), { once: true });
+        });
+        try {
+          await done;
+          await chain;
+        } finally {
+          leave();
+        }
+      });
+    },
   },
   actions: {
     async restart(payload, config, ctx) {
