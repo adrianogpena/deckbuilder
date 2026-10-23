@@ -121,34 +121,30 @@ export const ticketsSource = defineSource<TicketsConfig>({
       if (!key) throw invalid('ticket-invalid-key', 'Not a ticket key.');
       const status = parseStatuses(config.statuses ?? '')[0]!;
       const description = str(p.description);
-      await ticketsStore(ctx.dataDir).update((s) => {
+      const saved = await ticketsStore(ctx.dataDir).update((s) => {
         if (s.tickets.some((t) => t.key === key)) throw invalid('ticket-duplicate', 'The ticket is already on the board.', { key });
         if (s.tickets.length >= MAX_TICKETS) throw invalid('ticket-limit', 'The board is full.');
         return { ...s, tickets: add(s.tickets, key, status, description) };
       });
-      return null;
+      return saved.tickets;
     },
     async move(payload, _config, ctx) {
       const p = payloadOf(payload);
       const index = typeof p.index === 'number' && Number.isFinite(p.index) ? Math.trunc(p.index) : 0;
-      await ticketsStore(ctx.dataDir).update((s) => ({ ...s, tickets: move(s.tickets, str(p.id, 100), str(p.status, 200), index) }));
-      return null;
+      return (await ticketsStore(ctx.dataDir).update((s) => ({ ...s, tickets: move(s.tickets, str(p.id, 100), str(p.status, 200), index) }))).tickets;
     },
     async update(payload, _config, ctx) {
       const p = payloadOf(payload);
-      await ticketsStore(ctx.dataDir).update((s) => ({ ...s, tickets: update(s.tickets, str(p.id, 100), { description: str(p.description) }) }));
-      return null;
+      return (await ticketsStore(ctx.dataDir).update((s) => ({ ...s, tickets: update(s.tickets, str(p.id, 100), { description: str(p.description) }) }))).tickets;
     },
     async 'set-auto-move'(payload, _config, ctx) {
       const p = payloadOf(payload);
       const autoMove = typeof p.value === 'boolean' ? p.value : null;
-      await ticketsStore(ctx.dataDir).update((s) => ({ ...s, tickets: update(s.tickets, str(p.id, 100), { autoMove }) }));
-      return null;
+      return (await ticketsStore(ctx.dataDir).update((s) => ({ ...s, tickets: update(s.tickets, str(p.id, 100), { autoMove }) }))).tickets;
     },
     async remove(payload, _config, ctx) {
       const p = payloadOf(payload);
-      await ticketsStore(ctx.dataDir).update((s) => ({ ...s, tickets: remove(s.tickets, str(p.id, 100)) }));
-      return null;
+      return (await ticketsStore(ctx.dataDir).update((s) => ({ ...s, tickets: remove(s.tickets, str(p.id, 100)) }))).tickets;
     },
   },
 });

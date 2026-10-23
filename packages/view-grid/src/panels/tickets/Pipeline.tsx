@@ -1,3 +1,5 @@
+import { useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Icon } from '@deckbuilderkit/ui';
 import { tKey } from '../../i18n';
 import type { TrackedPr } from '../github/tracked';
@@ -53,23 +55,57 @@ function Detail({ stage, link }: { stage: (typeof STAGES)[number]['id']; link: T
   return <div className="tickets-pipe-row">{link.hours === null ? tKey('dash.tickets.pipeline.none') : tKey('dash.tickets.pipeline.hours', { hours: Math.round(link.hours * 10) / 10 })}</div>;
 }
 
+const CARD_WIDTH = 320;
+
+function Segment({ id, icon, stage, link }: { id: (typeof STAGES)[number]['id']; icon: (typeof STAGES)[number]['icon']; stage: Stage; link: TicketLink }) {
+  const [at, setAt] = useState<{ left: number; top: number; bottom: number } | null>(null);
+  const timer = useRef<number>();
+  const show = (el: HTMLElement) => {
+    window.clearTimeout(timer.current);
+    const r = el.getBoundingClientRect();
+    setAt({ left: Math.max(8, Math.min(r.left, window.innerWidth - CARD_WIDTH - 8)), top: r.top, bottom: r.bottom });
+  };
+  const hide = () => {
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => setAt(null), 120);
+  };
+  const below = at ? at.bottom + 4 : 0;
+  const flip = at ? window.innerHeight - below < 220 && at.top > window.innerHeight - below : false;
+  return (
+    <div
+      className={`tickets-pipe-seg tickets-pipe-${stage}`}
+      tabIndex={0}
+      onMouseEnter={(e) => show(e.currentTarget)}
+      onMouseLeave={hide}
+      onFocus={(e) => show(e.currentTarget)}
+      onBlur={hide}
+    >
+      <Icon name={icon} size={12} />
+      {at &&
+        createPortal(
+          <div
+            className="tickets-pipe-card"
+            style={{ left: at.left, ...(flip ? { bottom: window.innerHeight - at.top + 4 } : { top: below }) }}
+            onMouseEnter={() => window.clearTimeout(timer.current)}
+            onMouseLeave={hide}
+          >
+            <strong>{tKey(`dash.tickets.pipeline.${id}`)}</strong>
+            <Detail stage={id} link={link} />
+          </div>,
+          document.body,
+        )}
+    </div>
+  );
+}
+
 /** The pipeline strip of a card: branch, PR, pods and hours, each coloured by its stage. */
 export function TicketPipeline({ link }: { ticket: Ticket; link?: TicketLink }) {
   if (!link) return null;
   return (
     <div className="tickets-pipe">
-      {STAGES.map((s) => {
-        const stage: Stage = link.stages[s.id];
-        return (
-          <div key={s.id} className={`tickets-pipe-seg tickets-pipe-${stage}`} tabIndex={0}>
-            <Icon name={s.icon} size={12} />
-            <div className="tickets-pipe-card">
-              <strong>{tKey(`dash.tickets.pipeline.${s.id}`)}</strong>
-              <Detail stage={s.id} link={link} />
-            </div>
-          </div>
-        );
-      })}
+      {STAGES.map((s) => (
+        <Segment key={s.id} id={s.id} icon={s.icon} stage={link.stages[s.id]} link={link} />
+      ))}
     </div>
   );
 }

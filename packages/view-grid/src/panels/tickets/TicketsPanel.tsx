@@ -1,8 +1,8 @@
-import { useState, type DragEvent } from 'react';
+import { useEffect, useState, type DragEvent } from 'react';
 import { Icon } from '@deckbuilderkit/ui';
 import { tKey } from '../../i18n';
 import { runAction } from '../../source';
-import { columns } from './model';
+import { columns, type Ticket } from './model';
 import { TicketCard } from './TicketCard';
 import { TicketDetailDialog } from './TicketDetailDialog';
 import { UnlinkedList } from './UnlinkedList';
@@ -27,12 +27,15 @@ export function TicketsPanel({ config, data, refresh }: Props) {
   const [error, setError] = useState('');
   const [over, setOver] = useState<{ status: string; index: number } | null>(null);
   const [detail, setDetail] = useState<string | null>(null);
+  const [local, setLocal] = useState<Ticket[] | null>(null);
+
+  useEffect(() => setLocal(null), [data]);
 
   if (!data) return null;
 
   const act = async (name: string, payload: unknown) => {
     try {
-      await runAction('tickets', name, config, payload);
+      setLocal(await runAction<Ticket[]>('tickets', name, config, payload));
       setError('');
     } catch (err) {
       setError(String((err as Error)?.message ?? err));
@@ -56,8 +59,9 @@ export function TicketsPanel({ config, data, refresh }: Props) {
     return count;
   };
 
-  const cols = columns(data.tickets, data.statuses);
-  const detailTicket = detail ? data.tickets.find((t) => t.id === detail) : undefined;
+  const tickets = local ?? data.tickets;
+  const cols = columns(tickets, data.statuses);
+  const detailTicket = detail ? tickets.find((t) => t.id === detail) : undefined;
 
   return (
     <div className="tickets">

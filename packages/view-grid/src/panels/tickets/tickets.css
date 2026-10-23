@@ -20,8 +20,7 @@
 .tickets-pipe-warn { color: var(--warn); border-bottom-color: var(--warn); }
 .tickets-pipe-pending { color: var(--info, var(--accent)); border-bottom-color: var(--info, var(--accent)); }
 .tickets-pipe-fail { color: var(--err); border-bottom-color: var(--err); }
-.tickets-pipe-card { display: none; position: absolute; top: 100%; left: 0; z-index: 20; min-width: 200px; max-width: 320px; flex-direction: column; gap: var(--space-4); padding: var(--space-6) var(--space-8); color: var(--text); background: var(--surface-raised, var(--bg)); border: 1px solid var(--border-soft); border-radius: var(--radius-sm); box-shadow: 0 4px 16px rgb(0 0 0 / 0.3); font-size: var(--fs-xs); overflow-wrap: anywhere; }
-.tickets-pipe-seg:hover .tickets-pipe-card, .tickets-pipe-seg:focus-within .tickets-pipe-card { display: flex; }
+.tickets-pipe-card { display: flex; position: fixed; z-index: 1000; min-width: 200px; max-width: 320px; max-height: 60vh; overflow-y: auto; flex-direction: column; gap: var(--space-4); padding: var(--space-6) var(--space-8); color: var(--text); background: var(--surface-raised, var(--bg)); border: 1px solid var(--border-soft); border-radius: var(--radius-sm); box-shadow: 0 4px 16px rgb(0 0 0 / 0.3); font-size: var(--fs-xs); overflow-wrap: anywhere; }
 .tickets-auto { margin-left: auto; padding: 0 var(--space-4); font-size: var(--fs-xs); color: var(--accent); border: 1px solid var(--accent); border-radius: var(--radius-sm); }
 .tickets-unlinked { display: flex; flex-direction: column; gap: var(--space-4); max-height: 30%; overflow-y: auto; padding: var(--space-4); border-top: 1px solid var(--border); }
 .tickets-unlinked-head { align-self: flex-start; font-weight: 600; }
