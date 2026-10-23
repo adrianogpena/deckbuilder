@@ -4,6 +4,8 @@ import { tKey } from '../../i18n';
 import { runAction } from '../../source';
 import { columns } from './model';
 import { TicketCard } from './TicketCard';
+import { TicketDetailDialog } from './TicketDetailDialog';
+import { UnlinkedList } from './UnlinkedList';
 import type { TicketsData } from './types';
 import './tickets.css';
 
@@ -24,6 +26,7 @@ export function TicketsPanel({ config, data, refresh }: Props) {
   const [key, setKey] = useState('');
   const [error, setError] = useState('');
   const [over, setOver] = useState<{ status: string; index: number } | null>(null);
+  const [detail, setDetail] = useState<string | null>(null);
 
   if (!data) return null;
 
@@ -54,6 +57,7 @@ export function TicketsPanel({ config, data, refresh }: Props) {
   };
 
   const cols = columns(data.tickets, data.statuses);
+  const detailTicket = detail ? data.tickets.find((t) => t.id === detail) : undefined;
 
   return (
     <div className="tickets">
@@ -105,6 +109,8 @@ export function TicketsPanel({ config, data, refresh }: Props) {
                   jiraBaseUrl={config.jiraBaseUrl}
                   onDescription={(description) => void act('update', { id: t.id, description })}
                   onDelete={() => void act('remove', { id: t.id })}
+                  onAutoMove={(value) => void act('set-auto-move', { id: t.id, value })}
+                  onDetails={() => setDetail(t.id)}
                   onDragStart={(e) => {
                     e.dataTransfer.setData('text/plain', t.id);
                     e.dataTransfer.effectAllowed = 'move';
@@ -115,6 +121,8 @@ export function TicketsPanel({ config, data, refresh }: Props) {
           </section>
         ))}
       </div>
+      {data.unlinked && <UnlinkedList unlinked={data.unlinked} onAdd={(k) => void act('add', { key: k })} />}
+      {detailTicket && <TicketDetailDialog ticket={detailTicket} link={data.links?.[detailTicket.key]} onClose={() => setDetail(null)} />}
     </div>
   );
 }

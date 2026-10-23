@@ -6,6 +6,7 @@ import type { TrackedPr } from '../github/tracked';
 import { latestPods } from '../pods/server';
 import { readWeekHours } from '../timesheet/server';
 import { TICKETS_FIELDS } from './fields';
+import { planAutoMoves } from './auto-move';
 import { linkTickets } from './linker';
 import { add, extractKey, MAX_TICKETS, move, parseStatuses, remove, update, type Ticket } from './model';
 import type { TicketsData } from './types';
@@ -15,11 +16,15 @@ interface TicketsConfig {
   statuses: string;
   keyPattern: string;
   jiraBaseUrl: string;
+  autoMove?: boolean;
+  readyLabel?: string;
   [key: string]: unknown;
 }
 
 interface TicketStore {
   tickets: Ticket[];
+  /** Auto-move rules seen per ticket key at the last fetch. */
+  autoMoveMemory: Record<string, string[]>;
 }
 
 const str = (v: unknown, max = 5000) => (typeof v === 'string' ? v.slice(0, max) : '');
@@ -46,7 +51,14 @@ function parseStore(raw: unknown): TicketStore {
       tickets.push(t);
     }
   }
-  return { tickets };
+  const autoMoveMemory: Record<string, string[]> = {};
+  const mem = (raw as { autoMoveMemory?: unknown })?.autoMoveMemory;
+  if (mem && typeof mem === 'object') {
+    for (const [k, v] of Object.entries(mem as Record<string, unknown>)) {
+      if (Array.isArray(v)) autoMoveMemory[k.slice(0, 100)] = v.filter((x): x is string => typeof x === 'string').slice(0, 10);
+    }
+  }
+  return { tickets, autoMoveMemory };
 }
 
 const stores = new Map<string, JsonStore<TicketStore>>();
@@ -54,7 +66,7 @@ const stores = new Map<string, JsonStore<TicketStore>>();
 export function ticketsStore(dataDir: string): JsonStore<TicketStore> {
   let s = stores.get(dataDir);
   if (!s) {
-    s = createJsonStore({ dataDir, name: 'tickets', parse: parseStore, empty: () => ({ tickets: [] }) });
+    s = createJsonStore({ dataDir, name: 'tickets', parse: parseStore, empty: () => ({ tickets: [], autoMoveMemory: {} }) });
     stores.set(dataDir, s);
   }
   return s;
@@ -66,7 +78,8 @@ export const ticketsSource = defineSource<TicketsConfig>({
   id: 'tickets',
   fields: TICKETS_FIELDS,
   async fetch(config, ctx): Promise<TicketsData> {
-    const { tickets } = await ticketsStore(ctx.dataDir).read();
+    const store = ticketsStore(ctx.dataDir);
+    let { tickets } = await store.read();
     let prs: TrackedPr[] = [];
     let prError = false;
     if (config.connection) {
@@ -86,7 +99,20 @@ export const ticketsSource = defineSource<TicketsConfig>({
       hours,
       config.keyPattern,
     );
-    return { statuses: parseStatuses(config.statuses ?? ''), tickets, links, unlinked, ...(prError ? { prError } : {}) };
+    const statuses = parseStatuses(config.statuses ?? '');
+    if (config.connection && !prError) {
+      const now = Date.now();
+      const saved = await store.update((s) => {
+        const plan = planAutoMoves(s.tickets, links, statuses, s.autoMoveMemory, config.autoMove !== false, config.readyLabel || 'ready to merge');
+        let list = s.tickets;
+        for (const m of plan.moves) {
+          list = move(list, m.id, m.status, Number.MAX_SAFE_INTEGER, now).map((t) => (t.id === m.id ? { ...t, autoMovedAt: now } : t));
+        }
+        return { tickets: list, autoMoveMemory: plan.memory };
+      });
+      tickets = saved.tickets;
+    }
+    return { statuses, tickets, links, unlinked, ...(prError ? { prError } : {}) };
   },
   actions: {
     async add(payload, config, ctx) {
@@ -98,24 +124,30 @@ export const ticketsSource = defineSource<TicketsConfig>({
       await ticketsStore(ctx.dataDir).update((s) => {
         if (s.tickets.some((t) => t.key === key)) throw invalid('ticket-duplicate', 'The ticket is already on the board.', { key });
         if (s.tickets.length >= MAX_TICKETS) throw invalid('ticket-limit', 'The board is full.');
-        return { tickets: add(s.tickets, key, status, description) };
+        return { ...s, tickets: add(s.tickets, key, status, description) };
       });
       return null;
     },
     async move(payload, _config, ctx) {
       const p = payloadOf(payload);
       const index = typeof p.index === 'number' && Number.isFinite(p.index) ? Math.trunc(p.index) : 0;
-      await ticketsStore(ctx.dataDir).update((s) => ({ tickets: move(s.tickets, str(p.id, 100), str(p.status, 200), index) }));
+      await ticketsStore(ctx.dataDir).update((s) => ({ ...s, tickets: move(s.tickets, str(p.id, 100), str(p.status, 200), index) }));
       return null;
     },
     async update(payload, _config, ctx) {
       const p = payloadOf(payload);
-      await ticketsStore(ctx.dataDir).update((s) => ({ tickets: update(s.tickets, str(p.id, 100), { description: str(p.description) }) }));
+      await ticketsStore(ctx.dataDir).update((s) => ({ ...s, tickets: update(s.tickets, str(p.id, 100), { description: str(p.description) }) }));
+      return null;
+    },
+    async 'set-auto-move'(payload, _config, ctx) {
+      const p = payloadOf(payload);
+      const autoMove = typeof p.value === 'boolean' ? p.value : null;
+      await ticketsStore(ctx.dataDir).update((s) => ({ ...s, tickets: update(s.tickets, str(p.id, 100), { autoMove }) }));
       return null;
     },
     async remove(payload, _config, ctx) {
       const p = payloadOf(payload);
-      await ticketsStore(ctx.dataDir).update((s) => ({ tickets: remove(s.tickets, str(p.id, 100)) }));
+      await ticketsStore(ctx.dataDir).update((s) => ({ ...s, tickets: remove(s.tickets, str(p.id, 100)) }));
       return null;
     },
   },
