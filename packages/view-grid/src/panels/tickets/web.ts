@@ -1,3 +1,22 @@
-import type { AnyPanelKind } from '../../panel';
+import { createElement } from 'react';
+import { definePanel, type AnyPanelKind } from '../../panel';
+import { fetchSource } from '../../source';
+import { TICKETS_FIELDS } from './fields';
+import { TicketsPanel, type TicketsConfig } from './TicketsPanel';
+import type { TicketsData } from './types';
 
-export const panels: AnyPanelKind[] = [];
+const ticketsPanel = definePanel<TicketsConfig, TicketsData>({
+  kind: 'tickets',
+  title: 'dash.tickets.panel',
+  description: 'dash.tickets.panel.description',
+  icon: 'table',
+  category: 'dash.category.tickets',
+  size: { w: 16, h: 12, minW: 6, minH: 5 },
+  config: { fields: TICKETS_FIELDS },
+  load: (config) => fetchSource<TicketsData>('tickets', config),
+  refreshMs: () => 60_000,
+  allowMultiple: false,
+  render: ({ config, data, refresh }) => createElement(TicketsPanel, { config, data, refresh }),
+});
+
+export const panels: AnyPanelKind[] = [ticketsPanel];
