@@ -55,6 +55,13 @@ export interface AgentsSettings {
   'usage.showFiveHour'?: boolean;
   'usage.showSevenDay'?: boolean;
   'usage.showCost'?: boolean;
+  /** Percent where each bar turns yellow (warnAt) and red (critAt), 0-100 with critAt above warnAt; defaults 20/50 context, 50/80 5h, 70/90 weekly. */
+  'usage.context.warnAt'?: number;
+  'usage.context.critAt'?: number;
+  'usage.fiveHour.warnAt'?: number;
+  'usage.fiveHour.critAt'?: number;
+  'usage.sevenDay.warnAt'?: number;
+  'usage.sevenDay.critAt'?: number;
   /** Config dir of the account new sessions launch as; blank or omitted = the default account. */
   'accounts.activeAccount'?: string;
   /** Show sessions of every account; on when omitted, off hides other accounts' Claude sessions. */

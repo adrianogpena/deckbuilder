@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Empty, Modal, request } from '@deckbuilderkit/ui';
 import { t } from '../i18n';
 import type { AgentAccountUsage, AgentRateLimit, AgentSession, AgentSevenDayHistory } from '../protocol.ts';
-import { barCells, historyRows, isStale, liveLimit, resetLabel, severity, shortDuration, shownPercent } from './usage-format';
+import { barCells, historyRows, isStale, liveLimit, resetLabel, severity, shortDuration, shownPercent, type SeverityThresholds } from './usage-format';
 
 /** Cells of the Usage tab bars. */
 export const TAB_BAR_CELLS = 24;
@@ -14,12 +14,13 @@ export interface UsageTabProps {
   /** Account of the selected session (else the freshest reading's): marked '(active)'. */
   activeAccount?: string;
   use24h?: boolean;
+  thresholds?: SeverityThresholds;
   /** Sessions whose context % is listed under their account. */
   sessions?: Array<Pick<AgentSession, 'id' | 'account' | 'cwd' | 'title' | 'name' | 'contextPercent'>>;
   onClose(): void;
 }
 
-function Limit({ metric, limit, fallbackAt, use24h, now }: { metric: 'fiveHour' | 'sevenDay'; limit: AgentRateLimit | undefined; fallbackAt: number; use24h: boolean; now: number }) {
+function Limit({ metric, limit, fallbackAt, use24h, now, thresholds }: { metric: 'fiveHour' | 'sevenDay'; limit: AgentRateLimit | undefined; fallbackAt: number; use24h: boolean; now: number; thresholds?: SeverityThresholds }) {
   const label = t(metric === 'fiveHour' ? 'agents.usage.fiveHour' : 'agents.usage.sevenDay');
   if (!limit) {
     return (
@@ -33,7 +34,7 @@ function Limit({ metric, limit, fallbackAt, use24h, now }: { metric: 'fiveHour' 
   const stale = isStale(at, now);
   const filled = barCells(limit.percent, TAB_BAR_CELLS);
   return (
-    <div className={`agents-usage-tab-row sev-${severity(metric, limit.percent)}${stale ? ' stale' : ''}`} title={stale ? t('agents.usage.stale', { age: shortDuration(now - at) }) : undefined}>
+    <div className={`agents-usage-tab-row sev-${severity(metric, limit.percent, thresholds)}${stale ? ' stale' : ''}`} title={stale ? t('agents.usage.stale', { age: shortDuration(now - at) }) : undefined}>
       <span className="mono-label">{label}</span>
       <span className="agents-usage-cells" aria-hidden="true">
         {Array.from({ length: TAB_BAR_CELLS }, (_, i) => <span key={i} className={i < filled ? 'on' : undefined} />)}
@@ -45,7 +46,7 @@ function Limit({ metric, limit, fallbackAt, use24h, now }: { metric: 'fiveHour' 
 }
 
 /** Usage tab: per Claude account its 5h / 7d windows and the 7d spend of the last 5 days; Escape closes. */
-export function UsageTab({ usage, activeAccount, use24h = false, sessions, onClose }: UsageTabProps) {
+export function UsageTab({ usage, activeAccount, use24h = false, thresholds, sessions, onClose }: UsageTabProps) {
   const [history, setHistory] = useState<AgentSevenDayHistory>({});
   const now = Date.now();
   useEffect(() => {
@@ -70,14 +71,14 @@ export function UsageTab({ usage, activeAccount, use24h = false, sessions, onClo
               {a.account === activeAccount && <span className="agents-usage-tab-active">{t('agents.usage.active')}</span>}
             </header>
             {(sessions ?? []).filter((s) => s.account === a.account && s.contextPercent !== undefined).map((s) => (
-              <div key={s.id} className={`agents-usage-tab-row sev-${severity('context', s.contextPercent!)}`}>
+              <div key={s.id} className={`agents-usage-tab-row sev-${severity('context', s.contextPercent!, thresholds)}`}>
                 <span className="mono-label">{t('agents.usage.context')}</span>
                 <span className="agents-usage-text" title={s.cwd}>{s.name ?? s.title}</span>
                 <span className="agents-usage-pct">{shownPercent(s.contextPercent!)}%</span>
               </div>
             ))}
-            <Limit metric="fiveHour" limit={liveLimit(a.fiveHour, now)} fallbackAt={a.updatedAt} use24h={use24h} now={now} />
-            <Limit metric="sevenDay" limit={liveLimit(a.sevenDay, now)} fallbackAt={a.updatedAt} use24h={use24h} now={now} />
+            <Limit metric="fiveHour" limit={liveLimit(a.fiveHour, now)} fallbackAt={a.updatedAt} use24h={use24h} now={now} thresholds={thresholds} />
+            <Limit metric="sevenDay" limit={liveLimit(a.sevenDay, now)} fallbackAt={a.updatedAt} use24h={use24h} now={now} thresholds={thresholds} />
             <div className="mono-label agents-usage-tab-caption">{t('agents.usage.daily')}</div>
             <div className="agents-usage-tab-days">
               {historyRows(history[a.email || 'unknown'], now).map((d) => (

@@ -37,7 +37,7 @@ export function AgentsUsageCard({ settings, rows }: SettingsCardProps<AgentsView
         <aside className="settings-format-preview">
           <h4 className="mono-label">{t('settings.agents.usage.preview')}</h4>
           <span className="muted">{t('settings.agents.usage.preview.hint')}</span>
-          <UsageView {...sample} items={usage.items} compact={usage.compact} use24h={usage.use24h} now={now} />
+          <UsageView {...sample} items={usage.items} compact={usage.compact} use24h={usage.use24h} thresholds={usage.thresholds} now={now} />
         </aside>
         <div className="settings-format-options">{rows(USAGE_IDS)}</div>
       </div>

@@ -29,6 +29,7 @@ export function resolveUsage(prefs: AccountPrefsMap | undefined, accountId: stri
   const u = accountId ? prefs?.[accountId]?.usage : undefined;
   if (!u) return globalUsage;
   return {
+    thresholds: globalUsage.thresholds,
     show: u.show ?? globalUsage.show,
     position: u.position ?? globalUsage.position,
     compact: u.compact ?? globalUsage.compact,

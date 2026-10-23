@@ -3,7 +3,7 @@ import { t } from '../i18n';
 import type { AgentAccountUsage, AgentCategory, AgentRateLimit, AgentSession } from '../protocol.ts';
 import type { AgentsSettings, AgentsUsagePosition } from '../settings-types';
 import { Badge } from './Badge';
-import { cacheState, clampPercent, costTrend, formatCost, isStale, liveLimit, modelLine, resetLabel, severity, shortDuration, shownPercent, startupShown, type UsageMetric } from './usage-format';
+import { cacheState, clampPercent, costTrend, formatCost, isStale, liveLimit, modelLine, resetLabel, severity, shortDuration, shownPercent, SEVERITY_AT, type SeverityThresholds, type UsageMetric } from './usage-format';
 import './usage.css';
 
 /** Rows of the full layout that can be hidden. */
@@ -24,10 +24,24 @@ export interface UsageSettings {
   compact: boolean;
   use24h: boolean;
   items: UsageItems;
+  thresholds: SeverityThresholds;
+}
+
+function thresholdsOf(s: AgentsSettings | undefined): SeverityThresholds {
+  const pair = (m: UsageMetric): readonly [number, number] => {
+    const [dw, dc] = SEVERITY_AT[m];
+    const w = s?.[`usage.${m}.warnAt`];
+    const c = s?.[`usage.${m}.critAt`];
+    const warn = typeof w === 'number' && Number.isFinite(w) ? w : dw;
+    const crit = typeof c === 'number' && Number.isFinite(c) ? c : dc;
+    return crit > warn ? [warn, crit] : [dw, dc];
+  };
+  return { context: pair('context'), fiveHour: pair('fiveHour'), sevenDay: pair('sevenDay') };
 }
 
 export function usageSettingsOf(s: AgentsSettings | undefined): UsageSettings {
   return {
+    thresholds: thresholdsOf(s),
     show: s?.['usage.show'] === true,
     position: s?.['usage.position'] === 'top' ? 'top' : 'bottom',
     compact: s?.['usage.compact'] === true,
@@ -45,7 +59,7 @@ export function usageSettingsOf(s: AgentsSettings | undefined): UsageSettings {
 }
 
 /** The selected session's own fields the view reads. */
-export type UsageSession = Pick<AgentSession, 'account' | 'contextPercent' | 'startupContextPercent' | 'modelName' | 'effort' | 'claudeVersion' | 'cache'>;
+export type UsageSession = Pick<AgentSession, 'account' | 'contextPercent' |'modelName' | 'effort' | 'claudeVersion' | 'cache'>;
 
 /** What the view shows: the selected session, its account's 5h / 7d, and the account label (only with several accounts). */
 export interface UsageViewData {
@@ -62,6 +76,7 @@ export interface UsageViewProps extends UsageViewData {
   items?: Partial<UsageItems>;
   compact?: boolean;
   use24h?: boolean;
+  thresholds?: SeverityThresholds;
   /** Fixed clock (previews, tests); otherwise ticks every 30 s for staleness, resets and the cache countdown. */
   now?: number;
   /** A click on the block (opens the Usage tab). */
@@ -74,7 +89,7 @@ export function usageSample(now: number = Date.now()): UsageViewData {
   const data: UsageViewData = {
     accountLabel: 'me@example.com',
     counts: { running: 2, waiting: 1, idle: 3, error: 0, stopped: 4 },
-    session: { account: '.claude', contextPercent: 42, startupContextPercent: 12, modelName: 'Opus 4.1', effort: 'high', claudeVersion: '2.1.0', cache: { lastRequestAt: now - 90_000, ttlMs: 300_000 } },
+    session: { account: '.claude', contextPercent: 42,modelName: 'Opus 4.1', effort: 'high', claudeVersion: '2.1.0', cache: { lastRequestAt: now - 90_000, ttlMs: 300_000 } },
     usage: {
       account: '.claude',
       label: 'me@example.com',
@@ -125,9 +140,9 @@ const LIMITS: Array<['fiveHour' | 'sevenDay', () => string]> = [
 
 const ARROW = { up: '↑', down: '↓' } as const;
 
-/** 11px label and percent on one line, a bar under it, then a note (reset time, startup context). */
-function Metric({ label, metric, percent, stale, note, title }: { label: string; metric: UsageMetric; percent?: number; stale: boolean; note?: string; title?: string }) {
-  const sev = percent === undefined ? '' : ` sev-${severity(metric, percent)}`;
+/** 11px label and percent on one line, a bar under it, then a note (reset time). */
+function Metric({ label, metric, percent, stale, note, title, thresholds }: { label: string; metric: UsageMetric; percent?: number; stale: boolean; note?: string; title?: string; thresholds?: SeverityThresholds }) {
+  const sev = percent === undefined ? '' : ` sev-${severity(metric, percent, thresholds)}`;
   return (
     <span className={`agents-ucard-metric${sev}${stale ? ' stale' : ''}`} title={title}>
       <span className="agents-ucard-line">
@@ -143,25 +158,24 @@ function Metric({ label, metric, percent, stale, note, title }: { label: string;
 }
 
 /** One account: header, today's cost with the trend vs yesterday, 5-hour and weekly limits; the selected session's context, model and cache in its account's group. */
-function AccountGroup({ acc, name, session, own, show, now, use24h }: { acc?: AgentAccountUsage; name?: string; session?: UsageSession; own: boolean; show: (k: keyof UsageItems) => boolean; now: number; use24h: boolean }) {
+function AccountGroup({ acc, name, session, own, show, now, use24h, thresholds }: { acc?: AgentAccountUsage; name?: string; session?: UsageSession; own: boolean; show: (k: keyof UsageItems) => boolean; now: number; use24h: boolean; thresholds?: SeverityThresholds }) {
   const cost = acc?.cost;
   const trend = costTrend(cost?.today, cost?.yesterday);
   const staleOf = (l: AgentRateLimit) => isStale(l.updatedAt ?? acc?.updatedAt, now);
   const staleTitle = (l: AgentRateLimit) => (staleOf(l) ? t('agents.usage.stale', { age: shortDuration(now - (l.updatedAt ?? acc?.updatedAt ?? now)) }) : undefined);
   const context = session?.contextPercent;
-  const startup = startupShown(context, session?.startupContextPercent);
   const model = modelLine(session?.modelName, session?.effort);
   const cache = session?.cache && cacheState(session.cache, now);
   return (
     <span className="agents-ucard-group">
       {session && show('context') && (
-        <Metric label={LABEL.context()} metric="context" percent={context} stale={false} note={startup !== undefined ? t('agents.usage.startup', { n: startup }) : undefined} />
+        <Metric label={LABEL.context()} metric="context" percent={context} stale={false} thresholds={thresholds} />
       )}
       {LIMITS.map(([k, label]) => {
         if (!show(k)) return null;
         const l = liveLimit(acc?.[k], now);
         const note = l?.resetsAt !== undefined ? t('agents.usageCard.resets', { time: resetLabel(l.resetsAt, k, use24h) }) : undefined;
-        return <Metric key={k} label={label()} metric={k} percent={l?.percent} stale={!!l && staleOf(l)} title={l && staleTitle(l)} note={note} />;
+        return <Metric key={k} label={label()} metric={k} percent={l?.percent} stale={!!l && staleOf(l)} title={l && staleTitle(l)} note={note} thresholds={thresholds} />;
       })}
       {acc && show('cost') && (
         <span className="agents-ucard-cost" title={t('agents.usageCard.costExplain')}>
@@ -195,7 +209,7 @@ function AccountGroup({ acc, name, session, own, show, now, use24h }: { acc?: Ag
 }
 
 /** Usage card (spec S10): per-account groups (today's cost, 5-hour and weekly limits; the selected session's context, model, cache) or one compact line. */
-export function UsageView({ session, usage, accountLabel, items = {}, compact = false, use24h = false, now: fixedNow, onOpen, className }: UsageViewProps) {
+export function UsageView({ session, usage, accountLabel, items = {}, compact = false, use24h = false, thresholds, now: fixedNow, onOpen, className }: UsageViewProps) {
   const now = useNow(fixedNow);
   const show = (k: keyof UsageItems) => items[k] !== false;
   const context = session?.contextPercent;
@@ -207,9 +221,9 @@ export function UsageView({ session, usage, accountLabel, items = {}, compact = 
   const staleTitle = (l: AgentRateLimit) => (staleOf(l) ? t('agents.usage.stale', { age: shortDuration(now - (l.updatedAt ?? usage?.updatedAt ?? now)) }) : undefined);
 
   const parts: Array<{ key: string; text: string; cls: string; title?: string }> = [];
-  if (show('context') && context !== undefined) parts.push({ key: 'context', text: `${t('agents.usage.ctx')} ${shownPercent(context)}%`, cls: `sev-${severity('context', context)}` });
+  if (show('context') && context !== undefined) parts.push({ key: 'context', text: `${t('agents.usage.ctx')} ${shownPercent(context)}%`, cls: `sev-${severity('context', context, thresholds)}` });
   for (const [k, l] of limits) {
-    if (show(k) && l) parts.push({ key: k, text: `${LABEL[k]()} ${shownPercent(l.percent)}%`, cls: `sev-${severity(k, l.percent)}${staleOf(l) ? ' stale' : ''}`, title: staleTitle(l) });
+    if (show(k) && l) parts.push({ key: k, text: `${LABEL[k]()} ${shownPercent(l.percent)}%`, cls: `sev-${severity(k, l.percent, thresholds)}${staleOf(l) ? ' stale' : ''}`, title: staleTitle(l) });
   }
   if (show('cost') && usage?.cost) parts.unshift({ key: 'cost', text: `${t('agents.usageCard.today')} ${formatCost(usage.cost.today)}`, cls: 'agents-usage-cost', title: t('agents.usageCard.costEstimate') });
   const summary = parts.map((p) => p.text).join(' · ') || t('agents.usage.noData');
@@ -229,7 +243,7 @@ export function UsageView({ session, usage, accountLabel, items = {}, compact = 
   } else {
     body = (
       <span className="agents-ucard">
-        <AccountGroup acc={usage} name={usage?.label ?? accountLabel ?? session?.account} session={session} own={!usage || !session || session.account === usage.account} show={show} now={now} use24h={use24h} />
+        <AccountGroup acc={usage} name={usage?.label ?? accountLabel ?? session?.account} session={session} own={!usage || !session || session.account === usage.account} show={show} now={now} use24h={use24h} thresholds={thresholds} />
       </span>
     );
   }

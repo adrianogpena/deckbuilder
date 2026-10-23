@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { barCells, cacheState, costTrend, formatCost, historyRows, isStale, liveLimit, modelLine, resetLabel, severity, shortDuration, shownPercent, startupShown, STALE_MS } from './usage-format';
+import { barCells, cacheState, costTrend, formatCost, historyRows, isStale, liveLimit, modelLine, resetLabel, severity, shortDuration, shownPercent, STALE_MS } from './usage-format';
 
 test('severity per metric thresholds', () => {
   expect(severity('context', 19)).toBe('ok');
@@ -9,6 +9,14 @@ test('severity per metric thresholds', () => {
   expect(severity('fiveHour', 80)).toBe('err');
   expect(severity('sevenDay', 69)).toBe('ok');
   expect(severity('sevenDay', 90)).toBe('err');
+});
+
+test('severity with custom thresholds', () => {
+  const custom = { context: [10, 30], fiveHour: [60, 90], sevenDay: [5, 6] } as const;
+  expect(severity('context', 15, custom)).toBe('warn');
+  expect(severity('context', 30, custom)).toBe('err');
+  expect(severity('fiveHour', 55, custom)).toBe('ok');
+  expect(severity('sevenDay', 6, custom)).toBe('err');
 });
 
 test('bar cells and shown percent are clamped and rounded', () => {
@@ -49,13 +57,10 @@ test('cache label state: minutes left rounded up, then time since the last reque
   expect(shortDuration(50 * 3_600_000)).toBe('2d');
 });
 
-test('model line and startup baseline', () => {
+test('model line', () => {
   expect(modelLine('Opus 4.1', 'high')).toBe('Opus 4.1 · high');
   expect(modelLine('Opus 4.1', undefined)).toBe('Opus 4.1');
   expect(modelLine(undefined, 'high')).toBeUndefined();
-  expect(startupShown(42, 12)).toBe(12);
-  expect(startupShown(12, 12)).toBeUndefined();
-  expect(startupShown(undefined, 12)).toBeUndefined();
 });
 
 test('historyRows: last 5 local days latest first, two-letter weekdays, gaps undefined', () => {

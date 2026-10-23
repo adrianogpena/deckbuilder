@@ -159,7 +159,7 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
     return usageViewData(selected, usage, sessions.map((x) => x.account), counts);
   })();
   const usageEff = usageSettings && resolveUsage(accountPrefs, usageData?.usage?.account ?? usageData?.session?.account, usageSettings);
-  const usageBlock = usageEff?.show && usageData && <UsageView {...usageData} items={usageEff.items} compact={usageEff.compact} use24h={usageEff.use24h} onOpen={onOpenUsage} className={`pin-${usageEff.position}`} />;
+  const usageBlock = usageEff?.show && usageData && <UsageView {...usageData} items={usageEff.items} compact={usageEff.compact} use24h={usageEff.use24h} thresholds={usageEff.thresholds} onOpen={onOpenUsage} className={`pin-${usageEff.position}`} />;
   useRovingList(ref, '.agents-session, .agents-node');
   const focusedList = useRef(false);
   // Letter keys and arrows only work with focus inside the list: put it on the current row once the tree has rows.
@@ -964,7 +964,7 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
           {m.snippet && <span className="agents-session-snippet" title={m.snippet}>{m.snippet}</span>}
         </span>
         {s.owner && <span className="agents-owner" title={s.owner}>{s.owner}</span>}
-        {use && <span className={`agents-ctx sev-${severity('context', s.contextPercent ?? 0)}`} title={use.title}>{use.line}</span>}
+        {use && <span className={`agents-ctx sev-${severity('context', s.contextPercent ?? 0, usageSettings?.thresholds)}`} title={use.title}>{use.line}</span>}
         </span>
       </button>
     );

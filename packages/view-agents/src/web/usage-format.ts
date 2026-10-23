@@ -20,8 +20,10 @@ export const clampPercent = (p: number): number => (Number.isFinite(p) ? Math.ma
 /** Percent as shown: clamped, rounded. */
 export const shownPercent = (p: number): number => Math.round(clampPercent(p));
 
-export function severity(metric: UsageMetric, percent: number): Severity {
-  const [warn, crit] = SEVERITY_AT[metric];
+export type SeverityThresholds = Record<UsageMetric, readonly [number, number]>;
+
+export function severity(metric: UsageMetric, percent: number, thresholds: SeverityThresholds = SEVERITY_AT): Severity {
+  const [warn, crit] = thresholds[metric];
   const p = clampPercent(percent);
   return p >= crit ? 'err' : p >= warn ? 'warn' : 'ok';
 }
@@ -66,10 +68,6 @@ export function modelLine(model: string | undefined, effort: string | undefined)
   if (!model) return undefined;
   return effort ? `${model} · ${effort}` : model;
 }
-
-/** The startup baseline worth showing: only when the current context is above it. */
-export const startupShown = (context: number | undefined, startup: number | undefined): number | undefined =>
-  context !== undefined && startup !== undefined && shownPercent(context) > shownPercent(startup) ? shownPercent(startup) : undefined;
 
 /** Local calendar day of a timestamp: 'YYYY-MM-DD' (same key as `server/usage-history.ts`). */
 export function localDayKey(ms: number): string {
