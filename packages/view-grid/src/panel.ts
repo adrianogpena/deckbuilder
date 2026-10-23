@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import { defaultConfig, type IconName, type PanelConfig, type PanelDef, type PanelField, type PanelKindSpec } from '@deckbuilderkit/ui';
 
 export interface PanelLoadContext {
@@ -37,8 +37,24 @@ export interface PanelKind<C extends PanelConfig = PanelConfig, D = any> {
   /** Reload interval in milliseconds (0 or omitted: never). */
   refreshMs?: number | ((config: C, data: D | undefined) => number);
   render: (props: PanelRenderProps<C, D>) => ReactNode;
+  /** Buttons in the panel header; call `requestRefresh(kind)` after changing data. */
+  headerActions?: ComponentType<{ config: C }>;
   /** More than one instance may be on the grid; true when omitted. */
   allowMultiple?: boolean;
+}
+
+const REFRESH_EVENT = 'grid:refresh';
+
+/** Makes every mounted panel of `kind` load again now. */
+export const requestRefresh = (kind: string) => window.dispatchEvent(new CustomEvent(REFRESH_EVENT, { detail: kind }));
+
+/** Calls `run` when `requestRefresh` is called for `kind`; returns the unsubscribe. */
+export function onRefreshRequest(kind: string, run: () => void): () => void {
+  const handler = (e: Event) => {
+    if ((e as CustomEvent<string>).detail === kind) run();
+  };
+  window.addEventListener(REFRESH_EVENT, handler);
+  return () => window.removeEventListener(REFRESH_EVENT, handler);
 }
 
 /** Identity; types `config` and `data` of `render` from `load` and the fields. */

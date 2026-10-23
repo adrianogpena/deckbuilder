@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button, errorMessage, errorOf, Icon, PanelBanner, PanelLoading, PanelNotice, validConfig, type ApiError, type GridItem } from '@deckbuilderkit/ui';
 import { tKey } from './i18n';
-import { fieldsOf, type AnyPanelKind } from './panel';
+import { fieldsOf, onRefreshRequest, type AnyPanelKind } from './panel';
 
 /** Last data per instance and config, so a collapsed or re-shown panel starts with what it had. */
 const cache = new Map<string, unknown>();
@@ -74,6 +74,8 @@ function Loaded({ kind, id, config, size, configure }: HostProps & { id: string 
       abort.current?.abort();
     };
   }, [key, run]);
+
+  useEffect(() => onRefreshRequest(kind.kind, run), [kind.kind, run]);
 
   const ms = intervalOf(kind, config, data);
   useEffect(() => {

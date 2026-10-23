@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { addItem, Button, ContextMenu, Empty, PageHead, PanelGrid, sameItems, t, useDialogs, type ContextMenuItem, type GridItem, type PanelConfig } from '@deckbuilderkit/ui';
+import { createElement, useMemo, useState } from 'react';
+import { addItem, Button, ContextMenu, Empty, PageHead, PanelGrid, sameItems, t, useDialogs, validConfig, type ContextMenuItem, type GridItem, type PanelConfig } from '@deckbuilderkit/ui';
 import { ConfigDialog } from '../ConfigForm';
 import { ConnectionsDialog } from '../connections/ConnectionsDialog';
 import { tKey } from '../i18n';
@@ -200,6 +200,10 @@ export function DashboardScreen({ settings, onSave, panels }: DashboardScreenPro
               const kind = kindOf(item.kind);
               if (!kind) return null;
               return <PanelHost kind={kind} item={item} onConfigure={fieldsOf(kind).length > 0 ? () => setConfiguring(item.id) : undefined} />;
+            }}
+            actions={(item) => {
+              const kind = kindOf(item.kind);
+              return kind?.headerActions && createElement(kind.headerActions, { config: validConfig(fieldsOf(kind), item.config) });
             }}
             itemMenu={itemMenu}
             onChange={change}

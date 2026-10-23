@@ -26,6 +26,8 @@ export interface PanelGridProps {
   defs: PanelDef[];
   /** Content of one panel; the grid adds the frame (title, icon, collapse, remove). */
   render: (item: GridItem) => ReactNode;
+  /** Extra header buttons of one panel, left of the built-in ones. */
+  actions?: (item: GridItem) => ReactNode;
   /** Extra menu entries of one panel, before the built-in ones. */
   itemMenu?: (item: GridItem) => ContextMenuItem[];
   /** Called with the new items after a drag, resize, collapse or remove. */
@@ -36,7 +38,7 @@ export interface PanelGridProps {
  * Draggable, resizable panels. Only the full-width (lg) layout is editable and saved; the
  * narrower breakpoints show a layout the grid derives from it.
  */
-export function PanelGrid({ items, defs, render, itemMenu, onChange }: PanelGridProps) {
+export function PanelGrid({ items, defs, render, actions, itemMenu, onChange }: PanelGridProps) {
   const { width, containerRef } = useContainerWidth({ initialWidth: 1280 });
   const editable = breakpointOf(width) === 'lg';
   const known = useMemo(() => items.filter((i) => defs.some((d) => d.id === i.kind)), [items, defs]);
@@ -91,6 +93,7 @@ export function PanelGrid({ items, defs, render, itemMenu, onChange }: PanelGrid
               <PanelFrame
                 title={item.title ?? def.title}
                 icon={<Icon name={item.icon ?? def.icon} />}
+                actions={actions?.(item)}
                 menu={[
                   ...(itemMenu?.(item) ?? []),
                   { id: 'rename', label: t('panel.rename'), icon: 'edit', run: () => void rename(item, def) },

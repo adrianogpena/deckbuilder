@@ -1,5 +1,5 @@
-import { useState, type KeyboardEvent, type MouseEvent } from 'react';
-import { Button, ContextMenu, IconButton } from '@deckbuilderkit/ui';
+import { useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react';
+import { ContextMenu } from '@deckbuilderkit/ui';
 import { tKey } from '../../i18n';
 import { runAction } from '../../source';
 import { sorted, type Meeting } from './model';
@@ -15,10 +15,30 @@ interface Props {
   refresh(): void;
 }
 
+/** Gives the list the most content-sized columns that fit its width. */
+function fitColumns(list: HTMLElement) {
+  for (let count = list.children.length; count >= 1; count--) {
+    list.style.gridTemplateColumns = `repeat(${count}, max-content)`;
+    if (list.scrollWidth <= list.clientWidth) return;
+  }
+}
+
 export function MeetingPanel({ config, data, refresh }: Props) {
-  const [draft, setDraft] = useState('');
   const [editing, setEditing] = useState<{ name: string; value: string } | null>(null);
   const [menu, setMenu] = useState<{ at: { x: number; y: number }; name: string } | null>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+  const namesKey = data ? sorted(data.names).join('|') : '';
+
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    if (!list) return;
+    const fit = () => fitColumns(list);
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(list);
+    void document.fonts?.ready.then(fit);
+    return () => observer.disconnect();
+  }, [namesKey, !!data]);
 
   if (!data) return null;
 
@@ -28,13 +48,6 @@ export function MeetingPanel({ config, data, refresh }: Props) {
     } finally {
       refresh();
     }
-  };
-
-  const submitAdd = () => {
-    const name = draft.trim();
-    if (!name) return;
-    setDraft('');
-    void act('add', { name });
   };
 
   const commitRename = () => {
@@ -55,16 +68,11 @@ export function MeetingPanel({ config, data, refresh }: Props) {
   };
 
   const names = sorted(data.names);
-  const spoken = names.filter((n) => data.spoken[n]).length;
 
   return (
     <div className="meeting">
-      <div className="meeting-head">
-        <span>{tKey('dash.meeting.count', { spoken, total: names.length })}</span>
-        <Button onClick={() => void act('reset')}>{tKey('dash.meeting.reset')}</Button>
-      </div>
       {names.length === 0 && <p className="meeting-empty">{tKey('dash.meeting.empty')}</p>}
-      <ul className="meeting-list">
+      <ul className="meeting-list" ref={listRef}>
         {names.map((n) => (
           <li key={n} className={`meeting-row${data.spoken[n] ? ' spoken' : ''}`} onContextMenu={(e) => open(e, n)}>
             {editing?.name === n ? (
@@ -79,27 +87,20 @@ export function MeetingPanel({ config, data, refresh }: Props) {
                 onBlur={() => setEditing(null)}
               />
             ) : (
-              <label onDoubleClick={() => setEditing({ name: n, value: n })}>
-                <input type="checkbox" checked={!!data.spoken[n]} aria-label={tKey('dash.meeting.spoken.label', { name: n })} onChange={() => void act('toggle', { name: n })} />
+              <button
+                type="button"
+                className="meeting-toggle"
+                aria-pressed={!!data.spoken[n]}
+                aria-label={tKey('dash.meeting.spoken.label', { name: n })}
+                onClick={() => void act('toggle', { name: n })}
+                onDoubleClick={() => setEditing({ name: n, value: n })}
+              >
                 <span className="meeting-name" title={n}>{n}</span>
-              </label>
+              </button>
             )}
-            <IconButton icon="more" label={tKey('dash.meeting.more', { name: n })} onClick={(e) => open(e, n)} />
           </li>
         ))}
       </ul>
-      <div className="meeting-add">
-        <input
-          type="text"
-          maxLength={60}
-          placeholder={tKey('dash.meeting.add.placeholder')}
-          aria-label={tKey('dash.meeting.add.placeholder')}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && submitAdd()}
-        />
-        <Button onClick={submitAdd}>{tKey('dash.meeting.add')}</Button>
-      </div>
       {menu && (
         <ContextMenu
           at={menu.at}

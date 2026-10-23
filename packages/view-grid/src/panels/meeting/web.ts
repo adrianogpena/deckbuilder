@@ -1,6 +1,7 @@
 import { createElement } from 'react';
 import { definePanel, type AnyPanelKind } from '../../panel';
 import { fetchSource } from '../../source';
+import { MeetingActions } from './MeetingActions';
 import { MeetingPanel, type MeetingConfig } from './MeetingPanel';
 import type { Meeting } from './model';
 
@@ -14,6 +15,7 @@ const meetingPanel = definePanel<MeetingConfig, Meeting>({
   load: (config) => fetchSource<Meeting>('meeting', config),
   refreshMs: 60_000,
   allowMultiple: false,
+  headerActions: MeetingActions,
   render: ({ config, data, refresh }) => createElement(MeetingPanel, { config, data, refresh }),
 });
 
