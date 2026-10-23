@@ -570,6 +570,17 @@ Steps:
 6. i18n: keys are prefixed `dash.<area>.*` (panel titles, fields, empty states) and `dash.category.<area>`;
    errors `error.*` within the area. Params use single braces (`{name}`).
 7. Tests for the pure parts (mappers, parsers, refresh rules) next to the files; no live network.
+8. Actions: a source may declare `actions: {name: (config, payload, ctx) => result}` for writes (route
+   `POST /api/grid/action/<id>/<name>`, body = payload). In the panel call `runAction(id, name, config, payload)`
+   (exported by `view-grid/src/web.ts`), then `refresh()` to reload. Invalid payloads throw `invalid(code)`.
+9. Streams: `streams: {name: (config, query, ctx) => Response}` for live output (route
+   `GET /api/grid/stream/<id>/<name>`); build the response with `ndjson` from `@deckbuilderkit/server-core`
+   (one JSON object per line). In the panel consume it with `streamSource` (web.ts); see `panels/pods/logs.ts`.
+10. Panel state that is not config (tickets, meeting notes, tracked PRs): `createJsonStore({dataDir, name, parse, empty})`
+   (`view-grid/src/json-store.ts`) keeps it in `<dataDir>/grid/<name>.json`; `parse` validates what is read.
+11. CLI-backed panels (kubectl, podman, docker): `runCli(argv, {timeoutMs, signal})` (`view-grid/src/cli.ts`) runs
+   without a shell and returns `{code, stdout, stderr}`. A missing executable throws the `tool-missing` error,
+   which `PanelHost` shows as "tool not installed" (message param `{tool}`), so the panel needs no notice of its own.
 
 Layouts (named, up to 20) and presets ("Save as preset" in the panel menu, "My panels" in Add panel) are
 stored in the `dashboardLayouts` and `dashboardPresets` settings. Connections are stored server-side in
