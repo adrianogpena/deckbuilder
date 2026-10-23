@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { Button } from '@deckbuilderkit/ui';
 import { tKey } from '../../i18n';
-import { Chip } from '../../kit';
 import './calendar.css';
 import { sprintInfo, sprintName, sprintWorkingDays, splitWeeks } from './dates';
 import { useToday, weekdayName } from './format';
@@ -43,10 +42,9 @@ export function SprintPanel({ config, configure }: { config: SprintConfig; confi
       {rows.map((days, i) => (
         <ol key={days[0] ?? i} className="sprint-days" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
           {days.map((key) => (
-            <li key={key} style={weeks ? { gridColumn: weekdayOf(key) } : undefined} className={['sprint-day', key === today && 'sprint-today', key < today && 'sprint-past', info.cutoff === key && 'sprint-cutoff'].filter(Boolean).join(' ')}>
+            <li key={key} title={info.cutoff === key ? config.cutoffLabel.trim() || tKey('dash.calendar.cutoff') : undefined} style={weeks ? { gridColumn: weekdayOf(key) } : undefined} className={['sprint-day', key === today && 'sprint-today', key < today && 'sprint-past', info.cutoff === key && 'sprint-cutoff'].filter(Boolean).join(' ')}>
               <span className="sprint-wd">{weekdayName(weekdayOf(key))}</span>
               <span className="sprint-num">{Number(key.slice(8))}</span>
-              {info.cutoff === key && <Chip tone="warn">{config.cutoffLabel.trim() || tKey('dash.calendar.cutoff')}</Chip>}
             </li>
           ))}
         </ol>
