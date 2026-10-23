@@ -50,5 +50,5 @@
 .agents-section-tool .agents-section-body { max-height: 320px; overflow: auto; }
 
 /* Island below the tree: Usage and the panels docked on the left. */
-.agents-sidebar-islands { display: flex; flex: 0 1 auto; flex-direction: column; gap: var(--space-4); min-height: 0; max-height: 55%; overflow-y: auto; }
+.agents-sidebar-islands { display: flex; flex: none; flex-direction: column; gap: var(--space-4); }
 .agents-sidebar-islands:empty { display: none; }
