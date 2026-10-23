@@ -1,6 +1,6 @@
 import { AppError } from '@deckbuilderkit/server-core';
 
-export type SourceErrorCode = 'not-configured' | 'auth' | 'rate-limited' | 'offline' | 'upstream';
+export type SourceErrorCode = 'not-configured' | 'auth' | 'rate-limited' | 'offline' | 'upstream' | 'tool-missing';
 
 const KIND = {
   'not-configured': 'invalid',
@@ -8,11 +8,12 @@ const KIND = {
   'rate-limited': 'internal',
   offline: 'internal',
   upstream: 'internal',
+  'tool-missing': 'invalid',
 } as const;
 
 /** An `AppError` with code `source-<code>`; the web translates `error.source-<code>`. */
-export function SourceError(code: SourceErrorCode, message: string, detail?: string): AppError {
-  return new AppError(KIND[code], `source-${code}`, message, { detail });
+export function SourceError(code: SourceErrorCode, message: string, detail?: string, params?: Record<string, string | number>): AppError {
+  return new AppError(KIND[code], `source-${code}`, message, { detail, params });
 }
 
 /** The code of a non-2xx answer: 401/403 `auth`, 429 or an exhausted GitHub quota `rate-limited`, else `upstream`. */

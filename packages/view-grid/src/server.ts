@@ -34,6 +34,10 @@ export interface DataSource<C extends PanelConfig = PanelConfig> {
   fields: readonly PanelField[];
   /** Returns JSON-serializable data for a panel's `load` (see `fetchSource`). */
   fetch(config: C, ctx: SourceContext): Promise<unknown> | unknown;
+  /** Writes behind `POST /api/grid/action/<id>/<name>`; the body is `{ config, payload }`. */
+  actions?: Record<string, (payload: unknown, config: C, ctx: SourceContext) => unknown | Promise<unknown>>;
+  /** NDJSON streams behind `GET /api/grid/stream/<id>/<name>`; build the body with server-core `ndjson(req, produce)`. */
+  streams?: Record<string, (query: URLSearchParams, ctx: SourceContext & { req: Request }) => Response>;
 }
 
 /** Identity; types `config` of `fetch`. */
@@ -54,28 +58,52 @@ export const kindSpecsOf = (panels: readonly GridPanelSpec[]): Record<string, Pa
 /** The route of data source `id`. */
 export const sourceRoute = (id: string): string => `POST /api/grid/source/${id}`;
 
-/** The handlers of `sources`: the body is `{ config }`, cleaned with the source's fields before `fetch`. */
+/** The route of action `name` of data source `id`. */
+export const actionRoute = (id: string, name: string): string => `POST /api/grid/action/${id}/${name}`;
+
+/** The route of stream `name` of data source `id`. */
+export const streamRoute = (id: string, name: string): string => `GET /api/grid/stream/${id}/${name}`;
+
+const NAME_RE = /^[a-z0-9-]+$/;
+
+/** Throws when a source id, or one of its action or stream names, is invalid or duplicated. */
+export function checkSources(sources: readonly DataSource<any>[], label: string): void {
+  const ids = new Set<string>();
+  for (const s of sources) {
+    if (ids.has(s.id) || !NAME_RE.test(s.id)) throw new Error(`Invalid or duplicate ${label} source id: ${s.id}`);
+    ids.add(s.id);
+    for (const name of [...Object.keys(s.actions ?? {}), ...Object.keys(s.streams ?? {})]) {
+      if (!NAME_RE.test(name)) throw new Error(`Invalid ${label} action or stream name: ${s.id}/${name}`);
+    }
+  }
+}
+
+/** The handlers of `sources`: the body is `{ config }`, cleaned with the source's fields before `fetch`; plus their actions and streams. */
 export function sourceRoutes(sources: readonly DataSource<any>[], dataDir = ''): Routes {
   const connection = connectionResolverOf(dataDir);
-  return Object.fromEntries(
-    sources.map((source) => [
-      sourceRoute(source.id),
-      async ({ json, req }: RouteContext) => {
-        const body = await json<{ config?: unknown }>();
-        return source.fetch(validConfig(source.fields, body.config), { dataDir, signal: req.signal, connection });
-      },
-    ]),
-  );
+  const routes: Routes = {};
+  for (const source of sources) {
+    routes[sourceRoute(source.id)] = async ({ json, req }: RouteContext) => {
+      const body = await json<{ config?: unknown }>();
+      return source.fetch(validConfig(source.fields, body.config), { dataDir, signal: req.signal, connection });
+    };
+    for (const [name, action] of Object.entries(source.actions ?? {})) {
+      routes[actionRoute(source.id, name)] = async ({ json, req }: RouteContext) => {
+        const body = await json<{ config?: unknown; payload?: unknown }>();
+        return (await action(body.payload, validConfig(source.fields, body.config), { dataDir, signal: req.signal, connection })) ?? null;
+      };
+    }
+    for (const [name, stream] of Object.entries(source.streams ?? {})) {
+      routes[streamRoute(source.id, name)] = ({ query, req }: RouteContext) => stream(query, { dataDir, signal: req.signal, connection, req });
+    }
+  }
+  return routes;
 }
 
 /** Server half of the Grid view: validates `gridLayout` in the settings and serves the data sources. */
 export function gridServerView({ panels, sources = [] }: GridServerOptions) {
   const specs = kindSpecsOf(panels);
-  const ids = new Set<string>();
-  for (const s of sources) {
-    if (ids.has(s.id) || !/^[a-z0-9-]+$/.test(s.id)) throw new Error(`Invalid or duplicate grid source id: ${s.id}`);
-    ids.add(s.id);
-  }
+  checkSources(sources, 'grid');
   return defineServerView<GridServerSettings>({
     id: 'grid',
     icon: 'cube',

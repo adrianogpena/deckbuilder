@@ -1,6 +1,6 @@
 import { defineServerView, type Routes } from '@deckbuilderkit/server-core';
 import { connectionRoutes } from '../connections/routes';
-import { kindSpecsOf, sourceRoutes, type DataSource, type GridPanelSpec } from '../server';
+import { checkSources, kindSpecsOf, sourceRoutes, type DataSource, type GridPanelSpec } from '../server';
 import { validDashboardLayouts, validDashboardPresets, type DashboardLayouts, type DashboardPreset } from './model';
 
 /** The part of the server settings the Dashboard view owns; the app's `Settings` extends it. */
@@ -21,11 +21,7 @@ export interface DashboardServerOptions {
 /** Server half of the Dashboard view: validates `dashboardLayouts` and `dashboardPresets` and serves the data sources. */
 export function dashboardServerView({ panels, sources = [] }: DashboardServerOptions) {
   const specs = kindSpecsOf(panels);
-  const ids = new Set<string>();
-  for (const s of sources) {
-    if (ids.has(s.id) || !/^[a-z0-9-]+$/.test(s.id)) throw new Error(`Invalid or duplicate dashboard source id: ${s.id}`);
-    ids.add(s.id);
-  }
+  checkSources(sources, 'dashboard');
   return defineServerView<DashboardServerSettings>({
     id: 'dashboard',
     icon: 'cube',

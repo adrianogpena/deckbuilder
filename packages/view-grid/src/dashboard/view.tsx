@@ -6,6 +6,11 @@ import { en as feedsEn, ptBR as feedsPtBR } from '../panels/feeds/i18n';
 import { en as githubEn, ptBR as githubPtBR } from '../panels/github/i18n';
 import { en as jiraEn, ptBR as jiraPtBR } from '../panels/jira/i18n';
 import { en as miscEn, ptBR as miscPtBR } from '../panels/misc/i18n';
+import { en as containersEn, ptBR as containersPtBR } from '../panels/containers/i18n';
+import { en as meetingEn, ptBR as meetingPtBR } from '../panels/meeting/i18n';
+import { en as podsEn, ptBR as podsPtBR } from '../panels/pods/i18n';
+import { en as ticketsEn, ptBR as ticketsPtBR } from '../panels/tickets/i18n';
+import { en as timesheetEn, ptBR as timesheetPtBR } from '../panels/timesheet/i18n';
 import { DashboardScreen, type DashboardViewSettings } from './DashboardScreen';
 import { en, ptBR } from './i18n';
 
@@ -23,8 +28,8 @@ export function dashboardView({ group, order, panels }: DashboardViewOptions) {
     nav: { group, icon: 'cube', label: 'nav.dashboard', order },
     render: ({ settings, onSave }) => <DashboardScreen settings={settings} onSave={onSave} panels={panels} />,
     messages: {
-      en: { ...gridEn, ...en, ...githubEn, ...jiraEn, ...calendarEn, ...feedsEn, ...miscEn },
-      'pt-BR': { ...gridPtBR, ...ptBR, ...githubPtBR, ...jiraPtBR, ...calendarPtBR, ...feedsPtBR, ...miscPtBR },
+      en: { ...gridEn, ...en, ...githubEn, ...jiraEn, ...calendarEn, ...feedsEn, ...miscEn, ...ticketsEn, ...podsEn, ...containersEn, ...timesheetEn, ...meetingEn },
+      'pt-BR': { ...gridPtBR, ...ptBR, ...githubPtBR, ...jiraPtBR, ...calendarPtBR, ...feedsPtBR, ...miscPtBR, ...ticketsPtBR, ...podsPtBR, ...containersPtBR, ...timesheetPtBR, ...meetingPtBR },
     },
   });
 }

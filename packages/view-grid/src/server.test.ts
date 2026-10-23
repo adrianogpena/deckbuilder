@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { CLOCK_SPEC, defineSource, gridServerView, sourceRoute } from './server.ts';
+import { actionRoute, CLOCK_SPEC, defineSource, streamRoute, gridServerView, sourceRoute } from './server.ts';
 
 const source = defineSource<{ repo: string }>({
   id: 'echo',
@@ -28,5 +28,25 @@ describe('gridServerView', () => {
 
   test('rejects a duplicate source id', () => {
     expect(() => gridServerView({ panels: [], sources: [source, source] })).toThrow();
+  });
+
+  test('action and stream routes', async () => {
+    const withExtras = defineSource<{ repo: string }>({
+      id: 'extras',
+      fields: [{ key: 'repo', kind: 'string', label: 'l', default: 'none' }],
+      fetch: () => null,
+      actions: { 'add-one': (payload, config) => ({ payload, repo: config.repo }) },
+      streams: { logs: (query) => new Response(query.get('q') ?? '') },
+    });
+    const v = gridServerView({ panels: [], sources: [withExtras] });
+    const routes = v.routes({ dataDir: '', settings: { load: async () => ({}) }, stores: {} });
+    expect(await run(routes[actionRoute('extras', 'add-one')], { config: { repo: 'a', x: 1 }, payload: 5 })).toEqual({ payload: 5, repo: 'a' });
+    const res = (await (routes[streamRoute('extras', 'logs')] as (rc: unknown) => unknown)({ req: new Request('http://x'), query: new URLSearchParams('q=hi') })) as Response;
+    expect(await res.text()).toBe('hi');
+  });
+
+  test('rejects a bad action name', () => {
+    const bad = defineSource({ id: 'bad', fields: [], fetch: () => null, actions: { 'Bad Name': () => null } });
+    expect(() => gridServerView({ panels: [], sources: [bad] })).toThrow();
   });
 });

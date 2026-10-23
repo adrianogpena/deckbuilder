@@ -3,7 +3,7 @@ export { clockPanel, formatClock, type ClockConfig } from './panels/clock';
 export { addableKinds, groupByCategory } from './PanelCreator';
 export { definePanel, type AnyPanelKind, type PanelKind, type PanelLoadContext, type PanelRenderProps } from './panel';
 export { type GridViewSettings } from './GridScreen';
-export { fetchSource } from './source';
+export { fetchSource, runAction, streamSource } from './source';
 export { gridView, type GridViewOptions } from './view';
 export { dashboardView, type DashboardViewOptions } from './dashboard/view';
 export { type DashboardViewSettings } from './dashboard/DashboardScreen';
