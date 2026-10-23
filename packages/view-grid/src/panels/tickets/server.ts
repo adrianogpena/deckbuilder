@@ -1,11 +1,17 @@
 import { invalid } from '@deckbuilderkit/server-core';
 import { createJsonStore, type JsonStore } from '../../json-store';
 import { defineSource, type DataSource, type GridPanelSpec } from '../../server';
+import { fetchPrPool, trackedStore } from '../github/server';
+import type { TrackedPr } from '../github/tracked';
+import { latestPods } from '../pods/server';
+import { readWeekHours } from '../timesheet/server';
 import { TICKETS_FIELDS } from './fields';
+import { linkTickets } from './linker';
 import { add, extractKey, MAX_TICKETS, move, parseStatuses, remove, update, type Ticket } from './model';
 import type { TicketsData } from './types';
 
 interface TicketsConfig {
+  connection: string;
   statuses: string;
   keyPattern: string;
   jiraBaseUrl: string;
@@ -61,7 +67,26 @@ export const ticketsSource = defineSource<TicketsConfig>({
   fields: TICKETS_FIELDS,
   async fetch(config, ctx): Promise<TicketsData> {
     const { tickets } = await ticketsStore(ctx.dataDir).read();
-    return { statuses: parseStatuses(config.statuses ?? ''), tickets };
+    let prs: TrackedPr[] = [];
+    let prError = false;
+    if (config.connection) {
+      try {
+        const conn = await ctx.connection(config.connection, 'github');
+        const { refs } = await trackedStore(ctx.dataDir).read();
+        prs = await fetchPrPool(conn, { tracked: refs, signal: ctx.signal });
+      } catch {
+        prError = true;
+      }
+    }
+    const hours = await readWeekHours(ctx.dataDir).catch(() => ({}) as Record<string, number>);
+    const { links, unlinked } = linkTickets(
+      tickets.map((t) => t.key),
+      prs,
+      latestPods(),
+      hours,
+      config.keyPattern,
+    );
+    return { statuses: parseStatuses(config.statuses ?? ''), tickets, links, unlinked, ...(prError ? { prError } : {}) };
   },
   actions: {
     async add(payload, config, ctx) {

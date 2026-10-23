@@ -14,3 +14,11 @@
 .tickets-desc { all: unset; cursor: text; font-size: var(--fs-sm); white-space: pre-wrap; overflow-wrap: anywhere; }
 .tickets-desc-empty { color: var(--text-dim); font-style: italic; }
 .tickets-edit { width: 100%; resize: vertical; font: inherit; font-size: var(--fs-sm); }
+.tickets-pipe { display: flex; gap: 2px; }
+.tickets-pipe-seg { position: relative; display: flex; align-items: center; justify-content: center; flex: 1; height: 18px; border-radius: var(--radius-sm); color: var(--text-3); background: var(--surface-2, transparent); border-bottom: 2px solid var(--text-3); }
+.tickets-pipe-ok { color: var(--ok); border-bottom-color: var(--ok); }
+.tickets-pipe-warn { color: var(--warn); border-bottom-color: var(--warn); }
+.tickets-pipe-pending { color: var(--info, var(--accent)); border-bottom-color: var(--info, var(--accent)); }
+.tickets-pipe-fail { color: var(--err); border-bottom-color: var(--err); }
+.tickets-pipe-card { display: none; position: absolute; top: 100%; left: 0; z-index: 20; min-width: 200px; max-width: 320px; flex-direction: column; gap: var(--space-4); padding: var(--space-6) var(--space-8); color: var(--text); background: var(--surface-raised, var(--bg)); border: 1px solid var(--border-soft); border-radius: var(--radius-sm); box-shadow: 0 4px 16px rgb(0 0 0 / 0.3); font-size: var(--fs-xs); overflow-wrap: anywhere; }
+.tickets-pipe-seg:hover .tickets-pipe-card, .tickets-pipe-seg:focus-within .tickets-pipe-card { display: flex; }
