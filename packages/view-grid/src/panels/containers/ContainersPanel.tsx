@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button, IconButton } from '@deckbuilderkit/ui';
 import { tKey } from '../../i18n';
-import { Chip } from '../../kit';
+import { relTime } from '../../kit';
 import { runAction } from '../../source';
 import type { Container } from './model';
 import './containers.css';
@@ -66,16 +66,16 @@ export function ContainersPanel({ config, data, refresh }: Props) {
           const running = c.state === 'running';
           return (
             <li key={c.name} className="containers-row">
-              <Chip tone={running ? 'ok' : 'neutral'}>{c.state}</Chip>
               <span className="containers-name" title={c.name}>{c.name}</span>
-              <span className="containers-meta containers-image" title={c.image}>{c.image}</span>
-              <span className="containers-meta">{c.status}</span>
-              <IconButton
-                icon={running ? 'square' : 'play'}
-                label={tKey(running ? 'dash.containers.stop' : 'dash.containers.start')}
-                disabled={busy !== null}
-                onClick={() => void run(c.name, running ? 'stop' : 'start', { name: c.name })}
-              />
+              <span className="containers-meta">{c.created ? relTime(c.created) : ''}</span>
+              {!running && (
+                <IconButton
+                  icon="play"
+                  label={tKey('dash.containers.start')}
+                  disabled={busy !== null}
+                  onClick={() => void run(c.name, 'start', { name: c.name })}
+                />
+              )}
             </li>
           );
         })}
