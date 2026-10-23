@@ -67,6 +67,13 @@ export const OVERVIEW_FIELDS: readonly PanelField[] = [
   { key: 'show', kind: 'multi', label: 'dash.github.show', default: ['stars', 'forks', 'issues', 'prs'], values: OVERVIEW_STATS, optionLabel: 'dash.github.stat' },
 ];
 
+export const TRACKED_FIELDS: readonly PanelField[] = [
+  connection,
+  { key: 'readyLabel', kind: 'string', label: 'dash.github.tracked.readyLabel', default: 'ready to merge', maxLength: 100 },
+  { key: 'rcLabel', kind: 'string', label: 'dash.github.tracked.rcLabel', default: 'rc', maxLength: 100 },
+];
+export const TRACKED_SOURCE_FIELDS: readonly PanelField[] = TRACKED_FIELDS;
+
 /** Fields the sources of the more panels receive. */
 export const ACTIONS_SOURCE_FIELDS: readonly PanelField[] = ACTIONS_FIELDS.filter((f) => f.key !== 'columns');
 export const NOTIFICATIONS_SOURCE_FIELDS: readonly PanelField[] = NOTIFICATIONS_FIELDS.filter((f) => f.key !== 'columns');
@@ -80,5 +87,6 @@ export const fields: Record<string, readonly PanelField[]> = {
   'github-notifications': NOTIFICATIONS_FIELDS,
   'github-releases': RELEASES_FIELDS,
   'github-overview': OVERVIEW_FIELDS,
+  'github-tracked': TRACKED_FIELDS,
 };
 

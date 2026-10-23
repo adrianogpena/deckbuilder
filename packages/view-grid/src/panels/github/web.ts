@@ -7,9 +7,11 @@ import { ActionsRunsPanel, type ActionsConfig } from './ActionsRuns';
 import { NotificationsPanel, type NotificationsConfig } from './Notifications';
 import { ReleasesPanel, type ReleasesConfig } from './Releases';
 import { RepoOverviewPanel, type OverviewConfig } from './RepoOverview';
-import { ACTIONS_FIELDS, ISSUES_FIELDS, NOTIFICATIONS_FIELDS, OVERVIEW_FIELDS, PULL_REQUESTS_FIELDS, RELEASES_FIELDS } from './fields';
+import { TrackedPrsPanel, type TrackedConfig } from './TrackedPrsPanel';
+import type { TrackedPr } from './tracked';
+import { ACTIONS_FIELDS, ISSUES_FIELDS, NOTIFICATIONS_FIELDS, OVERVIEW_FIELDS, PULL_REQUESTS_FIELDS, RELEASES_FIELDS, TRACKED_FIELDS } from './fields';
 import { runsRefreshMs, type NotificationItem, type ReleaseItem, type RepoStats, type RunsData } from './more';
-import { searchRefreshMs, type IssueItem, type PrItem, type SearchData } from './map';
+import { PR_REFRESH_MS, searchRefreshMs,type IssueItem, type PrItem, type SearchData } from './map';
 
 const prsPanel = definePanel<PullRequestsConfig, SearchData<PrItem>>({
   kind: 'github-prs',
@@ -89,5 +91,19 @@ const overviewPanel = definePanel<OverviewConfig, RepoStats>({
   render: ({ config, data }) => createElement(RepoOverviewPanel, { config, data }),
 });
 
+const trackedPanel = definePanel<TrackedConfig, { items: TrackedPr[] }>({
+  kind: 'github-tracked',
+  title: 'dash.github.panel.tracked',
+  description: 'dash.github.panel.tracked.description',
+  icon: 'pin',
+  category: 'dash.category.github',
+  allowMultiple: false,
+  size: { w: 8, h: 12, minW: 4, minH: 5 },
+  config: { fields: TRACKED_FIELDS },
+  load: (config) => fetchSource<{ items: TrackedPr[] }>('github-tracked', config),
+  refreshMs: PR_REFRESH_MS,
+  render: ({ config, data, refresh }) => createElement(TrackedPrsPanel, { config, data, refresh }),
+});
+
 /** The github panel kinds. */
-export const panels: AnyPanelKind[] = [prsPanel, issuesPanel, actionsPanel, notificationsPanel, releasesPanel, overviewPanel];
+export const panels: AnyPanelKind[] = [prsPanel, issuesPanel, actionsPanel, notificationsPanel, releasesPanel, overviewPanel, trackedPanel];

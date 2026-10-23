@@ -1,6 +1,9 @@
-import { defineSource, SourceError, type DataSource, type GridPanelSpec } from '../../server';
+import { invalid } from '@deckbuilderkit/server-core';
+import { defineSource, SourceError, type DataSource, type GridPanelSpec, type ResolvedConnection } from '../../server';
+import { createJsonStore, type JsonStore } from '../../json-store';
 import { graphql, rest } from './client';
-import { ACTIONS_SOURCE_FIELDS, fields, ISSUE_SOURCE_FIELDS, NOTIFICATIONS_SOURCE_FIELDS, OVERVIEW_SOURCE_FIELDS, PR_SOURCE_FIELDS, RELEASES_FIELDS } from './fields';
+import { parseTrackedPrRef, toTrackedPr, type PrNode, type PrRef, type TrackedPr } from './tracked';
+import { ACTIONS_SOURCE_FIELDS, TRACKED_SOURCE_FIELDS, fields,ISSUE_SOURCE_FIELDS, NOTIFICATIONS_SOURCE_FIELDS, OVERVIEW_SOURCE_FIELDS, PR_SOURCE_FIELDS, RELEASES_FIELDS } from './fields';
 import { mapNotifications, mapReleases, mapRepoStats, mapRuns, parseRepo, runsPath, type RepoResponse } from './more';
 import { buildQuery, mapIssues, mapPullRequests, nextRefreshMs, PR_REFRESH_MS, type SearchResponse } from './map';
 
@@ -152,6 +155,122 @@ export const githubOverviewSource = defineSource<{ connection: string; repo: str
   },
 });
 
+const PR_FIELDS = `number title url isDraft state merged headRefName
+  labels(first: 30) { nodes { name } }
+  mergeStateStatus reviewDecision
+  latestReviews(first: 50) { nodes { state } }
+  commits(last: 1) { nodes { commit { statusCheckRollup { contexts(first: 100) { nodes { __typename ... on CheckRun { name status conclusion startedAt completedAt detailsUrl } ... on StatusContext { context state targetUrl } } } } } } }`;
+
+const CHUNK = 5;
+export const MAX_TRACKED = 50;
+
+export interface TrackedOptions {
+  readyLabel: string;
+  rcLabel: string;
+}
+
+const DEFAULT_LABELS: TrackedOptions = { readyLabel: 'ready to merge', rcLabel: 'rc' };
+
+/** The PRs of `refs` (chunks of 5 per GraphQL request), in the order of `refs`; PRs that no longer resolve are left out. */
+export async function fetchPrs(conn: ResolvedConnection, refs: readonly PrRef[], signal?: AbortSignal, opts: TrackedOptions = DEFAULT_LABELS): Promise<TrackedPr[]> {
+  const out: (TrackedPr | undefined)[] = new Array(refs.length);
+  for (let i = 0; i < refs.length; i += CHUNK) {
+    const chunk = refs.slice(i, i + CHUNK);
+    const query = `query(${chunk.map((_, k) => `$o${k}: String!, $n${k}: String!, $p${k}: Int!`).join(', ')}) {
+${chunk.map((_, k) => `  t${k}: repository(owner: $o${k}, name: $n${k}) { pullRequest(number: $p${k}) { ${PR_FIELDS} } }`).join('\n')}
+}`;
+    const vars: Record<string, unknown> = {};
+    chunk.forEach((r, k) => Object.assign(vars, { [`o${k}`]: r.owner, [`n${k}`]: r.repo, [`p${k}`]: r.number }));
+    const res = await graphql<Record<string, { pullRequest: PrNode | null } | null>>(conn, query, vars, signal);
+    chunk.forEach((ref, k) => {
+      const node = res[`t${k}`]?.pullRequest;
+      if (node) out[i + k] = toTrackedPr(node, ref, opts);
+    });
+  }
+  return out.filter((p): p is TrackedPr => !!p);
+}
+
+const POOL_QUERY = `query($mine: String!, $review: String!) {
+  mine: search(query: $mine, type: ISSUE, first: 50) { nodes { ... on PullRequest { ${PR_FIELDS} repository { nameWithOwner } } } }
+  review: search(query: $review, type: ISSUE, first: 50) { nodes { ... on PullRequest { ${PR_FIELDS} repository { nameWithOwner } } } }
+}`;
+
+type PoolNode = PrNode & { repository?: { nameWithOwner: string } };
+
+/** Open PRs of the user (`mine`), those awaiting their review (`review`) and the tracked ones, each tagged with its `scope`. */
+export async function fetchPrPool(conn: ResolvedConnection, { tracked, signal, ...opts }: { tracked: readonly PrRef[]; signal?: AbortSignal } & Partial<TrackedOptions>): Promise<TrackedPr[]> {
+  const labels = { ...DEFAULT_LABELS, ...opts };
+  const res = await graphql<Record<'mine' | 'review', { nodes: (PoolNode | null)[] }>>(conn, POOL_QUERY, { mine: 'is:pr is:open author:@me', review: 'is:pr is:open review-requested:@me' }, signal);
+  const out: TrackedPr[] = [];
+  for (const scope of ['mine', 'review'] as const) {
+    for (const node of res[scope].nodes) {
+      const [owner, repo] = node?.repository?.nameWithOwner.split('/') ?? [];
+      if (node && owner && repo) out.push({ ...toTrackedPr(node, { owner, repo, number: node.number }, labels), scope });
+    }
+  }
+  for (const pr of await fetchPrs(conn, tracked, signal, labels)) out.push({ ...pr, scope: 'tracked' });
+  return out;
+}
+
+interface TrackedStore {
+  refs: PrRef[];
+}
+
+const parseStore = (raw: unknown): TrackedStore => {
+  const list = (raw as { refs?: unknown })?.refs;
+  const refs = Array.isArray(list)
+    ? list.filter((r): r is PrRef => !!r && typeof r.owner === 'string' && typeof r.repo === 'string' && Number.isInteger(r.number))
+    : [];
+  return { refs: refs.slice(0, MAX_TRACKED).map(({ owner, repo, number }) => ({ owner, repo, number })) };
+};
+
+const stores = new Map<string, JsonStore<TrackedStore>>();
+/** The `tracked-prs` store of a data dir. */
+export function trackedStore(dataDir: string): JsonStore<TrackedStore> {
+  let s = stores.get(dataDir);
+  if (!s) {
+    s = createJsonStore({ dataDir, name: 'tracked-prs', parse: parseStore, empty: () => ({ refs: [] }) });
+    stores.set(dataDir, s);
+  }
+  return s;
+}
+
+const sameRef = (a: PrRef, b: PrRef) => a.number === b.number && a.owner.toLowerCase() === b.owner.toLowerCase() && a.repo.toLowerCase() === b.repo.toLowerCase();
+
+interface TrackedConfig {
+  connection: string;
+  readyLabel: string;
+  rcLabel: string;
+  [key: string]: unknown;
+}
+
+export const githubTrackedSource = defineSource<TrackedConfig>({
+  id: 'github-tracked',
+  fields: TRACKED_SOURCE_FIELDS,
+  async fetch(config, ctx) {
+    const { refs } = await trackedStore(ctx.dataDir).read();
+    if (!refs.length) return { items: [] as TrackedPr[] };
+    const conn = await ctx.connection(config.connection, 'github');
+    return { items: await fetchPrs(conn, refs, ctx.signal, config) };
+  },
+  actions: {
+    async track(payload, _config, ctx) {
+      const input = (payload as { ref?: unknown } | null)?.ref;
+      const ref = typeof input === 'string' ? parseTrackedPrRef(input) : null;
+      if (!ref) throw invalid('tracked-pr-ref', 'Paste a GitHub pull request link or owner/repo#123.');
+      await trackedStore(ctx.dataDir).update((s) =>
+        s.refs.some((r) => sameRef(r, ref)) || s.refs.length >= MAX_TRACKED ? s : { refs: [...s.refs, ref] },
+      );
+      return null;
+    },
+    async untrack(payload, _config, ctx) {
+      const ref = payload as PrRef;
+      await trackedStore(ctx.dataDir).update((s) => ({ refs: s.refs.filter((r) => !sameRef(r, ref)) }));
+      return null;
+    },
+  },
+});
+
 /** Server specs and data sources of the github panels (no React). */
 export const specs: GridPanelSpec[] = [
   { kind: 'github-prs', fields: fields['github-prs'], allowMultiple: true },
@@ -160,6 +279,7 @@ export const specs: GridPanelSpec[] = [
   { kind: 'github-notifications', fields: fields['github-notifications'], allowMultiple: true },
   { kind: 'github-releases', fields: fields['github-releases'], allowMultiple: true },
   { kind: 'github-overview', fields: fields['github-overview'], allowMultiple: true },
+  { kind: 'github-tracked', fields: fields['github-tracked'], allowMultiple: false },
 ];
 export const sources: DataSource<any>[] = [
   githubPrsSource,
@@ -168,4 +288,5 @@ export const sources: DataSource<any>[] = [
   githubNotificationsSource,
   githubReleasesSource,
   githubOverviewSource,
+  githubTrackedSource,
 ];
