@@ -100,7 +100,17 @@ function Segment({ id, icon, stage, link }: { id: (typeof STAGES)[number]['id'];
 
 /** The pipeline strip of a card: branch, PR, pods and hours, each coloured by its stage. */
 export function TicketPipeline({ link }: { ticket: Ticket; link?: TicketLink }) {
-  if (!link) return null;
+  if (!link) {
+    return (
+      <div className="tickets-pipe tickets-pipe-loading" aria-hidden="true">
+        {STAGES.map((s) => (
+          <div key={s.id} className="tickets-pipe-seg">
+            <Icon name={s.icon} size={12} />
+          </div>
+        ))}
+      </div>
+    );
+  }
   return (
     <div className="tickets-pipe">
       {STAGES.map((s) => (

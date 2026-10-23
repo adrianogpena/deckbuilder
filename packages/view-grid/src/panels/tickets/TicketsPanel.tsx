@@ -21,6 +21,11 @@ interface Props {
   refresh(): void;
 }
 
+const TICKETS_LOCAL_EVENT = 'tickets:local';
+
+/** Shows `tickets` on the board now, until the next load replaces them. */
+export const showTicketsNow = (tickets: Ticket[]) => window.dispatchEvent(new CustomEvent(TICKETS_LOCAL_EVENT, { detail: tickets }));
+
 export function TicketsPanel({ config, data, refresh }: Props) {
   const [error, setError] = useState('');
   const [over, setOver] = useState<{ status: string; index: number } | null>(null);
@@ -28,6 +33,12 @@ export function TicketsPanel({ config, data, refresh }: Props) {
   const [local, setLocal] = useState<Ticket[] | null>(null);
 
   useEffect(() => setLocal(null), [data]);
+
+  useEffect(() => {
+    const handler = (e: Event) => setLocal((e as CustomEvent<Ticket[]>).detail);
+    window.addEventListener(TICKETS_LOCAL_EVENT, handler);
+    return () => window.removeEventListener(TICKETS_LOCAL_EVENT, handler);
+  }, []);
 
   if (!data) return null;
 
