@@ -1,0 +1,8 @@
+.containers { display: flex; flex-direction: column; gap: var(--space-8); overflow: auto; height: 100%; }
+.containers-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.containers-row { display: flex; align-items: center; gap: var(--space-8); padding: var(--space-4) 0; min-width: 0; }
+.containers-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.containers-meta { color: var(--text-dim); font-size: var(--fs-xs); white-space: nowrap; }
+.containers-image { max-width: 30%; overflow: hidden; text-overflow: ellipsis; }
+.containers-error { color: var(--danger); font-size: var(--fs-xs); margin: 0; }
+.containers-down { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-8); }
