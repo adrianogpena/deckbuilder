@@ -1,5 +1,4 @@
 import { useEffect, useState, type DragEvent } from 'react';
-import { Icon } from '@deckbuilderkit/ui';
 import { tKey } from '../../i18n';
 import { runAction } from '../../source';
 import { columns, type Ticket } from './model';
@@ -23,7 +22,6 @@ interface Props {
 }
 
 export function TicketsPanel({ config, data, refresh }: Props) {
-  const [key, setKey] = useState('');
   const [error, setError] = useState('');
   const [over, setOver] = useState<{ status: string; index: number } | null>(null);
   const [detail, setDetail] = useState<string | null>(null);
@@ -43,13 +41,6 @@ export function TicketsPanel({ config, data, refresh }: Props) {
     refresh();
   };
 
-  const add = async () => {
-    const value = key.trim();
-    if (!value) return;
-    await act('add', { key: value });
-    setKey('');
-  };
-
   const dropIndex = (e: DragEvent<HTMLElement>, count: number): number => {
     const cards = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('.tickets-card'));
     for (let i = 0; i < cards.length; i++) {
@@ -65,20 +56,7 @@ export function TicketsPanel({ config, data, refresh }: Props) {
 
   return (
     <div className="tickets">
-      <div className="tickets-bar">
-        <Icon name="plus" size={14} />
-        <input
-          className="tickets-add"
-          value={key}
-          placeholder={tKey('dash.tickets.add')}
-          aria-label={tKey('dash.tickets.add')}
-          onChange={(e) => setKey(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') void add();
-          }}
-        />
-        {error && <span className="tickets-error">{error}</span>}
-      </div>
+      {error && <div className="tickets-error" role="alert">{error}</div>}
       <div className="tickets-board">
         {cols.map((col) => (
           <section

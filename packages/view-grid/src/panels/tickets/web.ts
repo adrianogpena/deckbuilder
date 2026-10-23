@@ -2,6 +2,7 @@ import { createElement } from 'react';
 import { definePanel, type AnyPanelKind } from '../../panel';
 import { fetchSource } from '../../source';
 import { TICKETS_FIELDS } from './fields';
+import { TicketsActions } from './TicketsActions';
 import { TicketsPanel, type TicketsConfig } from './TicketsPanel';
 import type { TicketsData } from './types';
 
@@ -16,6 +17,7 @@ const ticketsPanel = definePanel<TicketsConfig, TicketsData>({
   load: (config) => fetchSource<TicketsData>('tickets', config),
   refreshMs: () => 60_000,
   allowMultiple: false,
+  headerActions: TicketsActions,
   render: ({ config, data, refresh }) => createElement(TicketsPanel, { config, data, refresh }),
 });
 

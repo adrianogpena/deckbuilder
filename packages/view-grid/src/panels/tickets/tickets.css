@@ -1,17 +1,19 @@
 .tickets { display: flex; flex-direction: column; gap: var(--space-8); height: 100%; min-height: 0; }
-.tickets-bar { display: flex; align-items: center; gap: var(--space-8); }
-.tickets-add { flex: 0 1 220px; min-width: 0; }
-.tickets-error { color: var(--danger); font-size: var(--fs-xs); }
-.tickets-board { display: flex; gap: var(--space-8); flex: 1; min-height: 0; overflow-x: auto; }
-.tickets-col { flex: 0 0 220px; display: flex; flex-direction: column; min-height: 0; padding: var(--space-4); border-radius: var(--radius-md, 6px); background: var(--surface-2, transparent); border: 1px solid transparent; }
-.tickets-col-over { border-color: var(--accent); }
-.tickets-col-head { display: flex; justify-content: space-between; margin: 0 0 var(--space-4); font-size: var(--fs-sm); }
-.tickets-count { color: var(--text-dim); }
-.tickets-cards { display: flex; flex-direction: column; gap: var(--space-4); overflow-y: auto; flex: 1; min-height: 40px; }
-.tickets-card { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-8); border: 1px solid var(--border); border-radius: var(--radius-md, 6px); background: var(--surface-1, var(--bg)); cursor: grab; }
-.tickets-card-head { display: flex; align-items: center; gap: var(--space-4); color: var(--text-dim); }
-.tickets-key { font-weight: 600; color: var(--text); }
-.tickets-desc { all: unset; cursor: text; font-size: var(--fs-sm); white-space: pre-wrap; overflow-wrap: anywhere; }
+.tickets-error { padding: var(--space-4) var(--space-8); color: var(--danger); font-size: var(--fs-xs); border: 1px solid var(--danger); border-radius: var(--radius-sm); }
+.tickets-board { display: flex; gap: var(--space-12, 12px); flex: 1; min-height: 0; overflow-x: auto; padding-bottom: var(--space-4); }
+.tickets-col { flex: 0 0 240px; display: flex; flex-direction: column; min-height: 0; padding: var(--space-8); border-radius: var(--radius-lg, var(--radius-md, 8px)); background: var(--bg-elev, transparent); border: 1px solid var(--border-soft); border-top: 3px solid var(--accent); transition: border-color 0.12s, background 0.12s; }
+.tickets-col-over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--bg-elev, transparent)); }
+.tickets-col-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-8); margin: 0 0 var(--space-8); padding: 0 var(--space-4); font-size: var(--fs-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+.tickets-col-head > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tickets-count { flex: none; min-width: 20px; padding: 0 var(--space-6); border-radius: 999px; text-align: center; font-weight: 600; letter-spacing: 0; color: var(--text-dim); background: color-mix(in srgb, var(--text) 10%, transparent); }
+.tickets-cards { display: flex; flex-direction: column; gap: var(--space-8); overflow-y: auto; flex: 1; min-height: 40px; padding: 2px; }
+.tickets-card { display: flex; flex-direction: column; gap: var(--space-6); padding: var(--space-8) var(--space-12, 12px); border: 1px solid var(--border-soft); border-radius: var(--radius-md, 6px); background: var(--bg); box-shadow: 0 1px 2px rgb(0 0 0 / 0.12); cursor: grab; transition: border-color 0.12s, box-shadow 0.12s, transform 0.12s; }
+.tickets-card:hover { border-color: var(--accent); box-shadow: 0 3px 10px rgb(0 0 0 / 0.2); transform: translateY(-1px); }
+.tickets-card:active { cursor: grabbing; }
+.tickets-card-head { display: flex; align-items: center; gap: var(--space-6); color: var(--text-dim); }
+.tickets-key { padding: 1px var(--space-6); border-radius: var(--radius-sm); font-size: var(--fs-xs); font-weight: 600; font-family: var(--font-mono, monospace); color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); text-decoration: none; }
+a.tickets-key:hover { text-decoration: underline; }
+.tickets-desc { all: unset; cursor: text; font-size: var(--fs-sm); line-height: 1.4; white-space: pre-wrap; overflow-wrap: anywhere; }
 .tickets-desc-empty { color: var(--text-dim); font-style: italic; }
 .tickets-edit { width: 100%; resize: vertical; font: inherit; font-size: var(--fs-sm); }
 .tickets-pipe { display: flex; gap: 2px; }
