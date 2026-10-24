@@ -59,6 +59,9 @@ export function PodEntryFields({
   compact?: boolean;
 }) {
   const listId = useId();
+  const [open, setOpen] = useState(false);
+  const typed = entry.namespace.toLowerCase();
+  const shown = namespaces.filter((n) => n !== entry.namespace && n.toLowerCase().includes(typed));
   const names = contexts.contexts.map((c) => c.name);
   const options = entry.context && !names.includes(entry.context) ? [entry.context, ...names] : names;
   return (
@@ -76,12 +79,25 @@ export function PodEntryFields({
       </label>
       <label className="field">
         <span className="mono-label">{tKey('dash.pods.entry.namespace')}</span>
-        <input list={listId} value={entry.namespace} onChange={(e) => onChange({ ...entry, namespace: e.target.value.trim() })} />
-        <datalist id={listId}>
-          {namespaces.map((n) => (
-            <option key={n} value={n} />
-          ))}
-        </datalist>
+        <div className="pods-suggest-wrap">
+          <input
+            value={entry.namespace}
+            onChange={(e) => onChange({ ...entry, namespace: e.target.value.trim() })}
+            onFocus={() => setOpen(true)}
+            onBlur={() => setOpen(false)}
+          />
+          {open && shown.length > 0 && (
+            <ul className="pods-suggest" id={listId}>
+              {shown.map((n) => (
+                <li key={n}>
+                  <button type="button" className="menu-item" onMouseDown={(e) => e.preventDefault()} onClick={() => { onChange({ ...entry, namespace: n }); setOpen(false); }}>
+                    <span className="menu-label">{n}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </label>
       <label className="field">
         <span className="mono-label">{tKey('dash.pods.entry.pod')}</span>

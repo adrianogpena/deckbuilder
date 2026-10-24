@@ -48,6 +48,7 @@ const RAW_BUTTONS: Record<string, number> = {
   'packages/ui/src/components/Tabs.tsx': 1,
   'packages/ui/src/components/TabWorkspace.tsx': 1,
   'packages/view-agents/src/web/AccountPicker.tsx': 2,
+  'packages/view-grid/src/panels/pods/PodEntryFields.tsx': 1,
   'packages/view-agents/src/web/AccountsSettings.tsx': 2,
   'packages/view-agents/src/web/AddProject.tsx': 1,
   'packages/view-agents/src/web/GroupSummary.tsx': 1,
