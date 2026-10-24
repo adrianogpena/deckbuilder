@@ -75,7 +75,7 @@ export interface SprintInfo {
   length: number;
   /** The cut-off day (`cutoffDays` = 1 for the last working day, 2 for the one before...), or null when it is 0 or past the first working day. */
   cutoff: string | null;
-  /** Days after `today` up to and including the last day. */
+  /** Days after `today` up to the last working day of the sprint (the weekend at its end does not count), 0 once past it. */
   daysLeft: number;
 }
 
@@ -89,8 +89,9 @@ export function sprintInfo(config: SprintConfig, today: string): SprintInfo | nu
   const start = addDays(config.sprintStart, index * length);
   const end = addDays(start, length - 1);
   const back = Math.floor(config.cutoffDays);
-  const working = back > 0 ? workingDays(start, length) : [];
-  const cutoff = working[working.length - back] ?? null;
+  const working = workingDays(start, length);
+  const cutoff = back > 0 ? (working[working.length - back] ?? null) : null;
+  const lastWorking = working[working.length - 1];
   return {
     number: index + 1,
     start,
@@ -98,7 +99,7 @@ export function sprintInfo(config: SprintConfig, today: string): SprintInfo | nu
     day: offset - index * length + 1,
     length,
     cutoff,
-    daysLeft: daysBetween(today, end),
+    daysLeft: Math.max(0, daysBetween(today, lastWorking ?? end)),
   };
 }
 

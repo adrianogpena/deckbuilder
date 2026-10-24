@@ -42,7 +42,10 @@ describe('monthMatrix', () => {
 describe('sprintInfo', () => {
   const cfg = { sprintStart: '2026-10-05', sprintLengthDays: 14, cutoffDays: 2 };
   test('first day', () => {
-    expect(sprintInfo(cfg, '2026-10-05')).toEqual({ number: 1, start: '2026-10-05', end: '2026-10-18', day: 1, length: 14, cutoff: '2026-10-15', daysLeft: 13 });
+    expect(sprintInfo(cfg, '2026-10-05')).toEqual({ number: 1, start: '2026-10-05', end: '2026-10-18', day: 1, length: 14, cutoff: '2026-10-15', daysLeft: 11 });
+  });
+  test('daysLeft runs to the last working day, not the weekend end', () => {
+    expect(sprintInfo({ ...cfg, sprintStart: '2026-10-19' }, '2026-10-24')!.daysLeft).toBe(6);
   });
   test('later sprint and last day', () => {
     const info = sprintInfo(cfg, '2026-11-01')!;
@@ -51,6 +54,7 @@ describe('sprintInfo', () => {
     expect(info.day).toBe(14);
     expect(sprintInfo(cfg, '2026-10-18')!.day).toBe(14);
     expect(sprintInfo(cfg, '2026-10-18')!.daysLeft).toBe(0);
+    expect(sprintInfo(cfg, '2026-10-16')!.daysLeft).toBe(0);
   });
   test('no cut-off with 0, none before the start or without a start', () => {
     expect(sprintInfo({ ...cfg, cutoffDays: 0 }, '2026-10-06')!.cutoff).toBeNull();
