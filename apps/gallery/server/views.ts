@@ -35,7 +35,7 @@ export const serverViews: ServerViewDef[] = [
   restServerView(),
   gitServerView(),
   gridServerView({ panels: [CLOCK_SPEC, { kind: 'info', allowMultiple: false }, { kind: 'update', allowMultiple: false }, { kind: 'list', allowMultiple: false }] }),
-  dashboardServerView({ panels: dashboardSpecs, sources: dashboardSources }),
+  dashboardServerView({ panels: dashboardSpecs, sources: dashboardSources, notifications }),
   agentsServerView({
     home: agentsHome,
     link: () => appLink,

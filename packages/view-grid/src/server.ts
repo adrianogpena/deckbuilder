@@ -26,6 +26,13 @@ export interface SourceContext {
   signal: AbortSignal;
   /** The credentials of connection `id` (`not-configured` when unknown or of another type). */
   connection(id: string, type: ConnectionType): Promise<ResolvedConnection>;
+  /** An OS toast (absent when the app wires no notifications). */
+  notify?(n: { title?: string; body: string }): Promise<void>;
+}
+
+/** The part of the platform `Notifications` the grid needs (structural, so view-grid does not depend on platform). */
+export interface GridNotifications {
+  for(view: string | { icon: string }): (n: { title?: string; body: string; path?: string; launch?: string }) => Promise<void>;
 }
 
 export interface DataSource<C extends PanelConfig = PanelConfig> {
@@ -50,6 +57,8 @@ export interface GridServerOptions {
   panels: readonly GridPanelSpec[];
   /** Data sources behind `POST /api/grid/source/<id>`, for kinds that load from the server (Jira, GitHub…). */
   sources?: readonly DataSource<any>[];
+  /** Toasts for sources (`ctx.notify`); they open the Dashboard on click. */
+  notifications?: GridNotifications;
 }
 
 export const kindSpecsOf = (panels: readonly GridPanelSpec[]): Record<string, PanelKindSpec> =>
@@ -79,35 +88,37 @@ export function checkSources(sources: readonly DataSource<any>[], label: string)
 }
 
 /** The handlers of `sources`: the body is `{ config }`, cleaned with the source's fields before `fetch`; plus their actions and streams. */
-export function sourceRoutes(sources: readonly DataSource<any>[], dataDir = ''): Routes {
+export function sourceRoutes(sources: readonly DataSource<any>[], dataDir = '', notifications?: GridNotifications): Routes {
   const connection = connectionResolverOf(dataDir);
   const routes: Routes = {};
+  const notifier = notifications?.for('dashboard');
+  const notify = notifier ? (n: { title?: string; body: string }) => notifier({ ...n, path: 'dashboard' }) : undefined;
   for (const source of sources) {
     routes[sourceRoute(source.id)] = async ({ json, req }: RouteContext) => {
       const body = await json<{ config?: unknown }>();
-      return source.fetch(validConfig(source.fields, body.config), { dataDir, signal: req.signal, connection });
+      return source.fetch(validConfig(source.fields, body.config), { dataDir, signal: req.signal, connection, notify });
     };
     for (const [name, action] of Object.entries(source.actions ?? {})) {
       routes[actionRoute(source.id, name)] = async ({ json, req }: RouteContext) => {
         const body = await json<{ config?: unknown; payload?: unknown }>();
-        return (await action(body.payload, validConfig(source.fields, body.config), { dataDir, signal: req.signal, connection })) ?? null;
+        return (await action(body.payload, validConfig(source.fields, body.config), { dataDir, signal: req.signal, connection, notify })) ?? null;
       };
     }
     for (const [name, stream] of Object.entries(source.streams ?? {})) {
-      routes[streamRoute(source.id, name)] = ({ query, req }: RouteContext) => stream(query, { dataDir, signal: req.signal, connection, req });
+      routes[streamRoute(source.id, name)] = ({ query, req }: RouteContext) => stream(query, { dataDir, signal: req.signal, connection, notify, req });
     }
   }
   return routes;
 }
 
 /** Server half of the Grid view: validates `gridLayout` in the settings and serves the data sources. */
-export function gridServerView({ panels, sources = [] }: GridServerOptions) {
+export function gridServerView({ panels, sources = [], notifications }: GridServerOptions) {
   const specs = kindSpecsOf(panels);
   checkSources(sources, 'grid');
   return defineServerView<GridServerSettings>({
     id: 'grid',
     icon: 'cube',
-    routes: (ctx): Routes => sourceRoutes(sources, ctx.dataDir),
+    routes: (ctx): Routes => sourceRoutes(sources, ctx.dataDir, notifications),
     settings: { validate: { gridLayout: (raw) => validGridItems(raw, specs) } },
   });
 }
