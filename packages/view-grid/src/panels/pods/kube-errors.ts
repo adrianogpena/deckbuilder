@@ -21,7 +21,7 @@ const RULES: Array<{ code: KubeErrorCode; test: RegExp; message: string }> = [
   { code: 'forbidden', test: /forbidden|cannot (list|get|watch|patch|delete|create)/i, message: 'Your user is not allowed to perform this operation on this cluster.' },
   { code: 'notfound', test: /NotFound|not found|doesn't have a resource type/i, message: 'Resource not found.' },
   { code: 'timeout', test: /timed out|timeout/i, message: 'The cluster did not answer in time.' },
-  { code: 'unreachable', test: /Unable to connect|connection refused|no such host|i\/o timeout|dial tcp|context deadline exceeded|TLS handshake timeout|EOF$/im, message: 'Could not reach the cluster. Is it running and reachable from this machine?' },
+  { code: 'unreachable', test: /Unable to connect|connection refused|no such host|i\/o timeout|dial tcp|context deadline exceeded|TLS handshake timeout|Bad Gateway|Service Unavailable|EOF$/im, message: 'Could not reach the cluster. Is it running and reachable from this machine?' },
 ];
 
 function firstLine(text: string): string {

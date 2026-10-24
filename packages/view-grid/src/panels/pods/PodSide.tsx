@@ -31,7 +31,7 @@ export function podSideContent({ instanceId, pod, config }: PodSideInput): SideP
     subtitle: `${pod.context} / ${pod.namespace}`,
     icon: 'cube',
     tabs: [
-      { id: 'overview', label: tKey('dash.pods.tab.overview'), render: () => <PodOverview config={config} target={target} ready={pod.ready} /> },
+      { id: 'overview', label: tKey('dash.pods.tab.overview'), render: () => <PodOverview config={config} target={target} pod={pod} /> },
       { id: 'logs', label: tKey('dash.pods.tab.logs'), render: () => <PodLogsTab target={target} /> },
       { id: 'describe', label: tKey('dash.pods.tab.describe'), render: () => <PodDescribeTab config={config} target={target} /> },
     ],

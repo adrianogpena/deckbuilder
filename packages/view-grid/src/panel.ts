@@ -1,9 +1,13 @@
 import type { ComponentType, ReactNode } from 'react';
 import { defaultConfig, type IconName, type PanelConfig, type PanelDef, type PanelField, type PanelKindSpec, type SidePanelContent } from '@deckbuilderkit/ui';
 
-export interface PanelLoadContext {
+export interface PanelLoadContext<D = any> {
   /** Aborted when the panel is removed, reconfigured or collapsed away. */
   signal: AbortSignal;
+  /** True when the host's interval started this load, false for the first load and a manual refresh. */
+  auto: boolean;
+  /** Shows data before `load` resolves (a kind that loads in parts); the final data still comes from `load`. */
+  onPartial(data: D): void;
 }
 
 export interface PanelRenderProps<C, D> {
@@ -45,9 +49,11 @@ export interface PanelKind<C extends PanelConfig = PanelConfig, D = any> {
   size: { w: number; h: number; minW: number; minH: number };
   /** Fields the instance's settings form is built from; none means nothing to configure. */
   config?: { fields: readonly PanelField[] };
-  load?: (config: C, ctx: PanelLoadContext) => Promise<D>;
+  load?: (config: C, ctx: PanelLoadContext<D>) => Promise<D>;
   /** Reload interval in milliseconds (0 or omitted: never). */
   refreshMs?: number | ((config: C, data: D | undefined) => number);
+  /** Skips the interval reloads while the panel is scrolled out of view (it reloads when it shows again and is due). */
+  pauseOffscreen?: boolean;
   render: (props: PanelRenderProps<C, D>) => ReactNode;
   /** Buttons in the panel header; call `requestRefresh(kind)` after changing data. */
   headerActions?: ComponentType<{ config: C; setConfig?(next: C): void; side?: PanelSide }>;

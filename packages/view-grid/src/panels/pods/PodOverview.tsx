@@ -4,6 +4,7 @@ import { tKey } from '../../i18n';
 import { Chip, relTime, type Tone as ChipTone } from '../../kit';
 import { runAction } from '../../source';
 import { podOverview, type Amounts, type PodOverview as Overview, type PodUsage } from './detail';
+import type { Pod } from './model';
 import type { Tone } from './status';
 import type { PodsConfig } from './PodsPanel';
 import './pods.css';
@@ -141,14 +142,34 @@ function Body({ ov, target, ready }: { ov: Overview; target: PodTarget; ready: s
   );
 }
 
+/** What the list data already knows, shown while the detail loads. */
+function Basics({ pod }: { pod: Pod }) {
+  const [r, total] = pod.ready.split('/').map(Number);
+  const allReady = r === total;
+  return (
+    <div className="pod-overview">
+      <dl className="pod-facts">
+        <Fact label={tKey('dash.pods.ov.kind')}>Pod</Fact>
+        <Fact label={tKey('dash.pods.ov.namespace')}>{pod.namespace}</Fact>
+        <Fact label={tKey('dash.pods.ov.status')}><Chip tone={chipTone(pod.tone ?? 'muted')}>{pod.status}</Chip></Fact>
+      </dl>
+      <div className={`pod-callout pod-callout-${allReady ? 'ok' : 'warn'}`}>
+        {allReady ? tKey('dash.pods.ov.ready', { ready: pod.ready }) : tKey('dash.pods.ov.notReady', { ready: pod.ready })}
+      </div>
+      <p className="pod-dim pod-pad">{tKey('dash.pods.describe.loading')}</p>
+    </div>
+  );
+}
+
 /** Overview tab of a pod in the side panel; polls the pod detail at the panel refresh rate. */
-export function PodOverview({ config, target, ready }: { config: PodsConfig; target: PodTarget; ready: string }) {
+export function PodOverview({ config, target, pod }: { config: PodsConfig; target: PodTarget; pod: Pod }) {
+  const ready = pod.ready;
   const state = useAsync(
     () => runAction<{ pod: unknown; usage?: PodUsage }>('pods', 'detail', config, target),
     [target.context, target.namespace, target.pod],
     config.refreshSec * 1000,
   );
   if (state.error && !state.data) return <p className="pods-error">{state.error.message}</p>;
-  if (!state.data) return <p className="pod-dim pod-pad">{tKey('dash.pods.describe.loading')}</p>;
+  if (!state.data) return <Basics pod={pod} />;
   return <Body ov={podOverview(state.data.pod, state.data.usage)} target={target} ready={ready} />;
 }

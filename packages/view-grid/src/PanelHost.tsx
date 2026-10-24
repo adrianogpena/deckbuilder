@@ -56,13 +56,25 @@ function Loaded({ kind, id, config, size, configure, side, setConfig }: HostProp
   const latest = useRef({ kind, config, key });
   latest.current = { kind, config, key };
 
-  const run = useCallback(() => {
+  const lastRun = useRef(0);
+  const onscreen = useRef(true);
+  const sentinel = useRef<HTMLSpanElement>(null);
+
+  /** `auto` is true only for the interval; a click handler passing an event counts as manual. */
+  const run = useCallback((auto?: unknown) => {
     const gen = ++generation.current;
     abort.current?.abort();
     const controller = new AbortController();
     abort.current = controller;
+    lastRun.current = Date.now();
     const { kind: k, config: c, key: cacheKey } = latest.current;
-    k.load!(c, { signal: controller.signal })
+    k.load!(c, {
+      signal: controller.signal,
+      auto: auto === true,
+      onPartial: (value) => {
+        if (gen === generation.current) setData(value);
+      },
+    })
       .then((value) => {
         if (gen !== generation.current) return;
         cache.set(cacheKey, value);
@@ -88,13 +100,30 @@ function Loaded({ kind, id, config, size, configure, side, setConfig }: HostProp
   useEffect(() => onRefreshRequest(kind.kind, run), [kind.kind, run]);
 
   const ms = intervalOf(kind, config, data);
+  const pause = !!kind.pauseOffscreen;
   useEffect(() => {
     if (!ms) return;
     const timer = window.setInterval(() => {
-      if (document.visibilityState === 'visible') run();
+      if (document.visibilityState === 'visible' && (!pause || onscreen.current)) run(true);
     }, ms);
     return () => window.clearInterval(timer);
-  }, [ms, key, run]);
+  }, [ms, key, run, pause]);
+
+  useEffect(() => {
+    const target = sentinel.current?.parentElement;
+    if (!pause || !target || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver((entries) => {
+      const visible = entries[entries.length - 1]?.isIntersecting ?? true;
+      const wasHidden = !onscreen.current;
+      onscreen.current = visible;
+      if (visible && wasHidden && ms && Date.now() - lastRun.current >= ms) run(true);
+    });
+    observer.observe(target);
+    return () => {
+      observer.disconnect();
+      onscreen.current = true;
+    };
+  }, [pause, ms, run, data !== undefined]);
 
   const retry = (
     <Button size="sm" icon="refresh" title={tKey('common.retry')} onClick={run}>{tKey('common.retry')}</Button>
@@ -122,6 +151,7 @@ function Loaded({ kind, id, config, size, configure, side, setConfig }: HostProp
   }
   return (
     <>
+      {pause && <span ref={sentinel} hidden />}
       {error && <PanelBanner tone="err" action={retry}>{`${tKey('grid.refreshFailed')}: ${errorMessage(error)}`}</PanelBanner>}
       <Rendered kind={kind} id={id} config={config} data={data} size={size} refresh={run} configure={configure} side={side} setConfig={setConfig} />
     </>
