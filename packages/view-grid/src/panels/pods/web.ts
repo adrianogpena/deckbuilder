@@ -4,6 +4,8 @@ import { fetchSource } from '../../source';
 import { PODS_FIELDS } from './fields';
 import { type PodsConfig, type PodsPanelData } from './PodsPanel';
 import { PodsWithLogs } from './PodLogsDialog';
+import { PodsActions } from './PodsActions';
+import { PodsConfigEditor } from './PodsConfigEditor';
 
 
 const podsPanel = definePanel<PodsConfig, PodsPanelData>({
@@ -17,6 +19,8 @@ const podsPanel = definePanel<PodsConfig, PodsPanelData>({
   load: (config) => fetchSource<PodsPanelData>('pods', config),
   refreshMs: (config) => Math.max(5, config.refreshSec || 30) * 1000,
   allowMultiple: true,
+  headerActions: PodsActions,
+  configEditor: PodsConfigEditor,
   render: ({ config, data, refresh }) => createElement(PodsWithLogs, { config, data, refresh }),
 });
 
