@@ -16,7 +16,7 @@ export const WEATHER_SOURCE_FIELDS: readonly PanelField[] = [
 ];
 
 export const RSS_FIELDS: readonly PanelField[] = [
-  { key: 'urls', kind: 'text', label: 'dash.feeds.rss.urls', description: 'dash.feeds.rss.urls.hint', placeholder: 'dash.feeds.rss.urls.placeholder', default: '', rows: 5 },
+  { key: 'urls', kind: 'text', label: 'dash.feeds.rss.urls', description: 'dash.feeds.rss.urls.hint', placeholder: 'dash.feeds.rss.urls.placeholder', default: '', rows: 5, importOpml: true },
   { key: 'max', kind: 'number', label: 'dash.feeds.rss.max', default: 20, min: 1, max: 50 },
   { key: 'showSummary', kind: 'boolean', label: 'dash.feeds.rss.showSummary', default: false },
   { key: 'showSource', kind: 'boolean', label: 'dash.feeds.rss.showSource', default: true },

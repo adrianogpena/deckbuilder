@@ -1,6 +1,7 @@
 import { CLOCK_SPEC } from '../clock-fields';
 import type { DataSource, GridPanelSpec } from '../server';
 import { sources as calendar, specs as calendarSpecs } from './calendar/server';
+import { sources as daily, specs as dailySpecs } from './daily/server';
 import { sources as containers, specs as containersSpecs } from './containers/server';
 import { sources as feeds, specs as feedsSpecs } from './feeds/server';
 import { sources as github, specs as githubSpecs } from './github/server';
@@ -14,11 +15,11 @@ import { sources as timesheet, specs as timesheetSpecs } from './timesheet/serve
 /** Server specs of every Dashboard panel kind. */
 export const dashboardSpecs: readonly GridPanelSpec[] = [
   CLOCK_SPEC, ...githubSpecs, ...jiraSpecs, ...calendarSpecs, ...feedsSpecs, ...miscSpecs,
-  ...ticketsSpecs, ...podsSpecs, ...containersSpecs, ...timesheetSpecs, ...meetingSpecs,
+  ...ticketsSpecs, ...podsSpecs, ...containersSpecs, ...timesheetSpecs, ...meetingSpecs, ...dailySpecs,
 ];
 
 /** Data sources of every Dashboard panel kind. */
 export const dashboardSources: readonly DataSource<any>[] = [
   ...github, ...jira, ...calendar, ...feeds, ...misc,
-  ...tickets, ...pods, ...containers, ...timesheet, ...meeting,
+  ...tickets, ...pods, ...containers, ...timesheet, ...meeting, ...daily,
 ];

@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button, IconButton, MAX_TEXT_FIELD, Modal, OnOffField, validConfig, type PanelConfig, type PanelField } from '@deckbuilderkit/ui';
 import { ConnectionDialog, listConnections, type ConnectionType, type PublicConnection } from './connections/ConnectionDialog';
 import { tKey } from './i18n';
+import { opmlUrls } from './panels/feeds/opml';
+import { feedUrls } from './panels/feeds/rss';
 
 function NumberInput({ field, value, onChange }: { field: Extract<PanelField, { kind: 'number' }>; value: number; onChange: (n: number) => void }) {
   const [text, setText] = useState(String(value));
@@ -19,6 +21,54 @@ function NumberInput({ field, value, onChange }: { field: Extract<PanelField, { 
         if (Number.isFinite(n)) onChange(n);
       }}
     />
+  );
+}
+
+const MAX_IMPORTED_FEEDS = 10;
+
+function TextField({ field, value, hint, onChange }: { field: Extract<PanelField, { kind: 'text' }>; value: string; hint?: string; onChange: (value: string) => void }) {
+  const [status, setStatus] = useState('');
+  const fileInput = useRef<HTMLInputElement>(null);
+  const importOpml = async (file: File) => {
+    const found = opmlUrls(await file.text());
+    const have = feedUrls(value, Infinity);
+    const added = found.filter((u) => !have.includes(u)).slice(0, Math.max(0, MAX_IMPORTED_FEEDS - have.length));
+    if (found.length === 0) return setStatus(tKey('grid.field.importOpml.none'));
+    if (added.length > 0) onChange([value.trimEnd(), ...added].filter(Boolean).join('\n'));
+    setStatus(tKey('grid.field.importOpml.done', { added: added.length, found: found.length }));
+  };
+  return (
+    <div className="field">
+      <label className="field">
+        <span className="mono-label">{tKey(field.label)}</span>
+        <textarea
+          value={value}
+          rows={field.rows ?? 4}
+          placeholder={field.placeholder ? tKey(field.placeholder) : undefined}
+          maxLength={field.maxLength ?? MAX_TEXT_FIELD}
+          spellCheck={false}
+          onChange={(e) => onChange(e.target.value)}
+        />
+        {hint && <span className="muted">{hint}</span>}
+      </label>
+      {field.importOpml && (
+        <span className="grid-config-import">
+          <input
+            ref={fileInput}
+            type="file"
+            accept=".opml,.xml,text/xml,application/xml"
+            hidden
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = '';
+              if (file) void importOpml(file);
+            }}
+          />
+          <Button onClick={() => fileInput.current?.click()}>{tKey('grid.field.importOpml')}</Button>
+          {status && <span className="muted">{status}</span>}
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -113,20 +163,7 @@ function FieldRow({ field, value, onChange, connections }: { field: PanelField; 
       );
     }
     case 'text':
-      return (
-        <label className="field">
-          <span className="mono-label">{tKey(field.label)}</span>
-          <textarea
-            value={typeof value === 'string' ? value : field.default}
-            rows={field.rows ?? 4}
-            placeholder={field.placeholder ? tKey(field.placeholder) : undefined}
-            maxLength={field.maxLength ?? MAX_TEXT_FIELD}
-            spellCheck={false}
-            onChange={(e) => onChange(e.target.value)}
-          />
-          {hint && <span className="muted">{hint}</span>}
-        </label>
-      );
+      return <TextField field={field} value={typeof value === 'string' ? value : field.default} hint={hint} onChange={onChange} />;
     case 'date': {
       const date = typeof value === 'string' ? value : field.default;
       return (

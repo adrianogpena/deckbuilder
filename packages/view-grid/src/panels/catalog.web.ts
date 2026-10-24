@@ -1,6 +1,7 @@
 import type { AnyPanelKind } from '../panel';
 import { clockPanel } from './clock';
 import { panels as calendar } from './calendar/web';
+import { panels as daily } from './daily/web';
 import { panels as containers } from './containers/web';
 import { panels as feeds } from './feeds/web';
 import { panels as github } from './github/web';
@@ -14,5 +15,5 @@ import { panels as timesheet } from './timesheet/web';
 /** Every panel kind of the Dashboard view. */
 export const dashboardPanels: readonly AnyPanelKind[] = [
   clockPanel, ...github, ...jira, ...calendar, ...feeds, ...misc,
-  ...tickets, ...pods, ...containers, ...timesheet, ...meeting,
+  ...tickets, ...pods, ...containers, ...timesheet, ...meeting, ...daily,
 ];

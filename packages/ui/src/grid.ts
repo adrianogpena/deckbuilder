@@ -18,7 +18,7 @@ export type PanelField =
   | (PanelFieldBase & { kind: 'string'; default: string; placeholder?: string; maxLength?: number })
   | (PanelFieldBase & { kind: 'enum'; default: string | number; values: readonly (string | number)[]; /** i18n key prefix: `<prefix>.<value>` is the option text when it exists. */ optionLabel?: string })
   | (PanelFieldBase & { kind: 'multi'; default: string[]; values: readonly string[]; /** i18n key prefix: `<prefix>.<value>` is the option text when it exists. */ optionLabel?: string })
-  | (PanelFieldBase & { kind: 'text'; default: string; maxLength?: number; rows?: number; placeholder?: string })
+  | (PanelFieldBase & { kind: 'text'; default: string; maxLength?: number; rows?: number; placeholder?: string; /** Shows an "Import OPML" button that appends the feed URLs of a chosen file. */ importOpml?: boolean })
   | (PanelFieldBase & { kind: 'date'; default: '' })
   /** A connection id (see the Dashboard's Connections); the form shows a select of the connections of `connectionType`. */
   | (PanelFieldBase & { kind: 'connection'; connectionType: 'jira' | 'github'; default: '' });
