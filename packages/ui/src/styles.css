@@ -1374,3 +1374,21 @@ html[data-status-bar="false"] .status-bar { display: none; }
 .xp-picker-actions { display: flex; gap: var(--space-2); }
 .xp-pane:not(:hover):not(:focus-within) .xp-picker-actions { opacity: 0; }
 .xp-picker-actions { transition: opacity .12s; }
+
+/* View side panel + Tabs */
+.view-with-side { display: flex; flex: 1; min-width: 0; min-height: 0; height: 100%; }
+.view-with-side-main { flex: 1; min-width: 0; min-height: 0; overflow: auto; }
+.view-side { position: relative; display: flex; flex-direction: column; flex: none; width: var(--view-side-w, min(980px, 64vw)); min-width: 560px; max-width: 980px; min-height: 0; background: var(--panel); border-left: 1px solid var(--border); animation: view-side-in .16s ease-out; }
+@keyframes view-side-in { from { opacity: 0; } to { opacity: 1; } }
+.view-side-handle { position: absolute; left: -3px; top: 0; bottom: 0; width: 6px; cursor: col-resize; z-index: 2; }
+.view-side-handle:hover, .view-side-handle:focus-visible, .view-side-handle:active { background: var(--accent); opacity: .5; outline: none; }
+.view-side-head { display: flex; align-items: center; gap: var(--space-6); min-height: var(--panel-head-h); padding: 0 var(--space-8); border-bottom: 1px solid var(--border); }
+.view-side-titles { flex: 1; min-width: 0; }
+.view-side-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.view-side-subtitle { font-size: var(--fs-xs); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.view-side-actions { display: flex; align-items: center; gap: var(--space-2); }
+.view-side-body { flex: 1; min-height: 0; overflow: auto; }
+.tabs { display: flex; align-items: stretch; gap: var(--space-6); height: var(--tabbar-h); padding: 0 var(--space-8); border-bottom: 1px solid var(--border); flex: none; }
+.tabs-tab { background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; padding: 0 var(--space-2); color: var(--text-2); font: inherit; cursor: pointer; }
+.tabs-tab:hover { color: var(--text); }
+.tabs-tab.active { color: var(--text); font-weight: 600; border-bottom-color: var(--accent); }

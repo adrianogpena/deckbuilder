@@ -9,6 +9,7 @@ const baseEn = {
   'common.copy': 'Copy',
   'common.copied': 'Copied',
   'common.close': 'Close',
+  'viewSide.resize': 'Resize side panel',
   'common.maximize': 'Maximize',
   'common.restore': 'Restore',
 
@@ -593,6 +594,7 @@ const basePtBR: Messages<typeof baseEn> = {
   'common.copy': 'Copiar',
   'common.copied': 'Copiado',
   'common.close': 'Fechar',
+  'viewSide.resize': 'Redimensionar painel lateral',
   'common.maximize': 'Maximizar',
   'common.restore': 'Restaurar',
 
