@@ -1,3 +1,24 @@
+import { podStatus, type Tone } from './status';
+
+export interface PodsConfig {
+  clusters: string;
+  refreshSec: number;
+  showHealthy: boolean;
+  notifyHealth: boolean;
+}
+
+/** One tracked line: a context, a namespace and a full or partial pod name. */
+export interface PodEntry {
+  context: string;
+  namespace: string;
+  pod: string;
+}
+
+export interface PodRow {
+  entry: PodEntry;
+  pod: Pod | undefined;
+}
+
 export interface Cluster {
   context: string;
   namespace: string;
@@ -11,6 +32,8 @@ export interface Pod {
   namespace: string;
   name: string;
   status: string;
+  /** Optional so hand-built pods in other panels' tests keep compiling; `mapPods` always sets it. */
+  tone?: Tone;
   healthy: boolean;
   /** `ready/total` containers. */
   ready: string;
@@ -44,6 +67,54 @@ export const isTracked = (name: string, patterns: readonly string[]): boolean =>
   return patterns.some((p) => p && n.includes(p.toLowerCase()));
 };
 
+/** One entry per line `<context> <namespace> <pod>`; old `<p1>,<p2>` lines split into one entry per pattern. */
+export function parseEntries(text: string): PodEntry[] {
+  const out: PodEntry[] = [];
+  for (const c of parseClusters(text)) {
+    for (const pod of c.patterns) out.push({ context: c.context, namespace: c.namespace, pod });
+  }
+  return out;
+}
+
+export const formatEntries = (entries: readonly PodEntry[]): string =>
+  entries.map((e) => `${e.context} ${e.namespace} ${e.pod}`).join('\n');
+
+/** Case-insensitive substring match of the entry's pod text against the pod name. */
+export const matchesEntry = (name: string, pod: string): boolean => !!pod && name.toLowerCase().includes(pod.toLowerCase());
+
+/** Rows in entry order; a pod shows once, under the first entry that matches it. An entry without pods gets one empty row. */
+export function podRows(entries: readonly PodEntry[], pods: readonly Pod[]): PodRow[] {
+  const seen = new Set<string>();
+  const rows: PodRow[] = [];
+  for (const entry of entries) {
+    let any = false;
+    for (const pod of pods) {
+      if (pod.context !== entry.context || pod.namespace !== entry.namespace || !matchesEntry(pod.name, entry.pod)) continue;
+      any = true;
+      const key = `${pod.context}/${pod.namespace}/${pod.name}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      rows.push({ entry, pod });
+    }
+    if (!any) rows.push({ entry, pod: undefined });
+  }
+  return rows;
+}
+
+const podKey = (p: Pod) => `${p.context}/${p.namespace}/${p.name}`;
+
+/** Pods whose health flipped since `prev` (updated in place); first-seen pods never count. */
+export function healthChanges(prev: Map<string, boolean>, pods: readonly Pod[]): { pod: Pod; healthy: boolean }[] {
+  const out: { pod: Pod; healthy: boolean }[] = [];
+  for (const pod of pods) {
+    const key = podKey(pod);
+    const before = prev.get(key);
+    if (before !== undefined && before !== pod.healthy) out.push({ pod, healthy: pod.healthy });
+    prev.set(key, pod.healthy);
+  }
+  return out;
+}
+
 interface ContainerStatus {
   ready?: boolean;
   restartCount?: number;
@@ -58,16 +129,6 @@ interface PodJson {
   status?: { phase?: string; startTime?: string; containerStatuses?: ContainerStatus[] };
 }
 
-function statusOf(p: PodJson): string {
-  for (const c of p.status?.containerStatuses ?? []) {
-    const waiting = c.state?.waiting?.reason;
-    if (waiting) return waiting;
-    const terminated = c.state?.terminated?.reason;
-    if (terminated && terminated !== 'Completed') return terminated;
-  }
-  return p.status?.phase ?? 'Unknown';
-}
-
 /** The tracked pods of a `get pods -o json` result. */
 export function mapPods(json: unknown, cluster: Cluster): Pod[] {
   const items = (json as { items?: PodJson[] } | null)?.items ?? [];
@@ -76,7 +137,7 @@ export function mapPods(json: unknown, cluster: Cluster): Pod[] {
     const name = p.metadata?.name ?? '';
     if (!name || !isTracked(name, cluster.patterns)) continue;
     const statuses = p.status?.containerStatuses ?? [];
-    const status = statusOf(p);
+    const { text: status, tone } = podStatus(p);
     const readyCount = statuses.filter((c) => c.ready).length;
     const total = statuses.length || (p.spec?.containers?.length ?? 0);
     let lastRestartAt = '';
@@ -90,6 +151,7 @@ export function mapPods(json: unknown, cluster: Cluster): Pod[] {
       namespace: cluster.namespace,
       name,
       status,
+      tone,
       healthy: status === 'Running' && statuses.length > 0 && readyCount === statuses.length,
       ready: `${readyCount}/${total}`,
       restarts: statuses.reduce((n, c) => n + (c.restartCount ?? 0), 0),

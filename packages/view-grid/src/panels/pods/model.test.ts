@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { ingressUrls, isTracked, mapPods, parseClusters, podConfigMaps } from './model';
+import { formatEntries, healthChanges, ingressUrls, isTracked, mapPods, matchesEntry, parseClusters, parseEntries, podConfigMaps, podRows } from './model';
 
 const cluster = { context: 'dev', namespace: 'apps', patterns: ['api', 'web'] };
 
@@ -62,8 +62,57 @@ describe('mapPods', () => {
   test('waiting reason is the status', () => {
     expect(pods[1]).toMatchObject({ status: 'CrashLoopBackOff', healthy: false, ready: '0/1', restarts: 5 });
   });
-  test('Completed falls back to the phase', () => {
-    expect(pods[2]).toMatchObject({ status: 'Succeeded', healthy: false });
+  test('Completed is muted', () => {
+    expect(pods[2]).toMatchObject({ status: 'Completed', tone: 'muted', healthy: false });
+  });
+  test('tones', () => {
+    expect(pods[0]?.tone).toBe('ok');
+    expect(pods[1]?.tone).toBe('err');
+  });
+});
+
+describe('entries', () => {
+  test('old comma lines become one entry per pattern', () => {
+    expect(parseEntries('dev apps a,b\n\nbad\nprod ns-1 x')).toEqual([
+      { context: 'dev', namespace: 'apps', pod: 'a' },
+      { context: 'dev', namespace: 'apps', pod: 'b' },
+      { context: 'prod', namespace: 'ns-1', pod: 'x' },
+    ]);
+  });
+  test('format round trips', () => {
+    const entries = [{ context: 'dev', namespace: 'apps', pod: 'vwde-24835' }];
+    expect(parseEntries(formatEntries(entries))).toEqual(entries);
+  });
+  test('matchesEntry is a case-insensitive substring', () => {
+    expect(matchesEntry('VWDE-24835-api-1', 'vwde-24835')).toBe(true);
+    expect(matchesEntry('db-0', 'vwde')).toBe(false);
+  });
+});
+
+describe('podRows', () => {
+  const pods = mapPods(podsJson, cluster);
+  test('a pod matched by two entries is listed once, empty entries get a row', () => {
+    const entries = [
+      { context: 'dev', namespace: 'apps', pod: 'api' },
+      { context: 'dev', namespace: 'apps', pod: 'api-7d' },
+      { context: 'dev', namespace: 'apps', pod: 'zzz' },
+    ];
+    const rows = podRows(entries, pods);
+    expect(rows.map((r) => [r.entry.pod, r.pod?.name])).toEqual([
+      ['api', 'api-7d9f-abc'],
+      ['api', 'api-job'],
+      ['zzz', undefined],
+    ]);
+  });
+});
+
+describe('healthChanges', () => {
+  test('first seen is silent, flips are reported', () => {
+    const prev = new Map<string, boolean>();
+    const pods = mapPods(podsJson, cluster);
+    expect(healthChanges(prev, pods)).toEqual([]);
+    const flipped = pods.map((p, i) => (i === 0 ? { ...p, healthy: false } : p));
+    expect(healthChanges(prev, flipped).map((c) => [c.pod.name, c.healthy])).toEqual([['api-7d9f-abc', false]]);
   });
 });
 
