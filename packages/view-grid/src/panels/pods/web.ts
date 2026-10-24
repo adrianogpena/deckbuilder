@@ -2,8 +2,7 @@ import { createElement } from 'react';
 import { definePanel, type AnyPanelKind } from '../../panel';
 import { fetchSource } from '../../source';
 import { PODS_FIELDS } from './fields';
-import { type PodsConfig, type PodsPanelData } from './PodsPanel';
-import { PodsWithLogs } from './PodLogsDialog';
+import { PodsPanel, type PodsConfig, type PodsPanelData } from './PodsPanel';
 import { PodsActions } from './PodsActions';
 import { PodsConfigEditor } from './PodsConfigEditor';
 
@@ -21,7 +20,7 @@ const podsPanel = definePanel<PodsConfig, PodsPanelData>({
   allowMultiple: true,
   headerActions: PodsActions,
   configEditor: PodsConfigEditor,
-  render: ({ config, data, refresh }) => createElement(PodsWithLogs, { config, data, refresh }),
+  render: ({ id, config, data, refresh, side, setConfig }) => createElement(PodsPanel, { id, config, data, refresh, side, setConfig }),
 });
 
 export const panels: AnyPanelKind[] = [podsPanel];

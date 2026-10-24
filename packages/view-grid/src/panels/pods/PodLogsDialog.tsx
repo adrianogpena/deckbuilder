@@ -1,8 +1,7 @@
-import { useEffect, useRef, useState, type ComponentProps } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button, LogView, Modal, type HighlightTerm, type LogLine } from '@deckbuilderkit/ui';
 import { tKey } from '../../i18n';
 import { streamSource } from '../../source';
-import { PodsPanel } from './PodsPanel';
 import { detectLevel, type LogStatus } from './logs';
 import type { Pod } from './model';
 import './pods.css';
@@ -74,16 +73,5 @@ export function PodLogsDialog({ pod, onClose }: { pod: Pod; onClose: () => void 
         />
       </div>
     </Modal>
-  );
-}
-
-/** The Pods panel with its Logs entry wired to the live log dialog. */
-export function PodsWithLogs(props: Omit<ComponentProps<typeof PodsPanel>, 'onLogs'>) {
-  const [pod, setPod] = useState<Pod | null>(null);
-  return (
-    <>
-      <PodsPanel {...props} onLogs={setPod} />
-      {pod && <PodLogsDialog pod={pod} onClose={() => setPod(null)} />}
-    </>
   );
 }

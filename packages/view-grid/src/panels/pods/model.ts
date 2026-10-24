@@ -101,6 +101,15 @@ export function podRows(entries: readonly PodEntry[], pods: readonly Pod[]): Pod
   return rows;
 }
 
+/** A copy of `entries` with the entry at `from` moved to index `to`; out-of-range indexes return the list unchanged. */
+export function moveEntry(entries: readonly PodEntry[], from: number, to: number): PodEntry[] {
+  const next = [...entries];
+  if (from === to || from < 0 || to < 0 || from >= next.length || to >= next.length) return next;
+  const [moved] = next.splice(from, 1);
+  next.splice(to, 0, moved!);
+  return next;
+}
+
 const podKey = (p: Pod) => `${p.context}/${p.namespace}/${p.name}`;
 
 /** Pods whose health flipped since `prev` (updated in place); first-seen pods never count. */

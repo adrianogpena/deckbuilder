@@ -1,53 +1,71 @@
-import { useState, type MouseEvent } from 'react';
+import { useState, type DragEvent, type KeyboardEvent, type MouseEvent } from 'react';
 import { ContextMenu, Icon, IconButton } from '@deckbuilderkit/ui';
 import { tKey } from '../../i18n';
 import { Chip, relTime } from '../../kit';
+import { requestRefresh, type PanelSide } from '../../panel';
 import { runAction } from '../../source';
-import { DescribeDialog } from './DescribeDialog';
-import type { Pod } from './model';
+import { formatEntries, moveEntry, parseEntries, podRows, type Pod, type PodsConfig as PodsSettings } from './model';
+import { podSideContent } from './PodSide';
+import type { KubeError } from './kube-errors';
+import type { Tone } from './status';
 import './pods.css';
 
-export interface PodsConfig {
-  clusters: string;
-  refreshSec: number;
-  showHealthy: boolean;
-  [key: string]: unknown;
-}
+export type PodsConfig = PodsSettings & { [key: string]: unknown };
 
 export interface PodsPanelData {
-  clusters: { context: string; namespace: string; error?: string }[];
+  clusters: { context: string; namespace: string; error?: KubeError }[];
   pods: Pod[];
 }
 
 interface Props {
+  id: string;
   config: PodsConfig;
   data: PodsPanelData | undefined;
   refresh(): void;
-  /** Opens the log viewer of a pod (filled in by the Logs step); no menu entry when omitted. */
-  onLogs?(pod: Pod): void;
+  side?: PanelSide;
+  setConfig?(next: PodsConfig): void;
 }
+
+const CHIP_TONE: Record<Tone, 'ok' | 'warn' | 'danger' | 'info' | 'neutral'> = {
+  ok: 'ok',
+  warn: 'warn',
+  err: 'danger',
+  info: 'info',
+  muted: 'neutral',
+};
 
 const target = (p: Pod) => ({ context: p.context, namespace: p.namespace, pod: p.name });
 
-export function PodsPanel({ config, data, refresh, onLogs }: Props) {
+export function PodsPanel({ id, config, data, side, setConfig }: Props) {
   const [menu, setMenu] = useState<{ at: { x: number; y: number }; pod: Pod } | null>(null);
-  const [describe, setDescribe] = useState<{ pod: Pod; text?: string } | null>(null);
+  const [dragFrom, setDragFrom] = useState<number | null>(null);
+  const [overIndex, setOverIndex] = useState<number | null>(null);
 
   if (!data) return null;
   if (data.clusters.length === 0) return <p className="kit-empty">{tKey('dash.pods.noClusters')}</p>;
 
-  const open = (e: MouseEvent, pod: Pod) => {
+  const entries = parseEntries(config.clusters);
+  const rows = podRows(entries, data.pods).filter((r) => !r.pod || config.showHealthy || !r.pod.healthy);
+  const content = (pod: Pod) => podSideContent({ instanceId: id, pod, config });
+
+  const toggle = (pod: Pod) => {
+    if (!side) return;
+    const c = content(pod);
+    if (side.isOpen(c.id)) side.close();
+    else side.open(c);
+  };
+
+  const openMenu = (e: MouseEvent, pod: Pod) => {
     e.preventDefault();
+    e.stopPropagation();
     setMenu({ at: { x: e.clientX, y: e.clientY }, pod });
   };
 
-  const showDescribe = async (pod: Pod) => {
-    setDescribe({ pod });
-    try {
-      const text = await runAction<string>('pods', 'describe', config, target(pod));
-      setDescribe({ pod, text });
-    } catch (err) {
-      setDescribe({ pod, text: String((err as Error)?.message ?? err) });
+  const onKey = (e: KeyboardEvent, pod: Pod) => {
+    if (e.target !== e.currentTarget) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      toggle(pod);
     }
   };
 
@@ -55,53 +73,97 @@ export function PodsPanel({ config, data, refresh, onLogs }: Props) {
     try {
       await runAction('pods', 'restart', config, target(pod));
     } finally {
-      setTimeout(refresh, 3000);
+      requestRefresh('pods');
     }
   };
 
   const items = (pod: Pod) => [
     { id: 'restart', label: tKey('dash.pods.restart'), icon: 'rotate-ccw' as const, danger: true, run: () => void restart(pod) },
-    { id: 'describe', label: tKey('dash.pods.describe'), icon: 'file-text' as const, run: () => void showDescribe(pod) },
-    ...(onLogs ? [{ id: 'logs', label: tKey('dash.pods.logs'), icon: 'log' as const, run: () => onLogs(pod) }] : []),
+    ...(side
+      ? [
+          { id: 'describe', label: tKey('dash.pods.describe'), icon: 'file-text' as const, run: () => side.open(content(pod), 'describe') },
+          { id: 'logs', label: tKey('dash.pods.logs'), icon: 'log' as const, run: () => side.open(content(pod), 'logs') },
+        ]
+      : []),
     { id: 'copy', label: tKey('dash.pods.copyName'), icon: 'copy' as const, run: () => void navigator.clipboard.writeText(pod.name) },
   ];
 
+  const endDrag = () => {
+    setDragFrom(null);
+    setOverIndex(null);
+  };
+
+  const drop = (e: DragEvent, to: number) => {
+    e.preventDefault();
+    const from = dragFrom;
+    endDrag();
+    if (from === null || from === to || !setConfig) return;
+    setConfig({ ...config, clusters: formatEntries(moveEntry(entries, from, to)) });
+  };
+
   return (
     <div className="pods">
-      {data.clusters.map((c) => {
-        const key = `${c.context}/${c.namespace}`;
-        const pods = data.pods.filter((p) => p.cluster === key && (config.showHealthy || !p.healthy));
-        return (
-          <section key={key}>
-            <h4 className="pods-cluster">{key}</h4>
-            {c.error && <p className="pods-error">{tKey('dash.pods.clusterError', { error: c.error })}</p>}
-            {!c.error && pods.length === 0 && <p className="kit-empty">{tKey('dash.pods.empty')}</p>}
-            <ul className="pods-list">
-              {pods.map((p) => (
-                <li key={p.name} className="pods-row" onContextMenu={(e) => open(e, p)}>
-                  <Chip tone={p.healthy ? 'ok' : 'danger'}>{p.status}</Chip>
-                  <span className="pods-name" title={p.name}>{p.name}</span>
-                  <span className="pods-meta">{tKey('dash.pods.ready', { ready: p.ready })}</span>
-                  {p.restarts > 0 && (
-                    <span className="pods-meta">
-                      {tKey('dash.pods.restarts', { count: p.restarts })}
-                      {p.lastRestartAt ? ` · ${tKey('dash.pods.lastRestart', { when: relTime(p.lastRestartAt) })}` : ''}
-                    </span>
-                  )}
-                  {p.urls.map((u) => (
-                    <a key={u} className="pods-meta" href={u} target="_blank" rel="noreferrer" title={u}>
-                      <Icon name="link" size={12} />
-                    </a>
-                  ))}
-                  <IconButton icon="more" label={tKey('dash.pods.menu')} onClick={(e) => open(e, p)} />
-                </li>
-              ))}
-            </ul>
-          </section>
-        );
-      })}
+      {data.clusters.map((c) =>
+        c.error ? (
+          <p key={`${c.context}/${c.namespace}`} className="pods-error">
+            {c.context}/{c.namespace}: {tKey(`dash.pods.err.${c.error.code}`)}
+          </p>
+        ) : null,
+      )}
+      {rows.length === 0 && <p className="kit-empty">{tKey('dash.pods.empty')}</p>}
+      <ul className="pods-list">
+        {rows.map(({ entry, pod }) => {
+          const index = entries.indexOf(entry);
+          const dnd = {
+            draggable: !!setConfig,
+            onDragStart: (e: DragEvent) => {
+              e.dataTransfer.setData('text/plain', String(index));
+              e.dataTransfer.effectAllowed = 'move';
+              setDragFrom(index);
+            },
+            onDragEnd: endDrag,
+            onDragOver: (e: DragEvent) => {
+              if (dragFrom === null) return;
+              e.preventDefault();
+              setOverIndex(index);
+            },
+            onDrop: (e: DragEvent) => drop(e, index),
+          };
+          const over = dragFrom !== null && overIndex === index && dragFrom !== index ? ' pods-row-over' : '';
+          const dragging = dragFrom === index ? ' pods-row-dragging' : '';
+          if (!pod) {
+            return (
+              <li key={`${entry.context}/${entry.namespace}/${entry.pod}:${index}`} className={`pods-row pods-row-empty${over}${dragging}`} {...dnd}>
+                {setConfig && <Icon name="grip" size={12} />}
+                <span className="pods-name">{tKey('dash.pods.noMatch', { pod: entry.pod })}</span>
+              </li>
+            );
+          }
+          const selected = !!side && side.isOpen(content(pod).id);
+          return (
+            <li
+              key={`${pod.context}/${pod.namespace}/${pod.name}`}
+              className={`pods-row${selected ? ' pods-row--selected' : ''}${over}${dragging}`}
+              tabIndex={0}
+              role="button"
+              aria-pressed={selected}
+              onClick={() => toggle(pod)}
+              onKeyDown={(e) => onKey(e, pod)}
+              onContextMenu={(e) => openMenu(e, pod)}
+              {...dnd}
+            >
+              {setConfig && <Icon name="grip" size={12} />}
+              <Chip tone={CHIP_TONE[pod.tone ?? (pod.healthy ? 'ok' : 'err')]}>{pod.status}</Chip>
+              <span className="pods-name" title={pod.name}>{pod.name}</span>
+              <span className="pods-meta">{pod.ready}</span>
+              {pod.restarts > 0 && <span className="pods-meta">{tKey('dash.pods.restarts', { count: pod.restarts })}</span>}
+              {pod.startedAt && <span className="pods-meta">{relTime(pod.startedAt)}</span>}
+              <IconButton icon="more" label={tKey('dash.pods.menu')} onClick={(e) => openMenu(e, pod)} />
+            </li>
+          );
+        })}
+      </ul>
       {menu && <ContextMenu at={menu.at} items={items(menu.pod)} onClose={() => setMenu(null)} />}
-      {describe && <DescribeDialog title={describe.pod.name} text={describe.text} onClose={() => setDescribe(null)} />}
     </div>
   );
 }

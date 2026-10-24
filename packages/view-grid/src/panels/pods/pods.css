@@ -2,7 +2,13 @@
 .pods-cluster { font-size: var(--fs-xs); color: var(--text-dim); margin: 0; }
 .pods-error { color: var(--danger); font-size: var(--fs-xs); margin: 0; }
 .pods-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-.pods-row { display: flex; align-items: center; gap: var(--space-8); padding: var(--space-4) 0; min-width: 0; }
+.pods-row { display: flex; align-items: center; gap: var(--space-8); padding: var(--space-4) var(--space-8); min-width: 0; cursor: pointer; border-radius: var(--radius-sm, 4px); }
+.pods-row:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.pods-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.pods-row--selected, .pods-row--selected:hover { background: color-mix(in srgb, var(--accent) 14%, transparent); box-shadow: inset 3px 0 0 var(--accent); }
+.pods-row-empty { cursor: default; color: var(--text-dim); font-style: italic; }
+.pods-row-dragging { opacity: 0.5; }
+.pods-row-over { box-shadow: inset 0 2px 0 var(--accent); }
 .pods-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pods-meta { color: var(--text-dim); font-size: var(--fs-xs); white-space: nowrap; }
 .pods-describe { margin: 0; padding: var(--space-12); white-space: pre-wrap; word-break: break-word; font-family: var(--font-mono); font-size: var(--fs-xs); overflow: auto; height: 100%; }

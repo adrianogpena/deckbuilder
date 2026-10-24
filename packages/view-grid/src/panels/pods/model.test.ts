@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { formatEntries, healthChanges, ingressUrls, isTracked, mapPods, matchesEntry, parseClusters, parseEntries, podConfigMaps, podRows } from './model';
+import { formatEntries, healthChanges, ingressUrls, isTracked, mapPods, matchesEntry, moveEntry, parseClusters, parseEntries, podConfigMaps, podRows } from './model';
 
 const cluster = { context: 'dev', namespace: 'apps', patterns: ['api', 'web'] };
 
@@ -151,5 +151,21 @@ describe('podConfigMaps', () => {
       },
     };
     expect(podConfigMaps(pod)).toEqual(['cfg-a', 'cfg-b', 'cfg-c']);
+  });
+});
+
+describe('moveEntry', () => {
+  const e = (pod: string) => ({ context: 'c', namespace: 'n', pod });
+  const list = [e('a'), e('b'), e('c')];
+
+  test('moves an entry down and up', () => {
+    expect(moveEntry(list, 0, 2).map((x) => x.pod)).toEqual(['b', 'c', 'a']);
+    expect(moveEntry(list, 2, 0).map((x) => x.pod)).toEqual(['c', 'a', 'b']);
+  });
+
+  test('ignores same or out-of-range indexes and does not mutate', () => {
+    expect(moveEntry(list, 1, 1)).toEqual(list);
+    expect(moveEntry(list, 0, 5)).toEqual(list);
+    expect(list.map((x) => x.pod)).toEqual(['a', 'b', 'c']);
   });
 });
