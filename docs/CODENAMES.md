@@ -44,6 +44,7 @@ The scheme follows the three races:
 | **Raven** | Terran | `editor` (rich Markdown) | Ghost, Scribe, Academy |
 | **Factory** | Terran | `build` (executable build) | Starport, Barracks, Spawning Pool |
 | **Marine** | Terran | `scripts/` (typecheck, boundary and button checks, screenshots) | Firebat, Reaper, Hellion |
+| **Zealot** | Protoss | The update signature check: `verifyManifest` (`server-core`), `verifiedRelease` (`server-mods/src/update.ts`) and the signing side in `build` (`keys.ts`, `release.ts`) | Sentry, Stalker, Photon Cannon |
 
 ## Wordplay
 
@@ -56,13 +57,13 @@ Pairs where one thing becomes or spawns the other, as in the game.
 | **Hydralisk morphs to Lurker** | One evolves into the other. | Running a query and its result grid is the **Hydralisk**. The explain plan, which sits quietly and shows a line, is the Lurker (`sql-ui`). |
 | **Hatchery → Lair → Hive** | The Zerg tech chain. | A registered project root is the **Hatchery**. A root opened in Explorer is the **Lair**. The whole Explorer view is the Hive. |
 | **Larva becomes any unit** | Every Zerg unit starts as a Larva. | **Larva** is the base contract every view implements (`ServerViewDef` and its web counterpart). Each view is what the Larva became. |
-| **Gateway → Warp Gate** | A building morphs into its faster form. | The dev build (`deckbuilder dev`) is the **Gateway**. The release build (`deckbuilder build`) is the **Warp Gate**. Both are run by the Factory (`build`). |
+| **Gateway → Warp Gate** | A building morphs into its faster form. | The dev run (`deckbuilder dev`, server plus Vite) is the **Gateway**. The executable build (`deckbuilder build`) is the **Warp Gate**. Both commands live in the Factory (`build`). |
 
 These are naming conventions for docs and comments. No type, function or command is renamed.
 
-## Reserved
+## Zealot
 
-- **Zealot** is free. It was `scripts/` until that moved to Marine to keep the scheme clean. It is a Protoss core name, so it fits a guard that protects the foundation, such as the update signature check (`update-key.pub`) or the package boundary check.
+Zealot guards what the app is allowed to run: an update is installed only if `latest.json` is signed with the app's key (`update-key.pub`). The check is one idea spread over three packages, so it keeps one name wherever it appears: `verifyManifest` in Nexus, `verifiedRelease` in Annex, and the signing in Factory.
 
 ## Not taken
 
