@@ -45,6 +45,7 @@ const RAW_BUTTONS: Record<string, number> = {
   'packages/ui/src/components/SettingFields.tsx': 2,
   'packages/ui/src/components/Sidebar.tsx': 1,
   'packages/ui/src/components/StatusBar.tsx': 1,
+  'packages/ui/src/components/Tabs.tsx': 1,
   'packages/ui/src/components/TabWorkspace.tsx': 1,
   'packages/view-agents/src/web/AccountPicker.tsx': 2,
   'packages/view-agents/src/web/AccountsSettings.tsx': 2,
