@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ComponentType } from 'react';
 import { Button, IconButton, MAX_TEXT_FIELD, Modal, OnOffField, validConfig, type PanelConfig, type PanelField } from '@deckbuilderkit/ui';
 import { ConnectionDialog, listConnections, type ConnectionType, type PublicConnection } from './connections/ConnectionDialog';
 import { tKey } from './i18n';
@@ -214,9 +214,11 @@ export function ConfigForm({ fields, value, onChange }: { fields: readonly Panel
 }
 
 /** Dialog to edit the config of one panel instance; saving gives the cleaned config. */
-export function ConfigDialog({ name, fields, value, onSave, onClose }: {
+export function ConfigDialog({ name, fields, editor: Editor, value, onSave, onClose }: {
   name: string;
   fields: readonly PanelField[];
+  /** The kind's `configEditor`, shown instead of the fields form. */
+  editor?: ComponentType<{ value: PanelConfig; onChange(next: PanelConfig): void }>;
   value: PanelConfig;
   onSave: (config: PanelConfig) => void;
   onClose: () => void;
@@ -237,7 +239,7 @@ export function ConfigDialog({ name, fields, value, onSave, onClose }: {
         </>
       }
     >
-      <ConfigForm fields={fields} value={draft} onChange={setDraft} />
+      {Editor ? <Editor value={draft} onChange={setDraft} /> : <ConfigForm fields={fields} value={draft} onChange={setDraft} />}
     </Modal>
   );
 }

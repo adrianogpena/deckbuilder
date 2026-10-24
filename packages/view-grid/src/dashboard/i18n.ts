@@ -34,6 +34,7 @@ export const en = {
   'dash.preset.deleteBody': 'Delete the preset “{name}”?',
   'dash.preset.tooMany': 'At most 50 presets.',
   'dash.preset.once': 'Already on the layout.',
+  'keys.dashboard.toggleSidePanel': 'Toggle side panel',
 };
 
 export const ptBR: Messages<typeof en> = {
@@ -70,4 +71,5 @@ export const ptBR: Messages<typeof en> = {
   'dash.preset.deleteBody': 'Excluir a predefinição “{name}”?',
   'dash.preset.tooMany': 'No máximo 50 predefinições.',
   'dash.preset.once': 'Já está no layout.',
+  'keys.dashboard.toggleSidePanel': 'Mostrar/ocultar painel lateral',
 };

@@ -1,5 +1,5 @@
 import type { ComponentType, ReactNode } from 'react';
-import { defaultConfig, type IconName, type PanelConfig, type PanelDef, type PanelField, type PanelKindSpec } from '@deckbuilderkit/ui';
+import { defaultConfig, type IconName, type PanelConfig, type PanelDef, type PanelField, type PanelKindSpec, type SidePanelContent } from '@deckbuilderkit/ui';
 
 export interface PanelLoadContext {
   /** Aborted when the panel is removed, reconfigured or collapsed away. */
@@ -17,6 +17,18 @@ export interface PanelRenderProps<C, D> {
   refresh(): void;
   /** Opens the panel's config dialog (a no-op when the host has none). */
   configure(): void;
+  /** The instance id. */
+  id: string;
+  /** The view's side panel; absent when the host has none. */
+  side?: PanelSide;
+  /** Saves a new config for this instance; absent when the host cannot. */
+  setConfig?(next: C): void;
+}
+
+export interface PanelSide {
+  open(content: SidePanelContent, tab?: string): void;
+  close(): void;
+  isOpen(id: string): boolean;
 }
 
 export interface PanelKind<C extends PanelConfig = PanelConfig, D = any> {
@@ -38,7 +50,9 @@ export interface PanelKind<C extends PanelConfig = PanelConfig, D = any> {
   refreshMs?: number | ((config: C, data: D | undefined) => number);
   render: (props: PanelRenderProps<C, D>) => ReactNode;
   /** Buttons in the panel header; call `requestRefresh(kind)` after changing data. */
-  headerActions?: ComponentType<{ config: C }>;
+  headerActions?: ComponentType<{ config: C; setConfig?(next: C): void; side?: PanelSide }>;
+  /** Replaces the generic fields form in the config dialog and the panel creator. */
+  configEditor?: ComponentType<{ value: C; onChange(next: C): void }>;
   /** More than one instance may be on the grid; true when omitted. */
   allowMultiple?: boolean;
 }

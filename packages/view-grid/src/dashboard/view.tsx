@@ -12,6 +12,7 @@ import { en as dailyEn, ptBR as dailyPtBR } from '../panels/daily/i18n';
 import { en as podsEn, ptBR as podsPtBR } from '../panels/pods/i18n';
 import { en as ticketsEn, ptBR as ticketsPtBR } from '../panels/tickets/i18n';
 import { en as timesheetEn, ptBR as timesheetPtBR } from '../panels/timesheet/i18n';
+import { dashboardCommands } from './commands';
 import { DashboardScreen, type DashboardViewSettings } from './DashboardScreen';
 import { en, ptBR } from './i18n';
 
@@ -28,6 +29,7 @@ export function dashboardView({ group, order, panels }: DashboardViewOptions) {
     id: 'dashboard',
     nav: { group, icon: 'cube', label: 'nav.dashboard', order },
     render: ({ settings, onSave }) => <DashboardScreen settings={settings} onSave={onSave} panels={panels} />,
+    commands: dashboardCommands,
     messages: {
       en: { ...gridEn, ...en, ...githubEn, ...jiraEn, ...calendarEn, ...feedsEn, ...miscEn, ...ticketsEn, ...podsEn, ...containersEn, ...timesheetEn, ...meetingEn, ...dailyEn },
       'pt-BR': { ...gridPtBR, ...ptBR, ...githubPtBR, ...jiraPtBR, ...calendarPtBR, ...feedsPtBR, ...miscPtBR, ...ticketsPtBR, ...podsPtBR, ...containersPtBR, ...timesheetPtBR, ...meetingPtBR, ...dailyPtBR },

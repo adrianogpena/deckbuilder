@@ -60,7 +60,7 @@ export function PanelCreator({ kinds, items, onAdd, onClose, presets, onAddPrese
           </>
         }
       >
-        <ConfigForm fields={fieldsOf(picked)} value={draft} onChange={setDraft} />
+        {picked.configEditor ? <picked.configEditor value={draft} onChange={setDraft} /> : <ConfigForm fields={fieldsOf(picked)} value={draft} onChange={setDraft} />}
       </Modal>
     );
   }

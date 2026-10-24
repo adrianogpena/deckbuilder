@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button, errorMessage, errorOf, Icon, PanelBanner, PanelLoading, PanelNotice, validConfig, type ApiError, type GridItem } from '@deckbuilderkit/ui';
 import { tKey } from './i18n';
-import { fieldsOf, onRefreshRequest, type AnyPanelKind } from './panel';
+import { fieldsOf, onRefreshRequest, type AnyPanelKind, type PanelSide } from './panel';
 
 /** Last data per instance and config, so a collapsed or re-shown panel starts with what it had. */
 const cache = new Map<string, unknown>();
@@ -16,28 +16,38 @@ const intervalOf = (kind: AnyPanelKind, config: Record<string, unknown>, data: u
  * skeleton, an error with Retry, and a banner over the last data when a refresh fails), refreshes on the
  * kind's interval and renders the kind. A collapsed panel is not mounted, so it neither loads nor refreshes.
  */
-export function PanelHost({ kind, item, onConfigure }: { kind: AnyPanelKind; item: GridItem; onConfigure?: () => void }) {
+export function PanelHost({ kind, item, onConfigure, side, setConfig }: {
+  kind: AnyPanelKind;
+  item: GridItem;
+  onConfigure?: () => void;
+  side?: PanelSide;
+  setConfig?: (next: any) => void;
+}) {
   const config = useMemo(() => validConfig(fieldsOf(kind), item.config), [kind, item.config]);
   const size = { w: item.w, h: item.h };
   const configure = onConfigure ?? noop;
-  if (!kind.load) return <Rendered kind={kind} config={config} data={undefined} size={size} refresh={noop} configure={configure} />;
-  return <Loaded kind={kind} id={item.id} config={config} size={size} configure={configure} />;
+  const extra = { side, setConfig };
+  if (!kind.load) return <Rendered kind={kind} id={item.id} config={config} data={undefined} size={size} refresh={noop} configure={configure} {...extra} />;
+  return <Loaded kind={kind} id={item.id} config={config} size={size} configure={configure} {...extra} />;
 }
 
 const noop = () => {};
 
 interface HostProps {
   kind: AnyPanelKind;
+  id: string;
   config: Record<string, unknown>;
   size: { w: number; h: number };
   configure: () => void;
+  side?: PanelSide;
+  setConfig?: (next: any) => void;
 }
 
-function Rendered({ kind, config, data, size, refresh, configure }: HostProps & { data: unknown; refresh: () => void }) {
-  return <>{kind.render({ config, data, size, refresh, configure })}</>;
+function Rendered({ kind, id, config, data, size, refresh, configure, side, setConfig }: HostProps & { data: unknown; refresh: () => void }) {
+  return <>{kind.render({ id, config, data, size, refresh, configure, side, setConfig })}</>;
 }
 
-function Loaded({ kind, id, config, size, configure }: HostProps & { id: string }) {
+function Loaded({ kind, id, config, size, configure, side, setConfig }: HostProps) {
   const key = `${id}:${kind.kind}:${JSON.stringify(config)}`;
   const [data, setData] = useState<unknown>(() => cache.get(key));
   const [error, setError] = useState<ApiError>();
@@ -113,7 +123,7 @@ function Loaded({ kind, id, config, size, configure }: HostProps & { id: string 
   return (
     <>
       {error && <PanelBanner tone="err" action={retry}>{`${tKey('grid.refreshFailed')}: ${errorMessage(error)}`}</PanelBanner>}
-      <Rendered kind={kind} config={config} data={data} size={size} refresh={run} configure={configure} />
+      <Rendered kind={kind} id={id} config={config} data={data} size={size} refresh={run} configure={configure} side={side} setConfig={setConfig} />
     </>
   );
 }

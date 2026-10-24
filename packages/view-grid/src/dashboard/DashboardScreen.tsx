@@ -1,8 +1,9 @@
-import { createElement, useMemo, useState } from 'react';
-import { addItem, Button, ContextMenu, Empty, PageHead, PanelGrid, sameItems, t, useDialogs, validConfig, type ContextMenuItem, type GridItem, type PanelConfig } from '@deckbuilderkit/ui';
+import { createElement, useEffect, useMemo, useRef, useState } from 'react';
+import { addItem, Button, ContextMenu, Empty, PageHead, PanelGrid, sameItems, t, useCommand, useDialogs, useViewSidePanel, validConfig, ViewSidePanel,type ContextMenuItem, type GridItem, type PanelConfig } from '@deckbuilderkit/ui';
 import { ConfigDialog } from '../ConfigForm';
 import { ConnectionsDialog } from '../connections/ConnectionsDialog';
 import { tKey } from '../i18n';
+import { dashboardCommands } from './commands';
 import { fieldsOf, kindSpecs, panelDef, type AnyPanelKind } from '../panel';
 import { addableKinds, PanelCreator } from '../PanelCreator';
 import { PanelHost } from '../PanelHost';
@@ -43,6 +44,7 @@ export function DashboardScreen({ settings, onSave, panels }: DashboardScreenPro
   const [configuring, setConfiguring] = useState<string | null>(null);
   const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
   const { confirm, prompt, choose, element } = useDialogs();
+  const side = useViewSidePanel('dashboard');
 
   const current = activeLayout(state);
   const dirty = !sameItems(items, current.items);
@@ -157,6 +159,14 @@ export function DashboardScreen({ settings, onSave, panels }: DashboardScreenPro
     out.push({ id: 'preset', label: tKey('dash.preset.save'), icon: 'plus', disabled: full, hint: full ? tKey('dash.preset.tooMany') : undefined, run: () => void savePreset(item) });
     return out;
   };
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+  const setItemConfig = (id: string, config: PanelConfig) => change(itemsRef.current.map((i) => (i.id === id ? { ...i, config } : i)));
+  const sideContentId = side.content?.id;
+  useEffect(() => {
+    if (sideContentId && !items.some((i) => sideContentId.startsWith(`${i.id}:`))) side.close();
+  }, [items, sideContentId]);
+  useCommand(dashboardCommands()[0]!, side.toggle);
   const target = configuring ? items.find((i) => i.id === configuring) : undefined;
   const targetKind = target && kindOf(target.kind);
   const canAdd = addableKinds(panels, items).length > 0;
@@ -186,6 +196,7 @@ export function DashboardScreen({ settings, onSave, panels }: DashboardScreenPro
         </Button>
         <Button size="sm" icon="rotate-ccw" title={tKey('grid.reset')} onClick={() => change(current.items)} disabled={!dirty}>{tKey('grid.reset')}</Button>
       </PageHead>
+      <ViewSidePanel side={side}>
       <div className="scroll">
         {items.length === 0 ? (
           <Empty title={tKey('dash.empty.title')}>
@@ -199,17 +210,29 @@ export function DashboardScreen({ settings, onSave, panels }: DashboardScreenPro
             render={(item) => {
               const kind = kindOf(item.kind);
               if (!kind) return null;
-              return <PanelHost kind={kind} item={item} onConfigure={fieldsOf(kind).length > 0 ? () => setConfiguring(item.id) : undefined} />;
+              return (
+                <PanelHost
+                  kind={kind}
+                  item={item}
+                  onConfigure={fieldsOf(kind).length > 0 ? () => setConfiguring(item.id) : undefined}
+                  side={side}
+                  setConfig={(config) => setItemConfig(item.id, config)}
+                />
+              );
             }}
             actions={(item) => {
               const kind = kindOf(item.kind);
-              return kind?.headerActions && createElement(kind.headerActions, { config: validConfig(fieldsOf(kind), item.config) });
+              return (
+                kind?.headerActions &&
+                createElement(kind.headerActions, { config: validConfig(fieldsOf(kind), item.config), side, setConfig: (config: PanelConfig) => setItemConfig(item.id, config) })
+              );
             }}
             itemMenu={itemMenu}
             onChange={change}
           />
         )}
       </div>
+      </ViewSidePanel>
       {connecting && <ConnectionsDialog onClose={() => setConnecting(false)} />}
       {menuAt && <ContextMenu at={menuAt} items={menu} onClose={() => setMenuAt(null)} />}
       {creating && (
@@ -228,6 +251,7 @@ export function DashboardScreen({ settings, onSave, panels }: DashboardScreenPro
         <ConfigDialog
           name={target.title ?? tKey(targetKind.title)}
           fields={fieldsOf(targetKind)}
+          editor={targetKind.configEditor}
           value={target.config ?? {}}
           onSave={(config) => change(items.map((i) => (i.id === target.id ? { ...i, config } : i)))}
           onClose={() => setConfiguring(null)}
