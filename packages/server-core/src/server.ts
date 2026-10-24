@@ -164,10 +164,16 @@ async function readJson(req: Request): Promise<any> {
   const chunks: Uint8Array[] = [];
   let size = 0;
   if (req.body) {
-    for await (const chunk of req.body) {
-      size += chunk.byteLength;
-      if (size > MAX_BODY) throw tooLarge();
-      chunks.push(chunk);
+    const reader = req.body.getReader();
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > MAX_BODY) {
+        await reader.cancel().catch(() => {});
+        throw tooLarge();
+      }
+      chunks.push(value);
     }
   }
   const text = Buffer.concat(chunks).toString('utf8');

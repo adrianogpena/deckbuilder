@@ -11,6 +11,7 @@ const offline = () => new RequestError({ kind: 'offline', code: 'offline', messa
 // Launch URLs carry a one-time code (?c=...); it is hidden from the address bar at once, then
 // traded for the session token, which stays in this window's sessionStorage.
 function takeCode(): string | null {
+  if (typeof window === 'undefined') return null;
   const url = new URL(window.location.href);
   const code = url.searchParams.get(CODE_PARAM);
   if (code === null) return null;
@@ -47,7 +48,7 @@ export const session: Promise<string> = openSession(takeCode());
 session.catch(() => {});
 
 /** True inside the app's native window (set by the shell's init script), false in a browser. */
-export const isDesktop = (window as { __DECKBUILDER_SHELL__?: string }).__DECKBUILDER_SHELL__ === 'window';
+export const isDesktop = typeof window !== 'undefined' && (window as { __DECKBUILDER_SHELL__?: string }).__DECKBUILDER_SHELL__ === 'window';
 
 /**
  * Calls the app server with the session token; throws RequestError with the server's ApiError.
