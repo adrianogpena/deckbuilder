@@ -10,7 +10,27 @@ interface ContextsResult {
   current?: string;
 }
 
-/** Context and namespace choices known to the cluster, for the entry fields. */
+const CACHE_KEY = 'deckbuilder.pods.namespaces';
+
+function readCache(context: string): string[] {
+  try {
+    const v = (JSON.parse(localStorage.getItem(CACHE_KEY) ?? '{}') as Record<string, unknown>)[context];
+    return Array.isArray(v) ? v.filter((n): n is string => typeof n === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeCache(context: string, names: string[]) {
+  try {
+    const all = JSON.parse(localStorage.getItem(CACHE_KEY) ?? '{}') as Record<string, unknown>;
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ ...all, [context]: names }));
+  } catch {
+    // storage unavailable; suggestions come from the cluster only
+  }
+}
+
+/** Context and namespace choices for the entry fields; namespaces show from a local cache and refresh from the cluster in the background. */
 export function usePodChoices(config: PodsConfig, context: string, extraNamespaces: readonly string[]) {
   const [contexts, setContexts] = useState<ContextsResult>({ contexts: [] });
   const [namespaces, setNamespaces] = useState<string[]>([]);
@@ -31,9 +51,14 @@ export function usePodChoices(config: PodsConfig, context: string, extraNamespac
       return;
     }
     let live = true;
+    setNamespaces(readCache(context));
     runAction<string[]>('pods', 'namespaces', config, { context }).then(
-      (r) => live && setNamespaces(r),
-      () => live && setNamespaces([]),
+      (r) => {
+        if (!live || r.length === 0) return;
+        writeCache(context, r);
+        setNamespaces(r);
+      },
+      () => {},
     );
     return () => {
       live = false;

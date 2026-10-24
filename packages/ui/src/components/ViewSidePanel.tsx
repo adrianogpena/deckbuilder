@@ -120,6 +120,7 @@ export function ViewSidePanel({ side, children }: { side: ViewSidePanelState; ch
   return (
     <div className="view-with-side">
       <div className="view-with-side-main">{children}</div>
+      {content && <div className="view-side-scrim" onClick={close} />}
       {content && (
         <aside className="view-side" style={{ '--view-side-w': `${width}px` } as CSSProperties} aria-label={content.title}>
           <div className="view-side-handle" role="separator" aria-orientation="vertical" tabIndex={0}
