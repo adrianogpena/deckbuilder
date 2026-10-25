@@ -1,5 +1,5 @@
-import { defineServerView, type RouteContext, type Routes } from '@deckbuilderkit/server-core';
-import { validConfig, validGridItems, type GridItem, type PanelConfig, type PanelField, type PanelKindSpec } from '@deckbuilderkit/ui/grid';
+import { type RouteContext, type Routes } from '@deckbuilderkit/server-core';
+import { validConfig, type PanelConfig, type PanelField, type PanelKindSpec } from '@deckbuilderkit/ui/grid';
 
 import { type ResolvedConnection } from './connections/auth';
 import { connectionResolverOf } from './connections/routes';
@@ -11,12 +11,6 @@ export { codeForStatus, SourceError, sourceFetch, type SourceErrorCode } from '.
 export { type Connection, type ConnectionType, type PublicConnection } from './connections/store';
 export { dashboardServerView, type DashboardServerOptions, type DashboardServerSettings } from './dashboard/server';
 export { dashboardSources, dashboardSpecs } from './panels/catalog.server';
-
-/** The part of the server settings the Grid view owns; the app's `Settings` extends it. */
-export interface GridServerSettings {
-  /** Layout of the Grid screen, checked by `validGridItems` against the registered panel kinds. */
-  gridLayout?: GridItem[];
-}
 
 /** What the server knows of a panel kind: its id and what `validGridItems` needs. */
 export type GridPanelSpec = PanelKindSpec & { kind: string };
@@ -109,16 +103,4 @@ export function sourceRoutes(sources: readonly DataSource<any>[], dataDir = '', 
     }
   }
   return routes;
-}
-
-/** Server half of the Grid view: validates `gridLayout` in the settings and serves the data sources. */
-export function gridServerView({ panels, sources = [], notifications }: GridServerOptions) {
-  const specs = kindSpecsOf(panels);
-  checkSources(sources, 'grid');
-  return defineServerView<GridServerSettings>({
-    id: 'grid',
-    icon: 'cube',
-    routes: (ctx): Routes => sourceRoutes(sources, ctx.dataDir, notifications),
-    settings: { validate: { gridLayout: (raw) => validGridItems(raw, specs) } },
-  });
 }

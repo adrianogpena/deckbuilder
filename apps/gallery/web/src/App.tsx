@@ -39,7 +39,7 @@ export function App() {
 function Shell({ initialSettings }: { initialSettings: Settings }) {
   const [settings, setSettings] = useState(initialSettings);
   const [overlay, setOverlay] = useState(overlayOfHash);
-  const shown = useRef<ScreenId>('home');
+  const shown = useRef<ScreenId>('dashboard');
   // Before useHashRoute, so this listener runs first: it puts the shown screen back in the hash for the router.
   useEffect(() => {
     const take = () => {

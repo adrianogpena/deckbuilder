@@ -31,8 +31,6 @@ export interface Settings extends ThemeSettings, TerminalViewSettings, Workbench
   updateFolder: string;
   /** Layout of the Tabs screen; restored (and validated) by the screen. */
   tabsLayout?: unknown;
-  /** Layout of the Grid screen (`GridItem[]`); the server validates it. */
-  gridLayout?: unknown;
   /** State of the Explorer screen; the server validates it. */
   explorer?: ExplorerSettings;
   /** Log viewer: highlight words and bookmarks (keyed `<projectId>:<path>`); the server validates it. */
