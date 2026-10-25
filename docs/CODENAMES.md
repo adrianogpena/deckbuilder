@@ -1,8 +1,8 @@
 # Kedalion codenames and rename plan
 
-This file is the handover for the rename of DeckBuilder to **Kedalion**. It records what was decided, what is still open, and which codename each part received. Nothing in the code has been renamed yet.
+This file is the handover for the rename of DeckBuilder to **Kedalion**. It records what was decided, what is still open, and which codename each part received, with the reason for each name. Nothing in the code has been renamed yet.
 
-Kedalion is the smith's guide of Greek myth: Hephaestus gave him to the blinded Orion, and he rode on Orion's shoulders and steered him east to the sun's rays, which restored his sight. The app is the guide that sits on top of strong but blind machinery.
+Kedalion is the smith's guide of Greek myth: a helper of Hephaestus who rode on the shoulders of the blinded Orion and steered him east to the rays of Helios, which restored his sight. The app is that guide: it sits on top of strong but blind machinery and steers it for its owner. **Hephaestus is the user**, the smith Kedalion helps. No part of the code carries his name, and Kedalion did not come from him.
 
 Internal codenames for the app, its views and its packages, taken from Greek mythology. They appear in docs and code comments only. Menu labels, package ids (`view-explorer`, `@deckbuilderkit/ui`) and persisted identifiers stay as they are.
 
@@ -10,7 +10,7 @@ Internal codenames for the app, its views and its packages, taken from Greek myt
 
 Decided:
 
-- The new name is **Kedalion**. The codenames below were chosen to go with it.
+- The new name is **Kedalion**. The codenames below were chosen to go with it: the story of Kedalion and Orion, and the workshop of Hephaestus.
 - The app id (`APP.id` in `apps/gallery/app.ts`, now `deckbuilder`) becomes `kedalion`. The data folder `~/.deckbuilder` must be moved by hand on the owner's machine (`mv ~/.deckbuilder ~/.kedalion`, app closed). Check whether secrets live in that folder or in the OS keychain.
 - npm release is dropped. The `@deckbuilderkit/*` packages are not published; users get only the app's executable (the "gallery" release).
 - Only the owner uses the app, so there are no other users to migrate. A full rename is acceptable.
@@ -61,41 +61,41 @@ The scheme follows three groups:
 
 ## App
 
-| Codename | Applies to | Alternatives |
+| Codename | Applies to | Why |
 |---|---|---|
-| **Kedalion** | The whole app | Daedalus, Argonaut, Pharos |
+| **Kedalion** | The whole app | Chosen by the owner. The guide who sits on strong, blind machinery and steers it; he helps Hephaestus, the user. |
 
 ## Views
 
-| Codename | Group | Applies to | Alternatives |
+| Codename | Group | Applies to | Why |
 |---|---|---|---|
-| **Labyrinth** | Hero | Explorer | Atlas, Periplus, Odyssey |
-| **Hermes** | Hero | Terminal | Charon, Styx, Psychopomp |
-| **Iris** | Hero | REST | Pheme, Angelos, Hermes |
-| **Pythia** | Hero | Workbench (SQL) | Sibyl, Tiresias, Delphi |
-| **Moirai** | Hero | Git | Clio, Chronos, Atropos |
-| **Argus** | Hero | Dashboard | Helios, Pharos, Hecatoncheires |
-| **Talos** | Olympian | Agents | Myrmidon, Golden Maidens, Pandora |
-| **Themis** | Olympian | Settings | Nomos, Hestia, Harmonia |
+| **Theseus** | Hero | Explorer | He walks into the Labyrinth (the file tree) and finds his way through it by following a thread. |
+| **Charon** | Hero | Terminal | The ferryman who carries you across to the other side; a terminal carries commands to the system and brings the output back. |
+| **Hermes** | Hero | REST | The messenger god: carries a request out and the reply back, fast, between two parties that never meet. |
+| **Sibyl** | Hero | Workbench (SQL) | A prophetess who answers the questions people bring her; a query is a question and the result is the answer. |
+| **Moirai** | Hero | Git | The Fates who spin, measure and cut the thread of each life: commits are the thread of the code, and a revert cuts it. |
+| **Argus** | Hero | Dashboard | The giant with a hundred eyes who never stops watching; a dashboard is many eyes on many things at once. |
+| **Kourai** | Olympian | Agents | The golden maidens Hephaestus made to help him at the forge; they think and act on their own, like agents. |
+| **Themis** | Olympian | Settings | The goddess of order and custom: how things are set and done. |
 
 ## Packages and layers
 
-| Codename | Group | Applies to | Alternatives |
+| Codename | Group | Applies to | Why |
 |---|---|---|---|
-| **Pantheon** | Olympian | `ui` (shared components) | Stoa, Peplos, Kosmos |
-| **Orion** | Olympian | `server-core` (strong, blind, ridden by Kedalion) | Atlas, Olympus, Titan |
-| **Skene** | Olympian | `shell` (native window host) | Theatron, Proscenium, Thyris |
-| **Gaia** | Olympian | `platform` (OS integration) | Tartarus, Chthon, Hades |
-| **Mnemosyne** | Olympian | `db` (stores) | Lethe, Alexandria, Mnemon |
-| **Helios** | Olympian | Theme and palette | Aglaea, Apollo, Chroma |
-| **Talaria** | Hero | `terminal` (the package behind Hermes) | Caduceus, Petasos, Pegasus |
-| **Omphalos** | Hero | `sql-ui` (results grid) | Tripod, Tablet, Sibyl |
-| **Panoptes** | Hero | `view-grid` (Dashboard panels) | Hecatoncheires, Argos, Gorgon |
-| **Cyclopes** | Smith | `server-mods` (fs, http, archive, backup, update) | Telchines, Daktyls, Kabeiroi |
-| **Calliope** | Smith | `editor` (rich Markdown) | Clio, Scribe, Erato |
-| **Hephaestus** | Smith | `build` (executable build) | Forge, Anvil, Etna |
-| **Myrmidon** | Smith | `scripts/` (typecheck, boundary and button checks, screenshots) | Hoplite, Peltast, Satyr |
-| **Cerberus** | Olympian | The update signature check: `verifyManifest` (`server-core`), `verifiedRelease` (`server-mods/src/update.ts`) and the signing side in `build` (`keys.ts`, `release.ts`) | Phylax, Sphinx, Argos |
+| **Pantheon** | Olympian | `ui` | All the gods together in one place: all the shared components in one place. |
+| **Orion** | Olympian | `server-core` | The giant hunter, strong but blind, carried by Kedalion: the server does the work and sees nothing until the UI steers it. |
+| **Thyris** | Olympian | `shell` | The Greek word for a window: it is the native window that holds the web UI. |
+| **Hestia** | Olympian | `platform` | Goddess of the hearth: the home on the operating system, where the app sits (tray, autostart, files). |
+| **Pithos** | Olympian | `db` | The big storage jar of myth (Pandora's jar): it holds what the app keeps. |
+| **Iris** | Olympian | Theme and palette | The goddess of the rainbow: colour. |
+| **Obol** | Hero | `terminal` | The coin paid to Charon for the crossing: the small package behind the Terminal view. |
+| **Tripod** | Hero | `sql-ui` | The seat on which the Pythia sat to give her answer: where the SQL answer is shown. |
+| **Panoptes** | Hero | `view-grid` | "All-seeing", the epithet of Argus: the package that holds the Dashboard's panels. |
+| **Telchines** | Smith | `server-mods` | The first metalworkers of myth, who made tools for the gods: a kit of ready tools (fs, http, archive, backup, update). |
+| **Cadmus** | Smith | `editor` | The hero who brought the alphabet to Greece: writing. |
+| **Akmon** | Smith | `build` | The anvil of the forge; the build is where the app is hammered into an executable. |
+| **Daktyls** | Smith | `scripts/` | The small craftsmen of the fingers, helpers at the bench: small tools that check and polish. |
+| **Cerberus** | Olympian | The update signature check: `verifyManifest` (`server-core`), `verifiedRelease` (`server-mods/src/update.ts`) and the signing side in `build` (`keys.ts`, `release.ts`) | The three-headed dog at the gate: nothing passes unless it belongs, as an update runs only when signed. |
 
 ## Wordplay
 
@@ -105,17 +105,10 @@ Pairs where one thing becomes or spawns the other, as in the myths.
 |---|---|---|
 | **Kedalion rides Orion** | The sighted guide on the blind giant's shoulders. | The web UI is Kedalion; the server core (`server-core`) is **Orion**. Strong, does the work, sees nothing until the UI steers it. |
 | **Argus has a hundred Eyes** | One watcher made of many eyes. | `view-grid` is **Panoptes**, the Dashboard is Argus. Each Dashboard panel is an **Eye**. |
-| **Pilgrim consults Pythia** | A petitioner brings a question; the oracle answers from her seat. | A saved database connection (in `db`) is the **Pilgrim**. Opening it in the Workbench brings it to Pythia. The result grid and explain plan (`sql-ui`) are the **Omphalos**, where the answer is read. |
-| **Thread into the Labyrinth** | Ariadne's thread leads into the maze. | A registered project root is the **Thread**. A root opened in Explorer is the **Labyrinth**. |
+| **Pilgrim consults the Sibyl** | A petitioner brings a question; the oracle answers from her seat. | A saved database connection (in `db`, the **Pithos**) is the **Pilgrim**. Opening it in the Workbench brings it to Sibyl. The result grid and explain plan (`sql-ui`) are the **Tripod**, where the answer is read. |
+| **Theseus follows the Thread** | Ariadne's thread leads him through the maze and back out. | A registered project root is the **Thread**. A root opened in Explorer is the **Labyrinth**, and Theseus walks it. |
+| **Charon takes the Obol** | The ferryman carries only those who pay. | A terminal session is a crossing by Charon; the `terminal` package is the **Obol** it takes. |
 | **Clay becomes any form** | Prometheus shaped every creature from clay. | **Clay** is the base contract every view implements (`ServerViewDef` and its web counterpart). Each view is what the Clay became. |
-| **Ore becomes Bronze** | Hephaestus smelts raw ore into finished work. | The dev run (`kedalion dev`, server plus Vite) is the **Ore**. The executable build (`kedalion build`) is the **Bronze**. Both commands live in Hephaestus (`build`). |
+| **Ore becomes Bronze** | The smith melts raw ore into finished work. | The dev run (`kedalion dev`, server plus Vite) is the **Ore**. The executable build (`kedalion build`) is the **Bronze**. Both commands live in Akmon (`build`). |
 
 These are naming conventions for docs and comments. No type, function or command is renamed.
-
-## Cerberus
-
-Cerberus guards what the app is allowed to run: an update is installed only if `latest.json` is signed with the app's key (`update-key.pub`). The check is one idea spread over three packages, so it keeps one name wherever it appears: `verifyManifest` in Orion, `verifiedRelease` in the Cyclopes, and the signing in Hephaestus.
-
-## Not taken
-
-Ideas that were shown but not chosen: Hephaestus forges Talos, Pegasus born from Medusa, Hydra heads as parallel panels, Pandora's jar for the settings store, Atlas holding up the shell.
