@@ -70,7 +70,7 @@ export async function testConnection(store: ConnectionStore, id: string, spawn: 
   try {
     const r = await resolveConnection(store, id, c.type, spawn);
     const url = c.type === 'github' ? `${r.baseUrl}/user` : `${r.baseUrl}/rest/api/2/myself`;
-    const res = await sourceFetch(url, { headers: { Authorization: authHeader(r, c.type), Accept: 'application/json', 'User-Agent': 'deckbuilder' } }, { signal });
+    const res = await sourceFetch(url, { headers: { Authorization: authHeader(r, c.type), Accept: 'application/json', 'User-Agent': 'kedalion' } }, { signal });
     const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
     const user = [body.login, body.displayName, body.name, body.emailAddress].find((v): v is string => typeof v === 'string' && v !== '');
     return { ok: true, user };

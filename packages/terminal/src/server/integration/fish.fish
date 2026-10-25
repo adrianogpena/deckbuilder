@@ -1,4 +1,4 @@
-# DeckBuilder shell integration for fish, run with --init-command after the user's config.
+# Kedalion shell integration for fish, run with --init-command after the user's config.
 if not set -q __db_si
     set -g __db_si 1
     function __db_prompt --on-event fish_prompt

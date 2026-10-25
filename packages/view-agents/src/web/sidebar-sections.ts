@@ -9,9 +9,9 @@ export type SectionId = CoreSectionId | `tool:${string}`;
 export const CORE_IDS: readonly CoreSectionId[] = ['sessions', 'changes', 'tags', 'archived', 'usage'];
 export const SECTION_IDS = CORE_IDS;
 
-export const SECTIONS_KEY = 'deckbuilder.agents.sections';
+export const SECTIONS_KEY = 'kedalion.agents.sections';
 /** Fired on `window` when another part of the screen changed the stored state (a tab moved to the sidebar). */
-export const SECTIONS_EVENT = 'deckbuilder-agents-sections';
+export const SECTIONS_EVENT = 'kedalion-agents-sections';
 
 export interface SectionsState {
   /** Explicit order once the user reordered; undefined = default order. */

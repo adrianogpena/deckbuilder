@@ -43,7 +43,7 @@ export interface Settings extends BaseSettings, TerminalServerSettings, Workbenc
   /** The Settings modal reopens on the last page shown (kept in memory by the UI). */
   rememberSettingsPage: boolean;
   /**
-   * Folder `deckbuilder release --to` publishes to; empty: GitHub releases when `APP.repo` is set,
+   * Folder `kedalion release --to` publishes to; empty: GitHub releases when `APP.repo` is set,
    * else no update checks. Set only through the folder dialog of `POST /api/settings/update-folder`.
    */
   updateFolder: string;

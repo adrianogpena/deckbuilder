@@ -9,7 +9,7 @@ import { isSafePath } from './link.ts';
 // unlocks this one route, not the API: its response carries no session token, at most a launch URL
 // with a one-time code.
 
-export const INSTANCE_HEADER = 'x-deckbuilder-instance';
+export const INSTANCE_HEADER = 'x-kedalion-instance';
 export const INSTANCE_PATH = '/api/instance/open';
 export const INSTANCE_ROUTE = `POST ${INSTANCE_PATH}`;
 

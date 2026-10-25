@@ -119,7 +119,7 @@ export function verifiedRelease(signed: SignedRelease, publicKey: string): Relea
 }
 
 /**
- * Releases in a folder (often a UNC share) holding latest.json, as `deckbuilder release --to`
+ * Releases in a folder (often a UNC share) holding latest.json, as `kedalion release --to`
  * writes it; also looks in its `<subfolder>` (the app name), where `release --to <root>` puts them.
  */
 export function folderSource(path: string, opts: { subfolder?: string; fs?: UpdateFs } = {}): UpdateSource {
@@ -166,7 +166,7 @@ export function githubSource(opts: { repo: string; tagPrefix: string; token?: st
   const doFetch = opts.fetch ?? fetch;
   const headers = (accept: string, auth: boolean): Record<string, string> => ({
     Accept: accept,
-    'User-Agent': 'deckbuilder',
+    'User-Agent': 'kedalion',
     ...(auth && opts.token ? { Authorization: `Bearer ${opts.token}` } : {}),
   });
 
@@ -184,7 +184,7 @@ export function githubSource(opts: { repo: string; tagPrefix: string; token?: st
         throw new SourceError(false, `GitHub redirected ${asset.name} to an invalid location`);
       }
       if (next.protocol !== 'https:') throw new SourceError(false, `GitHub redirected ${asset.name} to a non-https location`);
-      res = await doFetch(next.href, { headers: { 'User-Agent': 'deckbuilder' }, signal });
+      res = await doFetch(next.href, { headers: { 'User-Agent': 'kedalion' }, signal });
     }
     if (!res.ok) throw new SourceError(false, `GitHub answered ${res.status} for ${asset.name}`);
     return res;

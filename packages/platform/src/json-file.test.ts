@@ -10,7 +10,7 @@ afterEach(async () => {
 });
 
 async function tmp() {
-  const dir = await mkdtemp(join(tmpdir(), 'deckbuilder-json-'));
+  const dir = await mkdtemp(join(tmpdir(), 'kedalion-json-'));
   dirs.push(dir);
   return dir;
 }

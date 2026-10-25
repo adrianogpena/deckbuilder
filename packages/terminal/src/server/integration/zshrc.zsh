@@ -1,9 +1,9 @@
-# DeckBuilder shell integration for zsh: the .zshrc in the integration ZDOTDIR.
+# Kedalion shell integration for zsh: the .zshrc in the integration ZDOTDIR.
 # Sources the user's .zshrc, then adds precmd/preexec hooks for OSC 133 marks and OSC 7.
 __db_ours=$ZDOTDIR
-ZDOTDIR=${DECKBUILDER_USER_ZDOTDIR:-$HOME}
+ZDOTDIR=${KEDALION_USER_ZDOTDIR:-$HOME}
 [[ -r $ZDOTDIR/.zshrc ]] && source $ZDOTDIR/.zshrc
-DECKBUILDER_USER_ZDOTDIR=$ZDOTDIR
+KEDALION_USER_ZDOTDIR=$ZDOTDIR
 # A login shell still reads .zlogin from here; that one restores the user's ZDOTDIR.
 [[ -o login ]] && ZDOTDIR=$__db_ours
 unset __db_ours

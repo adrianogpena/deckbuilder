@@ -44,7 +44,7 @@ test('a single failing path keeps its own error', async () => {
 });
 
 test.skipIf(process.platform !== 'win32')('files and folders end up gone', async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'deckbuilder-trash-'));
+  const dir = await mkdtemp(join(tmpdir(), 'kedalion-trash-'));
   dirs.push(dir);
   const file = join(dir, 'ção.txt');
   const folder = join(dir, 'folder');

@@ -30,7 +30,7 @@ function insertLink(api: RichApi, label: string, href: string): void {
   api.view.focus();
 }
 
-const navKey = new PluginKey('deckbuilder.richNav');
+const navKey = new PluginKey('kedalion.richNav');
 
 /** Ctrl+click on a link follows it; every document change tells the outline. */
 const navPlugin = $prose(() => new Plugin({
@@ -60,7 +60,7 @@ const linkEnter: Command = (state, _dispatch, view) => {
   return !!href && !!api && followLink(api, href);
 };
 
-const linkEnterKeymap = $useKeymap('deckbuilderLinkEnter', {
+const linkEnterKeymap = $useKeymap('kedalionLinkEnter', {
   LinkEnter: { shortcuts: 'Enter', priority: 200, command: () => linkEnter },
 });
 

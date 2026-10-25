@@ -2,19 +2,19 @@ import { expect, test } from 'bun:test';
 import { isSafePath, parseAppLink } from './link.ts';
 
 test('parseAppLink returns the path of an open link', () => {
-  expect(parseAppLink('deckbuilder://open/settings', 'deckbuilder')).toBe('settings');
-  expect(parseAppLink('deckbuilder://open/settings/', 'deckbuilder')).toBe('settings');
-  expect(parseAppLink('deckbuilder://open/a/b-c_d.e', 'deckbuilder')).toBe('a/b-c_d.e');
-  expect(parseAppLink('deckbuilder://open', 'deckbuilder')).toBe('');
+  expect(parseAppLink('kedalion://open/settings', 'kedalion')).toBe('settings');
+  expect(parseAppLink('kedalion://open/settings/', 'kedalion')).toBe('settings');
+  expect(parseAppLink('kedalion://open/a/b-c_d.e', 'kedalion')).toBe('a/b-c_d.e');
+  expect(parseAppLink('kedalion://open', 'kedalion')).toBe('');
 });
 
 test('parseAppLink rejects other schemes, other actions and unsafe paths', () => {
-  expect(parseAppLink('other://open/settings', 'deckbuilder')).toBeNull();
-  expect(parseAppLink('deckbuilder://openx/settings', 'deckbuilder')).toBeNull();
-  expect(parseAppLink('deckbuilder://close/settings', 'deckbuilder')).toBeNull();
-  expect(parseAppLink('deckbuilder://open/../secret', 'deckbuilder')).toBeNull();
-  expect(parseAppLink('deckbuilder://open/<script>', 'deckbuilder')).toBeNull();
-  expect(parseAppLink('deckbuilder://open/a?x=1', 'deckbuilder')).toBeNull();
+  expect(parseAppLink('other://open/settings', 'kedalion')).toBeNull();
+  expect(parseAppLink('kedalion://openx/settings', 'kedalion')).toBeNull();
+  expect(parseAppLink('kedalion://close/settings', 'kedalion')).toBeNull();
+  expect(parseAppLink('kedalion://open/../secret', 'kedalion')).toBeNull();
+  expect(parseAppLink('kedalion://open/<script>', 'kedalion')).toBeNull();
+  expect(parseAppLink('kedalion://open/a?x=1', 'kedalion')).toBeNull();
 });
 
 test('isSafePath', () => {

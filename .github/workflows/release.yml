@@ -37,10 +37,10 @@ jobs:
           fi
       - run: bun run typecheck
       - run: bun run --cwd app build --target all
-      - run: bun run --cwd app deckbuilder manifest
+      - run: bun run --cwd app kedalion manifest
         env:
-          # PEM private key from `deckbuilder keygen`; the manifest step fails without it.
-          DECKBUILDER_SIGNING_KEY: ${{ secrets.DECKBUILDER_SIGNING_KEY }}
+          # PEM private key from `kedalion keygen`; the manifest step fails without it.
+          KEDALION_SIGNING_KEY: ${{ secrets.KEDALION_SIGNING_KEY }}
       - name: Upload to a release
         run: gh release create "$TAG" --title "$TAG" app/release/*
         env:

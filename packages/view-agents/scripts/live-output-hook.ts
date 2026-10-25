@@ -3,7 +3,7 @@
  * `<agentsDir>/live/<sessionId>.log` (truncated at the start of each run, exit code kept). The Agents view's Output
  * panel tails that file to show the output while the command runs. Background commands are left alone.
  *
- * Usage (hook command): `bun live-output-hook.ts [agentsDir]`; agentsDir defaults to `~/.deckbuilder/agents`.
+ * Usage (hook command): `bun live-output-hook.ts [agentsDir]`; agentsDir defaults to `~/.kedalion/agents`.
  * Any failure exits 0 without output, so the hook can never block a command.
  */
 import { mkdirSync } from 'node:fs';
@@ -38,7 +38,7 @@ export function hookOutput(input: HookInput, agentsDir: string): object | undefi
 
 if (import.meta.main) {
   try {
-    const agentsDir = process.argv[2] || join(homedir(), '.deckbuilder', 'agents');
+    const agentsDir = process.argv[2] || join(homedir(), '.kedalion', 'agents');
     const out = hookOutput(JSON.parse(await Bun.stdin.text()) as HookInput, agentsDir);
     if (out) process.stdout.write(JSON.stringify(out));
   } catch {

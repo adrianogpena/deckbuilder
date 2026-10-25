@@ -19,7 +19,7 @@ import { firstChildId, isInside, locate, nextId, parentId, prevId, subtreeIds, v
 import { Button } from './Button';
 import { Icon, Spinner, type Tone } from './ui';
 
-export const TREE_DRAG_TYPE = 'application/x-deckbuilder-tree';
+export const TREE_DRAG_TYPE = 'application/x-kedalion-tree';
 const TYPEAHEAD_MS = 700;
 const INDENT = 14;
 const HOVER_EXPAND_MS = 500;

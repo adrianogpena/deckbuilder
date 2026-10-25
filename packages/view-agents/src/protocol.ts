@@ -408,7 +408,7 @@ export interface AgentUsage {
 export interface AgentStatuslineStatus {
   account: string;
   label: string;
-  /** The account's `settings.json` statusLine is the DeckBuilder one. */
+  /** The account's `settings.json` statusLine is the Kedalion one. */
   installed: boolean;
   /** Command of the statusLine that is chained (kept for uninstall); absent when there was none. */
   previous?: string;

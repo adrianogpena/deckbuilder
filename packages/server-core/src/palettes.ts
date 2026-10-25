@@ -48,10 +48,10 @@ export interface Palette {
   tokens: Record<Token, string>;
 }
 
-export const DEFAULT_DARK = 'deckbuilder-dark';
-export const DEFAULT_LIGHT = 'deckbuilder-light';
+export const DEFAULT_DARK = 'kedalion-dark';
+export const DEFAULT_LIGHT = 'kedalion-light';
 
-const DECKBUILDER_DARK: Record<Token, string> = {
+const KEDALION_DARK: Record<Token, string> = {
   '--bg': '#0d0e11',
   '--bg-elev': '#121317',
   '--bg-sunken': '#0a0b0d',
@@ -93,7 +93,7 @@ const DECKBUILDER_DARK: Record<Token, string> = {
   '--backdrop': 'rgba(3, 7, 12, 0.55)',
 };
 
-const DECKBUILDER_LIGHT: Record<Token, string> = {
+const KEDALION_LIGHT: Record<Token, string> = {
   '--bg': '#f4f6f9',
   '--bg-elev': '#ffffff',
   '--bg-sunken': '#eef1f5',
@@ -154,7 +154,7 @@ const BLACK: Rgb = [0, 0, 0];
 /** Tokens of a session-deck palette, derived from its role colours. */
 function fromRoles(kind: ThemeKind, roles: Roles): Record<Token, string> {
   const [bg, surface, border, text, textDim, accent, purple, cyan, green, yellow, orange, red] = roles.map(rgb);
-  const base = kind === 'dark' ? DECKBUILDER_DARK : DECKBUILDER_LIGHT;
+  const base = kind === 'dark' ? KEDALION_DARK : KEDALION_LIGHT;
   return {
     '--bg': hex(bg),
     '--bg-elev': mix(bg, surface, 0.5),
@@ -233,8 +233,8 @@ const atlas = (id: string, label: string, kind: ThemeKind, roles: Roles, exact: 
 });
 
 export const PALETTES: readonly Palette[] = [
-  { id: DEFAULT_DARK, label: 'DeckBuilder Dark', family: 'deckbuilder', kind: 'dark', tokens: DECKBUILDER_DARK },
-  { id: DEFAULT_LIGHT, label: 'DeckBuilder Light', family: 'deckbuilder', kind: 'light', tokens: DECKBUILDER_LIGHT },
+  { id: DEFAULT_DARK, label: 'Kedalion Dark', family: 'kedalion', kind: 'dark', tokens: KEDALION_DARK },
+  { id: DEFAULT_LIGHT, label: 'Kedalion Light', family: 'kedalion', kind: 'light', tokens: KEDALION_LIGHT },
   // Ported from session-deck (crates/sdeck/src/theme.rs).
   deck('tokyo-night', 'Tokyo Night', 'tokyo-night', 'dark', [
     0x1a1b26, 0x24283b, 0x414868, 0xc0caf5, 0x787fa0, 0x7aa2f7, 0xbb9af7, 0x7dcfff, 0x9ece6a, 0xe0af68, 0xff9e64, 0xf7768e]),

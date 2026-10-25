@@ -5,7 +5,7 @@
 export type UiValue = Record<string, unknown>;
 
 /** Fired on `window` after the saved state was fetched and applied. */
-export const UI_STATE_EVENT = 'deckbuilder-agents-ui-state';
+export const UI_STATE_EVENT = 'kedalion-agents-ui-state';
 
 const cache = new Map<string, UiValue>();
 /** Keys set locally before the load finished: the loaded value must not overwrite them. */

@@ -4,7 +4,7 @@ import { t } from './i18n';
 
 export { type ApiError, errorMessage, errorOf, type QueryParams, qs, RequestError } from './api-core';
 
-const TOKEN_KEY = 'deckbuilder.token';
+const TOKEN_KEY = 'kedalion.token';
 
 const offline = () => new RequestError({ kind: 'offline', code: 'offline', message: t('error.offline') });
 
@@ -48,7 +48,7 @@ export const session: Promise<string> = openSession(takeCode());
 session.catch(() => {});
 
 /** True inside the app's native window (set by the shell's init script), false in a browser. */
-export const isDesktop = typeof window !== 'undefined' && (window as { __DECKBUILDER_SHELL__?: string }).__DECKBUILDER_SHELL__ === 'window';
+export const isDesktop = typeof window !== 'undefined' && (window as { __KEDALION_SHELL__?: string }).__KEDALION_SHELL__ === 'window';
 
 /**
  * Calls the app server with the session token; throws RequestError with the server's ApiError.

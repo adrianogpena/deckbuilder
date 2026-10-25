@@ -1,7 +1,7 @@
 // Shared by the server and the web UI; keep this file free of runtime imports.
 
 /** Header the web UI sends with the session token. */
-export const TOKEN_HEADER = 'x-deckbuilder-token';
+export const TOKEN_HEADER = 'x-kedalion-token';
 
 /** URL parameter with a one-time launch code; the UI trades it for the session token at SESSION_PATH. */
 export const CODE_PARAM = 'c';

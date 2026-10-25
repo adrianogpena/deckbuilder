@@ -27,7 +27,7 @@ function signingKey(app: AppDir, unsigned: boolean): string | null {
     return null;
   }
   const key = loadSigningKey(app.id);
-  if (!key) throw new Error('No signing key: run `deckbuilder keygen` (or pass --unsigned).');
+  if (!key) throw new Error('No signing key: run `kedalion keygen` (or pass --unsigned).');
   return key;
 }
 
@@ -130,7 +130,7 @@ export async function buildManifest(app: AppDir, exes: string[], notes: string):
 }
 
 /**
- * `deckbuilder manifest`: writes release/latest.json for the exes of the current version, with
+ * `kedalion manifest`: writes release/latest.json for the exes of the current version, with
  * notes since the previous release tag (what the release workflow uploads next to the exes).
  */
 export async function writeManifest(app: AppDir, unsigned: boolean): Promise<void> {

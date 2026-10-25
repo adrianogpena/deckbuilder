@@ -8,7 +8,7 @@ export interface WindowOptions {
   debug?: boolean;
   /** JSON file where the window's position, size and maximized state are kept between runs. */
   stateFile?: string;
-  /** View id of a pop-out window: the page reads it from `__DECKBUILDER_POPOUT__`; closing it leaves the process running. */
+  /** View id of a pop-out window: the page reads it from `__KEDALION_POPOUT__`; closing it leaves the process running. */
   popout?: string;
 }
 
@@ -50,7 +50,7 @@ export function openWindow(url: string, opts: WindowOptions, onAllClosed: () => 
   let hwnd = 0;
   const closedCbs: Array<() => void> = [];
   let closed = false;
-  // In the exe this resolves next to the bundled entry, where `deckbuilder build` puts the worker entrypoint.
+  // In the exe this resolves next to the bundled entry, where `kedalion build` puts the worker entrypoint.
   const worker = new Worker(new URL('./window-worker.ts', import.meta.url).href);
   const request: WindowRequest = {
     url,

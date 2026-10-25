@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { buildManifest, releaseNotes } from './release.ts';
 
-const dir = mkdtempSync(join(tmpdir(), 'deckbuilder-release-'));
+const dir = mkdtempSync(join(tmpdir(), 'kedalion-release-'));
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
 const app = { dir, name: 'My Tool', id: 'mytool', version: '1.2.0' };

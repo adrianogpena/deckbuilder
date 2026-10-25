@@ -14,7 +14,7 @@ export interface NotificationsOptions {
   viewIcons?: (viewId: string) => string | undefined;
   /** Badge colour of the icons, `#rrggbb`. */
   color?: string;
-  /** Where rendered icons are cached; default `~/.deckbuilder/toast-icons`. */
+  /** Where rendered icons are cached; default `~/.kedalion/toast-icons`. */
   iconDir?: string;
   /** Receives every toast instead of the Windows toaster (tests). */
   sink?: (toast: Toast) => void;
@@ -44,7 +44,7 @@ export interface Notifications {
 /** The app's one notifier: owns the single toaster, resolves click links and the per-view icon PNG. */
 export function createNotifications(opts: NotificationsOptions): Notifications {
   const toaster = opts.sink || opts.toaster ? opts.toaster : createToaster();
-  const dir = opts.iconDir ?? join(homedir(), '.deckbuilder', 'toast-icons');
+  const dir = opts.iconDir ?? join(homedir(), '.kedalion', 'toast-icons');
   const send = opts.sink ?? ((toast: Toast) => toaster?.show(toast));
   return {
     for(view) {

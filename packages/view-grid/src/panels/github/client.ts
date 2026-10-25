@@ -9,7 +9,7 @@ export function graphqlUrl(baseUrl: string): string {
 const headers = (conn: ResolvedConnection): Record<string, string> => ({
   Authorization: authHeader(conn, 'github'),
   Accept: 'application/json',
-  'User-Agent': 'deckbuilder',
+  'User-Agent': 'kedalion',
 });
 
 /** One GraphQL call; an `errors` array becomes an `upstream` error with the first message. */

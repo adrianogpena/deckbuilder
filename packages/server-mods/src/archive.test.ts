@@ -42,7 +42,7 @@ test('parseListing reads 7z -slt blocks, with progress text before the first Pat
 });
 
 test('listArchive lists a gzip file and refuses a file that is no archive', async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'deckbuilder-arc-'));
+  const dir = await mkdtemp(join(tmpdir(), 'kedalion-arc-'));
   dirs.push(dir);
   await writeFile(join(dir, 'note.txt.gz'), Bun.gzipSync('hello'));
   await writeFile(join(dir, 'plain.zip'), 'not an archive');

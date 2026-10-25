@@ -1,4 +1,4 @@
-# DeckBuilder shell integration for PowerShell and pwsh, run after the user's profile.
+# Kedalion shell integration for PowerShell and pwsh, run after the user's profile.
 # Wraps the existing prompt with OSC 133 marks and OSC 7; PSReadLine's ReadLine gets the C mark.
 if (-not $global:__dbSi) {
   $global:__dbSi = $true

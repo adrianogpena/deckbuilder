@@ -5,8 +5,8 @@ import type { AppIdentity } from '@kedalion/server-core/protocol';
  * When starting a new app from this one, change these first (see README "New app").
  */
 export const APP: AppIdentity = {
-  name: 'DeckBuilder',
-  id: 'deckbuilder',
+  name: 'Kedalion',
+  id: 'kedalion',
 };
 
 /**

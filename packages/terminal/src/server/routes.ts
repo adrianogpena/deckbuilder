@@ -67,7 +67,7 @@ export function terminalRoutes(opts: TerminalRoutesOptions): { routes: Routes; s
     }
   });
   const abs = lookup.platform === 'win32' ? win32.isAbsolute : posix.isAbsolute;
-  const integrationDir = opts.integrationDir ?? join(tmpdir(), 'deckbuilder-shell-integration');
+  const integrationDir = opts.integrationDir ?? join(tmpdir(), 'kedalion-shell-integration');
 
   async function pickShell(): Promise<{ id: ShellId; argv: string[] }> {
     const configured = await opts.shell();

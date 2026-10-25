@@ -3,10 +3,10 @@ import type { AppError } from '@kedalion/server-core';
 import { parseOracleUrl } from './oracle-url.ts';
 import { dbSessions } from './sessions.ts';
 
-const LIVE = process.env.DECKBUILDER_DB_LIVE === '1';
-const USER = process.env.DECKBUILDER_DB_USER;
-const PASSWORD = process.env.DECKBUILDER_DB_PASSWORD;
-const { connectString } = parseOracleUrl(process.env.DECKBUILDER_DB_URL ?? 'oracle:thin:@milesora4next4:1521/MILESNEXT');
+const LIVE = process.env.KEDALION_DB_LIVE === '1';
+const USER = process.env.KEDALION_DB_USER;
+const PASSWORD = process.env.KEDALION_DB_PASSWORD;
+const { connectString } = parseOracleUrl(process.env.KEDALION_DB_URL ?? 'oracle:thin:@milesora4next4:1521/MILESNEXT');
 
 const sessions = dbSessions();
 afterAll(() => sessions.closeAll());
@@ -14,7 +14,7 @@ afterAll(() => sessions.closeAll());
 test.skipIf(!LIVE)('a fake login is refused', async () => {
   const password = 'not-the-password-42';
   try {
-    await sessions.open('fake', { connectString, user: 'deckbuilder_nobody', password });
+    await sessions.open('fake', { connectString, user: 'kedalion_nobody', password });
     throw new Error('connected');
   } catch (err) {
     const e = err as AppError;

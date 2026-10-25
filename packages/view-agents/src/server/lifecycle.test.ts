@@ -47,7 +47,7 @@ test('a removed terminal is forgotten and binds again when restarted', () => {
 
 test('cwd check', () => {
   expect(cwdProblem(tmpdir())).toBeUndefined();
-  const gone = join(tmpdir(), 'deckbuilder-no-such-folder-xyz');
+  const gone = join(tmpdir(), 'kedalion-no-such-folder-xyz');
   expect(cwdProblem(gone)).toEqual({ error: 'cwdMissing', cwd: gone });
 });
 

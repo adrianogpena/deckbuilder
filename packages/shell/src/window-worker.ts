@@ -21,8 +21,8 @@ function readPlacement(file: string): WindowPlacement | undefined {
 // the default browser instead of navigating the app window away, and stops Ctrl+wheel and
 // Ctrl +/-/0 from zooming the whole window (the zoom is a setting; the page still gets the events).
 const initScript = (popout?: string): string => `
-window.__DECKBUILDER_SHELL__ = 'window';
-${popout ? `window.__DECKBUILDER_POPOUT__ = ${JSON.stringify(popout)};` : ''}
+window.__KEDALION_SHELL__ = 'window';
+${popout ? `window.__KEDALION_POPOUT__ = ${JSON.stringify(popout)};` : ''}
 (() => {
   addEventListener('wheel', (e) => { if (e.ctrlKey) e.preventDefault(); }, { passive: false, capture: true });
   const zoomKeys = ['Equal', 'Minus', 'Digit0', 'NumpadAdd', 'NumpadSubtract', 'Numpad0'];
@@ -36,14 +36,14 @@ ${popout ? `window.__DECKBUILDER_POPOUT__ = ${JSON.stringify(popout)};` : ''}
     const href = a && (a.getAttribute('href') ?? a.getAttribute('xlink:href'));
     if (href == null || e.defaultPrevented || !external(href)) return;
     e.preventDefault();
-    window.__deckbuilderOpenExternal(new URL(href, location.href).href);
+    window.__kedalionOpenExternal(new URL(href, location.href).href);
   });
-  const saveBounds = () => { if (window.__deckbuilderSaveBounds) window.__deckbuilderSaveBounds(); };
+  const saveBounds = () => { if (window.__kedalionSaveBounds) window.__kedalionSaveBounds(); };
   setInterval(saveBounds, 1000);
   addEventListener('beforeunload', saveBounds);
   const open = window.open;
   window.open = (url, ...rest) => {
-    if (url && external(String(url))) { window.__deckbuilderOpenExternal(String(url)); return null; }
+    if (url && external(String(url))) { window.__kedalionOpenExternal(String(url)); return null; }
     return open.call(window, url, ...rest);
   };
 })();
@@ -70,7 +70,7 @@ self.onmessage = (e: MessageEvent<WindowRequest>) => {
     if (saved) setWindowPlacement(hwnd, saved);
     // The window is gone once run() returns, so the page reports in while it lives: every second and on unload.
     let last = JSON.stringify(saved ?? null);
-    webview.bind('__deckbuilderSaveBounds', () => {
+    webview.bind('__kedalionSaveBounds', () => {
       const now = getWindowPlacement(hwnd);
       const text = JSON.stringify(now ?? null);
       if (!now || text === last) return;
@@ -84,8 +84,8 @@ self.onmessage = (e: MessageEvent<WindowRequest>) => {
     });
   }
   webview.title = title;
-  webview.bind('__deckbuilderOpenExternal', (href: string) => openExternal(href));
-  webview.bind('__deckbuilderSetZoom', (factor: number) => setWebviewZoom(webview.unsafeHandle as Pointer, factor));
+  webview.bind('__kedalionOpenExternal', (href: string) => openExternal(href));
+  webview.bind('__kedalionSetZoom', (factor: number) => setWebviewZoom(webview.unsafeHandle as Pointer, factor));
   webview.init(initScript(popout));
   webview.navigate(url);
   webview.run();

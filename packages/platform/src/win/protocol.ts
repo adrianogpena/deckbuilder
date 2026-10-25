@@ -4,7 +4,7 @@ import { type Runner, runWithTimeout } from '../run.ts';
 const TIMEOUT_MS = 10_000;
 
 export interface UrlProtocolOptions {
-  /** URL scheme, e.g. `deckbuilder` for `deckbuilder://…`. */
+  /** URL scheme, e.g. `kedalion` for `kedalion://…`. */
   scheme: string;
   /** Display name; Windows shows `URL:<name>`. */
   name: string;

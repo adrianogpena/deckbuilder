@@ -19,7 +19,7 @@ const bg = (id: string) => paletteById(id)!.tokens['--bg'];
 test('dark: the palette tokens go after the stylesheet link, data-theme stays dark', () => {
   const out = themeHtml(HTML, { theme: 'dark', paletteDark: 'nord' });
   expect(out).toContain('<html lang="en" data-theme="dark" data-layout="original">');
-  const style = out.indexOf('<style id="deckbuilder-theme">:root[data-theme]{color-scheme:dark;');
+  const style = out.indexOf('<style id="kedalion-theme">:root[data-theme]{color-scheme:dark;');
   expect(style).toBeGreaterThan(out.indexOf('<link rel="stylesheet"'));
   expect(style).toBeLessThan(out.indexOf('</head>'));
   expect(out).toContain(`--bg:${bg('nord')};`);
@@ -52,7 +52,7 @@ afterEach(async () => {
 });
 
 test('themeHead reads the saved settings', async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'deckbuilder-theme-'));
+  const dir = await mkdtemp(join(tmpdir(), 'kedalion-theme-'));
   dirs.push(dir);
   const store = settingsStore<BaseSettings>({ dir, defaults: { theme: 'dark' } });
   await store.save({ theme: 'light', paletteLight: 'catppuccin-latte' });

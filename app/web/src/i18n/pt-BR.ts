@@ -169,7 +169,7 @@ export const ptBR: Messages<typeof en> = {
   'settings.updateFolder.clear': 'Limpar',
   'settings.updateFolder.pick': 'Escolha a pasta de releases',
   'settings.updateFolder.none': 'Não definida',
-  'settings.updateFolder.hint': 'Pasta onde `deckbuilder release --to` publica. Vazio: os releases do GitHub do app, se ele tiver um repositório.',
+  'settings.updateFolder.hint': 'Pasta onde `kedalion release --to` publica. Vazio: os releases do GitHub do app, se ele tiver um repositório.',
   'settings.update.current': 'Versão atual v{version}.',
   'settings.update.available': 'A versão {version} está disponível.',
   'settings.update.latest': 'Atualizado.',

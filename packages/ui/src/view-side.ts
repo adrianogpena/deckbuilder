@@ -17,7 +17,7 @@ export function parseSideWidth(raw: string | null | undefined): number | null {
 }
 
 export function sideWidthKey(scope: string): string {
-  return `deckbuilder.viewSide.${scope}.w`;
+  return `kedalion.viewSide.${scope}.w`;
 }
 
 export function readSideWidth(scope: string): number | null {

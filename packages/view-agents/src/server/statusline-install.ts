@@ -83,7 +83,7 @@ export function createStatuslineInstaller(opts: StatuslineInstallerOptions) {
     try {
       if (existsSync(file)) {
         const stamp = now().toISOString().replace(/[:.]/g, '-');
-        copyFileSync(file, `${file}.deckbuilder-${stamp}.bak`);
+        copyFileSync(file, `${file}.kedalion-${stamp}.bak`);
       }
       const next: Json = { ...settings.json };
       if (value === undefined) delete next.statusLine;

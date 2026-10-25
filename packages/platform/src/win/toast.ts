@@ -171,7 +171,7 @@ if (import.meta.main && process.argv.includes('--selftest')) {
       console.error(msg);
     },
   });
-  toaster.show({ title: 'DeckBuilder self-test', body: 'Toasts work <&> "ção"', launch: 'https://example.com/' });
+  toaster.show({ title: 'Kedalion self-test', body: 'Toasts work <&> "ção"', launch: 'https://example.com/' });
   const code = await toaster.close();
   process.exit(failed || code !== 0 ? 1 : 0);
 }

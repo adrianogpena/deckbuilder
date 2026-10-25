@@ -27,7 +27,7 @@ export function themeHtml(html: string, settings: BaseSettings): string {
     css = block(paletteFor(settings, settings.theme));
     html = html.replace(/(<html\b[^>]*\bdata-theme=)(["'])[^"']*\2/, `$1$2${settings.theme}$2`);
   }
-  return html.replace('</head>', `<style id="deckbuilder-theme">${css}</style>\n</head>`);
+  return html.replace('</head>', `<style id="kedalion-theme">${css}</style>\n</head>`);
 }
 
 /** `RunOptions.transformIndex` that inlines the saved theme into `index.html`; `useTheme` takes over once the UI runs. */

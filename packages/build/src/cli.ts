@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// `deckbuilder <command>`, run from an app folder (app/) through its package.json scripts.
+// `kedalion <command>`, run from an app folder (app/) through its package.json scripts.
 import { parseArgs } from 'node:util';
 import type { VersionBump } from '@kedalion/server-core';
 import { buildExe, buildWeb, parseTargets } from './build.ts';
@@ -40,7 +40,7 @@ async function main(): Promise<void> {
         },
       });
       if (!values.to || !BUMPS.includes(values.bump as VersionBump)) {
-        console.error('Usage: deckbuilder release --to <folder> [--bump patch|minor|major] [--target <list>] [--dry-run] [--no-checks] [--unsigned]');
+        console.error('Usage: kedalion release --to <folder> [--bump patch|minor|major] [--target <list>] [--dry-run] [--no-checks] [--unsigned]');
         process.exit(1);
       }
       await release(app, {
@@ -66,7 +66,7 @@ wrote ${publicKey} (public: commit it; the exe embeds it)`);
       break;
     }
     default:
-      console.log(`Usage: deckbuilder <command>
+      console.log(`Usage: kedalion <command>
 
   dev [server flags]        server (--dev, watch mode) + Vite dev server; e.g. dev --window, dev --app
   build:web                   bundle web/ into dist/web
@@ -82,9 +82,9 @@ wrote ${publicKey} (public: commit it; the exe embeds it)`);
         [--unsigned]          skip latest.json.sig (signed builds then refuse the update)
   manifest [--unsigned]       write release/latest.json and its .sig for the exes of the current
                               version in release/ (what GitHub releases need next to the exes)
-  keygen [--force]            create the update signing key: private ~/.deckbuilder-keys/<id>.pem,
+  keygen [--force]            create the update signing key: private ~/.kedalion-keys/<id>.pem,
                               public update-key.pub in the app folder (commit it); release and
-                              manifest sign with it (or env DECKBUILDER_SIGNING_KEY)`);
+                              manifest sign with it (or env KEDALION_SIGNING_KEY)`);
       process.exit(command ? 1 : 0);
   }
 }

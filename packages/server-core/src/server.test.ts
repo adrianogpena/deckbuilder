@@ -94,7 +94,7 @@ test('a non-loopback Host is refused', async () => {
 });
 
 test('index.html gets the CSP, every static file nosniff', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'deckbuilder-static-'));
+  const dir = mkdtempSync(join(tmpdir(), 'kedalion-static-'));
   try {
     writeFileSync(join(dir, 'index.html'), '<!doctype html>');
     mkdirSync(join(dir, 'assets'));

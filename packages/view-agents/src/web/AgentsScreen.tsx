@@ -30,8 +30,8 @@ import './ui.css';
 import './chrome.css';
 import './islands.css';
 
-const SIDEBAR_KEY = 'deckbuilder.agents.sidebarHidden';
-const ACTIVE_PROJECT_KEY = 'deckbuilder.agents.activeProject';
+const SIDEBAR_KEY = 'kedalion.agents.sidebarHidden';
+const ACTIVE_PROJECT_KEY = 'kedalion.agents.activeProject';
 /** Project workspaces kept mounted (hidden) so switching back is instant; older ones detach and are rebuilt from the saved layout. */
 const MAX_MOUNTED = 4;
 

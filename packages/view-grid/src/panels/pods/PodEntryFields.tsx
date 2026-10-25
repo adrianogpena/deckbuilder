@@ -10,7 +10,7 @@ interface ContextsResult {
   current?: string;
 }
 
-const CACHE_KEY = 'deckbuilder.pods.namespaces';
+const CACHE_KEY = 'kedalion.pods.namespaces';
 
 function readCache(context: string): string[] {
   try {

@@ -30,7 +30,7 @@ test('every palette has every token, colours are valid and ids unique', () => {
   expect(PALETTES.length).toBe(29);
 });
 
-test('deckbuilder-dark is the dark block of styles.css plus the new tokens', () => {
+test('kedalion-dark is the dark block of styles.css plus the new tokens', () => {
   const { '--font-mono': _, ...css } = cssBlock(":root[data-theme='dark'] {");
   const tokens = resolvePalette('dark').tokens as Record<string, string>;
   expect(tokens).toEqual(css);

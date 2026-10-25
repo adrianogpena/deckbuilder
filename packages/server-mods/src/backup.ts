@@ -17,7 +17,7 @@ export interface BackupRoutesOptions {
 
 /** What an export writes. Secret fields are left out. */
 export interface BackupFile {
-  format: 'deckbuilder-backup';
+  format: 'kedalion-backup';
   version: 1;
   app: string;
   appVersion: string;
@@ -65,7 +65,7 @@ export function backupRoutes(opts: BackupRoutesOptions): Routes {
     } catch {
       throw badBackup();
     }
-    if (!isRecord(file) || file.format !== 'deckbuilder-backup' || file.version !== 1 || typeof file.app !== 'string') throw badBackup();
+    if (!isRecord(file) || file.format !== 'kedalion-backup' || file.version !== 1 || typeof file.app !== 'string') throw badBackup();
     if (file.app !== app.id) throw invalid('backupOtherApp', 'This backup belongs to another app ({app}).', { app: file.app.slice(0, 100) });
     if (file.settings !== undefined && !isRecord(file.settings)) throw badBackup();
     if (file.records !== undefined && !(isRecord(file.records) && Object.values(file.records).every(Array.isArray))) throw badBackup();
@@ -82,7 +82,7 @@ export function backupRoutes(opts: BackupRoutesOptions): Routes {
       if (!chosen.settings && chosen.stores.length === 0) throw invalid('backupEmpty', 'Choose something to export.');
       const path = (body as Record<string, unknown>).target;
       if (typeof path !== 'string' || !picks.saveTargets.take(path)) throw notASaveTarget();
-      const file: BackupFile = { format: 'deckbuilder-backup', version: 1, app: app.id, appVersion: app.version, exportedAt: new Date().toISOString() };
+      const file: BackupFile = { format: 'kedalion-backup', version: 1, app: app.id, appVersion: app.version, exportedAt: new Date().toISOString() };
       if (chosen.settings) file.settings = withoutExcluded(await settings.load());
       const counts: Record<string, number> = {};
       if (chosen.stores.length) {

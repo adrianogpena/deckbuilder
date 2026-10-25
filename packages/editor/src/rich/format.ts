@@ -164,13 +164,13 @@ const listEnter: Command = (state, dispatch) => {
   return splitListItem(item, splitItemAttrs(li.attrs))(state, dispatch);
 };
 
-const listEnterKeymap = $useKeymap('deckbuilderListEnter', {
+const listEnterKeymap = $useKeymap('kedalionListEnter', {
   ListEnter: { shortcuts: 'Enter', priority: 100, command: () => listEnter },
 });
 
 /** Clicking a task's checkbox (the item's left padding) toggles it. */
 const taskClick = $prose(() => new Plugin({
-  key: new PluginKey('deckbuilder.taskClick'),
+  key: new PluginKey('kedalion.taskClick'),
   props: {
     handleDOMEvents: {
       mousedown(view, event) {

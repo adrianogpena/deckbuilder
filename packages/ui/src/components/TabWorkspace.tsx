@@ -36,7 +36,7 @@ import { useCommand, useKeybindings, withChord } from './Keybindings';
 import { SplitView } from './SplitView';
 import { Icon, type IconName, type Tone, useDialogs } from './ui';
 
-const DRAG_TYPE = 'application/x-deckbuilder-tab';
+const DRAG_TYPE = 'application/x-kedalion-tab';
 
 export interface TabTitle {
   title: string;

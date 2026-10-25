@@ -14,7 +14,7 @@ afterEach(() => {
 });
 
 function running() {
-  const dir = mkdtempSync(join(tmpdir(), 'deckbuilder-instance-'));
+  const dir = mkdtempSync(join(tmpdir(), 'kedalion-instance-'));
   dirs.push(dir);
   const file = join(dir, 'instance.json');
   const opened: OpenMode[] = [];
@@ -46,7 +46,7 @@ test('the route sends a launch URL only for mode none', async () => {
   const open = (mode: OpenMode) =>
     fetch(`http://127.0.0.1:${server.port}/api/instance/open`, {
       method: 'POST',
-      headers: { 'x-deckbuilder-instance': secret },
+      headers: { 'x-kedalion-instance': secret },
       body: JSON.stringify({ mode }),
     }).then((r) => r.json() as Promise<Record<string, unknown>>);
   expect(await open('window')).toEqual({ ok: true });
@@ -62,14 +62,14 @@ test('the handoff carries the path and the route drops an unsafe one', async () 
   const info = JSON.parse(readFileSync(file, 'utf8')) as { secret: string };
   await fetch(`http://127.0.0.1:${server.port}/api/instance/open`, {
     method: 'POST',
-    headers: { 'x-deckbuilder-instance': info.secret },
+    headers: { 'x-kedalion-instance': info.secret },
     body: JSON.stringify({ mode: 'window', path: '../x<script>' }),
   });
   expect(paths).toEqual(['settings', undefined, undefined]);
 });
 
 test('no file or a stale one means no running instance', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'deckbuilder-instance-'));
+  const dir = mkdtempSync(join(tmpdir(), 'kedalion-instance-'));
   dirs.push(dir);
   const file = join(dir, 'instance.json');
   expect(await handOff(file, 'window')).toBeNull();
@@ -80,14 +80,14 @@ test('no file or a stale one means no running instance', async () => {
 test('the route wants the instance secret, and the API still wants the session token', async () => {
   const { opened, server } = running();
   const base = `http://127.0.0.1:${server.port}`;
-  const open = await fetch(`${base}/api/instance/open`, { method: 'POST', headers: { 'x-deckbuilder-instance': 'wrong' }, body: '{}' });
+  const open = await fetch(`${base}/api/instance/open`, { method: 'POST', headers: { 'x-kedalion-instance': 'wrong' }, body: '{}' });
   expect(open.status).toBe(403);
   expect(opened).toEqual([]);
-  expect((await fetch(`${base}/api/other`, { headers: { 'x-deckbuilder-instance': 'wrong' } })).status).toBe(401);
+  expect((await fetch(`${base}/api/other`, { headers: { 'x-kedalion-instance': 'wrong' } })).status).toBe(401);
 });
 
 function lockFile() {
-  const dir = mkdtempSync(join(tmpdir(), 'deckbuilder-lock-'));
+  const dir = mkdtempSync(join(tmpdir(), 'kedalion-lock-'));
   dirs.push(dir);
   return join(dir, 'instance.lock');
 }

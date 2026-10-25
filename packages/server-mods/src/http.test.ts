@@ -45,7 +45,7 @@ test('echo round trip sends the method, body and custom headers and never the se
   expect(echoed.method).toBe('POST');
   expect(echoed.body).toBe('{"a":1}');
   expect(echoed.headers['x-custom']).toBe('yes');
-  expect(echoed.headers).not.toHaveProperty('x-deckbuilder-token');
+  expect(echoed.headers).not.toHaveProperty('x-kedalion-token');
 });
 
 test('a body above maxBodyBytes is cut and marked truncated', async () => {
@@ -314,7 +314,7 @@ test('suggested file names come from the final URL and content type', () => {
 test('save writes the kept bytes to a picked target, and an evicted id is responseGone', async () => {
   const executor = httpExecutor({ keep: 1 });
   const picks = { saveTargets: pickedPaths() };
-  const path = `${process.env.TEMP ?? '.'}/deckbuilder-http-save-${Date.now()}.json`;
+  const path = `${process.env.TEMP ?? '.'}/kedalion-http-save-${Date.now()}.json`;
   const routes = httpRoutes(executor, { picks });
   const call = (id: string, target?: string) =>
     Promise.resolve(routes['POST /api/http/save']!({ json: async () => ({ id, target }) } as unknown as RouteContext)).catch((e) => e);

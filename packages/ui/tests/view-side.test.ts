@@ -22,5 +22,5 @@ test('parseSideWidth', () => {
 });
 
 test('sideWidthKey', () => {
-  expect(sideWidthKey('dashboard')).toBe('deckbuilder.viewSide.dashboard.w');
+  expect(sideWidthKey('dashboard')).toBe('kedalion.viewSide.dashboard.w');
 });

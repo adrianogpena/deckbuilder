@@ -54,7 +54,7 @@ export function lineDecorations(doc: Node, root: MdNode, lineOffset: number): De
   return out;
 }
 
-const key = new PluginKey<DecorationSet>('deckbuilder.lineNumbers');
+const key = new PluginKey<DecorationSet>('kedalion.lineNumbers');
 
 function compute(view: EditorView): void {
   if (view.isDestroyed) return;

@@ -128,7 +128,7 @@ export async function listArchive(abs: string): Promise<ArchiveListing> {
   const { entries } = listing;
   const only = entries.length === 1 ? entries[0]! : undefined;
   if (only && !only.dir && /\.tar$/i.test(only.path) && only.size <= MAX_NESTED_TAR_BYTES) {
-    const dir = await mkdtemp(join(tmpdir(), 'deckbuilder-arc-'));
+    const dir = await mkdtemp(join(tmpdir(), 'kedalion-arc-'));
     try {
       const { code } = await run(['e', '-y', '-bd', `-o/out`, `/host/${basename(abs)}`], { '/host': dirname(abs), '/out': dir });
       if (code === 0 && (await stat(join(dir, basename(only.path))).catch(() => null))) listing = await list(join(dir, basename(only.path)));
@@ -144,7 +144,7 @@ export async function listArchive(abs: string): Promise<ArchiveListing> {
  * 7z in a Worker; the server keeps answering meanwhile.
  */
 function runInWorker(job: SevenZipJob): Promise<SevenZipResult> {
-  // In the exe this resolves next to the bundled entry, where `deckbuilder build` must put the worker entrypoint.
+  // In the exe this resolves next to the bundled entry, where `kedalion build` must put the worker entrypoint.
   const worker = new Worker(new URL('./archive-worker.ts', import.meta.url).href);
   return new Promise<SevenZipResult>((resolve, reject) => {
     worker.addEventListener('message', (e: MessageEvent<SevenZipResult | { error: string }>) => {
@@ -157,7 +157,7 @@ function runInWorker(job: SevenZipJob): Promise<SevenZipResult> {
 }
 
 // 7z asks for a password on stdin when it needs one; a dummy one makes it fail instead.
-const NO_PASSWORD = '-pdeckbuilder-no-password';
+const NO_PASSWORD = '-pkedalion-no-password';
 const encrypted = () => invalid('archiveEncrypted', 'The archive is encrypted; password-protected archives are not supported.');
 const wrongPassword = (lines: string[]) => lines.some((l) => /wrong password|encrypted|can ?not open encrypted/i.test(l));
 
@@ -197,7 +197,7 @@ export async function extractArchive(abs: string, to: string): Promise<void> {
   const entries = await checkedList(abs);
   const only = entries.length === 1 ? entries[0]! : undefined;
   if (only && !only.dir && /\.tar$/i.test(only.path)) {
-    const dir = await mkdtemp(join(tmpdir(), 'deckbuilder-arc-'));
+    const dir = await mkdtemp(join(tmpdir(), 'kedalion-arc-'));
     try {
       await extract(abs, dir, 'e');
       const tar = join(dir, basename(only.path));

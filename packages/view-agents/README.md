@@ -1,6 +1,6 @@
 # @kedalion/view-agents
 
-Agents view for DeckBuilder.
+Agents view for Kedalion.
 
 - `src/view.tsx`: web entry (`agentsView`, built with `defineView`).
 - `src/server.ts`: server entry (`agentsServerView`, built with `defineServerView`).

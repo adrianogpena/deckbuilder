@@ -167,7 +167,7 @@ export const en = {
   'settings.updateFolder.clear': 'Clear',
   'settings.updateFolder.pick': 'Choose the release folder',
   'settings.updateFolder.none': 'Not set',
-  'settings.updateFolder.hint': 'Folder that `deckbuilder release --to` publishes to. Empty: the GitHub releases of the app, if it has a repo.',
+  'settings.updateFolder.hint': 'Folder that `kedalion release --to` publishes to. Empty: the GitHub releases of the app, if it has a repo.',
   'settings.update.current': 'Running v{version}.',
   'settings.update.available': 'Version {version} is available.',
   'settings.update.latest': 'Up to date.',

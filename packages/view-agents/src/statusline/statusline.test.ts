@@ -64,7 +64,7 @@ test('session ids cannot escape the usage folder', () => {
 });
 
 test('launcher runs the script with the given runtime', () => {
-  expect(statuslineWrapper('C:\\app\\deckbuilder.exe', 'win32')).toBe('@echo off\r\nset BUN_BE_BUN=1\r\n"C:\\app\\deckbuilder.exe" "%~dp0statusline.mjs" %*\r\n');
+  expect(statuslineWrapper('C:\\app\\kedalion.exe', 'win32')).toBe('@echo off\r\nset BUN_BE_BUN=1\r\n"C:\\app\\kedalion.exe" "%~dp0statusline.mjs" %*\r\n');
   expect(statuslineWrapper('/opt/db', 'linux')).toContain('BUN_BE_BUN=1 exec "/opt/db"');
 });
 

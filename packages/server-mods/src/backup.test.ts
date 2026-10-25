@@ -28,7 +28,7 @@ function validate(input: unknown): Item {
 }
 
 async function setup() {
-  const dir = await mkdtemp(join(tmpdir(), 'deckbuilder-backup-'));
+  const dir = await mkdtemp(join(tmpdir(), 'kedalion-backup-'));
   dirs.push(dir);
   const settings = settingsStore<Settings>({
     dir,
@@ -65,7 +65,7 @@ test('export, inspect and import restore a deleted record and a changed setting'
   expect(await call('GET /api/backup/parts')).toEqual({ stores: ['projects'] });
   expect(await call('POST /api/backup/export', { settings: true, stores: ['projects'] })).toEqual({ path: target.path, counts: { projects: 1 } });
   const written = JSON.parse(await readFile(target.path!, 'utf8'));
-  expect(written).toMatchObject({ format: 'deckbuilder-backup', version: 1, app: 'testapp', appVersion: '1.2.3', settings: { theme: 'dark' } });
+  expect(written).toMatchObject({ format: 'kedalion-backup', version: 1, app: 'testapp', appVersion: '1.2.3', settings: { theme: 'dark' } });
   expect(written.settings).not.toHaveProperty('autostart');
 
   await settings.save({ theme: 'light', autostart: false });
@@ -94,15 +94,15 @@ test('paths that were not picked are forbidden', async () => {
 
 test('a backup of another app, a broken file and a reused token are refused', async () => {
   const { target, call, fail } = await setup();
-  await writeFile(target.path!, JSON.stringify({ format: 'deckbuilder-backup', version: 1, app: 'other' }));
+  await writeFile(target.path!, JSON.stringify({ format: 'kedalion-backup', version: 1, app: 'other' }));
   expect(await fail('POST /api/backup/inspect')).toMatchObject({ code: 'backupOtherApp', opts: { params: { app: 'other' } } });
   await writeFile(target.path!, '{ nope');
   expect(await fail('POST /api/backup/inspect')).toMatchObject({ code: 'badBackup' });
   expect(await readFile(target.path!, 'utf8')).toBe('{ nope');
-  await writeFile(target.path!, JSON.stringify({ format: 'deckbuilder-backup', version: 1, app: 'testapp', records: { projects: {} } }));
+  await writeFile(target.path!, JSON.stringify({ format: 'kedalion-backup', version: 1, app: 'testapp', records: { projects: {} } }));
   expect(await fail('POST /api/backup/inspect')).toMatchObject({ code: 'badBackup' });
 
-  await writeFile(target.path!, JSON.stringify({ format: 'deckbuilder-backup', version: 1, app: 'testapp', settings: { theme: 'dark' } }));
+  await writeFile(target.path!, JSON.stringify({ format: 'kedalion-backup', version: 1, app: 'testapp', settings: { theme: 'dark' } }));
   const { token } = (await call('POST /api/backup/inspect')) as { token: string };
   const body = { token, settings: true, stores: [], mode: 'merge' };
   expect(await fail('POST /api/backup/import', { ...body, mode: 'other' })).toMatchObject({ code: 'badRequest' });
@@ -115,7 +115,7 @@ test('an unknown store in the file is listed as unknown and not imported', async
   await projects.create({ title: 'keep' });
   await writeFile(
     target.path!,
-    JSON.stringify({ format: 'deckbuilder-backup', version: 1, app: 'testapp', records: { other: [{ id: 'x', title: 'x' }] } }),
+    JSON.stringify({ format: 'kedalion-backup', version: 1, app: 'testapp', records: { other: [{ id: 'x', title: 'x' }] } }),
   );
   const info = (await call('POST /api/backup/inspect')) as { token: string };
   expect(info).toMatchObject({ settings: false, stores: [{ name: 'other', count: 1, known: false }] });

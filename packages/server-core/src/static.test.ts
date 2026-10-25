@@ -9,7 +9,7 @@ let serve: ReturnType<typeof staticHandler>;
 let secret: string;
 
 beforeAll(() => {
-  base = mkdtempSync(join(tmpdir(), 'deckbuilder-static-'));
+  base = mkdtempSync(join(tmpdir(), 'kedalion-static-'));
   secret = join(base, 'secret.txt');
   writeFileSync(secret, 'SECRET');
   const web = join(base, 'web');

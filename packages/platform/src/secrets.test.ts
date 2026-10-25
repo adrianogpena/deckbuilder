@@ -10,9 +10,9 @@ afterEach(async () => {
 });
 
 async function setup() {
-  const dir = await mkdtemp(join(tmpdir(), 'deckbuilder-secrets-'));
+  const dir = await mkdtemp(join(tmpdir(), 'kedalion-secrets-'));
   dirs.push(dir);
-  return { dir, store: secretStore('deckbuilder-test', dir) };
+  return { dir, store: secretStore('kedalion-test', dir) };
 }
 
 test.skipIf(process.platform !== 'win32')('set, get and remove roundtrip without storing the plain value', async () => {
@@ -26,7 +26,7 @@ test.skipIf(process.platform !== 'win32')('set, get and remove roundtrip without
   expect(saved).not.toContain('hunter2-plain');
   expect(JSON.parse(saved).items['db:1:password']).toBeString();
 
-  expect(await secretStore('deckbuilder-test', dir).get('db:1:password')).toBe('hunter2-plain');
+  expect(await secretStore('kedalion-test', dir).get('db:1:password')).toBe('hunter2-plain');
 
   await store.remove('db:1:password');
   expect(await store.get('db:1:password')).toBeNull();

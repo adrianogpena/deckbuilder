@@ -1,6 +1,6 @@
-// Claude Code statusLine command installed by DeckBuilder (one per account, argv[2] = account id).
+// Claude Code statusLine command installed by Kedalion (one per account, argv[2] = account id).
 // Stores the usage JSON Claude Code sends on stdin, then chains the account's previous statusLine command.
-// Plain ESM with node builtins only: DeckBuilder writes this file to `<dataDir>/agents/statusline.mjs` and runs it with bun.
+// Plain ESM with node builtins only: Kedalion writes this file to `<dataDir>/agents/statusline.mjs` and runs it with bun.
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';

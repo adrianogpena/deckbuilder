@@ -201,7 +201,7 @@ export function SnippetsPanel({ config, data, refresh }: Props) {
 }
 
 const PRESETS = [5, 15, 25, 50];
-const STORE = 'deckbuilder.focus-timer';
+const STORE = 'kedalion.focus-timer';
 
 interface TimerState {
   total: number;

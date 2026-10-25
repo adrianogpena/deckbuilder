@@ -83,8 +83,8 @@ async function run(argv: string[]): Promise<void> {
 if (import.meta.main && process.argv.includes('--selftest')) {
   const { tmpdir } = await import('node:os');
   const { join } = await import('node:path');
-  const file = join(tmpdir(), `deckbuilder-trash-selftest-${Date.now()}.txt`);
-  await Bun.write(file, 'DeckBuilder trash self-test\n');
+  const file = join(tmpdir(), `kedalion-trash-selftest-${Date.now()}.txt`);
+  await Bun.write(file, 'Kedalion trash self-test\n');
   await moveToTrash([file]);
   console.log(`moved to the recycle bin: ${file} (exists now: ${await Bun.file(file).exists()})`);
 }

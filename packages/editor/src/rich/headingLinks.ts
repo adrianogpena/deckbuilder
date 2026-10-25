@@ -56,7 +56,7 @@ function linkButton(view: EditorView, slug: string): HTMLElement {
 }
 
 const cache = new WeakMap<Node, DecorationSet>();
-const key = new PluginKey('deckbuilder.headingLinks');
+const key = new PluginKey('kedalion.headingLinks');
 
 /** A link button widget at the start of every heading; the pane's `md-heading-links` class shows or hides them. */
 const headingLinksPlugin = $prose(() => new Plugin({

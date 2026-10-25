@@ -1,6 +1,6 @@
 // `bun scripts/screenshot.ts --out <png>`: screenshot of the gallery UI in headless Edge/Chrome,
 // driven over the DevTools protocol. Runs its own --dev server on port 7799 with a temp home, so
-// the user's ~/.deckbuilder stays untouched. Flags: see USAGE.
+// the user's ~/.kedalion stays untouched. Flags: see USAGE.
 import { existsSync } from 'node:fs';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -137,7 +137,7 @@ async function devtools(wsUrl: string) {
   };
 }
 
-const temp = await mkdtemp(join(tmpdir(), 'deckbuilder-shot-'));
+const temp = await mkdtemp(join(tmpdir(), 'kedalion-shot-'));
 let server: Bun.Subprocess | undefined;
 let browserProc: Bun.Subprocess | undefined;
 let cdp: Awaited<ReturnType<typeof devtools>> | undefined;
@@ -149,7 +149,7 @@ try {
   }
 
   const home = join(temp, 'home');
-  await mkdir(join(home, '.deckbuilder'), { recursive: true });
+  await mkdir(join(home, '.kedalion'), { recursive: true });
   if (usesRepo) {
     const repo = join(home, 'demo-repo');
     await mkdir(repo, { recursive: true });
@@ -167,9 +167,9 @@ try {
     settings = JSON.parse(sub(args.settings, repo));
     seed = JSON.parse(sub(args.seed, repo)) as Record<string, unknown>;
   }
-  await writeFile(join(home, '.deckbuilder', 'settings.json'), JSON.stringify(settings, null, 2));
+  await writeFile(join(home, '.kedalion', 'settings.json'), JSON.stringify(settings, null, 2));
   for (const [name, value] of Object.entries(seed)) {
-    await writeFile(join(home, '.deckbuilder', name), JSON.stringify(value, null, 2));
+    await writeFile(join(home, '.kedalion', name), JSON.stringify(value, null, 2));
   }
   const proc = Bun.spawn(['bun', 'app/server/main.ts', '--dev', '--port', String(PORT)], {
     cwd: ROOT,

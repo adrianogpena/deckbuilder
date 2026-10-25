@@ -1,4 +1,4 @@
-// Release manifest and version helpers, shared by the updater and `deckbuilder release`.
+// Release manifest and version helpers, shared by the updater and `kedalion release`.
 import { createPublicKey, verify } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 
@@ -42,7 +42,7 @@ export interface ReleaseFile {
   sha256: string;
 }
 
-/** `latest.json` in a release folder, written by `deckbuilder release`. */
+/** `latest.json` in a release folder, written by `kedalion release`. */
 export interface ReleaseManifest {
   version: string;
   /** One commit summary per line, `- ` prefixed. */

@@ -62,8 +62,8 @@ export async function checkHookSettings(patch: Record<string, unknown>, _prev: R
     if (!command) continue;
     if (await deps.approvals.isApproved(command)) continue;
     const ok = await deps.confirm({
-      title: 'DeckBuilder: allow hook command?',
-      message: `Allow DeckBuilder to run this command when an Agents session ${HOOK_WHEN[key]}?
+      title: 'Kedalion: allow hook command?',
+      message: `Allow Kedalion to run this command when an Agents session ${HOOK_WHEN[key]}?
 
 ${command}`,
       ok: 'Allow',
@@ -133,7 +133,7 @@ export function createHooks(opts: HooksOptions, transitions: Transitions) {
           }
           continue;
         }
-        const env = { DECKBUILDER_SESSION_ID: s.id, DECKBUILDER_STATUS: s.status, DECKBUILDER_LABEL: s.name || s.title || s.firstPrompt || s.id, DECKBUILDER_PROJECT: s.project ?? '', DECKBUILDER_CWD: s.cwd };
+        const env = { KEDALION_SESSION_ID: s.id, KEDALION_STATUS: s.status, KEDALION_LABEL: s.name || s.title || s.firstPrompt || s.id, KEDALION_PROJECT: s.project ?? '', KEDALION_CWD: s.cwd };
         void run(command, { cwd: s.cwd, env }).catch((e: unknown) => opts.flash(`Hook failed to start: ${e instanceof Error ? e.message : String(e)}`));
       }
     },

@@ -10,7 +10,7 @@ afterEach(async () => {
 });
 
 async function store(file?: object) {
-  const dir = await mkdtemp(join(tmpdir(), 'deckbuilder-settings-'));
+  const dir = await mkdtemp(join(tmpdir(), 'kedalion-settings-'));
   dirs.push(dir);
   if (file) await writeFile(join(dir, 'settings.json'), JSON.stringify(file));
   return { dir, store: settingsStore<BaseSettings>({ dir, defaults: { theme: 'dark' } }) };

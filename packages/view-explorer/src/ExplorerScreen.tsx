@@ -91,7 +91,7 @@ const UNTITLED: Route = { kind: 'untitled', lang: 'text', text: '' };
 const isBlank = (r: Route) => r.kind === 'welcome' || (r.kind === 'untitled' && !r.text && !r.target);
 const MAX_EXPANDED = 2000;
 const MAX_RECENT = 50;
-const RECENT_KEY = 'deckbuilder.recentFiles';
+const RECENT_KEY = 'kedalion.recentFiles';
 
 function loadRecent(): string[] {
   try {

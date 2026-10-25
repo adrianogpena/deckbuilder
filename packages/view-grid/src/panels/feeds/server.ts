@@ -6,7 +6,7 @@ import { feedUrls, mergeFeeds, parseFeed, type Feed, type FeedItem } from './rss
 import { emptyWeather, forecastParams, mapForecast, placeName, type WeatherData, type WeatherUnits } from './weather';
 
 const MAX_FEED_BYTES = 5_000_000;
-const headers = { 'user-agent': 'DeckBuilder', accept: 'application/json' };
+const headers = { 'user-agent': 'Kedalion', accept: 'application/json' };
 
 interface Place {
   lat: number;

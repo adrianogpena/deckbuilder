@@ -90,7 +90,7 @@ export function withIntegration(
       // --rcfile is ignored by login shells; the script sources the login files itself.
       return { argv: [exe, '--rcfile', slashes(join(dir, 'bash.sh')), ...args.filter((a) => !LOGIN_FLAGS.has(a)), '-i'], env: {} };
     case 'zsh':
-      return { argv, env: { ZDOTDIR: join(dir, 'zsh'), DECKBUILDER_USER_ZDOTDIR: env.ZDOTDIR ?? '' } };
+      return { argv, env: { ZDOTDIR: join(dir, 'zsh'), KEDALION_USER_ZDOTDIR: env.ZDOTDIR ?? '' } };
     case 'fish':
       return { argv: [...argv, '--init-command', `source '${join(dir, 'fish.fish').replace(/[\\']/g, '\\$&')}'`], env: {} };
     case 'powershell':

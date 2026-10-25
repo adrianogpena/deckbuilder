@@ -1,17 +1,17 @@
 {
   "name": "@kedalion/app",
   "version": "0.3.0",
-  "description": "Kedalion desktop app, built on the deckbuilder packages.",
+  "description": "Kedalion desktop app, built on the kedalion packages.",
   "author": "Adriano Pena",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "deckbuilder dev",
-    "dev:window": "deckbuilder dev --window",
+    "dev": "kedalion dev",
+    "dev:window": "kedalion dev --window",
     "start": "bun server/main.ts",
     "start:browser": "bun server/main.ts --browser",
-    "build:web": "deckbuilder build:web",
-    "build": "deckbuilder build"
+    "build:web": "kedalion build:web",
+    "build": "kedalion build"
   },
   "dependencies": {
     "@kedalion/db": "workspace:*",

@@ -22,7 +22,7 @@ interface Opened {
 }
 
 async function setup(over: { detected?: Partial<Record<EditorId, string>>; picked?: string | null } = {}) {
-  const base = await mkdtemp(join(tmpdir(), 'deckbuilder-editors-'));
+  const base = await mkdtemp(join(tmpdir(), 'kedalion-editors-'));
   dirs.push(base);
   const root = join(base, 'root');
   await mkdir(join(root, 'sub'), { recursive: true });

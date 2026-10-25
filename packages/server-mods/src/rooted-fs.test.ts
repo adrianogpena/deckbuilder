@@ -16,7 +16,7 @@ afterEach(async () => {
 const OLD = new Date('2020-01-01T00:00:00Z');
 
 async function setup(opts: { maxReadBytes?: number } = {}) {
-  const base = await mkdtemp(join(tmpdir(), 'deckbuilder-fs-'));
+  const base = await mkdtemp(join(tmpdir(), 'kedalion-fs-'));
   dirs.push(base);
   const root = join(base, 'root');
   const outside = join(base, 'outside');
@@ -205,7 +205,7 @@ test('move onto an existing name keeps both or replaces through the trash', asyn
 });
 
 test('multiDelete off refuses more than one path', async () => {
-  const base = await mkdtemp(join(tmpdir(), 'deckbuilder-fs-'));
+  const base = await mkdtemp(join(tmpdir(), 'kedalion-fs-'));
   dirs.push(base);
   const fs = rootedFs({ roots: async () => [{ id: 'r', path: base }], trash: async () => {}, multiDelete: false });
   await writeFile(join(base, 'f.txt'), 'x');
@@ -215,7 +215,7 @@ test('multiDelete off refuses more than one path', async () => {
 });
 
 test('a trash failure reaches the client as its PlatformError code', async () => {
-  const base = await mkdtemp(join(tmpdir(), 'deckbuilder-fs-'));
+  const base = await mkdtemp(join(tmpdir(), 'kedalion-fs-'));
   dirs.push(base);
   await writeFile(join(base, 'f.txt'), 'x');
   const fs = rootedFs({

@@ -21,7 +21,7 @@ function setup(settings?: string) {
   return { account, file, agentsDir, installer };
 }
 
-const backups = (file: string) => readdirSync(join(file, '..')).filter((f) => f.startsWith('settings.json.deckbuilder-') && f.endsWith('.bak'));
+const backups = (file: string) => readdirSync(join(file, '..')).filter((f) => f.startsWith('settings.json.kedalion-') && f.endsWith('.bak'));
 
 test('install keeps other keys and formatting, backs up, and chains the previous statusLine', () => {
   const original = '{\r\n    "theme": "dark",\r\n    "statusLine": { "type": "command", "command": "my-line", "padding": 2 },\r\n    "env": { "A": "1" }\r\n}\r\n';

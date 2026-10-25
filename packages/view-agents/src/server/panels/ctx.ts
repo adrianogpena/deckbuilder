@@ -7,7 +7,7 @@ import type { createSessionScanner } from '../discovery.ts';
  * panel never edits `server.ts`.
  */
 export interface PanelCtx {
-  /** App data dir (`~/.deckbuilder`); panels keep files under `agentsDir`. */
+  /** App data dir (`~/.kedalion`); panels keep files under `agentsDir`. */
   dataDir: string;
   /** `<dataDir>/agents`: the Agents view's own folder. */
   agentsDir: string;

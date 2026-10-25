@@ -45,7 +45,7 @@ describe('avatar', () => {
   });
 
   test('initial is the first letter or digit', () => {
-    expect(avatarInitial('deckbuilder')).toBe('D');
+    expect(avatarInitial('kedalion')).toBe('K');
     expect(avatarInitial('_9lives')).toBe('9');
     expect(avatarInitial('--')).toBe('?');
   });

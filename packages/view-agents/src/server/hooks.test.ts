@@ -42,7 +42,7 @@ test('first sight is silent, transitions run once with env, blank is off', async
   await h.observe([sess('a', 'needs-you')]);
   await h.observe([sess('a', 'idle')]);
   expect(runs.map((r) => r.command)).toEqual(['echo r', 'echo w']);
-  expect(runs[0]!.env).toMatchObject({ DECKBUILDER_SESSION_ID: 'a', DECKBUILDER_STATUS: 'running', DECKBUILDER_PROJECT: 'pr', DECKBUILDER_CWD: '/p' });
+  expect(runs[0]!.env).toMatchObject({ KEDALION_SESSION_ID: 'a', KEDALION_STATUS: 'running', KEDALION_PROJECT: 'pr', KEDALION_CWD: '/p' });
 });
 
 test('a session that leaves and returns is first sight again', async () => {

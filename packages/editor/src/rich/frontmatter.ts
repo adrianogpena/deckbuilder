@@ -24,7 +24,7 @@ export function frontmatterYaml(front: string): string | null {
 }
 
 /** Marks a transaction the pane made itself (value sync); only unmarked document changes are user edits. */
-export const EXTERNAL_META = 'deckbuilder.richExternal';
+export const EXTERNAL_META = 'kedalion.richExternal';
 
 interface TransactionLike {
   docChanged: boolean;

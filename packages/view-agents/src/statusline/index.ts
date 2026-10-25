@@ -10,7 +10,7 @@ export const STATUSLINE_SCRIPT_FILE = 'statusline.mjs';
 export const statuslineWrapperFile = (platform: NodeJS.Platform = process.platform) => (platform === 'win32' ? 'statusline.cmd' : 'statusline.sh');
 
 /**
- * Launcher that runs the script with the server's own runtime. `BUN_BE_BUN=1` makes a compiled DeckBuilder exe act as plain
+ * Launcher that runs the script with the server's own runtime. `BUN_BE_BUN=1` makes a compiled Kedalion exe act as plain
  * `bun`, so no separate bun install is needed after packaging (a no-op for a real bun).
  */
 export function statuslineWrapper(execPath: string, platform: NodeJS.Platform = process.platform): string {

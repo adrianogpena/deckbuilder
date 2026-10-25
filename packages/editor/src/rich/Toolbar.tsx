@@ -21,7 +21,7 @@ const t = createT<Label>();
 const listeners = new WeakMap<EditorView, Set<() => void>>();
 
 const updates = $prose(() => new Plugin({
-  key: new PluginKey('deckbuilder.toolbarUpdates'),
+  key: new PluginKey('kedalion.toolbarUpdates'),
   view: () => ({ update: (view) => listeners.get(view)?.forEach((fn) => fn()) }),
 }));
 

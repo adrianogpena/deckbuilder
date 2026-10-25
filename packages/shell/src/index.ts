@@ -379,7 +379,7 @@ export async function runApp(opts: RunOptions): Promise<void> {
   const announce = (url: string) => {
     if (mode !== 'window') console.log(`\n  ${app.name} running at ${url}\n  Press Ctrl+C to stop.\n`);
   };
-  // `deckbuilder dev` starts Vite only once this server answers; don't load the page before Vite does.
+  // `kedalion dev` starts Vite only once this server answers; don't load the page before Vite does.
   if (dev && (mode === 'window' || mode === 'app')) void waitForUrl(origin, { timeoutMs: 30_000 }).then(() => announce(show(mode, startPath)));
   else announce(show(mode, startPath));
 }

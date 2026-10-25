@@ -23,7 +23,7 @@ describe('withIntegration', () => {
   test('zsh gets a ZDOTDIR and keeps the user one', () => {
     const r = withIntegration('zsh', ['/bin/zsh', '-l'], dir, { ZDOTDIR: '/home/me/.config/zsh' });
     expect(r.argv).toEqual(['/bin/zsh', '-l']);
-    expect(r.env).toEqual({ ZDOTDIR: join(dir, 'zsh'), DECKBUILDER_USER_ZDOTDIR: '/home/me/.config/zsh' });
+    expect(r.env).toEqual({ ZDOTDIR: join(dir, 'zsh'), KEDALION_USER_ZDOTDIR: '/home/me/.config/zsh' });
   });
   test('fish, pwsh and cmd', () => {
     expect(withIntegration('fish', ['/bin/fish'], dir, {}).argv.slice(1, 2)).toEqual(['--init-command']);

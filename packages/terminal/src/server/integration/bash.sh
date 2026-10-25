@@ -1,4 +1,4 @@
-# DeckBuilder shell integration for bash (and Git Bash), loaded with --rcfile.
+# Kedalion shell integration for bash (and Git Bash), loaded with --rcfile.
 # Sources the startup files a login shell would, then wraps the prompt with OSC 133 marks and OSC 7.
 if [ -z "${__db_si:-}" ]; then
   __db_si=1

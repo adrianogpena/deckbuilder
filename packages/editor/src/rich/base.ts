@@ -49,7 +49,7 @@ export function refreshHtml(root: HTMLElement, resolveImage?: (src: string) => s
   for (const el of root.querySelectorAll<HTMLElement>('.md-html')) renderHtml(el, resolveImage);
 }
 
-const changeKey = new PluginKey('deckbuilder.richChange');
+const changeKey = new PluginKey('kedalion.richChange');
 
 /** Calls `onUserEdit` once per view update that follows a user transaction with a document change. */
 export function userEditPlugin(onUserEdit: (view: EditorView) => void): MilkdownPlugin {

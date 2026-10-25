@@ -14,7 +14,7 @@ export function FontView({ data }: { data: Uint8Array }) {
 
   useEffect(() => {
     let alive = true;
-    const name = `deckbuilder-preview-${++counter}`;
+    const name = `kedalion-preview-${++counter}`;
     const face = new FontFace(name, data.slice().buffer);
     setFamily(undefined);
     setFailed(false);

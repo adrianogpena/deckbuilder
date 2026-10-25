@@ -202,7 +202,7 @@ export function createTray(opts: TrayOptions): Tray {
 // means it showed within 15 s.
 if (import.meta.main && process.argv.includes('--selftest')) {
   const tray = createTray({
-    tooltip: 'DeckBuilder self-test',
+    tooltip: 'Kedalion self-test',
     items: [{ id: 'hello', label: 'Self-test <&> "ção"' }],
     onSelect: (id) => console.log(`selected ${id}`),
     onError: (msg) => console.error(msg),

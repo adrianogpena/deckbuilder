@@ -6,7 +6,7 @@ import type { PodsConfig } from './PodsPanel';
 import { PodEntryFields, usePodChoices } from './PodEntryFields';
 import './pods.css';
 
-const LAST_KEY = 'deckbuilder.pods.lastEntry';
+const LAST_KEY = 'kedalion.pods.lastEntry';
 
 function readLast(): Partial<PodEntry> {
   try {

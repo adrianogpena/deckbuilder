@@ -98,7 +98,7 @@ export interface PaneWidths {
   panelWide?: number;
 }
 
-export const WIDTHS_KEY = 'deckbuilder.agents.widths';
+export const WIDTHS_KEY = 'kedalion.agents.widths';
 export const SIDEBAR_W = { min: 220, max: 520, def: 260 };
 export const PANEL_W = { min: 240, max: 900, def: 320 };
 

@@ -11,11 +11,11 @@ let appDir: string;
 beforeEach(() => {
   home = mkdtempSync(join(tmpdir(), 'keys-home-'));
   appDir = mkdtempSync(join(tmpdir(), 'keys-app-'));
-  delete process.env.DECKBUILDER_SIGNING_KEY;
+  delete process.env.KEDALION_SIGNING_KEY;
 });
 
 afterEach(() => {
-  delete process.env.DECKBUILDER_SIGNING_KEY;
+  delete process.env.KEDALION_SIGNING_KEY;
   rmSync(home, { recursive: true, force: true });
   rmSync(appDir, { recursive: true, force: true });
 });
@@ -50,7 +50,7 @@ test('keygen refuses to overwrite without force', () => {
 
 test('loadSigningKey prefers the env var and is null without a key', () => {
   expect(loadSigningKey('demo', home)).toBeNull();
-  process.env.DECKBUILDER_SIGNING_KEY = 'from-env';
+  process.env.KEDALION_SIGNING_KEY = 'from-env';
   expect(loadSigningKey('demo', home)).toBe('from-env');
   expect(existsSync(signingKeyPath('demo', home))).toBe(false);
 });

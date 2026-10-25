@@ -3,7 +3,7 @@ import { isDesktop, request } from './api';
 
 /** The view id this window was popped out for, or undefined in the main window. */
 export function popoutView(): string | undefined {
-  return (window as { __DECKBUILDER_POPOUT__?: string }).__DECKBUILDER_POPOUT__ || undefined;
+  return (window as { __KEDALION_POPOUT__?: string }).__KEDALION_POPOUT__ || undefined;
 }
 
 /** Opens a native window for `view`, or brings its existing one to the front; false when unsupported. */

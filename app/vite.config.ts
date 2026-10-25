@@ -16,7 +16,7 @@ const diagnosticsChannelStub = (): Plugin => ({
   load: (id) => (id === STUB_ID ? STUB_SOURCE : undefined),
 });
 
-// Dev: `deckbuilder dev` runs the server on DEV_PORT; Vite proxies the API there. changeOrigin
+// Dev: `kedalion dev` runs the server on DEV_PORT; Vite proxies the API there. changeOrigin
 // stays false: the server's Origin check needs the browser's Origin and Host.
 export default defineConfig({
   root: 'web',

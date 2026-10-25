@@ -22,7 +22,7 @@ function validate(input: unknown): Item {
 }
 
 async function setup(max?: number) {
-  const dir = await mkdtemp(join(tmpdir(), 'deckbuilder-records-'));
+  const dir = await mkdtemp(join(tmpdir(), 'kedalion-records-'));
   dirs.push(dir);
   return { dir, store: recordStore<Item>({ dir, name: 'items', validate, max }) };
 }
