@@ -80,6 +80,9 @@ export function positionText(s: SelectionInfo): string {
   return s.selected ? `${at} ${t('explorer.status.selected', { count: s.selected })}` : at;
 }
 
+/** Markdown mode and Source cursor per file; the Explorer unmounts when the view changes, so tabs restore from here. */
+const mdViewState = new Map<string, { mode: MarkdownMode; pos?: number; rich?: { pos: number; scroll: number } }>();
+
 /** One open file: log files get the log viewer, the rest `TextFileTab`. */
 export function FileTab(props: FileTabProps) {
   return previewKind(relPath.basename(props.path)) === 'log' ? <LogTab {...props} /> : <TextFileTab {...props} />;
@@ -271,7 +274,18 @@ function TextFileTab({ project, projectName, projectPath, path, focused, preview
   useCommand(commandById('explorer.file.wrap'), toggleWrap, { enabled: focused && active && Boolean(onWrapLinesChange) });
   const mdSettings = useMarkdownSettings(files.markdownToc);
   /** Rich or Source, per tab; a new tab starts in the default mode. */
-  const [mdMode, setMdMode] = useState<MarkdownMode>(mdSettings.defaultMode);
+  const mdKey = `${project}\0${path}`;
+  const [mdMode, setMdModeState] = useState<MarkdownMode>(() => mdViewState.get(mdKey)?.mode ?? mdSettings.defaultMode);
+  const setMdMode = (update: (m: MarkdownMode) => MarkdownMode) => setMdModeState((m) => {
+    const next = update(m);
+    mdViewState.set(mdKey, { mode: next });
+    return next;
+  });
+  const onMdSelection = (info: SelectionInfo) => {
+    setSelection(info);
+    mdViewState.set(mdKey, { mode: 'source', pos: info.pos });
+  };
+  const onRichView = (rich: { pos: number; scroll: number }) => mdViewState.set(mdKey, { mode: 'rich', rich });
   const mdEditorRef = useRef<MarkdownEditorHandle>(null);
   const onOpenPathRef = useRef(onOpenPath);
   onOpenPathRef.current = onOpenPath;
@@ -485,8 +499,8 @@ function TextFileTab({ project, projectName, projectPath, path, focused, preview
         {state.status === 'loading' && <PanelLoading />}
         {state.status === 'error' && <ErrorBanner error={state.error} onRetry={() => void load()} />}
         {content && (mdEditor
-          ? <MarkdownEditor ref={mdEditorRef} value={draft} onChange={setDraft} mode={mdMode} host={mdHost} wrap={wrapLines} autoFocus={!preview} onSelection={setSelection} />
-          : active
+          ? <MarkdownEditor ref={mdEditorRef} value={draft} onChange={setDraft} mode={mdMode} host={mdHost} wrap={wrapLines} autoFocus={!preview} onSelection={onMdSelection} initialPos={mdMode === 'source' ? mdViewState.get(mdKey)?.pos : undefined} initialRich={mdMode === 'rich' ? mdViewState.get(mdKey)?.rich : undefined} onRichView={onRichView} />
+          :active
           ? curlUi.enabled
             ? curlUi.layout(<CodeEditor ref={curlUi.editor} value={draft} lang={langOfFile(name)} onChange={setDraft} height="100%" wrap={wrapLines} autoFocus={!preview} onSelection={setSelection} {...curlUi.editorProps} />)
             : sqlUi.layout(<CodeEditor ref={sqlUi.editor} value={editorValue} lang={xmlStmts ? 'sql' : langOfFile(name)} onChange={onEditorChange} readOnly={mergeOn} height="100%" wrap={wrapLines} autoFocus={!preview} onSelection={setSelection} sqlLint={isSql} {...sqlUi.editorProps} />, stepsPanel())

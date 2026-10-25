@@ -6,6 +6,7 @@ import { history } from '@milkdown/plugin-history';
 import { commonmark } from '@milkdown/preset-commonmark';
 import { gfm } from '@milkdown/preset-gfm';
 import type { Node } from '@milkdown/prose/model';
+import { TextSelection } from '@milkdown/prose/state';
 import type { EditorView } from '@milkdown/prose/view';
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
 import { frontmatterEntries, frontmatterTable } from '../markdown';
@@ -27,6 +28,15 @@ export interface RichMarkdownProps {
   onChange(value: string): void;
   host: RichHost;
   autoFocus?: boolean;
+  /** Cursor (document position) and scroll fraction (0..1) to restore once the pane is ready. */
+  initialView?: RichViewState;
+  /** Fires when the cursor moves or the pane scrolls. */
+  onViewState?(state: RichViewState): void;
+}
+
+export interface RichViewState {
+  pos: number;
+  scroll: number;
 }
 
 /** The frontmatter block, read-only above the document: a key/value table, or the raw YAML when it has no keys. */
@@ -47,8 +57,13 @@ function Frontmatter({ front }: { front: string }) {
 }
 
 /** The Milkdown pane: CommonMark + GFM with history, the frontmatter kept aside, the features of `FEATURES`. */
-export const RichMarkdown = forwardRef<RichMarkdownHandle, RichMarkdownProps>(function RichMarkdown({ value, onChange, host, autoFocus }, ref) {
+export const RichMarkdown = forwardRef<RichMarkdownHandle, RichMarkdownProps>(function RichMarkdown({ value, onChange, host, autoFocus, initialView, onViewState }, ref) {
   const root = useRef<HTMLDivElement>(null);
+  const scroller = useRef<HTMLDivElement>(null);
+  const viewState = useRef({ initialView, onViewState });
+  viewState.current = { initialView, onViewState };
+  /** True until a restore has landed, so the initial scroll/selection does not overwrite the saved state. */
+  const restoring = useRef(true);
   const [api, setApi] = useState<RichApi | null>(null);
   const [front, setFront] = useState(() => splitFrontmatter(value).front);
   const [finding, setFinding] = useState(false);
@@ -99,7 +114,20 @@ export const RichMarkdown = forwardRef<RichMarkdownHandle, RichMarkdownProps>(fu
         const view = ctx.get(editorViewCtx);
         sync.current.baseDoc = view.state.doc;
         setApi({ view, ctx, get host() { return latest.current.host; }, getMarkdown: () => sync.current.text });
+        const restore = viewState.current.initialView;
+        if (restore) {
+          const pos = Math.min(restore.pos, view.state.doc.content.size);
+          view.dispatch(view.state.tr.setSelection(TextSelection.near(view.state.doc.resolve(pos))).setMeta('addToHistory', false));
+          const apply = () => {
+            const box = scroller.current;
+            if (box) box.scrollTop = restore.scroll * (box.scrollHeight - box.clientHeight);
+          };
+          apply();
+          requestAnimationFrame(apply);
+        }
         if (autoFocus) view.focus();
+        if (restore) requestAnimationFrame(() => { restoring.current = false; });
+        else restoring.current = false;
       });
     }, (err: unknown) => console.error('Markdown editor failed to start', err));
     return () => {
@@ -125,6 +153,24 @@ export const RichMarkdown = forwardRef<RichMarkdownHandle, RichMarkdownProps>(fu
     sync.current.baseDoc = view.state.doc;
     setFront(split.front);
   }, [value, api]);
+
+  useEffect(() => {
+    const box = scroller.current;
+    if (!api || !box) return;
+    const report = () => {
+      if (restoring.current) return;
+      const range = box.scrollHeight - box.clientHeight;
+      viewState.current.onViewState?.({ pos: api.view.state.selection.head, scroll: range > 0 ? box.scrollTop / range : 0 });
+    };
+    box.addEventListener('scroll', report);
+    box.addEventListener('keyup', report);
+    box.addEventListener('pointerup', report);
+    return () => {
+      box.removeEventListener('scroll', report);
+      box.removeEventListener('keyup', report);
+      box.removeEventListener('pointerup', report);
+    };
+  }, [api]);
 
   const resolveImage = host.resolveImage;
   useEffect(() => {
@@ -156,7 +202,7 @@ export const RichMarkdown = forwardRef<RichMarkdownHandle, RichMarkdownProps>(fu
         const Overlay = f.Overlay;
         return Overlay ? <Overlay key={i} api={api} /> : null;
       })}
-      <div className="md-rich-scroll">
+      <div ref={scroller} className="md-rich-scroll">
         <div className="md-rich-doc markdown">
           {front && <Frontmatter front={front} />}
           <div ref={root} className="md-rich-root" />

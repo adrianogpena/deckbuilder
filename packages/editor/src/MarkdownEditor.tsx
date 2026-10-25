@@ -2,7 +2,7 @@ import { PanelLoading } from '@kedalion/ui';
 import { forwardRef, lazy, Suspense, useImperativeHandle, useMemo, useRef } from 'react';
 import { CodeEditor, type SelectionInfo } from './CodeEditor';
 import type { MarkdownMode, RichCommandId, RichHost } from './rich/commands';
-import type { RichMarkdownHandle } from './rich/RichMarkdown';
+import type { RichMarkdownHandle, RichViewState } from './rich/RichMarkdown';
 
 /** Milkdown loads with the first rich pane, in its own chunk. */
 const RichMarkdown = lazy(() => import('./rich/RichMarkdown').then((m) => ({ default: m.RichMarkdown })));
@@ -24,6 +24,12 @@ export interface MarkdownEditorProps {
   wrap?: boolean;
   /** Cursor and selection of Source mode. */
   onSelection?(info: SelectionInfo): void;
+  /** Source cursor offset to restore on mount. */
+  initialPos?: number;
+  /** Rich cursor and scroll to restore on mount. */
+  initialRich?: RichViewState;
+  /** Fires when the Rich cursor moves or the pane scrolls. */
+  onRichView?(state: RichViewState): void;
   /** Show the heading rail; overrides `host.settings.toc`. */
   toc?: boolean;
   /** Overrides `host.resolveImage`. */
@@ -32,7 +38,7 @@ export interface MarkdownEditorProps {
 
 /** A markdown editor: the rich (Milkdown) pane, or the raw text in CodeMirror. */
 export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(function MarkdownEditor(
-  { value, onChange, mode, host, autoFocus, wrap = true, onSelection, toc, resolveImage },
+  { value, onChange, mode, host, autoFocus, wrap = true, onSelection, initialPos, initialRich, onRichView, toc, resolveImage },
   ref,
 ) {
   const rich = useRef<RichMarkdownHandle>(null);
@@ -47,8 +53,8 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
     <div className="md-editor" data-mode={mode}>
       <div className="md-editor-body">
         {mode === 'source'
-          ? <CodeEditor value={value} lang="markdown" onChange={onChange} height="100%" autoFocus={autoFocus} wrap={wrap} onSelection={onSelection} />
-          : <Suspense fallback={<PanelLoading />}><RichMarkdown ref={rich} value={value} onChange={onChange} host={effective} autoFocus={autoFocus} /></Suspense>}
+          ? <CodeEditor value={value} lang="markdown" onChange={onChange} height="100%" autoFocus={autoFocus} wrap={wrap} onSelection={onSelection} initialPos={initialPos} />
+          : <Suspense fallback={<PanelLoading />}><RichMarkdown ref={rich} value={value} onChange={onChange} host={effective} autoFocus={autoFocus} initialView={initialRich} onViewState={onRichView} /></Suspense>}
       </div>
     </div>
   );

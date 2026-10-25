@@ -37,6 +37,8 @@ export interface CodeEditorProps {
   wrap?: boolean;
   /** The cursor and selection, on load and whenever they change. */
   onSelection?(info: SelectionInfo): void;
+  /** Cursor offset to restore on creation; the view scrolls to it. */
+  initialPos?: number;
   /** Editor preferences; without it the app-wide ones (EditorOptionsContext), else the built-in defaults. */
   options?: EditorOptions;
   /** Underlines SQL lint problems (see `sqlLint`), with a gutter marker per line. */
@@ -87,7 +89,7 @@ const external = Annotation.define<boolean>();
 
 /** A CodeMirror 6 editor; one view for the component's lifetime, options swapped in place. */
 export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(function CodeEditor({
-  value, lang, onChange, onRun, readOnly = false, placeholder, sqlDialect, sqlSchema, height, autoFocus, onScroll, extensions, wrap = false, onSelection, options, sqlLint = false, onSqlProblems,
+  value, lang, onChange, onRun, readOnly = false, placeholder, sqlDialect, sqlSchema, height, autoFocus, onScroll, extensions, wrap = false, onSelection, initialPos, options, sqlLint = false, onSqlProblems,
 }, ref) {
   const contextOptions = useEditorOptions();
   const optionsExt = editorOptionsExtension(options ?? contextOptions);
@@ -149,6 +151,7 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(function
       parent: host.current!,
       state: EditorState.create({
         doc: value,
+        selection: initialPos === undefined ? undefined : { anchor: Math.min(initialPos, value.length) },
         extensions: [
           Prec.highest(keymap.of([
             { key: 'Mod-Enter', run: (ed) => {
@@ -193,6 +196,7 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(function
       }),
     });
     view.current = v;
+    if (initialPos !== undefined) v.dispatch({ effects: EditorView.scrollIntoView(v.state.selection.main.head, { y: 'center' }) });
     handlers.current.onSelection?.(selectionInfo(v.state));
     if (autoFocus) v.focus();
     return () => {
