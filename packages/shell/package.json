@@ -1,5 +1,5 @@
 {
-  "name": "@deckbuilderkit/shell",
+  "name": "@kedalion/shell",
   "version": "0.3.0",
   "license": "MIT",
   "private": true,
@@ -9,8 +9,8 @@
     "./window-worker": "./src/window-worker.ts"
   },
   "dependencies": {
-    "@deckbuilderkit/platform": "workspace:*",
-    "@deckbuilderkit/server-core": "workspace:*",
+    "@kedalion/platform": "workspace:*",
+    "@kedalion/server-core": "workspace:*",
     "webview-bun": "^2.4.0"
   }
 }

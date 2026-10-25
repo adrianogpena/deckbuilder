@@ -1,4 +1,4 @@
-import { Button, Icon } from '@deckbuilderkit/ui';
+import { Button, Icon } from '@kedalion/ui';
 import { tKey } from '../../i18n';
 import { hasColumn } from '../../kit';
 import './feeds.css';

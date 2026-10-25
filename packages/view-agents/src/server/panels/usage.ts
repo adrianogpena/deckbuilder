@@ -1,7 +1,7 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { readJsonFile, writeJsonAtomic } from '@deckbuilderkit/platform';
-import { invalid } from '@deckbuilderkit/server-core';
+import { readJsonFile, writeJsonAtomic } from '@kedalion/platform';
+import { invalid } from '@kedalion/server-core';
 import { detectAccounts } from '../accounts.ts';
 import { projectKey } from '../projects.ts';
 import { localDayKey } from '../usage-history.ts';

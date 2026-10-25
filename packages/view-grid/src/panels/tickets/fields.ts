@@ -1,4 +1,4 @@
-import type { PanelField } from '@deckbuilderkit/ui/grid';
+import type { PanelField } from '@kedalion/ui/grid';
 import { DEFAULT_TICKET_PATTERN } from '../github/map';
 import { DEFAULT_STATUSES } from './model';
 

@@ -1,4 +1,4 @@
-# @deckbuilderkit/view-workbench
+# @kedalion/view-workbench
 
 Workbench
 

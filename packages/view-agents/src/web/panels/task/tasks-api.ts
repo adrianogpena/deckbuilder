@@ -1,5 +1,5 @@
-import { request } from '@deckbuilderkit/ui';
-import { openSession, type Ticketed } from '@deckbuilderkit/terminal/session';
+import { request } from '@kedalion/ui';
+import { openSession, type Ticketed } from '@kedalion/terminal/session';
 import { t } from '../../../i18n';
 import type { AgentLaunch, AgentsCapWarn } from '../../../protocol';
 import { lifecycleMessage } from '../../api';

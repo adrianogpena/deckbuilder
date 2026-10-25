@@ -1,5 +1,5 @@
 /// <reference path="./pdf-url.d.ts" />
-import { Button, ErrorBanner, errorOf, IconButton, PanelLoading, t } from '@deckbuilderkit/ui';
+import { Button, ErrorBanner, errorOf, IconButton, PanelLoading, t } from '@kedalion/ui';
 import * as pdfjs from 'pdfjs-dist';
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import type { PDFDocumentProxy, RenderTask } from 'pdfjs-dist/types/src/display/api';

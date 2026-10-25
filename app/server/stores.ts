@@ -1,6 +1,6 @@
-import { secretStore } from '@deckbuilderkit/platform';
-import { dbStores } from '@deckbuilderkit/db';
-import { appStores } from '@deckbuilderkit/server-mods';
+import { secretStore } from '@kedalion/platform';
+import { dbStores } from '@kedalion/db';
+import { appStores } from '@kedalion/server-mods';
 import { APP } from '../app.ts';
 
 const secrets = secretStore(APP.id);

@@ -1,10 +1,10 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
-import type { SqlFormatOptions } from '@deckbuilderkit/editor/options';
-import type { SettingsCardProps } from '@deckbuilderkit/ui';
+import type { SqlFormatOptions } from '@kedalion/editor/options';
+import type { SettingsCardProps } from '@kedalion/ui';
 import { t, type WorkbenchMessageKey } from '../i18n';
 import { type WorkbenchViewSettings, withWorkbenchDefaults } from '../settings';
 
-const CodeView = lazy(() => import('@deckbuilderkit/editor').then((m) => ({ default: m.CodeView })));
+const CodeView = lazy(() => import('@kedalion/editor').then((m) => ({ default: m.CodeView })));
 
 type Settings = WorkbenchViewSettings;
 
@@ -58,7 +58,7 @@ export function FormatterCard({ settings, row }: SettingsCardProps<Settings>) {
   const [preview, setPreview] = useState(FORMAT_SAMPLE);
   useEffect(() => {
     let live = true;
-    import('@deckbuilderkit/editor').then(({ formatSql }) => {
+    import('@kedalion/editor').then(({ formatSql }) => {
       let text = FORMAT_SAMPLE;
       try {
         text = formatSql(FORMAT_SAMPLE, wb.format);

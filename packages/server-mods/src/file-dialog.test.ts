@@ -2,7 +2,7 @@ import { afterEach, expect, test } from 'bun:test';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { AppError, RouteContext } from '@deckbuilderkit/server-core';
+import type { AppError, RouteContext } from '@kedalion/server-core';
 import { pickedPaths } from './dialogs.ts';
 import { FILE_DIALOG_MAX_ENTRIES, fileDialogRoutes } from './file-dialog.ts';
 

@@ -1,5 +1,5 @@
 import { createContext, useContext, type Dispatch, type SetStateAction } from 'react';
-import type { CommandDef } from '@deckbuilderkit/ui';
+import type { CommandDef } from '@kedalion/ui';
 import type { AgentAccount, AgentAccountUsage, AgentProject, AgentSessionView } from '../api';
 import type { GitStatusMap } from '../git';
 import type { UsageSettings } from '../UsageView';

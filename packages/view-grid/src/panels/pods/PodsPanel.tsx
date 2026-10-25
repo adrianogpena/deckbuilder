@@ -1,5 +1,5 @@
 import { useState, type DragEvent, type KeyboardEvent, type MouseEvent } from 'react';
-import { ContextMenu, Icon, IconButton } from '@deckbuilderkit/ui';
+import { ContextMenu, Icon, IconButton } from '@kedalion/ui';
 import { tKey } from '../../i18n';
 import { Chip, relTime } from '../../kit';
 import { requestRefresh, type PanelSide } from '../../panel';

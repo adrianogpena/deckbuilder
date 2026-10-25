@@ -1,4 +1,4 @@
-import { invalid, notFound } from '@deckbuilderkit/server-core';
+import { invalid, notFound } from '@kedalion/server-core';
 import { SerializeAddon } from '@xterm/addon-serialize';
 import { Terminal } from '@xterm/headless';
 import type { SessionInfo } from '../protocol.ts';

@@ -1,5 +1,5 @@
 import './toolbar.css';
-import { ContextMenu, type ContextMenuItem, createT, Icon, IconButton, type IconName } from '@deckbuilderkit/ui';
+import { ContextMenu, type ContextMenuItem, createT, Icon, IconButton, type IconName } from '@kedalion/ui';
 import { redoCommand, undoCommand } from '@milkdown/plugin-history';
 import { redoDepth, undoDepth } from '@milkdown/prose/history';
 import { Plugin, PluginKey } from '@milkdown/prose/state';

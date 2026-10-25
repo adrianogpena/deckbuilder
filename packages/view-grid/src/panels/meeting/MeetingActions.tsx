@@ -1,4 +1,4 @@
-import { IconButton, useDialogs } from '@deckbuilderkit/ui';
+import { IconButton, useDialogs } from '@kedalion/ui';
 import { tKey } from '../../i18n';
 import { requestRefresh } from '../../panel';
 import { runAction } from '../../source';

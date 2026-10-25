@@ -1,8 +1,8 @@
 import { type UsageSettings } from './UsageView';
 import { type CSSProperties, type PointerEvent as ReactPointerEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { effectiveKeys, errorOf, setTitleBadge, useDialogs, setViewTitle, useCommand, useKeybindings, useRunCommand, useViewToast } from '@deckbuilderkit/ui';
-import { terminalAppKeys } from '@deckbuilderkit/terminal';
-import { closeSession, listSessions } from '@deckbuilderkit/terminal/session';
+import { effectiveKeys, errorOf, setTitleBadge, useDialogs, setViewTitle, useCommand, useKeybindings, useRunCommand, useViewToast } from '@kedalion/ui';
+import { terminalAppKeys } from '@kedalion/terminal';
+import { closeSession, listSessions } from '@kedalion/terminal/session';
 import { agentsCommands } from '../commands';
 import { t } from '../i18n';
 import { type AgentAccount, type AgentsCapWarn, CapDeclined, lastResponse, type AgentProject, type AgentRunning, type AgentSessionView, dismissRecovery, listAccounts, listAgentProjects, listRecovery, loadUiState, markSeen, removeAgentProject, reportShown, restartSession, setActiveAccount, startInBackground, startSession, stopSession, terminalOf } from './api';

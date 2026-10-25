@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { type ApiError, Empty, ErrorBanner, errorOf, Modal, Spinner, useRovingList } from '@deckbuilderkit/ui';
+import { type ApiError, Empty, ErrorBanner, errorOf, Modal, Spinner, useRovingList } from '@kedalion/ui';
 import { t } from '../i18n';
 import type { AgentTrashEntry } from '../protocol.ts';
 import { listTrash, restoreTrashed, trashMessage } from './api';

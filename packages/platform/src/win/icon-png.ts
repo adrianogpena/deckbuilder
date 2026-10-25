@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import { PATHS } from '@deckbuilderkit/ui/icons';
+import { PATHS } from '@kedalion/ui/icons';
 
 export const DEFAULT_ICON_COLOR = '#4f6bed';
 const SIZE = 96;

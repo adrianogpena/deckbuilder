@@ -1,4 +1,4 @@
-// This app's messages; the base ones (common.*, generic errors) come from @deckbuilderkit/ui.
+// This app's messages; the base ones (common.*, generic errors) come from @kedalion/ui.
 export const en = {
   'nav.section.main': 'Main',
   'nav.home': 'Home',

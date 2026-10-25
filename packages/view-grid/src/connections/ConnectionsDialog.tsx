@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Button, errorMessage, errorOf, Modal, useDialogs } from '@deckbuilderkit/ui';
+import { Button, errorMessage, errorOf, Modal, useDialogs } from '@kedalion/ui';
 import { tKey } from '../i18n';
 import { ConnectionDialog, deleteConnection, listConnections, testConnection, testText, type PublicConnection } from './ConnectionDialog';
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Button, errorMessage, errorOf, Icon, PanelBanner, PanelLoading, PanelNotice, validConfig, type ApiError, type GridItem } from '@deckbuilderkit/ui';
+import { Button, errorMessage, errorOf, Icon, PanelBanner, PanelLoading, PanelNotice, validConfig, type ApiError, type GridItem } from '@kedalion/ui';
 import { tKey } from './i18n';
 import { fieldsOf, onRefreshRequest, type AnyPanelKind, type PanelSide } from './panel';
 

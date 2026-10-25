@@ -2,8 +2,8 @@ import { type Dirent } from 'node:fs';
 import { mkdir, readdir, stat } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
-import { readJsonFile, writeJsonAtomic } from '@deckbuilderkit/platform';
-import { forbidden, invalid, isRecord, notFound, type Routes } from '@deckbuilderkit/server-core';
+import { readJsonFile, writeJsonAtomic } from '@kedalion/platform';
+import { forbidden, invalid, isRecord, notFound, type Routes } from '@kedalion/server-core';
 import type { PickedPaths } from './dialogs.ts';
 import { type FsEntry, sortEntries } from './rooted-fs.ts';
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { errorOf, useDialogs } from '@deckbuilderkit/ui';
-import { TerminalPane, type TerminalPaneHandle } from '@deckbuilderkit/terminal';
-import { listSessions } from '@deckbuilderkit/terminal/session';
+import { errorOf, useDialogs } from '@kedalion/ui';
+import { TerminalPane, type TerminalPaneHandle } from '@kedalion/terminal';
+import { listSessions } from '@kedalion/terminal/session';
 import { t } from '../../../i18n';
 import { patchSessionState, startSession, takeOverSession, terminalOf } from '../../api';
 import { categoryOf } from '../../filters';

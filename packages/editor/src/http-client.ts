@@ -1,5 +1,5 @@
-import { request } from '@deckbuilderkit/ui';
-import type { HttpRequestDraft, HttpRequestSpec, HttpResponseInfo, RestEnvironment } from '@deckbuilderkit/server-core/protocol';
+import { request } from '@kedalion/ui';
+import type { HttpRequestDraft, HttpRequestSpec, HttpResponseInfo, RestEnvironment } from '@kedalion/server-core/protocol';
 
 /** The server calls the REST/curl views make; the app builds it from its api and passes it to them. */
 export interface HttpClient {

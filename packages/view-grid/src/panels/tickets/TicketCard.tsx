@@ -1,5 +1,5 @@
 import { useState, type DragEvent, type MouseEvent } from 'react';
-import { ContextMenu, Icon } from '@deckbuilderkit/ui';
+import { ContextMenu, Icon } from '@kedalion/ui';
 import { tKey } from '../../i18n';
 import { AUTO_BADGE_MS } from './auto-move';
 import type { Ticket } from './model';

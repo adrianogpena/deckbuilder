@@ -1,5 +1,5 @@
 {
-  "name": "@deckbuilderkit/platform",
+  "name": "@kedalion/platform",
   "version": "0.3.0",
   "license": "MIT",
   "private": true,
@@ -8,7 +8,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@deckbuilderkit/ui": "workspace:*",
+    "@kedalion/ui": "workspace:*",
     "sharp": "^0.35.5"
   }
 }

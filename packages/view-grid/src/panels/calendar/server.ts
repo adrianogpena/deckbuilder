@@ -1,4 +1,4 @@
-import { invalid } from '@deckbuilderkit/server-core';
+import { invalid } from '@kedalion/server-core';
 import { defineSource, type DataSource, type GridPanelSpec } from '../../server';
 import { addDays, dayKey } from './dates';
 import { fields, ICS_SOURCE_FIELDS } from './fields';

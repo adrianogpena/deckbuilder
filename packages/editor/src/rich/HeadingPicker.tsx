@@ -1,5 +1,5 @@
 import './nav.css';
-import { createT, useModalOpen } from '@deckbuilderkit/ui';
+import { createT, useModalOpen } from '@kedalion/ui';
 import { TextSelection } from '@milkdown/prose/state';
 import type { EditorView } from '@milkdown/prose/view';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';

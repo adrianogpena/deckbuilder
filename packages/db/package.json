@@ -1,5 +1,5 @@
 {
-  "name": "@deckbuilderkit/db",
+  "name": "@kedalion/db",
   "version": "0.3.0",
   "license": "MIT",
   "private": true,
@@ -8,9 +8,9 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@deckbuilderkit/platform": "workspace:*",
-    "@deckbuilderkit/server-core": "workspace:*",
-    "@deckbuilderkit/server-mods": "workspace:*",
+    "@kedalion/platform": "workspace:*",
+    "@kedalion/server-core": "workspace:*",
+    "@kedalion/server-mods": "workspace:*",
     "oracledb": "6.10.0"
   }
 }

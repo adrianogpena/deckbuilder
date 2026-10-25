@@ -1,4 +1,4 @@
-import { isUuid, type Launcher } from '@deckbuilderkit/terminal/server';
+import { isUuid, type Launcher } from '@kedalion/terminal/server';
 import type { AgentAccount } from './accounts.ts';
 import { claudeEnv } from './claude-env.ts';
 import { claudeCommand } from './claude-command.ts';

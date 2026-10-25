@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
-import { readJsonFile, writeJsonAtomic } from '@deckbuilderkit/platform';
+import { readJsonFile, writeJsonAtomic } from '@kedalion/platform';
 import { projectKey } from './projects.ts';
 
 const MAX_PANES = 8;

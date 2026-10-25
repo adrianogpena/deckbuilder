@@ -1,4 +1,4 @@
-import { Button } from '@deckbuilderkit/ui';
+import { Button } from '@kedalion/ui';
 import { tKey } from '../../i18n';
 import { ListRows, relTime, type ListRow } from '../../kit';
 import './feeds.css';

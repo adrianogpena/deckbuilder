@@ -1,5 +1,5 @@
-import type { HttpResponseInfo } from '@deckbuilderkit/server-core/protocol';
-import { type ApiError, Badge, Button, CopyButton, ErrorBanner, formatBytes, Icon, JsonTree, PanelBanner, PanelNotice, Spinner, t } from '@deckbuilderkit/ui';
+import type { HttpResponseInfo } from '@kedalion/server-core/protocol';
+import { type ApiError, Badge, Button, CopyButton, ErrorBanner, formatBytes, Icon, JsonTree, PanelBanner, PanelNotice, Spinner, t } from '@kedalion/ui';
 import { useMemo, useState } from 'react';
 import { CodeView } from './CodeView';
 import { bodyView, formatMs, statusTone } from './http';

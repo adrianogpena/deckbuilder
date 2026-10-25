@@ -1,4 +1,4 @@
-import { bool, groupField, num, oneOf, str, type SettingDef } from '@deckbuilderkit/ui';
+import { bool, groupField, num, oneOf, str, type SettingDef } from '@kedalion/ui';
 import type { AgentsRestore, AgentsSettings, AgentsUsagePosition } from './settings-types';
 
 export type { AgentsRestore, AgentsSettings, AgentsUsagePosition };

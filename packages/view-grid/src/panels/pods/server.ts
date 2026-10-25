@@ -1,4 +1,4 @@
-import { AppError, ndjson } from '@deckbuilderkit/server-core';
+import { AppError, ndjson } from '@kedalion/server-core';
 import { runCli } from '../../cli';
 import { parseTail, PodLogHub, validateTarget } from './logs';
 import { defineSource, SourceError, type DataSource, type GridPanelSpec } from '../../server';

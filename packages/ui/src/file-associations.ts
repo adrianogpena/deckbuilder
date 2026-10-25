@@ -1,4 +1,4 @@
-import { isRecord } from '@deckbuilderkit/server-core/protocol';
+import { isRecord } from '@kedalion/server-core/protocol';
 
 /** Opens the files whose name matches `pattern` as if their extension were `as`. */
 export interface FileAssociation {

@@ -1,4 +1,4 @@
-import { formatBytes, PanelBanner, t } from '@deckbuilderkit/ui';
+import { formatBytes, PanelBanner, t } from '@kedalion/ui';
 import { useMemo, useState } from 'react';
 import { DataGrid } from './TableView';
 import { compareCells } from './table';

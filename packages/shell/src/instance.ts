@@ -1,7 +1,7 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { linkSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import type { Routes } from '@deckbuilderkit/server-core';
+import type { Routes } from '@kedalion/server-core';
 import { isSafePath } from './link.ts';
 
 // Single instance: the running app publishes its port and a secret in instance.json (in the app

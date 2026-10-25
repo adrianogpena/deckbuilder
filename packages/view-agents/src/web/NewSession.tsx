@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button, errorOf } from '@deckbuilderkit/ui';
+import { Button, errorOf } from '@kedalion/ui';
 import { t } from '../i18n';
 import { type AgentAccount, type AgentsCapWarn, CapDeclined, listAccounts, startSession } from './api';
 

@@ -2,8 +2,8 @@ import { afterEach, expect, test } from 'bun:test';
 import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { PlatformError } from '@deckbuilderkit/platform';
-import { AppError, invalid } from '@deckbuilderkit/server-core';
+import { PlatformError } from '@kedalion/platform';
+import { AppError, invalid } from '@kedalion/server-core';
 import { type Rec, recordRoutes, recordStore } from './records.ts';
 
 interface Item {

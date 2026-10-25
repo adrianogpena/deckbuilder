@@ -1,6 +1,6 @@
 import { lazy, type ReactNode, useMemo } from 'react';
-import { TerminalOptionsContext } from '@deckbuilderkit/terminal/options';
-import { defineView } from '@deckbuilderkit/ui';
+import { TerminalOptionsContext } from '@kedalion/terminal/options';
+import { defineView } from '@kedalion/ui';
 import { terminalCommands } from './commands';
 import { en, ptBR } from './i18n';
 import { terminalSettingDefs, type TerminalViewSettings, terminalSettingsOf } from './settings';

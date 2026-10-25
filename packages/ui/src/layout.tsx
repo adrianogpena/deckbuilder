@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, type ComponentType, type ReactNode } from 'react';
-import { applyDockSide, applyMainMenu, LAYOUT_MARK_IDS, resolveIconSetId, resolveLayout, supportsDock, type Layout, type LayoutStructure, type MainMenu } from '@deckbuilderkit/server-core/layouts';
+import { applyDockSide, applyMainMenu, LAYOUT_MARK_IDS, resolveIconSetId, resolveLayout, supportsDock, type Layout, type LayoutStructure, type MainMenu } from '@kedalion/server-core/layouts';
 import { setFileIconVariants } from './file-icons';
 import { iconSetById } from './icons';
 import { AtlasAppFrame, BaseAppFrame, IslandsAppFrame, type AppFrameProps } from './components/AppFrame';

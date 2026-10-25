@@ -1,5 +1,5 @@
 import { isIPv6 } from 'node:net';
-import { invalid, isRecord } from '@deckbuilderkit/server-core';
+import { invalid, isRecord } from '@kedalion/server-core';
 
 export interface OracleUrl {
   /** What `oracledb.getConnection` takes: `host:port/service`, or a descriptor for a SID. */

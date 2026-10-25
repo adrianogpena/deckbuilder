@@ -1,5 +1,5 @@
-import { MARKDOWN_SETTINGS_DEFAULTS, type MarkdownSettings } from '@deckbuilderkit/editor/markdown-commands';
-import { Modal } from '@deckbuilderkit/ui';
+import { MARKDOWN_SETTINGS_DEFAULTS, type MarkdownSettings } from '@kedalion/editor/markdown-commands';
+import { Modal } from '@kedalion/ui';
 import { createElement, Fragment, type ReactElement, useEffect, useMemo, useSyncExternalStore } from 'react';
 
 import { t } from './i18n';

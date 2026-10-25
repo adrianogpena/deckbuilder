@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
-import { invalid, notFound } from '@deckbuilderkit/server-core';
-import { readJsonFile, writeJsonAtomic } from '@deckbuilderkit/platform';
+import { invalid, notFound } from '@kedalion/server-core';
+import { readJsonFile, writeJsonAtomic } from '@kedalion/platform';
 import { projectKey } from '../projects.ts';
 import type { PanelRoutes } from './ctx.ts';
 

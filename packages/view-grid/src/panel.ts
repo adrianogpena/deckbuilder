@@ -1,5 +1,5 @@
 import type { ComponentType, ReactNode } from 'react';
-import { defaultConfig, type IconName, type PanelConfig, type PanelDef, type PanelField, type PanelKindSpec, type SidePanelContent } from '@deckbuilderkit/ui';
+import { defaultConfig, type IconName, type PanelConfig, type PanelDef, type PanelField, type PanelKindSpec, type SidePanelContent } from '@kedalion/ui';
 
 export interface PanelLoadContext<D = any> {
   /** Aborted when the panel is removed, reconfigured or collapsed away. */

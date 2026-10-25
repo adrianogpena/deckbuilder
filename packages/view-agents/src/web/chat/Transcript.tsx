@@ -1,5 +1,5 @@
 import { useLayoutEffect, useMemo, useRef } from 'react';
-import { MarkdownView } from '@deckbuilderkit/editor';
+import { MarkdownView } from '@kedalion/editor';
 import type { ChatEvent } from '../../chat-protocol.ts';
 import { t } from '../../i18n';
 import { toolSummary, transcriptItems, type ToolResult, type TranscriptItem } from './chat-model';

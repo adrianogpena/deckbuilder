@@ -1,5 +1,5 @@
 {
-  "name": "@deckbuilderkit/view-agents",
+  "name": "@kedalion/view-agents",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,12 +10,12 @@
     "./styles.css": "./src/styles.css"
   },
   "dependencies": {
-    "@deckbuilderkit/editor": "workspace:*",
-    "@deckbuilderkit/platform": "workspace:*",
-    "@deckbuilderkit/server-core": "workspace:*",
-    "@deckbuilderkit/server-mods": "workspace:*",
-    "@deckbuilderkit/terminal": "workspace:*",
-    "@deckbuilderkit/ui": "workspace:*",
+    "@kedalion/editor": "workspace:*",
+    "@kedalion/platform": "workspace:*",
+    "@kedalion/server-core": "workspace:*",
+    "@kedalion/server-mods": "workspace:*",
+    "@kedalion/terminal": "workspace:*",
+    "@kedalion/ui": "workspace:*",
     "@fontsource/inter": "^5.1.0",
     "@fontsource/jetbrains-mono": "^5.1.0"
   },

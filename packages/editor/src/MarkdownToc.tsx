@@ -1,4 +1,4 @@
-import { rovingIndex, t } from '@deckbuilderkit/ui';
+import { rovingIndex, t } from '@kedalion/ui';
 import { type KeyboardEvent, type RefObject, useEffect, useRef, useState } from 'react';
 import { activeHeading } from './toc';
 

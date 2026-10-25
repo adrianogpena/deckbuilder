@@ -1,4 +1,4 @@
-import { PanelBanner, t } from '@deckbuilderkit/ui';
+import { PanelBanner, t } from '@kedalion/ui';
 import { type ReactNode, useMemo, useState } from 'react';
 import { compareCells, delimiterOf, parseDelimited } from './table';
 

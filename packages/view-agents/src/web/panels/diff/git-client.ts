@@ -1,5 +1,5 @@
-import type { GitFile, GitFileContent, GitStatus } from '@deckbuilderkit/server-core/protocol';
-import { request } from '@deckbuilderkit/ui';
+import type { GitFile, GitFileContent, GitStatus } from '@kedalion/server-core/protocol';
+import { request } from '@kedalion/ui';
 
 export const gitClient = {
   gitStatus: (root: string) => request<GitStatus>('GET', '/api/agents/git/status', { root }),

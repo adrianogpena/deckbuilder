@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { ndjson, notFound } from '@deckbuilderkit/server-core';
+import { ndjson, notFound } from '@kedalion/server-core';
 import { findSessionFile } from '../chat/normalize.ts';
 import { newestTranscript } from './output.ts';
 import type { PanelRoutes } from './ctx.ts';

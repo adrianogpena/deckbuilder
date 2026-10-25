@@ -1,4 +1,4 @@
-import type { PanelField } from '@deckbuilderkit/ui/grid';
+import type { PanelField } from '@kedalion/ui/grid';
 
 const connection: PanelField = { key: 'connection', kind: 'connection', connectionType: 'jira', default: '', label: 'dash.jira.connection' };
 

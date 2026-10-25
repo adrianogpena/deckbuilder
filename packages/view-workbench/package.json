@@ -1,5 +1,5 @@
 {
-  "name": "@deckbuilderkit/view-workbench",
+  "name": "@kedalion/view-workbench",
   "version": "0.3.0",
   "license": "MIT",
   "private": true,
@@ -10,12 +10,12 @@
     "./styles.css": "./src/workbench.css"
   },
   "dependencies": {
-    "@deckbuilderkit/db": "workspace:*",
-    "@deckbuilderkit/editor": "workspace:*",
-    "@deckbuilderkit/server-core": "workspace:*",
-    "@deckbuilderkit/server-mods": "workspace:*",
-    "@deckbuilderkit/sql-ui": "workspace:*",
-    "@deckbuilderkit/ui": "workspace:*"
+    "@kedalion/db": "workspace:*",
+    "@kedalion/editor": "workspace:*",
+    "@kedalion/server-core": "workspace:*",
+    "@kedalion/server-mods": "workspace:*",
+    "@kedalion/sql-ui": "workspace:*",
+    "@kedalion/ui": "workspace:*"
   },
   "peerDependencies": {
     "react": "^18.3.1",

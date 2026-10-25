@@ -1,5 +1,5 @@
-import type { HttpRequestDraft } from '@deckbuilderkit/editor';
-import type { SectionPath, SettingDef } from '@deckbuilderkit/ui';
+import type { HttpRequestDraft } from '@kedalion/editor';
+import type { SectionPath, SettingDef } from '@kedalion/ui';
 
 /** The stored REST screen state. */
 export interface RestSettings {

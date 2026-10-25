@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Button, IconButton, request } from '@deckbuilderkit/ui';
+import { Button, IconButton, request } from '@kedalion/ui';
 import { t } from '../../../i18n';
 import type { PanelModule, PanelProps, SectionProps } from '../../workspace/types';
 import './style.css';

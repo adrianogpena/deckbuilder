@@ -1,4 +1,4 @@
-import { Button, IconButton, PanelBanner, t } from '@deckbuilderkit/ui';
+import { Button, IconButton, PanelBanner, t } from '@kedalion/ui';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CodeView } from './CodeView';
 

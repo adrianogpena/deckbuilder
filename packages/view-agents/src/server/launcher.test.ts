@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { launchers } from '@deckbuilderkit/terminal/server';
+import { launchers } from '@kedalion/terminal/server';
 import { claudeLauncher } from './launcher.ts';
 
 const ID = '11111111-2222-3333-4444-555555555555';

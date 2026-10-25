@@ -1,4 +1,4 @@
-import type { GitFile } from '@deckbuilderkit/server-core/protocol';
+import type { GitFile } from '@kedalion/server-core/protocol';
 
 export type GitStatusTone = 'ok' | 'warn' | 'err';
 

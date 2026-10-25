@@ -1,4 +1,4 @@
-import type { PanelField } from '@deckbuilderkit/ui/grid';
+import type { PanelField } from '@kedalion/ui/grid';
 
 export const PODS_FIELDS: readonly PanelField[] = [
   { key: 'clusters', kind: 'text', label: 'dash.pods.clusters', description: 'dash.pods.clusters.hint', placeholder: 'dash.pods.clusters.placeholder', default: '', rows: 4, maxLength: 2000 },

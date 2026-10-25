@@ -1,15 +1,15 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { appHome, createNotifications } from '@deckbuilderkit/platform';
-import { type ServerViewDef, viewIcons } from '@deckbuilderkit/server-core';
-import { dashboardServerView, dashboardSources, dashboardSpecs } from '@deckbuilderkit/view-grid/server';
-import { explorerServerView } from '@deckbuilderkit/view-explorer/server';
-import { gitServerView } from '@deckbuilderkit/view-git/server';
-import { restServerView } from '@deckbuilderkit/view-rest/server';
-import { terminalServerView } from '@deckbuilderkit/view-terminal/server';
-import { workbenchServerView } from '@deckbuilderkit/view-workbench/server';
-import { launchers, terminalSessions } from '@deckbuilderkit/terminal/server';
-import { agentsLauncher, agentsServerView } from '@deckbuilderkit/view-agents/server';
+import { appHome, createNotifications } from '@kedalion/platform';
+import { type ServerViewDef, viewIcons } from '@kedalion/server-core';
+import { dashboardServerView, dashboardSources, dashboardSpecs } from '@kedalion/view-grid/server';
+import { explorerServerView } from '@kedalion/view-explorer/server';
+import { gitServerView } from '@kedalion/view-git/server';
+import { restServerView } from '@kedalion/view-rest/server';
+import { terminalServerView } from '@kedalion/view-terminal/server';
+import { workbenchServerView } from '@kedalion/view-workbench/server';
+import { launchers, terminalSessions } from '@kedalion/terminal/server';
+import { agentsLauncher, agentsServerView } from '@kedalion/view-agents/server';
 import { APP } from '../app.ts';
 import { MULTI_DELETE_ENABLED } from '../app.ts';
 

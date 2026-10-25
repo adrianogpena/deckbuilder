@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from 'bun:test';
 import { generateKeyPairSync, sign } from 'node:crypto';
 import { join } from 'node:path';
-import type { UpdateState } from '@deckbuilderkit/server-core';
+import type { UpdateState } from '@kedalion/server-core';
 import { CHECK_INTERVAL_MS, type Clock, createUpdater, folderSource, githubSource, RETRY_MS, type UpdateFs, type Updater, type UpdaterOptions, verifiedRelease } from './update.ts';
 
 const SHARE = '\\\\server\\share\\Gallery';

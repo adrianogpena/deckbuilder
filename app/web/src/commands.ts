@@ -1,4 +1,4 @@
-import { type CommandDef, GLOBAL, paletteCommand, quickOpenCommand } from '@deckbuilderkit/ui';
+import { type CommandDef, GLOBAL, paletteCommand, quickOpenCommand } from '@kedalion/ui';
 import { t } from './i18n';
 
 /** What `commands` needs of the view list (`createViews`). */

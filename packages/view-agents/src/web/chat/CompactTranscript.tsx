@@ -1,6 +1,6 @@
 import { useLayoutEffect, useMemo, useRef } from 'react';
-import { MarkdownView } from '@deckbuilderkit/editor';
-import { Button } from '@deckbuilderkit/ui';
+import { MarkdownView } from '@kedalion/editor';
+import { Button } from '@kedalion/ui';
 import { t } from '../../i18n';
 import { compactTurns, type CompactTurn } from '../session-summary';
 import { toolSummary } from './chat-model';

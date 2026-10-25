@@ -1,4 +1,4 @@
-import { Button } from '@deckbuilderkit/ui';
+import { Button } from '@kedalion/ui';
 import { tKey } from '../../i18n';
 import { Chip } from '../../kit';
 import './jira.css';

@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { copyFile, readFile, rename, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { isCompiledExe, startDetached, updatePaths } from '@deckbuilderkit/platform';
+import { isCompiledExe, startDetached, updatePaths } from '@kedalion/platform';
 import {
   AppError,
   isNewerVersion,
@@ -15,7 +15,7 @@ import {
   type Routes,
   type UpdateState,
   verifyManifest,
-} from '@deckbuilderkit/server-core';
+} from '@kedalion/server-core';
 
 export const CHECK_INTERVAL_MS = 6 * 60 * 60_000;
 /** After a failed check (off VPN, share down): try again sooner than the regular interval. */

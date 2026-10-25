@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, IconButton, Modal } from '@deckbuilderkit/ui';
+import { Button, IconButton, Modal } from '@kedalion/ui';
 import { tKey } from '../../i18n';
 import { formatEntries, parseEntries, type PodEntry } from './model';
 import type { PodsConfig } from './PodsPanel';

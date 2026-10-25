@@ -7,8 +7,8 @@ import {
   openInEditor,
   readJsonFile,
   writeJsonAtomic,
-} from '@deckbuilderkit/platform';
-import { type EditorInfo, forbidden, invalid, isRecord, type Routes } from '@deckbuilderkit/server-core';
+} from '@kedalion/platform';
+import { type EditorInfo, forbidden, invalid, isRecord, type Routes } from '@kedalion/server-core';
 import type { PickedPaths } from './dialogs.ts';
 import { fromPlatform } from './platform-errors.ts';
 import type { RootedFs } from './rooted-fs.ts';

@@ -1,4 +1,4 @@
-import { tryT } from '@deckbuilderkit/ui/i18n';
+import { tryT } from '@kedalion/ui/i18n';
 import type { Node } from '@milkdown/prose/model';
 import { type EditorState, Plugin, PluginKey, TextSelection } from '@milkdown/prose/state';
 import { Decoration, DecorationSet, type EditorView } from '@milkdown/prose/view';

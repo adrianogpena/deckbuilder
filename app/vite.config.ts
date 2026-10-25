@@ -1,6 +1,6 @@
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
-import { DEV_PORT } from '@deckbuilderkit/server-core/protocol';
+import { DEV_PORT } from '@kedalion/server-core/protocol';
 
 // lru-cache (via the xterm ligatures addon) imports node:diagnostics_channel; the browser has none, so stub it with no-op channels.
 const STUB_ID = 'virtual:diagnostics-channel-stub';

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import type { AppError } from '@deckbuilderkit/server-core';
+import type { AppError } from '@kedalion/server-core';
 import { parseOracleUrl, validConnection } from './oracle-url.ts';
 
 const codeOf = (fn: () => unknown) => {

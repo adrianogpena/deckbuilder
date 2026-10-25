@@ -1,4 +1,4 @@
-import { Button, Icon, IconButton, PanelNotice, t } from '@deckbuilderkit/ui';
+import { Button, Icon, IconButton, PanelNotice, t } from '@kedalion/ui';
 import { type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { SqlProblem } from './sql/lint';
 import { type LayoutPoint, type LineageEdge, type LineageNode, layoutGraph, lineageGraph, lineageOf, sqlNameKey } from './sql/lineage';

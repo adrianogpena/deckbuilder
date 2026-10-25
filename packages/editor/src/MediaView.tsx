@@ -1,4 +1,4 @@
-import { PanelBanner, t } from '@deckbuilderkit/ui';
+import { PanelBanner, t } from '@kedalion/ui';
 import { useState } from 'react';
 
 /** An audio or video file played from a blob URL. */

@@ -1,4 +1,4 @@
-# @deckbuilderkit/view-explorer
+# @kedalion/view-explorer
 
 Explorer
 

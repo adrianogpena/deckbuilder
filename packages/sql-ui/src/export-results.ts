@@ -1,4 +1,4 @@
-import { dialogs, type ExportColumn, toCsv } from '@deckbuilderkit/ui';
+import { dialogs, type ExportColumn, toCsv } from '@kedalion/ui';
 import { t } from './i18n';
 import type { SqlClient } from './types';
 

@@ -1,5 +1,5 @@
 import { useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
-import { Icon, IconButton, ProjectPicker, type ProjectPickerProps, useCommand, useShortcutTip } from '@deckbuilderkit/ui';
+import { Icon, IconButton, ProjectPicker, type ProjectPickerProps, useCommand, useShortcutTip } from '@kedalion/ui';
 import type { Project, SearchHit } from '../client';
 import { explorerCommandById as commandById } from '../commands';
 import { nodeId } from '../explorer-paths';

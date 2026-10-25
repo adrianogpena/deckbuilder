@@ -1,6 +1,6 @@
 import { join } from 'node:path';
-import { appHome, createAutostart, setBrowser } from '@deckbuilderkit/platform';
-import { applyViewSettings, checkViewSettings, type FieldSpec, forbidden, mountViews, updatePublicKey, validGroup } from '@deckbuilderkit/server-core';
+import { appHome, createAutostart, setBrowser } from '@kedalion/platform';
+import { applyViewSettings, checkViewSettings, type FieldSpec, forbidden, mountViews, updatePublicKey, validGroup } from '@kedalion/server-core';
 import {
   backupRoutes,
   createUpdater,
@@ -14,19 +14,19 @@ import {
   themeHead,
   updateRoutes,
   type BaseSettings,
-} from '@deckbuilderkit/server-mods';
-import { runApp } from '@deckbuilderkit/shell';
-import type { ExplorerServerSettings } from '@deckbuilderkit/view-explorer/server';
-import type { GitServerSettings } from '@deckbuilderkit/view-git/server';
-import type { AgentsServerSettings } from '@deckbuilderkit/view-agents/server';
-import { restHistorySizeOf, type RestServerSettings } from '@deckbuilderkit/view-rest/server';
-import type { TerminalServerSettings } from '@deckbuilderkit/view-terminal/server';
-import { historySizeOf, type WorkbenchServerSettings } from '@deckbuilderkit/view-workbench/server';
-import type { DashboardServerSettings } from '@deckbuilderkit/view-grid/server';
-import { validKeymap, type Keymap } from '@deckbuilderkit/ui/keybindings';
-import { type FileAssociation, validFileAssociations } from '@deckbuilderkit/ui/file-associations';
-import { type FileSettings, validFileSettings } from '@deckbuilderkit/ui/file-settings';
-import { type LogSettings, validLogSettings } from '@deckbuilderkit/ui/log';
+} from '@kedalion/server-mods';
+import { runApp } from '@kedalion/shell';
+import type { ExplorerServerSettings } from '@kedalion/view-explorer/server';
+import type { GitServerSettings } from '@kedalion/view-git/server';
+import type { AgentsServerSettings } from '@kedalion/view-agents/server';
+import { restHistorySizeOf, type RestServerSettings } from '@kedalion/view-rest/server';
+import type { TerminalServerSettings } from '@kedalion/view-terminal/server';
+import { historySizeOf, type WorkbenchServerSettings } from '@kedalion/view-workbench/server';
+import type { DashboardServerSettings } from '@kedalion/view-grid/server';
+import { validKeymap, type Keymap } from '@kedalion/ui/keybindings';
+import { type FileAssociation, validFileAssociations } from '@kedalion/ui/file-associations';
+import { type FileSettings, validFileSettings } from '@kedalion/ui/file-settings';
+import { type LogSettings, validLogSettings } from '@kedalion/ui/log';
 import { APP } from '../app.ts';
 import pkg from '../package.json';
 import { routes } from './routes.ts';
@@ -49,7 +49,7 @@ export interface Settings extends BaseSettings, TerminalServerSettings, Workbenc
   updateFolder: string;
   /** Keybinding overrides by command id, checked by `validKeymap`. */
   keybindings?: Keymap;
-  /** Layout of the Tabs screen (`serialize` of `@deckbuilderkit/ui`'s tabs); the UI validates it on restore. */
+  /** Layout of the Tabs screen (`serialize` of `@kedalion/ui`'s tabs); the UI validates it on restore. */
   tabsLayout?: unknown;
   /** Log viewer: highlight words (global) and bookmarks per `<projectId>:<path>`. */
   logs?: LogSettings;

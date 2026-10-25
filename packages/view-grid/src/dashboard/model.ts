@@ -1,4 +1,4 @@
-import { addItem, MAX_ID, MIN_PANEL_H, MIN_PANEL_W, validGridItems, type GridItem, type PanelConfig, type PanelDef, type PanelKindSpec } from '@deckbuilderkit/ui/grid';
+import { addItem, MAX_ID, MIN_PANEL_H, MIN_PANEL_W, validGridItems, type GridItem, type PanelConfig, type PanelDef, type PanelKindSpec } from '@kedalion/ui/grid';
 
 type IconName = NonNullable<GridItem['icon']>;
 

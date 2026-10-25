@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Button, Icon, IconButton, Modal, validConfig, type GridItem, type PanelConfig } from '@deckbuilderkit/ui';
+import { Button, Icon, IconButton, Modal, validConfig, type GridItem, type PanelConfig } from '@kedalion/ui';
 import { ConfigForm } from './ConfigForm';
 import type { DashboardPreset } from './dashboard/model';
 import { tKey } from './i18n';

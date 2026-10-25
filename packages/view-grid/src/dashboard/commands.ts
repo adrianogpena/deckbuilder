@@ -1,4 +1,4 @@
-import type { CommandDef } from '@deckbuilderkit/ui';
+import type { CommandDef } from '@kedalion/ui';
 import { tKey } from '../i18n';
 
 /** Indices are used by DashboardScreen: append only, never reorder. */

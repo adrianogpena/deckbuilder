@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { Modal, useRovingList } from '@deckbuilderkit/ui';
+import { Modal, useRovingList } from '@kedalion/ui';
 import { t } from '../i18n';
 
 /** What the picker returns: the top level, a folder id, or a new folder. */

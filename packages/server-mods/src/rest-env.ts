@@ -1,5 +1,5 @@
-import { invalid } from '@deckbuilderkit/server-core';
-import { REST_VAR_REFERENCE } from '@deckbuilderkit/server-core/protocol';
+import { invalid } from '@kedalion/server-core';
+import { REST_VAR_REFERENCE } from '@kedalion/server-core/protocol';
 
 export interface VariableResolver {
   /** `text` with every known `{{name}}` replaced; unknown names are collected and left as they are. */

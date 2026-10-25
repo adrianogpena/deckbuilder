@@ -1,5 +1,5 @@
 {
-  "name": "@deckbuilderkit/sql-ui",
+  "name": "@kedalion/sql-ui",
   "version": "0.3.0",
   "license": "MIT",
   "private": true,
@@ -8,8 +8,8 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@deckbuilderkit/editor": "workspace:*",
-    "@deckbuilderkit/ui": "workspace:*"
+    "@kedalion/editor": "workspace:*",
+    "@kedalion/ui": "workspace:*"
   },
   "peerDependencies": {
     "react": "^18.3.1",

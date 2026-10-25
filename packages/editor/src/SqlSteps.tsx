@@ -1,4 +1,4 @@
-import { Badge, Button, Icon, IconButton, PanelNotice, t } from '@deckbuilderkit/ui';
+import { Badge, Button, Icon, IconButton, PanelNotice, t } from '@kedalion/ui';
 import { type KeyboardEvent, type PointerEvent, type ReactNode, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { SqlGraph } from './SqlGraph';
 import { type SqlLintSeverity, type SqlProblem, sqlLint } from './sql/lint';

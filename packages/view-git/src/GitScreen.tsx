@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
-import type { DiffMode, DiffViewHandle } from '@deckbuilderkit/editor';
-import type { GitFile, GitRepoInfo, GitStatus } from '@deckbuilderkit/server-core/protocol';
-import { type ApiError, copyText, useShortcutTip, Empty, ErrorBanner, errorMessage, errorOf, Explorer, fileIconOf, Icon, IconButton, ProjectPicker, statusOf, useCommand, useDebouncedSave, useRovingList, useToast, useViewLink, useViewRequest } from '@deckbuilderkit/ui';
+import type { DiffMode, DiffViewHandle } from '@kedalion/editor';
+import type { GitFile, GitRepoInfo, GitStatus } from '@kedalion/server-core/protocol';
+import { type ApiError, copyText, useShortcutTip, Empty, ErrorBanner, errorMessage, errorOf, Explorer, fileIconOf, Icon, IconButton, ProjectPicker, statusOf, useCommand, useDebouncedSave, useRovingList, useToast, useViewLink, useViewRequest } from '@kedalion/ui';
 import { type GitProject as Project, gitApi as api } from './client';
 import { gitCommands } from './commands';
 import { t } from './i18n';

@@ -1,4 +1,4 @@
-import type { Routes } from '@deckbuilderkit/server-core';
+import type { Routes } from '@kedalion/server-core';
 import type { PanelCtx, PanelRoutes } from './ctx.ts';
 import { routes as changes } from './changes.ts';
 import { routes as output } from './output.ts';

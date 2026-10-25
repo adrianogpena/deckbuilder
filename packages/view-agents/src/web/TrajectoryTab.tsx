@@ -1,5 +1,5 @@
 import { type KeyboardEvent, useEffect, useRef, useState } from 'react';
-import { Empty, ErrorBanner, Spinner, useAsync, useRovingList } from '@deckbuilderkit/ui';
+import { Empty, ErrorBanner, Spinner, useAsync, useRovingList } from '@kedalion/ui';
 import type { AgentTraceStep } from '../protocol';
 import { t } from '../i18n';
 import { getTrace } from './api';

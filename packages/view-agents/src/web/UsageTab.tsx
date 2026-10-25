@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Empty, Modal, request } from '@deckbuilderkit/ui';
+import { Empty, Modal, request } from '@kedalion/ui';
 import { t } from '../i18n';
 import type { AgentAccountUsage, AgentRateLimit, AgentSession, AgentSevenDayHistory } from '../protocol.ts';
 import { barCells, historyRows, isStale, liveLimit, resetLabel, severity, shortDuration, shownPercent, type SeverityThresholds } from './usage-format';

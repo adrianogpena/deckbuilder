@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useAsync } from '@deckbuilderkit/ui';
+import { useAsync } from '@kedalion/ui';
 import { tKey } from '../../i18n';
 import { Chip, relTime, type Tone as ChipTone } from '../../kit';
 import { runAction } from '../../source';

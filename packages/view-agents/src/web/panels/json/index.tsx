@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, JsonTree } from '@deckbuilderkit/ui';
+import { Button, JsonTree } from '@kedalion/ui';
 import { t } from '../../../i18n';
 import type { PanelModule } from '../../workspace/types';
 import { format, minify, validate } from './json-tools';

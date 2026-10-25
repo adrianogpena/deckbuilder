@@ -1,4 +1,4 @@
-import { defineServerView, type Routes } from '@deckbuilderkit/server-core';
+import { defineServerView, type Routes } from '@kedalion/server-core';
 import { connectionRoutes } from '../connections/routes';
 import { checkSources, kindSpecsOf, sourceRoutes, type DataSource, type GridNotifications, type GridPanelSpec } from '../server';
 import { validDashboardLayouts, validDashboardPresets, type DashboardLayouts, type DashboardPreset } from './model';

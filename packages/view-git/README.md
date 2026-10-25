@@ -1,4 +1,4 @@
-# @deckbuilderkit/view-git
+# @kedalion/view-git
 
 Git
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Button, IconButton, errorOf } from '@deckbuilderkit/ui';
+import { Button, IconButton, errorOf } from '@kedalion/ui';
 import { t } from '../../../i18n';
 import { formatCost, liveLimit, resetLabel, shownPercent } from '../../usage-format';
 import { useAgentsHost } from '../../workspace/host';

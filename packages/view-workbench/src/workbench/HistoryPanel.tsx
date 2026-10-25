@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Button, errorMessage, errorOf, IconButton, Spinner, useToast } from '@deckbuilderkit/ui';
-import type { SqlHistoryEntry } from '@deckbuilderkit/server-core/protocol';
+import { Button, errorMessage, errorOf, IconButton, Spinner, useToast } from '@kedalion/ui';
+import type { SqlHistoryEntry } from '@kedalion/server-core/protocol';
 import type { WorkbenchClient } from '../client';
 import { t } from '../i18n';
 

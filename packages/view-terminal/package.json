@@ -1,5 +1,5 @@
 {
-  "name": "@deckbuilderkit/view-terminal",
+  "name": "@kedalion/view-terminal",
   "version": "0.3.0",
   "license": "MIT",
   "private": true,
@@ -10,9 +10,9 @@
     "./styles.css": "./src/terminal-screen.css"
   },
   "dependencies": {
-    "@deckbuilderkit/server-core": "workspace:*",
-    "@deckbuilderkit/terminal": "workspace:*",
-    "@deckbuilderkit/ui": "workspace:*"
+    "@kedalion/server-core": "workspace:*",
+    "@kedalion/terminal": "workspace:*",
+    "@kedalion/ui": "workspace:*"
   },
   "peerDependencies": {
     "react": "^18.3.1",

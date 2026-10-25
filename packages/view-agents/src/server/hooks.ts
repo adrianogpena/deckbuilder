@@ -1,8 +1,8 @@
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { readJsonFile, writeJsonAtomic } from '@deckbuilderkit/platform';
-import { invalid } from '@deckbuilderkit/server-core';
+import { readJsonFile, writeJsonAtomic } from '@kedalion/platform';
+import { invalid } from '@kedalion/server-core';
 import { type AgentCategory, type AgentSessionView, STATUS_CATEGORY } from '../protocol.ts';
 import type { AgentsSettings } from '../settings-types.ts';
 import type { Transitions } from './notify.ts';

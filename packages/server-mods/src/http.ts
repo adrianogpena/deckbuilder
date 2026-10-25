@@ -1,6 +1,6 @@
 import { extname } from 'node:path';
-import { writeFileAtomic } from '@deckbuilderkit/platform';
-import { AppError, forbidden, invalid, isRecord, type Routes } from '@deckbuilderkit/server-core';
+import { writeFileAtomic } from '@kedalion/platform';
+import { AppError, forbidden, invalid, isRecord, type Routes } from '@kedalion/server-core';
 import {
   HTTP_MAX_BODY_BYTES,
   HTTP_MAX_BODY_CHARS,
@@ -15,7 +15,7 @@ import {
   type HttpRequestSpec,
   type HttpResponseInfo,
   type RestHistoryEntry,
-} from '@deckbuilderkit/server-core/protocol';
+} from '@kedalion/server-core/protocol';
 import { isBinary } from './bytes.ts';
 import type { DialogPicks } from './file-dialog.ts';
 import { variableResolver, type VariableResolver } from './rest-env.ts';

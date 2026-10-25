@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { effectiveKeys, type TabAction, useKeybindings } from '@deckbuilderkit/ui';
+import { effectiveKeys, type TabAction, useKeybindings } from '@kedalion/ui';
 
 /** The first key of a command, for tooltips and menus. */
 export function useChordOf(): (id: string) => string | undefined {

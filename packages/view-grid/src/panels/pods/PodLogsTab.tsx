@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button, LogView, type HighlightTerm, type LogLine } from '@deckbuilderkit/ui';
+import { Button, LogView, type HighlightTerm, type LogLine } from '@kedalion/ui';
 import { tKey } from '../../i18n';
 import { streamSource } from '../../source';
 import { detectLevel, type LogStatus } from './logs';

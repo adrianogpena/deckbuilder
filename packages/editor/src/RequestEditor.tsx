@@ -1,5 +1,5 @@
-import { HTTP_MAX_FORM_FIELDS, HTTP_METHODS, HTTP_TIMEOUT_MAX_MS, HTTP_TIMEOUT_MIN_MS, type HttpMethod, type RestEnvVar, restVarRefs } from '@deckbuilderkit/server-core/protocol';
-import { Button, IconButton, Spinner, t } from '@deckbuilderkit/ui';
+import { HTTP_MAX_FORM_FIELDS, HTTP_METHODS, HTTP_TIMEOUT_MAX_MS, HTTP_TIMEOUT_MIN_MS, type HttpMethod, type RestEnvVar, restVarRefs } from '@kedalion/server-core/protocol';
+import { Button, IconButton, Spinner, t } from '@kedalion/ui';
 import { type MouseEvent, type ReactNode, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { CodeEditor } from './CodeEditor';
 import {

@@ -1,7 +1,7 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { type CodeEditorHandle, type CodeEditorProps, curlAt, draftToSpec, type HttpHeaderDraft, type ImportedRequest, parseCurl, ResponseView, warningText } from '@deckbuilderkit/editor';
-import type { HttpResponseInfo } from '@deckbuilderkit/server-core/protocol';
-import { type ApiError, Button, dialogs, errorOf, Icon, IconButton, PanelBanner, SplitView, type TabAction, useViewLink } from '@deckbuilderkit/ui';
+import { type CodeEditorHandle, type CodeEditorProps, curlAt, draftToSpec, type HttpHeaderDraft, type ImportedRequest, parseCurl, ResponseView, warningText } from '@kedalion/editor';
+import type { HttpResponseInfo } from '@kedalion/server-core/protocol';
+import { type ApiError, Button, dialogs, errorOf, Icon, IconButton, PanelBanner, SplitView, type TabAction, useViewLink } from '@kedalion/ui';
 import { explorerApi as api } from '../client';
 import { httpClient } from '../client';
 import { t } from '../i18n';

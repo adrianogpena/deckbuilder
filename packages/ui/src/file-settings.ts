@@ -1,4 +1,4 @@
-import { isRecord } from '@deckbuilderkit/server-core/protocol';
+import { isRecord } from '@kedalion/server-core/protocol';
 import { NESTING_DEFAULTS, type NestingPatterns } from './file-nesting';
 import type { SectionPath, SettingDef } from './settings-schema';
 

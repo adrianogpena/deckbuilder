@@ -1,5 +1,5 @@
-import { invalid, notFound } from '@deckbuilderkit/server-core';
-import { openExternal } from '@deckbuilderkit/platform';
+import { invalid, notFound } from '@kedalion/server-core';
+import { openExternal } from '@kedalion/platform';
 import type { PanelCtx, PanelRoutes } from './ctx.ts';
 import { detectTargets, findUrl, type RunTarget } from './run-detect.ts';
 

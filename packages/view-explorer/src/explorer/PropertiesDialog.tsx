@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Button, copyText, errorMessage, errorOf, formatBytes, Modal, useToast } from '@deckbuilderkit/ui';
+import { Button, copyText, errorMessage, errorOf, formatBytes, Modal, useToast } from '@kedalion/ui';
 import { explorerApi as api, type FsDuProgress, type FsInfo } from '../client';
 import { t } from '../i18n';
 

@@ -1,4 +1,4 @@
-import { AppError } from '@deckbuilderkit/server-core';
+import { AppError } from '@kedalion/server-core';
 
 export type SourceErrorCode = 'not-configured' | 'auth' | 'rate-limited' | 'offline' | 'upstream' | 'tool-missing';
 

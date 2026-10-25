@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
-import { Icon, IconButton, type IconName, useShortcutTip } from '@deckbuilderkit/ui';
+import { Icon, IconButton, type IconName, useShortcutTip } from '@kedalion/ui';
 import type { ChatEvent } from '../chat-protocol.ts';
 import type { AgentSessionView } from '../protocol.ts';
 import { t } from '../i18n';

@@ -1,6 +1,6 @@
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { RestHistoryEntry } from '@deckbuilderkit/server-core/protocol';
+import type { RestHistoryEntry } from '@kedalion/server-core/protocol';
 import { withoutAuthorization } from './http.ts';
 
 export type { RestHistoryEntry };

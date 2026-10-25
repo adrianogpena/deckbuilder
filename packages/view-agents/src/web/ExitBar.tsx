@@ -1,4 +1,4 @@
-import { Button, useShortcutTip } from '@deckbuilderkit/ui';
+import { Button, useShortcutTip } from '@kedalion/ui';
 import { t } from '../i18n';
 
 /** Exit codes that read as a normal stop: 0, Ctrl+C (130), SIGTERM (143) and Windows Ctrl+C (0xC000013A). */

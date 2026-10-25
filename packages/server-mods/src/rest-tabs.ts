@@ -1,7 +1,7 @@
 import { join } from 'node:path';
-import { readJsonFile, writeJsonAtomic } from '@deckbuilderkit/platform';
-import { invalid, isRecord, type Routes } from '@deckbuilderkit/server-core';
-import type { HttpRequestDraft } from '@deckbuilderkit/server-core/protocol';
+import { readJsonFile, writeJsonAtomic } from '@kedalion/platform';
+import { invalid, isRecord, type Routes } from '@kedalion/server-core';
+import type { HttpRequestDraft } from '@kedalion/server-core/protocol';
 import { validateDraft, withoutAuthorization } from './http.ts';
 
 export const REST_TABS_MAX = 30;

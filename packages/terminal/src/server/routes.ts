@@ -1,4 +1,4 @@
-import { AppError, invalid, isRecord, notFound, socketTickets, type Routes, type SocketData, type SocketRoutes } from '@deckbuilderkit/server-core';
+import { AppError, invalid, isRecord, notFound, socketTickets, type Routes, type SocketData, type SocketRoutes } from '@kedalion/server-core';
 import type { ServerWebSocket } from 'bun';
 import { existsSync, statSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';

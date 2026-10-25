@@ -1,4 +1,4 @@
-# @deckbuilderkit/view-terminal
+# @kedalion/view-terminal
 
 Terminal
 

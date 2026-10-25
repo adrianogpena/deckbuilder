@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-import { defineView } from '@deckbuilderkit/ui';
+import { defineView } from '@kedalion/ui';
 import { agentsCommands } from './commands';
 import { en, ptBR } from './i18n';
 import { agentsSettingDefs, type AgentsViewSettings } from './settings';

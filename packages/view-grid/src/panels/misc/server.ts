@@ -1,4 +1,4 @@
-import type { PanelConfig } from '@deckbuilderkit/ui/grid';
+import type { PanelConfig } from '@kedalion/ui/grid';
 import type { DataSource, GridPanelSpec } from '../../server';
 import { fields } from './fields';
 import { checkUrl, fetchJson, type HealthResult } from './health';

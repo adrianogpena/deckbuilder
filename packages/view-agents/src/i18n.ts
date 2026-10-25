@@ -1,4 +1,4 @@
-import { createT, type Messages } from '@deckbuilderkit/ui';
+import { createT, type Messages } from '@kedalion/ui';
 import { panelsEn, panelsPtBR } from './web/panels/i18n';
 import * as workspace from './web/workspace/i18n';
 

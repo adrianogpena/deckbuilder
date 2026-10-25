@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Button, Icon } from '@deckbuilderkit/ui';
+import { Button, Icon } from '@kedalion/ui';
 import { t } from '../i18n';
 
 /** Bar under a stopped session (spec S8): history icon, title, Resume and Dismiss. Never runs by itself. `children` replaces the title (recovery list). */

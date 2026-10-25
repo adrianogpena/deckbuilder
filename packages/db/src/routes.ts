@@ -1,4 +1,4 @@
-import { invalid, isRecord, ndjson, notFound, type Routes } from '@deckbuilderkit/server-core';
+import { invalid, isRecord, ndjson, notFound, type Routes } from '@kedalion/server-core';
 import { parseOracleUrl, validUser } from './oracle-url.ts';
 import type { SqlHistory } from './history.ts';
 import type { DbCredentials, DbSessions } from './sessions.ts';

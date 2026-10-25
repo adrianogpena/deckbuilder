@@ -1,4 +1,4 @@
-import { Button, Icon, useShortcutTip } from '@deckbuilderkit/ui';
+import { Button, Icon, useShortcutTip } from '@kedalion/ui';
 import { t } from '../i18n';
 
 /** Main pane with nothing selected (spec S11): icon, title, description with the new-session key, "New session" button. */

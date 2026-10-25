@@ -1,5 +1,5 @@
-import { type RouteContext, type Routes } from '@deckbuilderkit/server-core';
-import { validConfig, type PanelConfig, type PanelField, type PanelKindSpec } from '@deckbuilderkit/ui/grid';
+import { type RouteContext, type Routes } from '@kedalion/server-core';
+import { validConfig, type PanelConfig, type PanelField, type PanelKindSpec } from '@kedalion/ui/grid';
 
 import { type ResolvedConnection } from './connections/auth';
 import { connectionResolverOf } from './connections/routes';

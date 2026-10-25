@@ -1,7 +1,7 @@
-import { writeFileAtomic } from '@deckbuilderkit/platform';
-import { forbidden, invalid, ndjson, type Routes } from '@deckbuilderkit/server-core';
-import { fromPlatform } from '@deckbuilderkit/server-mods';
-import type { StartContext } from '@deckbuilderkit/shell';
+import { writeFileAtomic } from '@kedalion/platform';
+import { forbidden, invalid, ndjson, type Routes } from '@kedalion/server-core';
+import { fromPlatform } from '@kedalion/server-mods';
+import type { StartContext } from '@kedalion/shell';
 import { stores } from './stores.ts';
 import { notifications } from './views.ts';
 

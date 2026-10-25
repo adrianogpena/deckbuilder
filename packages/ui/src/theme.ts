@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { resolveLayout } from '@deckbuilderkit/server-core/layouts';
-import { paletteFor, TOKENS, type Palette, type ThemeKind, type ThemeSettings } from '@deckbuilderkit/server-core/palettes';
+import { resolveLayout } from '@kedalion/server-core/layouts';
+import { paletteFor, TOKENS, type Palette, type ThemeKind, type ThemeSettings } from '@kedalion/server-core/palettes';
 
 const QUERY = '(prefers-color-scheme: dark)';
 

@@ -1,4 +1,4 @@
-import { t } from '@deckbuilderkit/ui';
+import { t } from '@kedalion/ui';
 import type { SqlLintSeverity, SqlProblem } from './sql/lint';
 
 /** Most severe first. */

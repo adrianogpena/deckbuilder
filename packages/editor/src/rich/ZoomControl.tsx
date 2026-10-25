@@ -1,5 +1,5 @@
 import './view.css';
-import { Button, createT, IconButton } from '@deckbuilderkit/ui';
+import { Button, createT, IconButton } from '@kedalion/ui';
 import { useEffect, useReducer } from 'react';
 import type { RichApi } from './commands';
 import { applyView, setZoom, stepZoom, toggleWide, zoomStore } from './view';

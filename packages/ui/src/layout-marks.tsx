@@ -1,5 +1,5 @@
 import { useId } from 'react';
-import { LAYOUT_MARK_IDS } from '@deckbuilderkit/server-core/layouts';
+import { LAYOUT_MARK_IDS } from '@kedalion/server-core/layouts';
 
 /**
  * One mark per layout id, drawn from design/layout-icons/<id>.svg (32x32, currentColor with opacity layers).

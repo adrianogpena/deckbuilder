@@ -1,5 +1,5 @@
-import { defineServerView, GIT_SPEC, isRecord, validGroup } from '@deckbuilderkit/server-core';
-import { gitRoutes } from '@deckbuilderkit/server-mods';
+import { defineServerView, GIT_SPEC, isRecord, validGroup } from '@kedalion/server-core';
+import { gitRoutes } from '@kedalion/server-mods';
 import type { GitSection, GitViewState } from './settings';
 
 /** The part of the server settings the Git view owns; the app's `Settings` extends it. */

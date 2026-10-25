@@ -1,4 +1,4 @@
-import { Icon, type IconName } from '@deckbuilderkit/ui';
+import { Icon, type IconName } from '@kedalion/ui';
 import { type AgentsMessageKey, t } from '../../i18n';
 
 /** Placeholder of a tool that is not built yet. */

@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Empty, ErrorBanner, IconButton, Spinner, useAsync, useRovingList } from '@deckbuilderkit/ui';
+import { Empty, ErrorBanner, IconButton, Spinner, useAsync, useRovingList } from '@kedalion/ui';
 import { t } from '../i18n';
 import type { AgentSkillState } from '../protocol';
 import { listSkills } from './api';

@@ -1,5 +1,5 @@
-import { killTreeSync, waitForUrl } from '@deckbuilderkit/platform';
-import { DEV_PORT, VITE_PORT } from '@deckbuilderkit/server-core/protocol';
+import { killTreeSync, waitForUrl } from '@kedalion/platform';
+import { DEV_PORT, VITE_PORT } from '@kedalion/server-core/protocol';
 import { join, relative } from 'node:path';
 import { type AppDir, workspaceRoot } from './app.ts';
 

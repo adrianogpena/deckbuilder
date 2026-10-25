@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { ICON_SET_IDS, LAYOUTS } from '@deckbuilderkit/server-core/layouts';
+import { ICON_SET_IDS, LAYOUTS } from '@kedalion/server-core/layouts';
 import { ICON_SETS, PATHS, iconSetById } from '../src/icons';
 
 describe('icon sets', () => {

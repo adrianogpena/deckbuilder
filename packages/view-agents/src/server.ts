@@ -1,10 +1,10 @@
-import { t } from '@deckbuilderkit/ui/i18n';
+import { t } from '@kedalion/ui/i18n';
 import { type FSWatcher, mkdirSync, readdirSync, readFileSync, rmSync, watch, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { createNotifications, type Notifications, type Toast } from '@deckbuilderkit/platform';
-import { editorRoutes, gitRoutes, pickedPaths, rootedFs } from '@deckbuilderkit/server-mods';
-import { defineServerView, invalid, ndjson, socketTickets, validGroup, type SocketData, type SocketRoutes } from '@deckbuilderkit/server-core';
+import { createNotifications, type Notifications, type Toast } from '@kedalion/platform';
+import { editorRoutes, gitRoutes, pickedPaths, rootedFs } from '@kedalion/server-mods';
+import { defineServerView, invalid, ndjson, socketTickets, validGroup, type SocketData, type SocketRoutes } from '@kedalion/server-core';
 import type { ServerWebSocket } from 'bun';
 import type { AgentLocal, AgentSkill, AgentActiveAccountResult, AgentActiveAccountSet, AgentLaunch, AgentRunning, AgentSessionView, AgentsCapWarn, AgentsFrame, AgentStopResult } from './protocol.ts';
 import type { AgentsSettings, AgentsUsagePosition } from './settings-types.ts';

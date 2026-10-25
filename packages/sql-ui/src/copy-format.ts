@@ -1,4 +1,4 @@
-import { toCsv, toTsv } from '@deckbuilderkit/ui/table';
+import { toCsv, toTsv } from '@kedalion/ui/table';
 
 export const COPY_FORMATS = ['tsv', 'csv', 'markdown', 'json', 'insert'] as const;
 export type CopyFormat = (typeof COPY_FORMATS)[number];

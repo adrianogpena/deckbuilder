@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, IconButton } from '@deckbuilderkit/ui';
+import { Button, IconButton } from '@kedalion/ui';
 import { tKey } from '../../i18n';
 import { relTime } from '../../kit';
 import { runAction } from '../../source';

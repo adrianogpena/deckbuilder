@@ -1,6 +1,6 @@
-import { httpClient, type HttpClient } from '@deckbuilderkit/editor';
-import { request } from '@deckbuilderkit/ui';
-import type { RestEnvironment, RestEnvironmentInput, RestHistoryEntry } from '@deckbuilderkit/server-core/protocol';
+import { httpClient, type HttpClient } from '@kedalion/editor';
+import { request } from '@kedalion/ui';
+import type { RestEnvironment, RestEnvironmentInput, RestHistoryEntry } from '@kedalion/server-core/protocol';
 import type { RestTabsFile, SavedRequest } from './settings';
 
 /** The server calls the REST view makes (the sending and the environment list come from `HttpClient`); the app builds it from its api and passes it to `restView`. */

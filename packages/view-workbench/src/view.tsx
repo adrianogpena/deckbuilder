@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-import { defineView } from '@deckbuilderkit/ui';
+import { defineView } from '@kedalion/ui';
 import { workbenchClient, type WorkbenchClient } from './client';
 import { workbenchCommands } from './commands';
 import { en, ptBR } from './i18n';

@@ -1,6 +1,6 @@
 import { copyFileSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
-import { bumpVersion, MANIFEST, MANIFEST_SIG, type ReleaseManifest, type VersionBump } from '@deckbuilderkit/server-core';
+import { bumpVersion, MANIFEST, MANIFEST_SIG, type ReleaseManifest, type VersionBump } from '@kedalion/server-core';
 import { type AppDir, workspaceRoot } from './app.ts';
 import { buildExe, buildWeb, releasePrefix, type Target } from './build.ts';
 import { loadSigningKey, signManifest } from './keys.ts';

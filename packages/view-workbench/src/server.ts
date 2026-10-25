@@ -1,5 +1,5 @@
-import { dbSharedRoutes, type DbStores } from '@deckbuilderkit/db';
-import { defineServerView, isRecord } from '@deckbuilderkit/server-core';
+import { dbSharedRoutes, type DbStores } from '@kedalion/db';
+import { defineServerView, isRecord } from '@kedalion/server-core';
 
 /** The part of the server settings the Workbench view owns; the app's `Settings` extends it. */
 export interface WorkbenchServerSettings {

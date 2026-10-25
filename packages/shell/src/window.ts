@@ -1,4 +1,4 @@
-import { focusWindow, showError, windowExists } from '@deckbuilderkit/platform';
+import { focusWindow, showError, windowExists } from '@kedalion/platform';
 
 export interface WindowOptions {
   title?: string;

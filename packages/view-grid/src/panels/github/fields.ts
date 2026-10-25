@@ -1,4 +1,4 @@
-import type { PanelField } from '@deckbuilderkit/ui/grid';
+import type { PanelField } from '@kedalion/ui/grid';
 import { DEFAULT_TICKET_PATTERN, ISSUE_MODES, PR_MODES } from './map';
 import { NOTIFICATION_COLUMNS, OVERVIEW_STATS, RUN_COLUMNS } from './more';
 

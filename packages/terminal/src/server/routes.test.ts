@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { launchCodes, startServer, TOKEN_HEADER, invalid } from '@deckbuilderkit/server-core';
+import { launchCodes, startServer, TOKEN_HEADER, invalid } from '@kedalion/server-core';
 import { connect as tcpConnect } from 'node:net';
 import { TERMINAL_SOCKET_PATH } from '../protocol.ts';
 import type { Pty } from './pty.ts';

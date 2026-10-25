@@ -1,5 +1,5 @@
 import { type MouseEvent, useCallback, useEffect, useRef, useState } from 'react';
-import { CodeEditor, type CodeEditorHandle, type SqlProblem, SqlSteps, type SqlStepsTab } from '@deckbuilderkit/editor';
+import { CodeEditor, type CodeEditorHandle, type SqlProblem, SqlSteps, type SqlStepsTab } from '@kedalion/editor';
 import {
   type ApiError,
   Badge,
@@ -17,9 +17,9 @@ import {
   useDebouncedSave,
   useDialogs,
   useViewToast,
-} from '@deckbuilderkit/ui';
-import { EXPORT_ROWS, type ExportFormat, exportResults, DEFAULT_RESULTS, SqlResults, useSqlRunner, useSqlSchema, useTableDetails } from '@deckbuilderkit/sql-ui';
-import type { DbSchemaTable } from '@deckbuilderkit/sql-ui';
+} from '@kedalion/ui';
+import { EXPORT_ROWS, type ExportFormat, exportResults, DEFAULT_RESULTS, SqlResults, useSqlRunner, useSqlSchema, useTableDetails } from '@kedalion/sql-ui';
+import type { DbSchemaTable } from '@kedalion/sql-ui';
 import type { WorkbenchClient } from './client';
 import { t } from './i18n';
 import { sqlRunnerSettings, type WorkbenchSettings, type WorkbenchViewSettings, withWorkbenchDefaults } from './settings';

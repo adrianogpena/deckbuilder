@@ -1,11 +1,11 @@
-import { sqlEn, sqlPtBR } from '@deckbuilderkit/sql-ui';
-import { addMessages, createT } from '@deckbuilderkit/ui';
-import type { ExplorerMessageKey } from '@deckbuilderkit/view-explorer/web';
-import type { GitMessageKey } from '@deckbuilderkit/view-git/web';
-import type { GridMessageKey } from '@deckbuilderkit/view-grid/web';
-import type { RestMessageKey } from '@deckbuilderkit/view-rest/web';
-import type { TerminalMessageKey } from '@deckbuilderkit/view-terminal/web';
-import type { WorkbenchMessageKey } from '@deckbuilderkit/view-workbench/web';
+import { sqlEn, sqlPtBR } from '@kedalion/sql-ui';
+import { addMessages, createT } from '@kedalion/ui';
+import type { ExplorerMessageKey } from '@kedalion/view-explorer/web';
+import type { GitMessageKey } from '@kedalion/view-git/web';
+import type { GridMessageKey } from '@kedalion/view-grid/web';
+import type { RestMessageKey } from '@kedalion/view-rest/web';
+import type { TerminalMessageKey } from '@kedalion/view-terminal/web';
+import type { WorkbenchMessageKey } from '@kedalion/view-workbench/web';
 import { en } from './en';
 import { ptBR } from './pt-BR';
 

@@ -1,4 +1,4 @@
-import { CODE_PARAM, type LaunchCodes } from '@deckbuilderkit/server-core';
+import { CODE_PARAM, type LaunchCodes } from '@kedalion/server-core';
 
 /** A URL that opens the UI at `origin`, on `#<path>` when given, with a fresh launch code. */
 export function launchUrl(origin: string, codes: LaunchCodes, path?: string): string {

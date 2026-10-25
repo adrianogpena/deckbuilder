@@ -1,5 +1,5 @@
-import { effectiveKind, familySibling, PALETTES, resolvePalette, type ThemeKind, type ThemePreference, type ThemeSettings, ZOOM_LEVELS } from '@deckbuilderkit/server-core/palettes';
-import { DEFAULT_LAYOUT, hasLabelledMenu, ICON_SET_IDS, LAYOUT_MARK_IDS, LAYOUTS, resolveLayout, supportsDock } from '@deckbuilderkit/server-core/layouts';
+import { effectiveKind, familySibling, PALETTES, resolvePalette, type ThemeKind, type ThemePreference, type ThemeSettings, ZOOM_LEVELS } from '@kedalion/server-core/palettes';
+import { DEFAULT_LAYOUT, hasLabelledMenu, ICON_SET_IDS, LAYOUT_MARK_IDS, LAYOUTS, resolveLayout, supportsDock } from '@kedalion/server-core/layouts';
 import { isDesktop } from '../api';
 import { t, tryT } from '../i18n';
 import { LayoutMark } from '../layout-marks';

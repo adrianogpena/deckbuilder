@@ -1,18 +1,18 @@
-import type { SqlFormatOptions } from '@deckbuilderkit/editor';
+import type { SqlFormatOptions } from '@kedalion/editor';
 
-import type { ThemeSettings } from '@deckbuilderkit/server-core/palettes';
-import type { BackupInspect, EditorInfo, FsDuProgress, FsHash, FsInfo, ImportResult, SqlHistoryEntry, TailChunk, UpdateState } from '@deckbuilderkit/server-core/protocol';
+import type { ThemeSettings } from '@kedalion/server-core/palettes';
+import type { BackupInspect, EditorInfo, FsDuProgress, FsHash, FsInfo, ImportResult, SqlHistoryEntry, TailChunk, UpdateState } from '@kedalion/server-core/protocol';
 
 export type { EditorInfo, FsDuProgress, FsHash, FsInfo, ImportResult, TailChunk };
-import type { SessionInfo, TerminalProfileInfo } from '@deckbuilderkit/terminal';
-import type { TerminalSettings, TerminalViewSettings } from '@deckbuilderkit/view-terminal/web';
-import type { ExplorerSettings, FsEntry, FsRead, Project, SearchHit, TextEncoding } from '@deckbuilderkit/view-explorer/web';
-import type { GitViewSettings } from '@deckbuilderkit/view-git/web';
-import type { AgentsViewSettings } from '@deckbuilderkit/view-agents/web';
-import type { RestViewSettings } from '@deckbuilderkit/view-rest/web';
-import type { WorkbenchViewSettings } from '@deckbuilderkit/view-workbench/web';
-import type { CopyFormat, DbColumn, DbPlanRow, DbRunResult, DbSchema, DbSchemaTable, DbStatus, DbTableConstraint, DbTableDetails, DbTableIndex, DemoRow } from '@deckbuilderkit/sql-ui';
-import { type FileAssociation, type GitSettings, type FileSettings, type Keymap, type Language, type LogSettings, type ResultFormat, request } from '@deckbuilderkit/ui';
+import type { SessionInfo, TerminalProfileInfo } from '@kedalion/terminal';
+import type { TerminalSettings, TerminalViewSettings } from '@kedalion/view-terminal/web';
+import type { ExplorerSettings, FsEntry, FsRead, Project, SearchHit, TextEncoding } from '@kedalion/view-explorer/web';
+import type { GitViewSettings } from '@kedalion/view-git/web';
+import type { AgentsViewSettings } from '@kedalion/view-agents/web';
+import type { RestViewSettings } from '@kedalion/view-rest/web';
+import type { WorkbenchViewSettings } from '@kedalion/view-workbench/web';
+import type { CopyFormat, DbColumn, DbPlanRow, DbRunResult, DbSchema, DbSchemaTable, DbStatus, DbTableConstraint, DbTableDetails, DbTableIndex, DemoRow } from '@kedalion/sql-ui';
+import { type FileAssociation, type GitSettings, type FileSettings, type Keymap, type Language, type LogSettings, type ResultFormat, request } from '@kedalion/ui';
 
 export type { TerminalSettings };
 
@@ -105,9 +105,9 @@ export type { CopyFormat };
 export type { LogSettings, ResultFormat, SqlFormatOptions };
 
 
-export { withWorkbenchDefaults, type WorkbenchDoc, type WorkbenchSettings } from '@deckbuilderkit/view-workbench/web';
+export { withWorkbenchDefaults, type WorkbenchDoc, type WorkbenchSettings } from '@kedalion/view-workbench/web';
 
-import type { DbConnection } from '@deckbuilderkit/sql-ui';
+import type { DbConnection } from '@kedalion/sql-ui';
 export type { DbConnection };
 
 export type { DbColumn, DbPlanRow, DbRunResult, DbSchema, DbSchemaTable, DbStatus, DbTableConstraint, DbTableDetails, DbTableIndex, DemoRow };
@@ -119,7 +119,7 @@ export type { ExplorerSettings, FsEntry, FsRead, Project, SearchHit, TextEncodin
 export type BackupInfo = BackupInspect;
 
 
-/** GET /api/info (infoRoutes in @deckbuilderkit/server-mods). */
+/** GET /api/info (infoRoutes in @kedalion/server-mods). */
 export interface Info {
   name: string;
   version: string;

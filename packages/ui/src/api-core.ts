@@ -1,4 +1,4 @@
-import type { ApiErrorBody } from '@deckbuilderkit/server-core/protocol';
+import type { ApiErrorBody } from '@kedalion/server-core/protocol';
 import { tryT } from './i18n';
 
 // The parts of the API client that touch no DOM at import, so tests and other clients can use them.

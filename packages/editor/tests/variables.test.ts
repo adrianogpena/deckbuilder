@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { CompletionContext, type CompletionResult } from '@codemirror/autocomplete';
 import { EditorState } from '@codemirror/state';
-import type { RestEnvVar } from '@deckbuilderkit/server-core/protocol';
+import type { RestEnvVar } from '@kedalion/server-core/protocol';
 import { filterVariableOptions, insertVariable, variableAutocomplete, variableCompletion, variableCompletionText, variableOptions, variableQueryAt } from '../src/variables.ts';
 
 const vars: RestEnvVar[] = [

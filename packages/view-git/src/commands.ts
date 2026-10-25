@@ -1,4 +1,4 @@
-import { type CommandDef, explorerCommands } from '@deckbuilderkit/ui';
+import { type CommandDef, explorerCommands } from '@kedalion/ui';
 import { t } from './i18n';
 
 export const gitCommands = (): CommandDef[] => [

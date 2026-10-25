@@ -1,12 +1,12 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { langOfFile } from '@deckbuilderkit/editor';
-import { type ApiError, Button, ErrorBanner, errorOf, PanelLoading } from '@deckbuilderkit/ui';
+import { langOfFile } from '@kedalion/editor';
+import { type ApiError, Button, ErrorBanner, errorOf, PanelLoading } from '@kedalion/ui';
 import { t } from '../../../i18n';
 import type { PanelModule, PanelProps } from '../../workspace/types';
 import { fs, relativeTo } from './fs';
 import './style.css';
 
-const CodeEditor = lazy(() => import('@deckbuilderkit/editor').then((m) => ({ default: m.CodeEditor })));
+const CodeEditor = lazy(() => import('@kedalion/editor').then((m) => ({ default: m.CodeEditor })));
 
 type Loaded = { text: string; readOnly: boolean } | { binary: true };
 

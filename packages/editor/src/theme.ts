@@ -2,7 +2,7 @@ import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { EditorView } from '@codemirror/view';
 import { tags } from '@lezer/highlight';
 
-// Only the CSS tokens from @deckbuilderkit/ui's styles.css, so every palette (and a palette switch
+// Only the CSS tokens from @kedalion/ui's styles.css, so every palette (and a palette switch
 // while the editor is open) works with no per-palette code.
 
 export const editorTheme = EditorView.theme({

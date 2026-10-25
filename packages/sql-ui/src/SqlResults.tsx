@@ -1,4 +1,4 @@
-import { DataTable, OutputPanel, SplitView } from '@deckbuilderkit/ui';
+import { DataTable, OutputPanel, SplitView } from '@kedalion/ui';
 import { PlanView } from './PlanView';
 import { type useSqlRunner } from './useSqlRunner';
 

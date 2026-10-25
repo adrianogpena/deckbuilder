@@ -1,8 +1,8 @@
-import type { ArchiveContent, HttpClient, SqliteContent } from '@deckbuilderkit/editor';
-import type { EditorInfo, FsArchiveFormat, FsCompressResult, FsDuProgress, FsExtractResult, FsHash, FsInfo, FsSaveNewRequest, GitStatus, TailChunk } from '@deckbuilderkit/server-core/protocol';
-import type { SqlClient } from '@deckbuilderkit/sql-ui';
+import type { ArchiveContent, HttpClient, SqliteContent } from '@kedalion/editor';
+import type { EditorInfo, FsArchiveFormat, FsCompressResult, FsDuProgress, FsExtractResult, FsHash, FsInfo, FsSaveNewRequest, GitStatus, TailChunk } from '@kedalion/server-core/protocol';
+import type { SqlClient } from '@kedalion/sql-ui';
 
-export type { LogSettings } from '@deckbuilderkit/ui';
+export type { LogSettings } from '@kedalion/ui';
 export type { EditorInfo, FsDuProgress, FsHash, FsInfo, TailChunk };
 
 /** A project folder the Explorer shows. */

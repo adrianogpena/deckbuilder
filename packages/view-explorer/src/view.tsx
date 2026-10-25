@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-import { defineView, fileSettingsOf } from '@deckbuilderkit/ui';
+import { defineView, fileSettingsOf } from '@kedalion/ui';
 import { bindExplorerClient, type ExplorerClients } from './client';
 import { explorerViewCommands } from './commands';
 import { explorerClients } from './default-client';

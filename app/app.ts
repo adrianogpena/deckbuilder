@@ -1,4 +1,4 @@
-import type { AppIdentity } from '@deckbuilderkit/server-core/protocol';
+import type { AppIdentity } from '@kedalion/server-core/protocol';
 
 /**
  * Identity of the app, shared by the server, the build and the web UI.

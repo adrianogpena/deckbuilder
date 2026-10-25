@@ -1,4 +1,4 @@
-import { PanelLoading } from '@deckbuilderkit/ui';
+import { PanelLoading } from '@kedalion/ui';
 import { forwardRef, lazy, Suspense, useImperativeHandle, useMemo, useRef } from 'react';
 import { CodeEditor, type SelectionInfo } from './CodeEditor';
 import type { MarkdownMode, RichCommandId, RichHost } from './rich/commands';

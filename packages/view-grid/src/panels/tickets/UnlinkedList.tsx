@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Icon } from '@deckbuilderkit/ui';
+import { Button, Icon } from '@kedalion/ui';
 import { tKey } from '../../i18n';
 import type { UnlinkedKey } from './types';
 

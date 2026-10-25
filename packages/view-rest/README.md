@@ -1,4 +1,4 @@
-# @deckbuilderkit/view-rest
+# @kedalion/view-rest
 
 REST
 

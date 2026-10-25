@@ -1,5 +1,5 @@
 {
-  "name": "@deckbuilderkit/terminal",
+  "name": "@kedalion/terminal",
   "version": "0.3.0",
   "license": "MIT",
   "private": true,
@@ -12,9 +12,9 @@
     "./server": "./src/server/index.ts"
   },
   "dependencies": {
-    "@deckbuilderkit/platform": "workspace:*",
-    "@deckbuilderkit/server-core": "workspace:*",
-    "@deckbuilderkit/ui": "workspace:*",
+    "@kedalion/platform": "workspace:*",
+    "@kedalion/server-core": "workspace:*",
+    "@kedalion/ui": "workspace:*",
     "@xterm/addon-clipboard": "0.3.0-beta.313",
     "@xterm/addon-fit": "0.12.0-beta.311",
     "@xterm/addon-search": "0.17.0-beta.310",

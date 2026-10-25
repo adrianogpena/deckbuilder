@@ -1,5 +1,5 @@
-import { RICH_COMMAND_IDS, type RichCommandId } from '@deckbuilderkit/editor/markdown-commands';
-import { type CommandDef, explorerCommands, tabCommands } from '@deckbuilderkit/ui';
+import { RICH_COMMAND_IDS, type RichCommandId } from '@kedalion/editor/markdown-commands';
+import { type CommandDef, explorerCommands, tabCommands } from '@kedalion/ui';
 import { t } from './i18n';
 
 export function explorerViewCommands(): CommandDef[] {

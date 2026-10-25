@@ -2,7 +2,7 @@ import { getOriginalDoc, goToNextChunk, goToPreviousChunk, MergeView, originalDo
 import { searchKeymap } from '@codemirror/search';
 import { ChangeSet, Compartment, EditorState, type Extension } from '@codemirror/state';
 import { drawSelection, EditorView, keymap, lineNumbers } from '@codemirror/view';
-import { Button } from '@deckbuilderkit/ui';
+import { Button } from '@kedalion/ui';
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { type Lang, languageFor } from './languages';
 import { themeExtension } from './theme';

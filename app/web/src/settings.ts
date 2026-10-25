@@ -11,7 +11,7 @@ import {
   oneOf,
   str,
   registerDefaultSections,
-} from '@deckbuilderkit/ui';
+} from '@kedalion/ui';
 import type { AppearanceSettings, EditorSettings, GeneralSettings, KeyboardSettings, Settings, WindowSettings } from './api';
 
 export const settingsRegistry = createSettingsRegistry<Settings>();

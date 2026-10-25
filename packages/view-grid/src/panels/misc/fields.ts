@@ -1,4 +1,4 @@
-import type { PanelField } from '@deckbuilderkit/ui/grid';
+import type { PanelField } from '@kedalion/ui/grid';
 
 export const MAX_URLS = 20;
 export const SYSTEM_COLUMNS = ['cpu', 'memory', 'disk', 'uptime'] as const;

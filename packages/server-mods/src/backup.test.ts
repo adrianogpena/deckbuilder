@@ -2,7 +2,7 @@ import { afterEach, expect, test } from 'bun:test';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { invalid, type RouteContext } from '@deckbuilderkit/server-core';
+import { invalid, type RouteContext } from '@kedalion/server-core';
 import { backupRoutes } from './backup.ts';
 import { pickedPaths } from './dialogs.ts';
 import { recordStore } from './records.ts';

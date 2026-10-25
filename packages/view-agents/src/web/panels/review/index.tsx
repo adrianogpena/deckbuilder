@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { GitDiff, GitFile } from '@deckbuilderkit/server-core/protocol';
-import { Button, ErrorBanner, IconButton, PanelLoading, request, useAsync } from '@deckbuilderkit/ui';
+import type { GitDiff, GitFile } from '@kedalion/server-core/protocol';
+import { Button, ErrorBanner, IconButton, PanelLoading, request, useAsync } from '@kedalion/ui';
 import { t } from '../../../i18n';
 import { useAgentsHost } from '../../workspace/host';
 import type { PanelModule, PanelProps } from '../../workspace/types';

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { ErrorBanner, fileIconOf, Icon, IconButton, Spinner, useStream } from '@deckbuilderkit/ui';
+import { ErrorBanner, fileIconOf, Icon, IconButton, Spinner, useStream } from '@kedalion/ui';
 import type { Project, SearchHit } from '../client';
 import { t } from '../i18n';
 

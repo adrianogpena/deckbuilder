@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Icon, IconButton, type PanelConfig } from '@deckbuilderkit/ui';
+import { Button, Icon, IconButton, type PanelConfig } from '@kedalion/ui';
 import { tKey } from '../../i18n';
 import { runAction } from '../../source';
 import { NO_TICKET, parseDay, type DayTable } from './analysis';

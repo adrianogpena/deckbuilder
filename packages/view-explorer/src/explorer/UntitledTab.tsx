@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { applyEol, CodeEditor, langLabel, langOfFile, prepareForSave, type SelectionInfo, useEditorOptions } from '@deckbuilderkit/editor';
-import { type ApiError, dialogs, errorOf, ErrorBanner, FILE_DEFAULTS, type FileSettings, relPath, StatusBar, type StatusItem, type TabAction, useCommand, useDialogs, useToast } from '@deckbuilderkit/ui';
+import { applyEol, CodeEditor, langLabel, langOfFile, prepareForSave, type SelectionInfo, useEditorOptions } from '@kedalion/editor';
+import { type ApiError, dialogs, errorOf, ErrorBanner, FILE_DEFAULTS, type FileSettings, relPath, StatusBar, type StatusItem, type TabAction, useCommand, useDialogs, useToast } from '@kedalion/ui';
 import { explorerApi as api } from '../client';
 import { explorerCommandById as commandById } from '../commands';
 import { t } from '../i18n';

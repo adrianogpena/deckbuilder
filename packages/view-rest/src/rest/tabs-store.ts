@@ -1,7 +1,7 @@
 import { useEffect, useSyncExternalStore } from 'react';
-import { draftToSpec, emptyDraft, type HttpRequestDraft } from '@deckbuilderkit/editor';
-import type { HttpResponseInfo } from '@deckbuilderkit/server-core/protocol';
-import { type ApiError, errorOf } from '@deckbuilderkit/ui';
+import { draftToSpec, emptyDraft, type HttpRequestDraft } from '@kedalion/editor';
+import type { HttpResponseInfo } from '@kedalion/server-core/protocol';
+import { type ApiError, errorOf } from '@kedalion/ui';
 import { restApi as api } from '../client';
 import type { RestTabsFile, SavedRequest } from '../settings';
 

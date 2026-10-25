@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Button, errorMessage, errorOf, IconButton } from '@deckbuilderkit/ui';
+import { Button, errorMessage, errorOf, IconButton } from '@kedalion/ui';
 import { tKey } from '../../i18n';
 import { Chip, type Tone } from '../../kit';
 import { runAction } from '../../source';

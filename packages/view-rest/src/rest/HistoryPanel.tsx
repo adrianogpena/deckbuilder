@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import type { RestHistoryEntry } from '@deckbuilderkit/server-core/protocol';
-import { type ApiError, Button, ErrorBanner, errorOf, IconButton, useAsync, type useDialogs } from '@deckbuilderkit/ui';
+import type { RestHistoryEntry } from '@kedalion/server-core/protocol';
+import { type ApiError, Button, ErrorBanner, errorOf, IconButton, useAsync, type useDialogs } from '@kedalion/ui';
 import { restApi as api } from '../client';
 import { t } from '../i18n';
 import { openRestTab } from './tabs-store';

@@ -1,7 +1,7 @@
-import { MARKDOWN_MODES } from '@deckbuilderkit/editor/markdown-commands';
-import { DEFAULT_FORMAT_OPTIONS, type SqlFormatOptions } from '@deckbuilderkit/editor/options';
-import type { CopyFormat, SqlRunnerSettings } from '@deckbuilderkit/sql-ui';
-import { DEFAULT_RESULT_FORMAT, FILE_DEFAULTS, fileBoolSetting, fileEnumSetting, fileSettingsOf, type FileSettings, type GitSettings, type LogSettings, type ResultFormat, type SectionPath, type SettingDef, SORT_ORDERS } from '@deckbuilderkit/ui';
+import { MARKDOWN_MODES } from '@kedalion/editor/markdown-commands';
+import { DEFAULT_FORMAT_OPTIONS, type SqlFormatOptions } from '@kedalion/editor/options';
+import type { CopyFormat, SqlRunnerSettings } from '@kedalion/sql-ui';
+import { DEFAULT_RESULT_FORMAT, FILE_DEFAULTS, fileBoolSetting, fileEnumSetting, fileSettingsOf, type FileSettings, type GitSettings, type LogSettings, type ResultFormat, type SectionPath, type SettingDef, SORT_ORDERS } from '@kedalion/ui';
 
 import type { ExplorerSettings } from './explorer-state';
 import { MARKDOWN_STORED_DEFAULTS, markdownStoredOf, type MarkdownStored } from './settings/markdown';

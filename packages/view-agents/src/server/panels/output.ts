@@ -1,7 +1,7 @@
 import { closeSync, existsSync, fstatSync, openSync, readdirSync, readSync, statSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ndjson, notFound } from '@deckbuilderkit/server-core';
+import { ndjson, notFound } from '@kedalion/server-core';
 import { findSessionFile } from '../chat/normalize.ts';
 import { encodeFolderName } from '../discovery.ts';
 import type { PanelRoutes } from './ctx.ts';

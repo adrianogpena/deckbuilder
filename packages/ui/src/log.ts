@@ -1,4 +1,4 @@
-import { isRecord, type TailChunk } from '@deckbuilderkit/server-core/protocol';
+import { isRecord, type TailChunk } from '@kedalion/server-core/protocol';
 
 export type LogLevel = 'error' | 'warn' | 'info' | 'debug' | 'trace';
 

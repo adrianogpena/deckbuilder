@@ -1,5 +1,5 @@
 {
-  "name": "@deckbuilderkit/view-git",
+  "name": "@kedalion/view-git",
   "version": "0.3.0",
   "license": "MIT",
   "private": true,
@@ -10,10 +10,10 @@
     "./styles.css": "./src/git.css"
   },
   "dependencies": {
-    "@deckbuilderkit/editor": "workspace:*",
-    "@deckbuilderkit/server-core": "workspace:*",
-    "@deckbuilderkit/server-mods": "workspace:*",
-    "@deckbuilderkit/ui": "workspace:*"
+    "@kedalion/editor": "workspace:*",
+    "@kedalion/server-core": "workspace:*",
+    "@kedalion/server-mods": "workspace:*",
+    "@kedalion/ui": "workspace:*"
   },
   "peerDependencies": {
     "react": "^18.3.1",

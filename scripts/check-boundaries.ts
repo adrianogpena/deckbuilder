@@ -83,7 +83,7 @@ export function formatViolation(v: Violation): string {
   return `${v.file}: ${v.rule.startsWith('native dialog') ? 'marker' : 'import'} '${v.specifier}' breaks rule: ${v.rule}`;
 }
 
-const NATIVE_RULE = 'native dialog: use the dialogs from @deckbuilderkit/ui (DialogHost)';
+const NATIVE_RULE = 'native dialog: use the dialogs from @kedalion/ui (DialogHost)';
 const NATIVE_SKIP_DIRS = new Set(['node_modules', 'dist', '.build']);
 const TEST_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$/;
 // MessageBoxW stays in showError (fatal start-up error, no UI exists yet); osascript is only a dialog with `display dialog`.

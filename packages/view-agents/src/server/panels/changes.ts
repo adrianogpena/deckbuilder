@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
-import { AppError, invalid, notFound } from '@deckbuilderkit/server-core';
+import { AppError, invalid, notFound } from '@kedalion/server-core';
 import { findSessionFile } from '../chat/normalize.ts';
 import type { PanelCtx, PanelRoutes } from './ctx.ts';
 import { repoRelative, touchedFiles } from './session-files.ts';

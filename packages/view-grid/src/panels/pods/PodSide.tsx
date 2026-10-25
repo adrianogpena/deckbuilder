@@ -1,4 +1,4 @@
-import { copyText, IconButton, type SidePanelContent } from '@deckbuilderkit/ui';
+import { copyText, IconButton, type SidePanelContent } from '@kedalion/ui';
 import { tKey } from '../../i18n';
 import { requestRefresh } from '../../panel';
 import { runAction } from '../../source';

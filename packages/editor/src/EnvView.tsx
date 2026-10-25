@@ -1,4 +1,4 @@
-import { IconButton, Button, t } from '@deckbuilderkit/ui';
+import { IconButton, Button, t } from '@kedalion/ui';
 import { useMemo, useState } from 'react';
 import { parseEnv } from './table';
 

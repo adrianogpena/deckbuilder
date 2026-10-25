@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import '@deckbuilderkit/ui/styles.css';
+import '@kedalion/ui/styles.css';
 import './i18n';
 import './explorer.css';
 import { App } from './App';

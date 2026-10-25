@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { deepEqual, FILE_DEFAULTS, fileSettingsOf, SettingDescription, SettingItem, type SettingsCardProps, type SettingsFieldProps, useResync } from '@deckbuilderkit/ui';
+import { deepEqual, FILE_DEFAULTS, fileSettingsOf, SettingDescription, SettingItem, type SettingsCardProps, type SettingsFieldProps, useResync } from '@kedalion/ui';
 import { t } from '../i18n';
 import type { ExplorerViewSettings } from '../settings';
 import { MARKDOWN_STORED_DEFAULTS, markdownStoredOf, READING_PERCENT_MAX, READING_PERCENT_MIN, readingPercent, READING_WIDTH_MAX, READING_WIDTH_MIN, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP, type MarkdownStored } from './markdown';

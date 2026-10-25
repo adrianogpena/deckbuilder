@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react';
-import type { IconName } from '@deckbuilderkit/ui';
+import type { IconName } from '@kedalion/ui';
 import type { AgentsMessageKey } from '../../i18n';
 
 /** Every tool of the Agents view; each has a folder `panels/<kind>/` exporting a `PanelModule` named `panel`. */

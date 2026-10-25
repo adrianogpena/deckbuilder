@@ -1,11 +1,11 @@
 import { lazy, Suspense, useState } from 'react';
-import { type DiffMode, langOfFile } from '@deckbuilderkit/editor';
-import type { GitFile, GitFileContent } from '@deckbuilderkit/server-core/protocol';
-import { ErrorBanner, PanelLoading, useAsync } from '@deckbuilderkit/ui';
+import { type DiffMode, langOfFile } from '@kedalion/editor';
+import type { GitFile, GitFileContent } from '@kedalion/server-core/protocol';
+import { ErrorBanner, PanelLoading, useAsync } from '@kedalion/ui';
 import { t } from '../../../i18n';
 import { sidesOf } from './git-client';
 
-const DiffView = lazy(() => import('@deckbuilderkit/editor').then((m) => ({ default: m.DiffView })));
+const DiffView = lazy(() => import('@kedalion/editor').then((m) => ({ default: m.DiffView })));
 
 const problemOf = (side?: GitFileContent) => (side?.binary ? t('agents.changes.binary') : side?.tooLarge ? t('agents.changes.tooLarge') : undefined);
 

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import oracledb from 'oracledb';
-import { AppError } from '@deckbuilderkit/server-core';
+import { AppError } from '@kedalion/server-core';
 import {
   type DbConnection,
   type DbCredentials,

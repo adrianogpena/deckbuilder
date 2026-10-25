@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import type { RestEnvironment, RestEnvVarInput } from '@deckbuilderkit/server-core/protocol';
-import { type ApiError, Button, ErrorBanner, errorOf, IconButton, Modal, useDialogs, useViewToast } from '@deckbuilderkit/ui';
+import type { RestEnvironment, RestEnvVarInput } from '@kedalion/server-core/protocol';
+import { type ApiError, Button, ErrorBanner, errorOf, IconButton, Modal, useDialogs, useViewToast } from '@kedalion/ui';
 import { restApi as api } from '../client';
 import { t } from '../i18n';
 

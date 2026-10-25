@@ -1,4 +1,4 @@
-import { createT, type Messages } from '@deckbuilderkit/ui';
+import { createT, type Messages } from '@kedalion/ui';
 
 export const en = {
   'nav.explorer': 'Explorer',

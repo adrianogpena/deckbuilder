@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { IconButton } from '@deckbuilderkit/ui';
+import { IconButton } from '@kedalion/ui';
 import { tKey } from '../../i18n';
 import { runAction } from '../../source';
 import type { PodTarget } from './PodOverview';

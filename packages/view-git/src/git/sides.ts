@@ -1,5 +1,5 @@
-import type { GitCommitFile, GitFile, GitFileContent } from '@deckbuilderkit/server-core/protocol';
-import { type GitStatusTone, gitToneOf } from '@deckbuilderkit/ui';
+import type { GitCommitFile, GitFile, GitFileContent } from '@kedalion/server-core/protocol';
+import { type GitStatusTone, gitToneOf } from '@kedalion/ui';
 import { gitApi as api } from '../client';
 
 const EMPTY: GitFileContent = { text: '' };

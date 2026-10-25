@@ -1,4 +1,4 @@
-import { invalid, type RouteContext, type Routes } from '@deckbuilderkit/server-core';
+import { invalid, type RouteContext, type Routes } from '@kedalion/server-core';
 import { resolveConnection, testConnection, type ResolvedConnection, type Spawn, type TestResult } from './auth';
 import { createConnectionStore, type ConnectionInput, type ConnectionStore, type ConnectionType, type PublicConnection } from './store';
 

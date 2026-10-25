@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Button } from '@deckbuilderkit/ui';
+import { Button } from '@kedalion/ui';
 import { tKey } from '../../i18n';
 import './calendar.css';
 import { sprintInfo, sprintName, sprintWorkingDays, splitWeeks } from './dates';

@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { type ApiError, Badge, Button, errorOf, ErrorBanner, type FieldSpec, Modal, ResourceForm, ResourceList, Spinner, useAsync } from '@deckbuilderkit/ui';
-import type { DbConnection } from '@deckbuilderkit/sql-ui';
+import { type ApiError, Badge, Button, errorOf, ErrorBanner, type FieldSpec, Modal, ResourceForm, ResourceList, Spinner, useAsync } from '@kedalion/ui';
+import type { DbConnection } from '@kedalion/sql-ui';
 import type { WorkbenchClient } from '../client';
 import { t } from '../i18n';
 

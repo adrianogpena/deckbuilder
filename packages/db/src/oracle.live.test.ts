@@ -1,5 +1,5 @@
 import { afterAll, expect, test } from 'bun:test';
-import type { AppError } from '@deckbuilderkit/server-core';
+import type { AppError } from '@kedalion/server-core';
 import { parseOracleUrl } from './oracle-url.ts';
 import { dbSessions } from './sessions.ts';
 

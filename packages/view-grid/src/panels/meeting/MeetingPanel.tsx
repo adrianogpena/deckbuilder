@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react';
-import { ContextMenu } from '@deckbuilderkit/ui';
+import { ContextMenu } from '@kedalion/ui';
 import { tKey } from '../../i18n';
 import { runAction } from '../../source';
 import { sorted, type Meeting } from './model';

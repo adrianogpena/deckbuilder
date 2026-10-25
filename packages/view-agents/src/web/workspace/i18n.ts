@@ -1,4 +1,4 @@
-import type { Messages } from '@deckbuilderkit/ui';
+import type { Messages } from '@kedalion/ui';
 
 export const en = {
   'workspace.comingSoon': 'Coming soon',

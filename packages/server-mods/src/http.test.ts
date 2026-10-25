@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, expect, test } from 'bun:test';
-import type { AppError, RouteContext } from '@deckbuilderkit/server-core';
+import type { AppError, RouteContext } from '@kedalion/server-core';
 import { pickedPaths } from './dialogs.ts';
 import { httpExecutor, httpRoutes, suggestedName, validateDraft, validateRequest } from './http.ts';
 

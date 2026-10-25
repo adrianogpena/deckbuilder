@@ -1,5 +1,5 @@
 import { type CSSProperties, type DragEvent, type MouseEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { Button, ContextMenu, IconButton, type ContextMenuItem, fuzzyScore, highlightRuns, Icon, KEY_SCOPE_ATTR, useCommand, useDialogs, useRovingList, useRunCommand, useShortcutTip, useViewToast } from '@deckbuilderkit/ui';
+import { Button, ContextMenu, IconButton, type ContextMenuItem, fuzzyScore, highlightRuns, Icon, KEY_SCOPE_ATTR, useCommand, useDialogs, useRovingList, useRunCommand, useShortcutTip, useViewToast } from '@kedalion/ui';
 import './sidebar.css';
 import { AGENTS_LIST_SCOPE, agentsCommands } from '../commands';
 import { t } from '../i18n';

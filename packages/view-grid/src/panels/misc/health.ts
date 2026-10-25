@@ -1,4 +1,4 @@
-import { AppError } from '@deckbuilderkit/server-core';
+import { AppError } from '@kedalion/server-core';
 import { isHttpUrl } from './lines';
 
 export interface HealthResult {

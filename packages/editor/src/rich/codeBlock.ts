@@ -1,5 +1,5 @@
 import './codeBlock.css';
-import { tryT } from '@deckbuilderkit/ui/i18n';
+import { tryT } from '@kedalion/ui/i18n';
 import { highlightTree } from '@lezer/highlight';
 import { codeBlockSchema } from '@milkdown/preset-commonmark';
 import type { Node } from '@milkdown/prose/model';

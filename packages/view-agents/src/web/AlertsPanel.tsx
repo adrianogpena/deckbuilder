@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Modal } from '@deckbuilderkit/ui';
+import { Modal } from '@kedalion/ui';
 import { t } from '../i18n';
 import { type AgentAlert, type AgentProject, listAlerts } from './api';
 import { statusLabel } from './Sidebar';

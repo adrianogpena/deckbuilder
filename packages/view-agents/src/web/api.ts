@@ -1,5 +1,5 @@
-import { request, stream } from '@deckbuilderkit/ui';
-import { listSessions, openSession, type Ticketed } from '@deckbuilderkit/terminal/session';
+import { request, stream } from '@kedalion/ui';
+import { listSessions, openSession, type Ticketed } from '@kedalion/terminal/session';
 import type { ChatEvent } from '../chat-protocol.ts';
 import { t } from '../i18n';
 import { hydrateUiState, setUiStatePersister } from './ui-state';

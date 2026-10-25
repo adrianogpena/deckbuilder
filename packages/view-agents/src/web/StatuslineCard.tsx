@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Button, ErrorBanner, SettingItem, Spinner, useAsync, type SettingsCardProps } from '@deckbuilderkit/ui';
+import { Button, ErrorBanner, SettingItem, Spinner, useAsync, type SettingsCardProps } from '@kedalion/ui';
 import { agentsSettingDefs, type AgentsViewSettings } from '../settings';
 import { t, type AgentsMessageKey } from '../i18n';
 import { AccountsSettings } from './AccountsSettings';

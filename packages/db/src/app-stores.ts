@@ -1,8 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { appHome, secretStore, writeFileAtomic } from '@deckbuilderkit/platform';
-import { AppError, type Routes } from '@deckbuilderkit/server-core';
-import { recordStore, type RecordStore } from '@deckbuilderkit/server-mods';
+import { appHome, secretStore, writeFileAtomic } from '@kedalion/platform';
+import { AppError, type Routes } from '@kedalion/server-core';
+import { recordStore, type RecordStore } from '@kedalion/server-mods';
 import { connectionRoutes } from './connection-routes.ts';
 import { sqlHistory, type SqlHistory } from './history.ts';
 import { parseOracleUrl, validConnection, type DbConnectionFields } from './oracle-url.ts';

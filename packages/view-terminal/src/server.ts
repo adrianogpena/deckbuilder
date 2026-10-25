@@ -1,5 +1,5 @@
 import { isAbsolute } from 'node:path';
-import { defineServerView, type FieldSpec, isRecord, validGroup } from '@deckbuilderkit/server-core';
+import { defineServerView, type FieldSpec, isRecord, validGroup } from '@kedalion/server-core';
 import {
   isShellId,
   type Launchers,
@@ -11,7 +11,7 @@ import {
   type ColorScheme,
   type ShellId,
   type TerminalProfile,
-} from '@deckbuilderkit/terminal/server';
+} from '@kedalion/terminal/server';
 
 /** The part of the server settings the Terminal view owns; the app's `Settings` extends it. */
 export interface TerminalServerSettings {

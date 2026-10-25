@@ -1,4 +1,4 @@
-import { type CommandDef } from '@deckbuilderkit/ui';
+import { type CommandDef } from '@kedalion/ui';
 import { t } from './i18n';
 
 /** Key scope of the sessions list: single-letter commands fire only while focus is inside it (`data-key-scope`). */

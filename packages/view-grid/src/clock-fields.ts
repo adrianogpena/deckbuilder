@@ -1,4 +1,4 @@
-import type { PanelField, PanelKindSpec } from '@deckbuilderkit/ui/grid';
+import type { PanelField, PanelKindSpec } from '@kedalion/ui/grid';
 
 /** Config fields of the built-in `clock` kind (shared by the web panel and the server's validation). */
 export const CLOCK_FIELDS: readonly PanelField[] = [

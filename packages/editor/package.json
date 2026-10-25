@@ -1,5 +1,5 @@
 {
-  "name": "@deckbuilderkit/editor",
+  "name": "@kedalion/editor",
   "version": "0.3.0",
   "license": "MIT",
   "private": true,
@@ -23,8 +23,8 @@
     "@codemirror/search": "^6.7.2",
     "@codemirror/state": "^6.7.6",
     "@codemirror/view": "^6.43.14",
-    "@deckbuilderkit/server-core": "workspace:*",
-    "@deckbuilderkit/ui": "workspace:*",
+    "@kedalion/server-core": "workspace:*",
+    "@kedalion/ui": "workspace:*",
     "@lezer/common": "^1.5.0",
     "@lezer/highlight": "^1.2.5",
     "@lezer/markdown": "^1.8.0",

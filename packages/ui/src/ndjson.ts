@@ -1,4 +1,4 @@
-import type { ApiErrorBody } from '@deckbuilderkit/server-core/protocol';
+import type { ApiErrorBody } from '@kedalion/server-core/protocol';
 
 // Reads the NDJSON streams of server-core's `ndjson()`; no DOM or runtime imports, so tests can use it.
 

@@ -1,4 +1,4 @@
-import { MARKDOWN_MODES, MARKDOWN_SETTINGS_DEFAULTS, type MarkdownSettings } from '@deckbuilderkit/editor/markdown-commands';
+import { MARKDOWN_MODES, MARKDOWN_SETTINGS_DEFAULTS, type MarkdownSettings } from '@kedalion/editor/markdown-commands';
 
 /** The stored `markdown` settings; the table of contents stays in `files.markdownToc`. */
 export type MarkdownStored = Omit<MarkdownSettings, 'toc'>;

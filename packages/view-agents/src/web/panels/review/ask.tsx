@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Button } from '@deckbuilderkit/ui';
+import { Button } from '@kedalion/ui';
 import { t } from '../../../i18n';
 import { listAgentSessions, type AgentSessionView } from '../../api';
 import { fs, relativeTo } from '../code/fs';

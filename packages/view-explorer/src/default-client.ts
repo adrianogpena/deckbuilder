@@ -1,7 +1,7 @@
-import { type ArchiveContent, httpClient, type SqliteContent } from '@deckbuilderkit/editor';
-import type { FsCompressRequest, FsCompressResult, FsExtractRequest, FsExtractResult, FsSaveNewRequest, GitStatus } from '@deckbuilderkit/server-core/protocol';
-import { sqlClient } from '@deckbuilderkit/sql-ui';
-import { request, requestUpload, stream } from '@deckbuilderkit/ui';
+import { type ArchiveContent, httpClient, type SqliteContent } from '@kedalion/editor';
+import type { FsCompressRequest, FsCompressResult, FsExtractRequest, FsExtractResult, FsSaveNewRequest, GitStatus } from '@kedalion/server-core/protocol';
+import { sqlClient } from '@kedalion/sql-ui';
+import { request, requestUpload, stream } from '@kedalion/ui';
 import type { EditorInfo, ExplorerClient, ExplorerClients, FsDuProgress, FsEntry, FsHash, FsInfo, FsRead, Project, TailChunk } from './client';
 
 /** The default `ExplorerClient`: the server's `/api/projects`, `/api/fs/*`, `/api/editors`, `/api/git/status` and `/api/http/save` routes over fetch. */

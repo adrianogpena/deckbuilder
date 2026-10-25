@@ -1,4 +1,4 @@
-import { Button, copyText, IconButton, effectiveKeys, errorMessage, errorOf, paletteCommand, t, useDialogs, useKeybindings, type CommandDef } from '@deckbuilderkit/ui';
+import { Button, copyText, IconButton, effectiveKeys, errorMessage, errorOf, paletteCommand, t, useDialogs, useKeybindings, type CommandDef } from '@kedalion/ui';
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { attachSession, closeSession, isSessionGone, openSession, socketUrl, type TerminalCwd, type TerminalLaunch } from './client.ts';
 import { withAppearance, type ProfileAppearance } from './appearance.ts';

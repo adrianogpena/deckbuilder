@@ -1,10 +1,10 @@
 import { lazy, Suspense, useState } from 'react';
-import { type DiffMode, langOfFile } from '@deckbuilderkit/editor';
-import { ErrorBanner, PanelBanner, PanelLoading, PanelNotice, relPath, useAsync } from '@deckbuilderkit/ui';
+import { type DiffMode, langOfFile } from '@kedalion/editor';
+import { ErrorBanner, PanelBanner, PanelLoading, PanelNotice, relPath, useAsync } from '@kedalion/ui';
 import { explorerApi as api } from '../client';
 import { t } from '../i18n';
 
-const DiffView = lazy(() => import('@deckbuilderkit/editor').then((m) => ({ default: m.DiffView })));
+const DiffView = lazy(() => import('@kedalion/editor').then((m) => ({ default: m.DiffView })));
 
 export interface CompareSide {
   project: string;

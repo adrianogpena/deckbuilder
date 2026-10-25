@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button } from '@deckbuilderkit/ui';
+import { Button } from '@kedalion/ui';
 import { t } from '../i18n';
 import { Transcript } from './chat/Transcript';
 import { onTail, reportPreview, type TailEvent } from './api';

@@ -1,4 +1,4 @@
-import { request } from '@deckbuilderkit/ui';
+import { request } from '@kedalion/ui';
 import type { DbConnection, DbPlanRow, DbRunResult, DbSchema, DbStatus, DbTableDetails, SqlClient } from './types';
 
 /** The default `SqlClient`: the server's `/api/db/*` and demo save routes over fetch. */

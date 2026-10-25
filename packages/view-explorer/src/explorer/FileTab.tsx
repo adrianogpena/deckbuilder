@@ -4,11 +4,11 @@ import {
   type MarkdownEditorHandle, type MarkdownMode, normalizeEol, prepareForSave, previewKind, type PreviewContent, RICH_COMMAND_IDS, type RichCommandId, type RichHost, type SelectionInfo,
   exportHtml,
   SqlSteps, type SqlStepsTab, useEditorOptions,
-} from '@deckbuilderkit/editor';
+} from '@kedalion/editor';
 import {
   type ApiError, type BreadcrumbEntry, Breadcrumbs, Button, dialogs, errorOf, ErrorBanner, FILE_DEFAULTS, type FileSettings, formatBytes, Icon, PanelBanner, PanelLoading,
   relPath, requestBlob, StatusBar, type StatusItem, type TabAction, useCommand, useDialogs, useViewLink,
-} from '@deckbuilderkit/ui';
+} from '@kedalion/ui';
 import { explorerApi as api, type LogSettings, type TextEncoding } from '../client';
 import { explorerCommandById as commandById } from '../commands';
 import { fullPath } from '../explorer-paths';

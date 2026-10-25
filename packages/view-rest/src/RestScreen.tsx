@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { draftToSpec, hasAuthHeader, type HttpRequestDraft, type ImportedRequest, RequestEditor, ResponseView, toCurl } from '@deckbuilderkit/editor';
-import type { HttpResponseInfo, RestEnvVar } from '@deckbuilderkit/server-core/protocol';
-import { type ApiError, Button, dialogs, ErrorBanner, errorOf, IconButton, PageHead, SplitView, useAsync, useCommand, useDebouncedSave, useDialogs, useShortcutTip, useViewRequest } from '@deckbuilderkit/ui';
+import { draftToSpec, hasAuthHeader, type HttpRequestDraft, type ImportedRequest, RequestEditor, ResponseView, toCurl } from '@kedalion/editor';
+import type { HttpResponseInfo, RestEnvVar } from '@kedalion/server-core/protocol';
+import { type ApiError, Button, dialogs, ErrorBanner, errorOf, IconButton, PageHead, SplitView, useAsync, useCommand, useDebouncedSave, useDialogs, useShortcutTip, useViewRequest } from '@kedalion/ui';
 import { restCommands } from './commands';
 import { restApi as api } from './client';
 import type { RestSettings, RestViewSettings, SavedRequest } from './settings';

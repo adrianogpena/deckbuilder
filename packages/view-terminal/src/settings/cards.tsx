@@ -1,7 +1,7 @@
 import { type ComponentType, type ReactNode, useEffect, useState } from 'react';
-import { Button, deepEqual, ErrorBanner, IconButton, IconPicker, type IconName, isModified, SettingItem, SettingRow, type SettingsFieldProps, Spinner, useAsync, type SettingsCardProps } from '@deckbuilderkit/ui';
-import { listProfiles, listShells } from '@deckbuilderkit/terminal/session';
-import { isShellId, SHELL_ICONS, SHELL_IDS, SHELL_NAMES, type TerminalProfile, type TerminalProfileInfo } from '@deckbuilderkit/terminal/protocol';
+import { Button, deepEqual, ErrorBanner, IconButton, IconPicker, type IconName, isModified, SettingItem, SettingRow, type SettingsFieldProps, Spinner, useAsync, type SettingsCardProps } from '@kedalion/ui';
+import { listProfiles, listShells } from '@kedalion/terminal/session';
+import { isShellId, SHELL_ICONS, SHELL_IDS, SHELL_NAMES, type TerminalProfile, type TerminalProfileInfo } from '@kedalion/terminal/protocol';
 import { t, type TerminalMessageKey } from '../i18n';
 import { terminalSettingDefs, type TerminalViewSettings } from '../settings';
 import { ProfileAppearanceFields, SchemesRow, ThemeRow } from '../TerminalSchemes';

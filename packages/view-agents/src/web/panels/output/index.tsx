@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Button, request, stream } from '@deckbuilderkit/ui';
+import { Button, request, stream } from '@kedalion/ui';
 import { t } from '../../../i18n';
 import type { PanelModule, PanelProps, SectionProps } from '../../workspace/types';
 import { lineText, parseLines, splitHits, stripAnsi } from './ansi';

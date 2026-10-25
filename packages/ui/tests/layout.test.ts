@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { ICON_SET_IDS, ORIGINAL_STRUCTURE, resolveIconSetId, resolveLayout } from '@deckbuilderkit/server-core/layouts';
+import { ICON_SET_IDS, ORIGINAL_STRUCTURE, resolveIconSetId, resolveLayout } from '@kedalion/server-core/layouts';
 
 describe('layouts', () => {
   test('resolveLayout falls back to original', () => {

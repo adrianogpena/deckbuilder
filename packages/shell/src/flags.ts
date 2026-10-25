@@ -1,4 +1,4 @@
-import { type AppIdentity, DEV_PORT } from '@deckbuilderkit/server-core';
+import { type AppIdentity, DEV_PORT } from '@kedalion/server-core';
 
 /** The command line of an app, as `runApp` reads it. */
 export interface Flags {

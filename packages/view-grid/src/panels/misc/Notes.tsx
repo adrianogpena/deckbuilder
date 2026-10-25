@@ -1,5 +1,5 @@
-import { MarkdownView } from '@deckbuilderkit/editor';
-import { Button } from '@deckbuilderkit/ui';
+import { MarkdownView } from '@kedalion/editor';
+import { Button } from '@kedalion/ui';
 import { tKey } from '../../i18n';
 import './misc.css';
 

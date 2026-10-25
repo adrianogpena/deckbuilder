@@ -1,6 +1,6 @@
 import { createElement, useEffect, useMemo, useRef, useState } from 'react';
-import { type RunMode, splitStatements } from '@deckbuilderkit/editor';
-import { type ApiError, type DataTableColumn, type OutputLine, type ResultFormat, copyText, errorMessage, errorOf, formatCell, useStream } from '@deckbuilderkit/ui';
+import { type RunMode, splitStatements } from '@kedalion/editor';
+import { type ApiError, type DataTableColumn, type OutputLine, type ResultFormat, copyText, errorMessage, errorOf, formatCell, useStream } from '@kedalion/ui';
 import { type CopyColumn, type CopyFormat, formatCopy } from './copy-format';
 import { isDestructive } from './destructive';
 import { t } from './i18n';

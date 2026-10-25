@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Icon } from '@deckbuilderkit/ui';
+import { Icon } from '@kedalion/ui';
 import { tKey } from '../../i18n';
 import type { TrackedPr } from '../github/tracked';
 import type { Ticket } from './model';

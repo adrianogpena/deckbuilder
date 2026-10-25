@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import type { GitFile } from '@deckbuilderkit/server-core/protocol';
-import { Button, IconButton, ToolbarSep, errorOf, ErrorBanner, PanelLoading, useAsync, useDialogs, useToast, useViewLink } from '@deckbuilderkit/ui';
+import type { GitFile } from '@kedalion/server-core/protocol';
+import { Button, IconButton, ToolbarSep, errorOf, ErrorBanner, PanelLoading, useAsync, useDialogs, useToast, useViewLink } from '@kedalion/ui';
 import { t } from '../../../i18n';
 import type { PanelModule, PanelProps, SectionProps, WorkspaceApi } from '../../workspace/types';
 import { codeOf, gitClient } from '../diff/git-client';

@@ -1,4 +1,4 @@
-import type { PanelField } from '@deckbuilderkit/ui/grid';
+import type { PanelField } from '@kedalion/ui/grid';
 
 export const WEATHER_FIELDS: readonly PanelField[] = [
   { key: 'location', kind: 'string', label: 'dash.feeds.weather.location', description: 'dash.feeds.weather.location.hint', placeholder: 'dash.feeds.weather.location.placeholder', default: '', maxLength: 80 },

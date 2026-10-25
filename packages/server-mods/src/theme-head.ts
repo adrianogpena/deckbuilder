@@ -1,5 +1,5 @@
-import { resolveLayout } from '@deckbuilderkit/server-core/layouts';
-import { type Palette, paletteFor, TOKENS } from '@deckbuilderkit/server-core/palettes';
+import { resolveLayout } from '@kedalion/server-core/layouts';
+import { type Palette, paletteFor, TOKENS } from '@kedalion/server-core/palettes';
 import type { BaseSettings, SettingsStore } from './settings.ts';
 
 // Same specificity as the token blocks in styles.css; placed after the stylesheet link, so it wins.

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, errorMessage, errorOf, Modal, request } from '@deckbuilderkit/ui';
+import { Button, errorMessage, errorOf, Modal, request } from '@kedalion/ui';
 import { tKey } from '../i18n';
 import type { ConnectionType, PublicConnection } from './store';
 

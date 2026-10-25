@@ -1,4 +1,4 @@
-import { PanelBanner, t } from '@deckbuilderkit/ui';
+import { PanelBanner, t } from '@kedalion/ui';
 import { useEffect, useState } from 'react';
 
 const SIZES = [12, 16, 24, 36, 56];

@@ -3,7 +3,7 @@ import { Plugin, PluginKey } from '@milkdown/prose/state';
 import type { Node } from '@milkdown/prose/model';
 import { Decoration, DecorationSet, type EditorView } from '@milkdown/prose/view';
 import { $prose } from '@milkdown/utils';
-import { tryT } from '@deckbuilderkit/ui/i18n';
+import { tryT } from '@kedalion/ui/i18n';
 import { scanHeadings } from '../toc';
 import type { RichFeature } from './commands';
 import { navApis } from './HeadingPicker';

@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 // `deckbuilder <command>`, run from an app folder (app/) through its package.json scripts.
 import { parseArgs } from 'node:util';
-import type { VersionBump } from '@deckbuilderkit/server-core';
+import type { VersionBump } from '@kedalion/server-core';
 import { buildExe, buildWeb, parseTargets } from './build.ts';
 import { dev } from './dev.ts';
 import { loadApp } from './app.ts';

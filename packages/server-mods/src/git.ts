@@ -1,4 +1,4 @@
-import { runWithTimeout, type Runner } from '@deckbuilderkit/platform';
+import { runWithTimeout, type Runner } from '@kedalion/platform';
 import {
   AppError,
   invalid,
@@ -12,7 +12,7 @@ import {
   type GitRepoInfo,
   type GitStatus,
   type Routes,
-} from '@deckbuilderkit/server-core';
+} from '@kedalion/server-core';
 import { isBinary } from './bytes.ts';
 import { badPath, segmentsOf, type FsRoot } from './rooted-fs.ts';
 

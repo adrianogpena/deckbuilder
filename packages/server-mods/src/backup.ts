@@ -1,5 +1,5 @@
-import { writeJsonAtomic } from '@deckbuilderkit/platform';
-import { type BackupInspect, forbidden, invalid, isRecord, type Routes } from '@deckbuilderkit/server-core';
+import { writeJsonAtomic } from '@kedalion/platform';
+import { type BackupInspect, forbidden, invalid, isRecord, type Routes } from '@kedalion/server-core';
 import type { DialogPicks } from './file-dialog.ts';
 import type { ImportResult, RecordStore, Rec } from './records.ts';
 import type { SettingsStore } from './settings.ts';

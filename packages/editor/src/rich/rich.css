@@ -1,4 +1,4 @@
-/* Rich markdown pane (RichMarkdown.tsx). Text styles come from `.markdown` in @deckbuilderkit/ui styles.css. */
+/* Rich markdown pane (RichMarkdown.tsx). Text styles come from `.markdown` in @kedalion/ui styles.css. */
 .md-rich { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; position: relative; }
 .md-rich-scroll { flex: 1; min-height: 0; overflow: auto; padding: var(--space-16) 28px; }
 .md-rich-doc { max-width: var(--md-reading-width, 860px); margin: 0 auto; }

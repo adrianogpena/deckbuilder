@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button, errorOf, Modal, useDialogs, useRovingList, useToast } from '@deckbuilderkit/ui';
+import { Button, errorOf, Modal, useDialogs, useRovingList, useToast } from '@kedalion/ui';
 import { t } from '../i18n';
 import { AGENT_SHARE_DEFAULT, AGENT_SHARE_ENTRIES, type AgentAccountAdminError, type AgentShareEntry, type AgentShareReport } from '../protocol.ts';
 import { type AgentAccount, addAccount, applySharedEntries, deleteAccount, listAccounts, readSharedEntries } from './api';

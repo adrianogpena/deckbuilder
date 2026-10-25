@@ -1,4 +1,4 @@
-import type { GitFile } from '@deckbuilderkit/server-core/protocol';
+import type { GitFile } from '@kedalion/server-core/protocol';
 
 export interface ChangeFolder {
   /** Shown name; `a/b` when a folder holds only one folder. */

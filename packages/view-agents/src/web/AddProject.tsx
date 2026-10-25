@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Button, dialogs, ErrorBanner, errorOf, Modal, Spinner, useAsync, useRovingList } from '@deckbuilderkit/ui';
+import { Button, dialogs, ErrorBanner, errorOf, Modal, Spinner, useAsync, useRovingList } from '@kedalion/ui';
 import { t } from '../i18n';
 import { addAgentProject, type AgentProject, listProjectSuggestions } from './api';
 

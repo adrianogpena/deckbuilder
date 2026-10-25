@@ -1,4 +1,4 @@
-import { Button, Icon } from '@deckbuilderkit/ui';
+import { Button, Icon } from '@kedalion/ui';
 import { t } from '../../i18n';
 
 /** The center of a project with no session selected: start a Claude session. */

@@ -19,8 +19,8 @@ import {
   useDialogs,
   useToast,
   type ApiError,
-} from '@deckbuilderkit/ui';
-import type { FsArchiveFormat } from '@deckbuilderkit/server-core/protocol';
+} from '@kedalion/ui';
+import type { FsArchiveFormat } from '@kedalion/server-core/protocol';
 import { multiDeleteEnabled } from '../options';
 import { explorerApi as api, type FsEntry, type Project } from '../client';
 import { fullPath } from '../explorer-paths';

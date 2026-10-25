@@ -1,4 +1,4 @@
-import { invalid } from '@deckbuilderkit/server-core';
+import { invalid } from '@kedalion/server-core';
 import { defineSource, SourceError, type DataSource, type GridPanelSpec, type ResolvedConnection } from '../../server';
 import { createJsonStore, type JsonStore } from '../../json-store';
 import { graphql, rest } from './client';

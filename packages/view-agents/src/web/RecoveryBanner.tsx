@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button } from '@deckbuilderkit/ui';
+import { Button } from '@kedalion/ui';
 import { t } from '../i18n';
 import type { AgentRunning } from './api';
 import { ResumeBar } from './ResumeBar';

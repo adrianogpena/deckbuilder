@@ -1,6 +1,6 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { invalid, notFound } from '@deckbuilderkit/server-core';
+import { invalid, notFound } from '@kedalion/server-core';
 
 export type ConnectionType = 'jira' | 'github';
 

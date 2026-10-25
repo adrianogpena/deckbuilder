@@ -1,4 +1,4 @@
-import type { Routes } from '@deckbuilderkit/server-core';
+import type { Routes } from '@kedalion/server-core';
 import type { AgentProject } from '../../protocol.ts';
 import type { createSessionScanner } from '../discovery.ts';
 

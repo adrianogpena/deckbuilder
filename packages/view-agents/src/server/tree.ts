@@ -1,4 +1,4 @@
-import { readJsonFile, writeJsonAtomic } from '@deckbuilderkit/platform';
+import { readJsonFile, writeJsonAtomic } from '@kedalion/platform';
 import { STATUS_CATEGORY, type AgentPin, type AgentStatus, type AgentTree, type AgentTreeFolder, type AgentTreePatch } from '../protocol.ts';
 
 export const emptyTree = (): AgentTree => ({ folders: [], topOrder: [], sessionOrder: {}, collapsed: [], sort: 'manual', view: 'normal' });

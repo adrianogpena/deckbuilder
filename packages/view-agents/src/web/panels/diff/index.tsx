@@ -1,4 +1,4 @@
-import { ErrorBanner, PanelLoading, useAsync } from '@deckbuilderkit/ui';
+import { ErrorBanner, PanelLoading, useAsync } from '@kedalion/ui';
 import { t } from '../../../i18n';
 import type { PanelModule, PanelProps } from '../../workspace/types';
 import { FileDiff } from './FileDiff';

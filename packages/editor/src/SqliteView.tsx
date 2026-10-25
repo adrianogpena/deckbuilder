@@ -1,4 +1,4 @@
-import { ErrorBanner, errorOf, Icon, IconButton, type ApiError, PanelLoading, t } from '@deckbuilderkit/ui';
+import { ErrorBanner, errorOf, Icon, IconButton, type ApiError, PanelLoading, t } from '@kedalion/ui';
 import { useState } from 'react';
 import { DataGrid } from './TableView';
 

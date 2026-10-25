@@ -1,4 +1,4 @@
-import { defineView } from '@deckbuilderkit/ui';
+import { defineView } from '@kedalion/ui';
 import { en as gridEn, ptBR as gridPtBR } from '../i18n';
 import type { AnyPanelKind } from '../panel';
 import { en as calendarEn, ptBR as calendarPtBR } from '../panels/calendar/i18n';

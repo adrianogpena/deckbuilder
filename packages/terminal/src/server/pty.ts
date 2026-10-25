@@ -1,4 +1,4 @@
-import { killTree } from '@deckbuilderkit/platform';
+import { killTree } from '@kedalion/platform';
 
 export interface Pty {
   write(data: string | Uint8Array): void;

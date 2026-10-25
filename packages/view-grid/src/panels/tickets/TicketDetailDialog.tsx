@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Icon, Modal } from '@deckbuilderkit/ui';
+import { Button, Icon, Modal } from '@kedalion/ui';
 import { tKey } from '../../i18n';
 import { runAction } from '../../source';
 import { DescribeDialog } from '../pods/DescribeDialog';

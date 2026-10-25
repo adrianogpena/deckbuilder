@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { IconButton } from '@deckbuilderkit/ui';
+import { IconButton } from '@kedalion/ui';
 import { tKey } from '../../i18n';
 import { Chip, ListRows, type ListRow } from '../../kit';
 import './calendar.css';

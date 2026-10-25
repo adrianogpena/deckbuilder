@@ -6,4 +6,4 @@ export { fetchSource, runAction, streamSource } from './source';
 export { dashboardView, type DashboardViewOptions } from './dashboard/view';
 export { type DashboardViewSettings } from './dashboard/DashboardScreen';
 export { dashboardPanels } from './panels/catalog.web';
-export { defaultConfig, validConfig, validGridItems, type GridItem, type PanelConfig, type PanelField } from '@deckbuilderkit/ui';
+export { defaultConfig, validConfig, validGridItems, type GridItem, type PanelConfig, type PanelField } from '@kedalion/ui';

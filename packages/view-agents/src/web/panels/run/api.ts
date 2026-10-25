@@ -1,4 +1,4 @@
-import { request } from '@deckbuilderkit/ui';
+import { request } from '@kedalion/ui';
 
 export interface RunTarget {
   id: string;

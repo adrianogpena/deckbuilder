@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { conflictsOf } from '@deckbuilderkit/ui/keybindings';
+import { conflictsOf } from '@kedalion/ui/keybindings';
 
 // The ui index reads `window` at import time.
 Object.assign(globalThis, { window: { location: { href: 'http://127.0.0.1/' } } });

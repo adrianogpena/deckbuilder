@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { CompletionContext, type CompletionResult } from '@codemirror/autocomplete';
 import { EditorState } from '@codemirror/state';
-import { setFileAssociations } from '@deckbuilderkit/ui/file-associations';
+import { setFileAssociations } from '@kedalion/ui/file-associations';
 import { columnCompletion, langOfFile, languageFor, parserOf, previewKind } from '../src/languages.ts';
 
 describe('langOfFile', () => {

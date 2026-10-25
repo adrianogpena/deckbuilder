@@ -1,7 +1,7 @@
 import { basename } from 'node:path';
-import { writeFileAtomic } from '@deckbuilderkit/platform';
-import { defineServerView, forbidden, invalid, isRecord, type Routes } from '@deckbuilderkit/server-core';
-import { type DialogPicks, environmentRoutes, fromPlatform, httpSharedRoutes, recordRoutes, type AppStores, type RecordStore, type RestHistory, restTabsRoutes } from '@deckbuilderkit/server-mods';
+import { writeFileAtomic } from '@kedalion/platform';
+import { defineServerView, forbidden, invalid, isRecord, type Routes } from '@kedalion/server-core';
+import { type DialogPicks, environmentRoutes, fromPlatform, httpSharedRoutes, recordRoutes, type AppStores, type RecordStore, type RestHistory, restTabsRoutes } from '@kedalion/server-mods';
 
 /** The part of the server settings the REST view owns; the app's `Settings` extends it. */
 export interface RestServerSettings {

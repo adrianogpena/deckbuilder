@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Button, errorOf, SettingItem, useDialogs, useToast } from '@deckbuilderkit/ui';
+import { Button, errorOf, SettingItem, useDialogs, useToast } from '@kedalion/ui';
 import { t, type AgentsMessageKey } from '../i18n';
 import { ACCOUNT_STATUS_ICONS, ACCOUNT_STATUS_KEYS, ACCOUNT_USAGE_BOOL_KEYS, type AccountPrefs, type AccountStatusKey, type AccountUsagePrefs } from '../protocol.ts';
 import { statusIconFor, withAccountPrefs, defaultStatusIcon } from './account-prefs';

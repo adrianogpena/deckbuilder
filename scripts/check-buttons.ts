@@ -1,4 +1,4 @@
-// Raw buttons: a generic button is `Button`/`IconButton`/`buttonClass` from @deckbuilderkit/ui (docs/DESIGN.md, Buttons).
+// Raw buttons: a generic button is `Button`/`IconButton`/`buttonClass` from @kedalion/ui (docs/DESIGN.md, Buttons).
 // A bare `<button>` is only for controls that are not generic buttons (tabs, tree rows, menu items, chips, swatches, nav items).
 // Each file lists how many it may hold; a new raw button, or one in a new file, fails `bun run typecheck`. Adding an entry
 // means the control is not a generic button: say why in the commit.
@@ -6,7 +6,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import type { Violation } from './check-boundaries';
 
-export const RAW_BUTTON_RULE = 'raw button: use Button/IconButton from @deckbuilderkit/ui (or add the file to RAW_BUTTONS in scripts/check-buttons.ts if it is a tab, row, menu item or chip)';
+export const RAW_BUTTON_RULE = 'raw button: use Button/IconButton from @kedalion/ui (or add the file to RAW_BUTTONS in scripts/check-buttons.ts if it is a tab, row, menu item or chip)';
 const SOURCE = /\.[cm]?[jt]sx?$/;
 const TEST_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$/;
 const SKIP_DIRS = new Set(['node_modules', 'dist', '.build']);

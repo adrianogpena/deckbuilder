@@ -1,8 +1,8 @@
-import { REST_BUILTIN_VARIABLES, type RestEnvVar, restVarRefs } from '@deckbuilderkit/server-core/protocol';
+import { REST_BUILTIN_VARIABLES, type RestEnvVar, restVarRefs } from '@kedalion/server-core/protocol';
 import type { Completion, CompletionContext, CompletionResult, CompletionSource } from '@codemirror/autocomplete';
 import { EditorState, type Extension } from '@codemirror/state';
 import { Decoration, type DecorationSet, type EditorView, ViewPlugin, type ViewUpdate } from '@codemirror/view';
-import { t } from '@deckbuilderkit/ui/i18n';
+import { t } from '@kedalion/ui/i18n';
 
 export interface VariableInfo {
   defined: boolean;

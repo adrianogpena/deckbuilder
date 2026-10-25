@@ -1,5 +1,5 @@
-import { PlatformError } from '@deckbuilderkit/platform';
-import { AppError } from '@deckbuilderkit/server-core';
+import { PlatformError } from '@kedalion/platform';
+import { AppError } from '@kedalion/server-core';
 
 /** Rethrows a PlatformError as an `invalid` AppError the UI translates (`error.<code>`); anything else unchanged. */
 export function fromPlatform(err: unknown): never {

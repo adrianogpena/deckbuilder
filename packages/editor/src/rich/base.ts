@@ -1,4 +1,4 @@
-import { t } from '@deckbuilderkit/ui';
+import { t } from '@kedalion/ui';
 import type { MilkdownPlugin } from '@milkdown/ctx';
 import { htmlSchema, imageSchema } from '@milkdown/preset-commonmark';
 import { Plugin, PluginKey } from '@milkdown/prose/state';

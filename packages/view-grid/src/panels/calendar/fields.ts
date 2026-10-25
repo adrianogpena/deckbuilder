@@ -1,4 +1,4 @@
-import type { PanelField } from '@deckbuilderkit/ui/grid';
+import type { PanelField } from '@kedalion/ui/grid';
 
 const icsUrl: PanelField = { key: 'icsUrl', kind: 'string', label: 'dash.calendar.icsUrl', description: 'dash.calendar.icsUrl.hint', placeholder: 'dash.calendar.icsUrl.placeholder', default: '', maxLength: 2000 };
 

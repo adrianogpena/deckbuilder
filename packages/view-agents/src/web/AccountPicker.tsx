@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { errorOf, Modal, useRovingList, useToast } from '@deckbuilderkit/ui';
+import { errorOf, Modal, useRovingList, useToast } from '@kedalion/ui';
 import { t } from '../i18n';
 import { type AgentAccount, listAccounts, setActiveAccount } from './api';
 

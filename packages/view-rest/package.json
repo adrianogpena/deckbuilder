@@ -1,5 +1,5 @@
 {
-  "name": "@deckbuilderkit/view-rest",
+  "name": "@kedalion/view-rest",
   "version": "0.3.0",
   "license": "MIT",
   "private": true,
@@ -10,11 +10,11 @@
     "./styles.css": "./src/rest.css"
   },
   "dependencies": {
-    "@deckbuilderkit/editor": "workspace:*",
-    "@deckbuilderkit/platform": "workspace:*",
-    "@deckbuilderkit/server-core": "workspace:*",
-    "@deckbuilderkit/server-mods": "workspace:*",
-    "@deckbuilderkit/ui": "workspace:*"
+    "@kedalion/editor": "workspace:*",
+    "@kedalion/platform": "workspace:*",
+    "@kedalion/server-core": "workspace:*",
+    "@kedalion/server-mods": "workspace:*",
+    "@kedalion/ui": "workspace:*"
   },
   "peerDependencies": {
     "react": "^18.3.1",

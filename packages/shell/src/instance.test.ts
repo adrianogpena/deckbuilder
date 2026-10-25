@@ -2,7 +2,7 @@ import { afterEach, expect, test } from 'bun:test';
 import { mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { launchCodes, startServer } from '@deckbuilderkit/server-core';
+import { launchCodes, startServer } from '@kedalion/server-core';
 import { acquireLock, createInstance, handOff, type OpenMode } from './instance.ts';
 import { launchUrl } from './urls.ts';
 

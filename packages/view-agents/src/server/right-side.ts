@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { readJsonFile, writeJsonAtomic } from '@deckbuilderkit/platform';
+import { readJsonFile, writeJsonAtomic } from '@kedalion/platform';
 
 const MAX_SCOPES = 500;
 const MAX_KINDS = 40;

@@ -1,4 +1,4 @@
-import type { PanelField } from '@deckbuilderkit/ui/grid';
+import type { PanelField } from '@kedalion/ui/grid';
 
 export const CONTAINERS_FIELDS: readonly PanelField[] = [
   { key: 'engine', kind: 'enum', label: 'dash.containers.engine', default: 'podman', values: ['podman', 'docker'] },

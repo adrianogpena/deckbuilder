@@ -1,5 +1,5 @@
 {
-  "name": "@deckbuilderkit/view-grid",
+  "name": "@kedalion/view-grid",
   "version": "0.3.0",
   "license": "MIT",
   "private": true,
@@ -10,9 +10,9 @@
     "./styles.css": "./src/grid.css"
   },
   "dependencies": {
-    "@deckbuilderkit/editor": "workspace:*",
-    "@deckbuilderkit/server-core": "workspace:*",
-    "@deckbuilderkit/ui": "workspace:*"
+    "@kedalion/editor": "workspace:*",
+    "@kedalion/server-core": "workspace:*",
+    "@kedalion/ui": "workspace:*"
   },
   "peerDependencies": {
     "react": "^18.3.1",

@@ -1,4 +1,4 @@
-import { buttonClass, copyText, t } from '@deckbuilderkit/ui';
+import { buttonClass, copyText, t } from '@kedalion/ui';
 import { classHighlighter, highlightTree } from '@lezer/highlight';
 import { type MouseEvent, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { langOfFile, type Parser, parserOf } from './languages';

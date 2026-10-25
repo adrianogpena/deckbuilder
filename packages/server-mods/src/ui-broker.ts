@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { ServerWebSocket } from 'bun';
-import { type Routes, type SocketData, type SocketRoutes, socketTickets } from '@deckbuilderkit/server-core';
+import { type Routes, type SocketData, type SocketRoutes, socketTickets } from '@kedalion/server-core';
 
 export const UI_SOCKET_PATH = '/api/ui/socket';
 

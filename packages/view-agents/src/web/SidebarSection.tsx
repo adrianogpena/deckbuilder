@@ -1,5 +1,5 @@
 import { type DragEvent, type MouseEvent, type ReactNode, useState } from 'react';
-import { Icon, IconButton, type IconName, useShortcutTip } from '@deckbuilderkit/ui';
+import { Icon, IconButton, type IconName, useShortcutTip } from '@kedalion/ui';
 import { t } from '../i18n';
 import type { SectionId } from './sidebar-sections';
 

@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { CodeEditor } from '@deckbuilderkit/editor';
-import { type ApiError, Button, copyText, dialogs, ErrorBanner, errorOf, Modal } from '@deckbuilderkit/ui';
+import { CodeEditor } from '@kedalion/editor';
+import { type ApiError, Button, copyText, dialogs, ErrorBanner, errorOf, Modal } from '@kedalion/ui';
 import { restApi as api } from '../client';
 import { t } from '../i18n';
 

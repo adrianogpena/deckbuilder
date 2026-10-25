@@ -1,8 +1,8 @@
 import { join } from 'node:path';
-import { EDITOR_NAMES, type EditorId, findEditor, openInEditor, readJsonFile, revealInFolder, writeJsonAtomic } from '@deckbuilderkit/platform';
-import { isRecord, type Routes } from '@deckbuilderkit/server-core';
-import { ICON_SET_IDS, LAYOUT_MARK_IDS, layoutById } from '@deckbuilderkit/server-core/layouts';
-import { PALETTES, ZOOM_LEVELS, type ThemeKind, type ThemeSettings } from '@deckbuilderkit/server-core/palettes';
+import { EDITOR_NAMES, type EditorId, findEditor, openInEditor, readJsonFile, revealInFolder, writeJsonAtomic } from '@kedalion/platform';
+import { isRecord, type Routes } from '@kedalion/server-core';
+import { ICON_SET_IDS, LAYOUT_MARK_IDS, layoutById } from '@kedalion/server-core/layouts';
+import { PALETTES, ZOOM_LEVELS, type ThemeKind, type ThemeSettings } from '@kedalion/server-core/palettes';
 
 /** Settings every app gets; apps extend this with their own fields. */
 export interface BaseSettings extends ThemeSettings {

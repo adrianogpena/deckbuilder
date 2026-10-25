@@ -1,4 +1,4 @@
-import { CODE_PARAM, SESSION_PATH, TOKEN_HEADER } from '@deckbuilderkit/server-core/protocol';
+import { CODE_PARAM, SESSION_PATH, TOKEN_HEADER } from '@kedalion/server-core/protocol';
 import { type QueryParams, qs, RequestError } from './api-core';
 import { t } from './i18n';
 

@@ -1,4 +1,4 @@
-import { Icon } from '@deckbuilderkit/ui';
+import { Icon } from '@kedalion/ui';
 import { t } from '../../i18n';
 
 /** Shown for a saved tab whose kind this build does not have. */

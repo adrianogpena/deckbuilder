@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { cp, mkdir, rm, stat } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { readJsonFile, renameWithRetry, writeJsonAtomic } from '@deckbuilderkit/platform';
+import { readJsonFile, renameWithRetry, writeJsonAtomic } from '@kedalion/platform';
 
 export const DAY_MS = 24 * 60 * 60 * 1000;
 

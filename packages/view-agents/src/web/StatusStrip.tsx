@@ -1,4 +1,4 @@
-import { Icon, StatusBar, type StatusItem } from '@deckbuilderkit/ui';
+import { Icon, StatusBar, type StatusItem } from '@kedalion/ui';
 import { t } from '../i18n';
 import type { AgentSessionView } from './api';
 import { stripCounts } from './attention';

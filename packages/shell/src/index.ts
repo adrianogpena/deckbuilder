@@ -13,8 +13,8 @@ import {
   type SocketRoutes,
   startServer,
   VITE_PORT,
-} from '@deckbuilderkit/server-core';
-import { appHome, createTray, createUrlProtocol, findAppBrowser, isCompiledExe, openExternal, removeOldExe, type Tray, waitForUrl } from '@deckbuilderkit/platform';
+} from '@kedalion/server-core';
+import { appHome, createTray, createUrlProtocol, findAppBrowser, isCompiledExe, openExternal, removeOldExe, type Tray, waitForUrl } from '@kedalion/platform';
 import { appWindowsOpen, closeAppWindows, openAppWindow } from './app-window.ts';
 import { helpText, parseFlags } from './flags.ts';
 import { createIdleWatch, type IdleWatch } from './idle.ts';

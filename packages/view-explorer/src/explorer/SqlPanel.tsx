@@ -1,7 +1,7 @@
 import { type ReactNode, useMemo, useRef, useState } from 'react';
-import { type CodeEditorHandle, type CodeEditorProps, langOfFile, resolveMarkers, type RunMode, sqlMarkers, sqlParams, type SqlParam } from '@deckbuilderkit/editor';
-import { Badge, Button, ErrorBanner, Icon, IconButton, Modal, SplitView, type TabAction, useAsync, useCommand, useViewLink } from '@deckbuilderkit/ui';
-import { DEFAULT_RESULTS, SqlResults, useSqlRunner, useSqlSchema } from '@deckbuilderkit/sql-ui';
+import { type CodeEditorHandle, type CodeEditorProps, langOfFile, resolveMarkers, type RunMode, sqlMarkers, sqlParams, type SqlParam } from '@kedalion/editor';
+import { Badge, Button, ErrorBanner, Icon, IconButton, Modal, SplitView, type TabAction, useAsync, useCommand, useViewLink } from '@kedalion/ui';
+import { DEFAULT_RESULTS, SqlResults, useSqlRunner, useSqlSchema } from '@kedalion/sql-ui';
 import { type ExplorerWorkbench, sqlRunnerSettings, withWorkbenchDefaults } from '../settings';
 import { explorerCommandById as commandById } from '../commands';
 import { t } from '../i18n';

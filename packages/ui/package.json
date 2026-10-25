@@ -1,5 +1,5 @@
 {
-  "name": "@deckbuilderkit/ui",
+  "name": "@kedalion/ui",
   "version": "0.3.0",
   "license": "MIT",
   "private": true,
@@ -20,7 +20,7 @@
     "./styles.css": "./src/styles.css"
   },
   "dependencies": {
-    "@deckbuilderkit/server-core": "workspace:*",
+    "@kedalion/server-core": "workspace:*",
     "@fontsource/geist": "^5.1.0",
     "@fontsource/geist-mono": "^5.1.0",
     "react-grid-layout": "^2.3.0"

@@ -1,6 +1,6 @@
 import { join } from 'node:path';
-import { readJsonFile, writeJsonAtomic } from '@deckbuilderkit/platform';
-import { AppError, type ImportResult, invalid, isRecord, notFound, type Routes } from '@deckbuilderkit/server-core';
+import { readJsonFile, writeJsonAtomic } from '@kedalion/platform';
+import { AppError, type ImportResult, invalid, isRecord, notFound, type Routes } from '@kedalion/server-core';
 import { fromPlatform } from './platform-errors.ts';
 
 /** A stored record: the app's fields plus the ones the store owns. */

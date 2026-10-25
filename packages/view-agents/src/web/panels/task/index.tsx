@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { MarkdownView } from '@deckbuilderkit/editor';
-import { Button, errorOf, useDialogs } from '@deckbuilderkit/ui';
+import { MarkdownView } from '@kedalion/editor';
+import { Button, errorOf, useDialogs } from '@kedalion/ui';
 import { t } from '../../../i18n';
 import type { AgentsCapWarn } from '../../../protocol';
 import { stopSession } from '../../api';

@@ -1,5 +1,5 @@
-import { request } from '@deckbuilderkit/ui';
-import type { GitCommit, GitCommitFile, GitDiff, GitFileContent, GitRepoInfo, GitStatus } from '@deckbuilderkit/server-core/protocol';
+import { request } from '@kedalion/ui';
+import type { GitCommit, GitCommitFile, GitDiff, GitFileContent, GitRepoInfo, GitStatus } from '@kedalion/server-core/protocol';
 
 /** A project the screen can focus. */
 export interface GitProject {

@@ -1,8 +1,8 @@
 import { statSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
-import { appHome, secretStore } from '@deckbuilderkit/platform';
-import { AppError, invalid, isRecord, notFound, type Routes } from '@deckbuilderkit/server-core';
-import { REST_ENV_MAX_VARS, REST_ENV_NAME_CHARS, REST_VAR_NAME, type HttpRequestDraft, type RestEnvVar } from '@deckbuilderkit/server-core/protocol';
+import { appHome, secretStore } from '@kedalion/platform';
+import { AppError, invalid, isRecord, notFound, type Routes } from '@kedalion/server-core';
+import { REST_ENV_MAX_VARS, REST_ENV_NAME_CHARS, REST_VAR_NAME, type HttpRequestDraft, type RestEnvVar } from '@kedalion/server-core/protocol';
 import { httpExecutor, httpRoutes, validateDraft } from './http.ts';
 import { pickedPaths } from './dialogs.ts';
 import type { DialogPicks } from './file-dialog.ts';

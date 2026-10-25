@@ -1,5 +1,5 @@
 import { type MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Button, ContextMenu, type ContextMenuItem, Icon } from '@deckbuilderkit/ui';
+import { Button, ContextMenu, type ContextMenuItem, Icon } from '@kedalion/ui';
 import { t } from '../../i18n';
 import { EmptyCard } from './EmptyCard';
 import { useAgentsHost } from './host';

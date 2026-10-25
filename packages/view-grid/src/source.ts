@@ -1,4 +1,4 @@
-import { request, stream, type PanelConfig } from '@deckbuilderkit/ui';
+import { request, stream, type PanelConfig } from '@kedalion/ui';
 
 /** Calls the server's data source `id` (see `defineSource`) with the panel's config; for a kind's `load`. */
 export const fetchSource = <T = unknown>(id: string, config: PanelConfig): Promise<T> =>

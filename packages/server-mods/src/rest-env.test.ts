@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import type { AppError } from '@deckbuilderkit/server-core';
+import type { AppError } from '@kedalion/server-core';
 import { unknownVariables, variableResolver } from './rest-env.ts';
 
 test('resolve replaces known names and collects unknown ones', () => {

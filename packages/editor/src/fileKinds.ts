@@ -1,5 +1,5 @@
 import type { Lang } from './languages';
-import { effectiveName, LOG_NAME } from '@deckbuilderkit/ui/file-associations';
+import { effectiveName, LOG_NAME } from '@kedalion/ui/file-associations';
 
 const extOf = (name: string) => {
   const dot = name.lastIndexOf('.');

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { request, stream } from '@deckbuilderkit/ui';
+import { request, stream } from '@kedalion/ui';
 import { t } from '../../../i18n';
 import type { PanelModule, PanelProps, SectionProps } from '../../workspace/types';
 import './style.css';

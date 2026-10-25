@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { stream } from '@deckbuilderkit/ui';
+import { stream } from '@kedalion/ui';
 import type { Project, SearchHit } from '../client';
 
 export interface NameIndex {

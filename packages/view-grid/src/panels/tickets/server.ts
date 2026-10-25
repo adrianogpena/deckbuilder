@@ -1,4 +1,4 @@
-import { invalid } from '@deckbuilderkit/server-core';
+import { invalid } from '@kedalion/server-core';
 import { createJsonStore, type JsonStore } from '../../json-store';
 import { defineSource, type DataSource, type GridPanelSpec } from '../../server';
 import { fetchPrPool, trackedStore } from '../github/server';

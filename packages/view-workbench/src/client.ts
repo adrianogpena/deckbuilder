@@ -1,6 +1,6 @@
-import type { SqlHistoryEntry } from '@deckbuilderkit/server-core/protocol';
-import { type DbConnection, type SqlClient, sqlClient } from '@deckbuilderkit/sql-ui';
-import { request } from '@deckbuilderkit/ui';
+import type { SqlHistoryEntry } from '@kedalion/server-core/protocol';
+import { type DbConnection, type SqlClient, sqlClient } from '@kedalion/sql-ui';
+import { request } from '@kedalion/ui';
 
 /** The server calls the Workbench makes; the app builds it from its api and passes it to `workbenchView`. */
 export interface WorkbenchClient extends SqlClient {

@@ -1,5 +1,5 @@
 import { createElement, useEffect, useMemo, useRef, useState } from 'react';
-import { addItem, Button, ContextMenu, Empty, PageHead, PanelGrid, sameItems, t, useCommand, useDialogs, useViewSidePanel, validConfig, ViewSidePanel,type ContextMenuItem, type GridItem, type PanelConfig } from '@deckbuilderkit/ui';
+import { addItem, Button, ContextMenu, Empty, PageHead, PanelGrid, sameItems, t, useCommand, useDialogs, useViewSidePanel, validConfig, ViewSidePanel,type ContextMenuItem, type GridItem, type PanelConfig } from '@kedalion/ui';
 import { ConfigDialog } from '../ConfigForm';
 import { ConnectionsDialog } from '../connections/ConnectionsDialog';
 import { tKey } from '../i18n';

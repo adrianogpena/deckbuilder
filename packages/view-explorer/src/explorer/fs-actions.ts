@@ -1,5 +1,5 @@
-import { relPath } from '@deckbuilderkit/ui';
-import type { FsArchiveFormat } from '@deckbuilderkit/server-core/protocol';
+import { relPath } from '@kedalion/ui';
+import type { FsArchiveFormat } from '@kedalion/server-core/protocol';
 import { explorerApi as api } from '../client';
 import { t } from '../i18n';
 import { freeName } from './os-drop';

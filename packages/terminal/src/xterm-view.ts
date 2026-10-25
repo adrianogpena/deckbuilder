@@ -7,7 +7,7 @@ import { WebLinksAddon } from '@xterm/addon-web-links';
 import { WebglAddon } from '@xterm/addon-webgl';
 import { Terminal, type FontWeight, type IDecoration, type IMarker, type ITheme } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
-import { t } from '@deckbuilderkit/ui';
+import { t } from '@kedalion/ui';
 import { trimCopied, type PasteWarning } from './paste.ts';
 import type { ColorScheme } from './schemes.ts';
 import { parseOsc133, parseOsc7 } from './shell-integration.ts';

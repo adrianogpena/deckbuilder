@@ -1,4 +1,4 @@
-import { Modal } from '@deckbuilderkit/ui';
+import { Modal } from '@kedalion/ui';
 import { tKey } from '../../i18n';
 import './pods.css';
 

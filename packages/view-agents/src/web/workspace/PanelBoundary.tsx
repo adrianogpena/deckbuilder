@@ -1,5 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
-import { Button, Icon } from '@deckbuilderkit/ui';
+import { Button, Icon } from '@kedalion/ui';
 import { t } from '../../i18n';
 
 interface State {

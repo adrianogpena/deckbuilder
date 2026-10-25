@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button, ContextMenu, IconButton } from '@deckbuilderkit/ui';
+import { Button, ContextMenu, IconButton } from '@kedalion/ui';
 import { tKey } from '../../i18n';
 import { runAction } from '../../source';
 import { clockText, MAX_LABEL, MAX_SNIPPET, MAX_SCRATCH, MAX_TODO, type Daily } from './model';

@@ -1,5 +1,5 @@
 import './tables.css';
-import { ContextMenu, type ContextMenuItem, createT } from '@deckbuilderkit/ui';
+import { ContextMenu, type ContextMenuItem, createT } from '@kedalion/ui';
 import { type CmdKey, commandsCtx } from '@milkdown/core';
 import type { Ctx } from '@milkdown/ctx';
 import { addColAfterCommand, addColBeforeCommand, addRowAfterCommand, addRowBeforeCommand, insertTableCommand } from '@milkdown/preset-gfm';
