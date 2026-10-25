@@ -14,6 +14,7 @@ Decided:
 - The app id (`APP.id` in `app/app.ts`, now `deckbuilder`) becomes `kedalion`. The data folder `~/.deckbuilder` must be moved by hand on the owner's machine (`mv ~/.deckbuilder ~/.kedalion`, app closed). Check whether secrets live in that folder or in the OS keychain.
 - npm release is dropped. The `@deckbuilderkit/*` packages are not published; users get only the app's executable (the `kedalion-v<version>` release).
 - Only the owner uses the app, so there are no other users to migrate. A full rename is acceptable.
+- Each view stays its own `view-*` package, an island that reaches only what it needs from the others (enforced by `scripts/check-boundaries.ts`). The views are not for building other apps; the separation is for isolation.
 - Home, Grid and Tabs stop being main views. The **Dashboard (Argus) is the main view** and opens first.
 - The GitHub repository is renamed to Kedalion. The `repository.url` fields and README links change with it.
 - Everything called `deckbuilder` becomes `kedalion`: the CLI, the `@deckbuilderkit/*` import scope (now `@kedalion/*`, in all 413 files), the data folder, the persisted identifiers listed under "Where the name lives", and the docs. Saved state under the old identifiers is lost (theme choice, recent files, token); old backups are refused. This is acceptable because only the owner uses the app.
@@ -34,7 +35,7 @@ Nothing is open.
 - Remove `deckbuilder new`, `add view`, `upgrade`, `packages/build/template` and `packages/build/view-template`, plus their tests, and the root `new` script. Keep `dev`, `build`, `build:web`, `release`, `manifest` and `keygen`, which the app's own build and release use.
 - Rewrite the README to "download the app": drop the five install options and the create-an-app and add-packages sections.
 - Remove `scripts/publish.ts` and `scripts/check-single-views.ts` (it generates an app per view with `new`), and the publishing fields of `packages/build/package.json` (`publishConfig`, `files`, `bin`).
-- Rewrite CONTRIBUTING.md for one app: drop `bun run new`, the template notes and the "add to your app" wording (the many `@deckbuilderkit/...` install instructions), and keep layout, scripts, releases, icon packs and layouts. The `view-*` packages stay as workspace packages; each is a view of this app, not a reusable kit piece.
+- Rewrite CONTRIBUTING.md for one app: drop `bun run new`, the template notes and the "add to your app" wording (the many `@deckbuilderkit/...` install instructions), and keep layout, scripts, releases, icon packs and layouts. The `view-*` packages stay separate islands (see Decided).
 - Mark every package `"private": true` and drop the publishing `repository.url` fields.
 - If any package was already published, deprecate it on npm by hand.
 
