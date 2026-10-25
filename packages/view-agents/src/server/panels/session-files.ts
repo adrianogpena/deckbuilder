@@ -1,4 +1,6 @@
-import { relative, resolve } from 'node:path';
+import { posix, win32 } from 'node:path';
+
+const flavor = (p: string) => (/^[a-z]:/i.test(p) ? win32 : posix);
 
 const WRITE_TOOLS = /^(Edit|MultiEdit|Write|NotebookEdit)$/;
 
@@ -31,7 +33,7 @@ export function touchedFiles(jsonl: string, cwd: string): SessionTouched {
       if (b?.type !== 'tool_use' || typeof b.name !== 'string' || !WRITE_TOOLS.test(b.name)) continue;
       const input = (b.input ?? {}) as { file_path?: unknown; notebook_path?: unknown };
       const p = [input.file_path, input.notebook_path].find((x): x is string => typeof x === 'string');
-      if (p) paths.add(resolve(cwd, p).replaceAll('\\', '/'));
+      if (p) paths.add(flavor(cwd).resolve(cwd, p).replaceAll('\\', '/'));
     }
   }
   return { paths: [...paths], startedAt };
@@ -39,6 +41,6 @@ export function touchedFiles(jsonl: string, cwd: string): SessionTouched {
 
 /** `abs` relative to the repo top-level, in git's spelling (forward slashes); undefined when outside it. Case-insensitive on Windows. */
 export function repoRelative(top: string, abs: string): string | undefined {
-  const rel = relative(top, abs).replaceAll('\\', '/');
+  const rel = flavor(top).relative(top, abs).replaceAll('\\', '/');
   return rel === '' || rel.startsWith('../') || /^[a-z]:/i.test(rel) ? undefined : rel;
 }
