@@ -15,8 +15,7 @@
     "start:browser": "bun run --cwd apps/gallery start:browser",
     "build:web": "bun run --cwd apps/gallery build:web",
     "build": "bun run --cwd apps/gallery build",
-    "typecheck": "bun scripts/typecheck.ts",
-    "new": "bun packages/build/src/cli.ts new"
+    "typecheck": "bun scripts/typecheck.ts"
   },
   "devDependencies": {
     "@types/bun": "^1.3.0",

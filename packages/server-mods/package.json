@@ -2,18 +2,7 @@
   "name": "@deckbuilderkit/server-mods",
   "version": "0.3.0",
   "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/adrianogpena/deckbuilder.git",
-    "directory": "packages/server-mods"
-  },
-  "publishConfig": {
-    "access": "public"
-  },
-  "files": [
-    "src",
-    "!src/**/*.test.ts"
-  ],
+  "private": true,
   "type": "module",
   "exports": {
     ".": "./src/index.ts",

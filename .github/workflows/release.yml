@@ -2,17 +2,15 @@ name: Release
 
 # Tag `<app>-v<version>` (e.g. `gallery-v0.3.0`) builds apps/<app> for every target and
 # uploads the executables, latest.json and latest.json.sig to a GitHub Release. <version> must match the app's package.json.
-# Tag `v<version>` (e.g. `v0.2.0`) publishes the @deckbuilderkit/* packages to npm; <version> must match the root package.json.
 on:
   push:
-    tags: ['*-v*', 'v*']
+    tags: ['*-v*']
 
 permissions:
   contents: write
 
 jobs:
   release:
-    if: ${{ !startsWith(github.ref_name, 'v') }}
     # Windows, because the exe icon and version info are only verified when building on Windows.
     runs-on: windows-latest
     env:
@@ -47,48 +45,5 @@ jobs:
           DECKBUILDER_SIGNING_KEY: ${{ secrets.DECKBUILDER_SIGNING_KEY }}
       - name: Upload to a release
         run: gh release create "$TAG" --title "$TAG" apps/$APP/release/*
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  publish:
-    if: ${{ startsWith(github.ref_name, 'v') }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      id-token: write # npm trusted publishing (OIDC), no token secret
-    env:
-      TAG: ${{ github.ref_name }}
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          fetch-depth: 0 # the release notes read the previous tags
-          persist-credentials: false
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version: 1.4.2
-      - run: bun install --frozen-lockfile
-      - name: Check the tag against the root version
-        run: |
-          actual=$(bun -p "require('./package.json').version")
-          if [ "$actual" != "${TAG#v}" ]; then
-            echo "tag says ${TAG#v} but package.json says $actual" >&2
-            exit 1
-          fi
-      - run: bun run typecheck
-      - name: Publish the packages
-        # Trusted publishing needs npm 11.5.1+; the runner's npm is older.
-        run: |
-          sudo npm install -g npm@11
-          echo "node $(node -v), npm $(npm -v)"
-          bun scripts/publish.ts
-      - name: Create a release with the changelog
-        run: |
-          bun -e "
-            import { execFileSync } from 'node:child_process';
-            import { releaseNotes } from './packages/build/src/release.ts';
-            const git = (a) => execFileSync('git', a, { encoding: 'utf8' }).trim();
-            console.log(releaseNotes(git, 'v', process.env.TAG.slice(1)));
-          " > notes.md
-          gh release create "$TAG" --title "$TAG" --notes-file notes.md
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -2,20 +2,7 @@
   "name": "@deckbuilderkit/build",
   "version": "0.3.0",
   "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/adrianogpena/deckbuilder.git",
-    "directory": "packages/build"
-  },
-  "publishConfig": {
-    "access": "public"
-  },
-  "files": [
-    "src",
-    "template",
-    "view-template",
-    "!src/**/*.test.ts"
-  ],
+  "private": true,
   "type": "module",
   "bin": {
     "deckbuilder": "src/cli.ts"

@@ -22,17 +22,3 @@ jobs:
       - run: bun test
       # One target is enough to prove the web build, the embedding and the compile step work.
       - run: bun run build --target linux-x64
-
-  single-view:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        view: [explorer, git, rest, terminal, workbench]
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version: 1.4.2
-      - run: bun install --frozen-lockfile
-      - run: bun scripts/check-single-views.ts ${{ matrix.view }}
