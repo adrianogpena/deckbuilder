@@ -14,6 +14,15 @@ const optionsExt = (lang: Lang, wrap: boolean, lineNumbers: boolean) => [
   lineNumbers ? lineNumbersExt() : [],
 ];
 
+/** Opens the search panel of the first editor under `root` (the one in `.focused` when present); false when there is none. */
+export function openEditorSearch(root: ParentNode): boolean {
+  const dom = root.querySelector<HTMLElement>('.pane.focused .cm-editor') ?? root.querySelector<HTMLElement>('.cm-editor');
+  const v = dom && EditorView.findFromDOM(dom);
+  if (!v) return false;
+  v.focus();
+  return openSearchPanel(v);
+}
+
 /** Read-only, highlighted text (searchable with Mod-f). */
 export function CodeView({ value, lang, wrap = false, lineNumbers = false }: { value: string; lang: Lang; wrap?: boolean; lineNumbers?: boolean }) {
   if (value.length > CODE_VIEW_LIMIT) return <pre className={wrap ? 'code-view-plain wrap' : 'code-view-plain'}>{value}</pre>;

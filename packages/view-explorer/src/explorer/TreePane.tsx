@@ -114,7 +114,7 @@ export function TreePane({ focused, showHidden = false, onFocus, exclude, sort, 
     setSignal((n) => n + 1);
   };
   useCommand(commandById('explorer.search'), openSearch, { enabled: focused && inside });
-  useCommand(commandById('explorer.find'), openFind, { enabled: focused && inside });
+  useCommand(commandById('explorer.find'), openFind, { enabled: focused && inside && !!document.activeElement?.closest('.xp-pane') });
   useEffect(() => {
     if (finding) findInput.current?.focus();
   }, [finding]);

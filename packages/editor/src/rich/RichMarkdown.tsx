@@ -13,6 +13,7 @@ import { htmlView, imageView, refreshHtml, userEditPlugin } from './base';
 import { type RichApi, type RichCommandId, type RichHost, runRichCommand } from './commands';
 import { FEATURES } from './features';
 import { EXTERNAL_META, frontmatterYaml, richValue, splitFrontmatter } from './frontmatter';
+import { FindBar, findPlugin } from './find';
 import { refreshLineNumbers } from './lineNumbers';
 
 export interface RichMarkdownHandle {
@@ -50,6 +51,7 @@ export const RichMarkdown = forwardRef<RichMarkdownHandle, RichMarkdownProps>(fu
   const root = useRef<HTMLDivElement>(null);
   const [api, setApi] = useState<RichApi | null>(null);
   const [front, setFront] = useState(() => splitFrontmatter(value).front);
+  const [finding, setFinding] = useState(false);
   const latest = useRef({ value, onChange, host });
   latest.current = { value, onChange, host };
   /** The text last parsed or emitted, the text the document was parsed from, its frontmatter and that parsed document. */
@@ -84,6 +86,7 @@ export const RichMarkdown = forwardRef<RichMarkdownHandle, RichMarkdownProps>(fu
       .use(history)
       .use(imageView(() => latest.current.host.resolveImage))
       .use(htmlView(() => latest.current.host.resolveImage))
+      .use(findPlugin)
       .use(userEditPlugin(emit));
     for (const f of FEATURES) if (f.plugins) make.use(f.plugins);
     make.create().then((ed) => {
@@ -139,7 +142,16 @@ export const RichMarkdown = forwardRef<RichMarkdownHandle, RichMarkdownProps>(fu
   const cls = ['md-rich', headingLinks && 'md-heading-links', lineNumbers && 'md-line-numbers', lineBreaks && 'md-line-breaks'].filter(Boolean).join(' ');
 
   return (
-    <div className={cls}>
+    <div
+      className={cls}
+      onKeyDown={(e) => {
+        if (!api || !(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== 'f') return;
+        e.preventDefault();
+        e.stopPropagation();
+        setFinding(true);
+      }}
+    >
+      {api && finding && <FindBar view={api.view} onClose={() => { setFinding(false); api.view.focus(); }} />}
       {api && FEATURES.map((f, i) => {
         const Overlay = f.Overlay;
         return Overlay ? <Overlay key={i} api={api} /> : null;

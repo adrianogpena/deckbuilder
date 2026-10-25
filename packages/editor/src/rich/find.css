@@ -1,0 +1,5 @@
+.md-find { position: absolute; top: var(--space-8); right: 24px; z-index: 5; display: flex; align-items: center; gap: var(--space-4); padding: var(--space-4) var(--space-8); background: var(--surface, var(--bg)); border: 1px solid var(--border); border-radius: var(--radius, 6px); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25); }
+.md-find input { width: 200px; }
+.md-find-count { min-width: 3.5em; text-align: right; }
+.md-rich-root .md-find-hit { background: color-mix(in srgb, var(--accent) 30%, transparent); }
+.md-rich-root .md-find-current { background: color-mix(in srgb, var(--accent) 65%, transparent); }

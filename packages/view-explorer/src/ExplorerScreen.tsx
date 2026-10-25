@@ -2,6 +2,7 @@ import './explorer.css';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { editorSettingsOf, type ExplorerSettings, type ExplorerViewSettings as Settings, generalSettingsOf, windowSettingsOf } from './settings';
 import { gitSettingsOf, setZen, useZen } from '@kedalion/ui';
+import { openEditorSearch } from '@kedalion/editor';
 import {
   activate,
   activeTab,
@@ -234,6 +235,17 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
   }, [zen]);
+  // Ctrl+F outside an editor or input would hit the webview's find (tree names included); search the open file instead.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== 'f') return;
+      const t = e.target as HTMLElement | null;
+      if (t?.closest('.xp-pane, .cm-editor, input, textarea, .code-view')) return;
+      if (openEditorSearch(t?.closest('.pane') ?? document)) e.preventDefault();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
   const copyPath = useCopyPath();
   const undo = useFileUndo();
 
