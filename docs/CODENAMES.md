@@ -11,7 +11,7 @@ Internal codenames for the app, its views and its packages, taken from Greek myt
 Decided:
 
 - The new name is **Kedalion**. The codenames below were chosen to go with it: the story of Kedalion and Orion, and the workshop of Hephaestus.
-- The app id (`APP.id` in `app/app.ts`, now `deckbuilder`) becomes `kedalion`. The data folder `~/.deckbuilder` must be moved by hand on the owner's machine (`mv ~/.deckbuilder ~/.kedalion`, app closed). Check whether secrets live in that folder or in the OS keychain.
+- The app id (`APP.id` in `app/app.ts`, now `deckbuilder`) becomes `kedalion`. The data folder `~/.deckbuilder` must be moved by hand on the owner's machine (`mv ~/.deckbuilder ~/.kedalion`, app closed). Secrets live in that folder (`secrets.json`, DPAPI-encrypted on Windows) and the app id is the DPAPI entropy (`packages/platform/src/secrets.ts:73`), so the moved blobs cannot be decrypted under `kedalion`: re-enter the 6 stored secrets (DB password, REST auth, environment secrets, demo token) after the rename.
 - npm release is dropped. The `@deckbuilderkit/*` packages are not published; users get only the app's executable (the `kedalion-v<version>` release).
 - Only the owner uses the app, so there are no other users to migrate. A full rename is acceptable.
 - Each view stays its own `view-*` package, an island that reaches only what it needs from the others (enforced by `scripts/check-boundaries.ts`). The views are not for building other apps; the separation is for isolation.
@@ -21,7 +21,9 @@ Decided:
 
 - The `apps/gallery` folder becomes a single top-level `app/` folder, and the `apps/*` workspace goes away (workspaces become `packages/*` and `app`). "gallery" and `apps/*` are leftovers from when the repo was a kit for building several apps, with gallery as the example. Kedalion is the only app, so there is nothing to group. The package is `@kedalion/app`; the release tag is `kedalion-v<version>` and must match `app/package.json`. No backward compatibility is kept: this is a new app. The name users see comes from `APP.name` in `app/app.ts`.
 
-Nothing is open.
+- The GitHub repository secrets for npm and `DECKBUILDER_SIGNING_KEY` are dropped. The owner deletes them by hand, and also deprecates any published `@deckbuilderkit/*` package on npm.
+
+Open: with the signing key gone, the update signature check (Cerberus: `verifyManifest`, `verifiedRelease`, `keys.ts`, `release.ts`, the `keygen` script, the `manifest` command) has nothing to verify against. Decide whether to remove signed updates (and the Cerberus codename) or keep a key.
 
 ## Where the name lives
 
@@ -51,7 +53,7 @@ The wordplay pairs below were checked by reading the code (not by running it): `
 
 ## Name availability
 
-Not checked yet for Kedalion (npm is irrelevant without publishing). Before any public release, search GitHub user/org/repo names, domains, and the USPTO and EUIPO trademark databases. For personal use this is free in practice.
+Checked for Kedalion (GitHub and npm only). npm `kedalion` and `@kedalion/app` are free, and irrelevant without publishing. On GitHub the user/org `Kedalion` already exists and several unrelated `kedalion` repos exist (0 stars); `adrianogpena/kedalion` is free. Domains and the USPTO and EUIPO trademark databases are not checked: do that before any public release. For personal use this is free in practice.
 
 The scheme follows three groups:
 
