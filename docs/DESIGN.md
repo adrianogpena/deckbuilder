@@ -1,4 +1,4 @@
-# DeckBuilder design standard
+# Kedalion design standard
 
 The default look for every view. A view may have its own content (a diff, a terminal, a graph); the generic parts below (buttons, headers, rows, tabs, states, menus) look and behave the same everywhere.
 
@@ -34,7 +34,7 @@ Size scales (`styles.css` `:root`):
 
 ## Buttons
 
-Use `Button` and `IconButton` from `@deckbuilderkit/ui` (`packages/ui/src/components/Button.tsx`), never a bare `<button>` with its own class. They render the `btn` classes below; `buttonClass(variant, size)` gives the class string where a component cannot be used (a `<label>` or `<a>` styled as a button).
+Use `Button` and `IconButton` from `@kedalion/ui` (`packages/ui/src/components/Button.tsx`), never a bare `<button>` with its own class. They render the `btn` classes below; `buttonClass(variant, size)` gives the class string where a component cannot be used (a `<label>` or `<a>` styled as a button).
 
 ```tsx
 <Button variant="primary" size="sm" icon="play" onClick={run}>Run</Button>

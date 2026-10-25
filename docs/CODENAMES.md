@@ -1,59 +1,8 @@
-# Kedalion codenames and rename plan
-
-This file is the handover for the rename of DeckBuilder to **Kedalion**. It records what was decided, what is still open, and which codename each part received, with the reason for each name. Nothing in the code has been renamed yet.
+# Kedalion codenames
 
 Kedalion is the smith's guide of Greek myth: a helper of Hephaestus who rode on the shoulders of the blinded Orion and steered him east to the rays of Helios, which restored his sight. The app is that guide: it sits on top of strong but blind machinery and steers it for its owner. **Hephaestus is the user**, the smith Kedalion helps. No part of the code carries his name, and Kedalion did not come from him.
 
-Internal codenames for the app, its views and its packages, taken from Greek mythology. They appear in docs and code comments only. Menu labels, package ids (`view-explorer`, `@deckbuilderkit/ui`) and persisted identifiers stay as they are.
-
-## Status of the rename
-
-Decided:
-
-- The new name is **Kedalion**. The codenames below were chosen to go with it: the story of Kedalion and Orion, and the workshop of Hephaestus.
-- The app id (`APP.id` in `app/app.ts`, now `deckbuilder`) becomes `kedalion`. The data folder `~/.deckbuilder` must be moved by hand on the owner's machine (`mv ~/.deckbuilder ~/.kedalion`, app closed). Secrets live in that folder (`secrets.json`, DPAPI-encrypted on Windows) and the app id is the DPAPI entropy (`packages/platform/src/secrets.ts:73`), so the moved blobs cannot be decrypted under `kedalion`: re-enter the 6 stored secrets (DB password, REST auth, environment secrets, demo token) after the rename.
-- npm release is dropped. The `@deckbuilderkit/*` packages are not published; users get only the app's executable (the `kedalion-v<version>` release).
-- Only the owner uses the app, so there are no other users to migrate. A full rename is acceptable.
-- Each view stays its own `view-*` package, an island that reaches only what it needs from the others (enforced by `scripts/check-boundaries.ts`). The views are not for building other apps; the separation is for isolation.
-- Home, Grid and Tabs stop being main views. The **Dashboard (Argus) is the main view** and opens first.
-- The GitHub repository is renamed to Kedalion. The `repository.url` fields and README links change with it.
-- Everything called `deckbuilder` becomes `kedalion`: the CLI, the `@deckbuilderkit/*` import scope (now `@kedalion/*`, in all 413 files), the data folder, the persisted identifiers listed under "Where the name lives", and the docs. Saved state under the old identifiers is lost (theme choice, recent files, token); old backups are refused. This is acceptable because only the owner uses the app.
-
-- The `apps/gallery` folder becomes a single top-level `app/` folder, and the `apps/*` workspace goes away (workspaces become `packages/*` and `app`). "gallery" and `apps/*` are leftovers from when the repo was a kit for building several apps, with gallery as the example. Kedalion is the only app, so there is nothing to group. The package is `@kedalion/app`; the release tag is `kedalion-v<version>` and must match `app/package.json`. No backward compatibility is kept: this is a new app. The name users see comes from `APP.name` in `app/app.ts`.
-
-- The GitHub repository secrets for npm and `DECKBUILDER_SIGNING_KEY` are dropped. The owner deletes them by hand, and also deprecates any published `@deckbuilderkit/*` package on npm.
-
-Open: with the signing key gone, the update signature check (Cerberus: `verifyManifest`, `verifiedRelease`, `keys.ts`, `release.ts`, the `keygen` script, the `manifest` command) has nothing to verify against. Decide whether to remove signed updates (and the Cerberus codename) or keep a key.
-
-## Where the name lives
-
-- `app/app.ts`: `APP.name` and `APP.id`, the single source for the window title, tray, autostart entry, quit dialog, toasts, executable and release file names, and (through `appHome(APP.id)`) the data folder, secrets, instance lock and port files. Backup files carry `app: APP.id`, so old backups are refused by a renamed id.
-- `.github/workflows/release.yml`: tag `kedalion-v<version>` must match `app/package.json`. The `v*` tag runs the npm publish job.
-- Rename these persistent identifiers too, accepting the reset of saved state: the theme id `deckbuilder-dark` / `deckbuilder-light`, the `x-deckbuilder-token` header, `deckbuilder.token`, `deckbuilder.recentFiles`, the `deckbuilder-backup` format, and the editor plugin keys.
-
-## Cleanup that follows from not publishing to npm
-
-- Remove the `publish` job (the `v*` tag flow) from `release.yml`.
-- Remove `deckbuilder new`, `add view`, `upgrade`, `packages/build/template` and `packages/build/view-template`, plus their tests, and the root `new` script. Keep `dev`, `build`, `build:web`, `release`, `manifest` and `keygen`, which the app's own build and release use.
-- Rewrite the README to "download the app": drop the five install options and the create-an-app and add-packages sections.
-- Remove `scripts/publish.ts` and `scripts/check-single-views.ts` (it generates an app per view with `new`), and the publishing fields of `packages/build/package.json` (`publishConfig`, `files`, `bin`).
-- Rewrite CONTRIBUTING.md for one app: drop `bun run new`, the template notes and the "add to your app" wording (the many `@deckbuilderkit/...` install instructions), and keep layout, scripts, releases, icon packs and layouts. The `view-*` packages stay separate islands (see Decided).
-- Mark every package `"private": true` and drop the publishing `repository.url` fields.
-- If any package was already published, deprecate it on npm by hand.
-
-## Dropping Home, Grid and Tabs
-
-- Home and Tabs live in the app (`app/web/src/screens/home.view.tsx`, `tabs.view.tsx`).
-- The Grid view and the Dashboard share one package, `view-grid`. The Dashboard (`dashboardServerView`, its panels and sources) must stay; remove only the Grid parts. Its codename is Panoptes.
-- Do this as its own commit, apart from the rename.
-
-## Verified against the code
-
-The wordplay pairs below were checked by reading the code (not by running it): `ServerViewDef` at `packages/server-core/src/views.ts:38` and `ViewDef` at `packages/ui/src/views.ts:41`; `dbConnections` in `packages/db/src/app-stores.ts`; `useSqlRunner`, `SqlResults` and `PlanView` in `packages/sql-ui/src`; `projects` in `packages/server-mods/src/app-stores.ts`; the `dev` and `build` commands in `packages/build/src/cli.ts`; the signature check in `packages/server-mods/src/update.ts`.
-
-## Name availability
-
-Checked for Kedalion (GitHub and npm only). npm `kedalion` and `@kedalion/app` are free, and irrelevant without publishing. On GitHub the user/org `Kedalion` already exists and several unrelated `kedalion` repos exist (0 stars); `adrianogpena/kedalion` is free. Domains and the USPTO and EUIPO trademark databases are not checked: do that before any public release. For personal use this is free in practice.
+Internal codenames for the app, its views and its packages, taken from Greek mythology. They appear in docs and code comments only. Menu labels, package ids (`view-explorer`, `@kedalion/ui`) and persisted identifiers stay as they are.
 
 The scheme follows three groups:
 

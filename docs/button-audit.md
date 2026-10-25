@@ -763,14 +763,14 @@ Notes
 
 Notes: no `<IconButton>`, `buttonClass(...)`, `<a>` or `<label>` styled as a button exists in scope; the only `<Button>` user is WorkbenchScreen. "Raw+btn" = bare `<button className="btn ...">` (same look as Button, but the standard says never bare). `btn-ghost.active` is used in 2 places instead of `pressed`. Dialog/footer raw buttons are `md`; the rest are `sm` unless noted. Rows are groups of identical siblings (one table row = one group).
 
-## apps/gallery/web/src/App.tsx
+## app/web/src/App.tsx
 | line | control | built with | verdict | why/deviation |
 |---|---|---|---|---|
 | 202 | Settings (icon) | raw+btn `btn-ghost btn-sm btn-icon` + `active` class | NOT, SHOULD migrate | IconButton ghost sm `pressed={!!overlay}`; uses `.active` not aria-pressed |
 | 209 | Pop out (icon) | raw+btn ghost sm icon | NOT, SHOULD migrate | IconButton ghost sm |
 | 214 | Command palette (icon) | raw+btn ghost sm icon | NOT, SHOULD migrate | IconButton ghost sm |
 
-## apps/gallery/web/src/screens/GridScreen.tsx
+## app/web/src/screens/GridScreen.tsx
 | line | control | built with | verdict | why/deviation |
 |---|---|---|---|---|
 | 74 | Save (primary when dirty, dirty-dot) | raw+btn sm, `btn-primary` conditional | NOT, SHOULD migrate | Button sm, variant `dirty?'primary':'default'`, icon `check`/save; keep dot as child |
@@ -780,20 +780,20 @@ Notes: no `<IconButton>`, `buttonClass(...)`, `<a>` or `<label>` styled as a but
 | 89 | Menu entries (removed items) | raw `menu-item` role=menuitem | NOT, EXCEPTION OK | menu item (but hand-built menu: use ContextMenu) |
 | 147, 181 | Retry in ErrorBanner action | raw+btn sm + `<Icon refresh>` | NOT, SHOULD migrate | Button sm icon=refresh |
 
-## apps/gallery/web/src/screens/Home.tsx
+## app/web/src/screens/Home.tsx
 | line | control | built with | verdict | why/deviation |
 |---|---|---|---|---|
 | 12 | Retry | raw+btn sm + Icon refresh | NOT, SHOULD migrate | Button sm icon=refresh |
 | 78 | Send toast (spinner/send icon) | raw+btn md | NOT, SHOULD migrate | Button md icon=send; default variant OK (not main action of dialog) |
 | 115 | Send (form submit) | raw+btn-primary md, submit | NOT, SHOULD migrate | Button md primary icon=send, `type="submit"` (Button defaults to type=button) |
 
-## apps/gallery/web/src/screens/TabsScreen.tsx
+## app/web/src/screens/TabsScreen.tsx
 | line | control | built with | verdict | why/deviation |
 |---|---|---|---|---|
 | 73 | Page switcher | raw `chip`/`chip-on` | NOT, SHOULD migrate | not a filter: it is a section tab strip -> `.req-tab`; chip is for filters |
 | 95 | +1 counter | raw+btn-primary md | NOT, SHOULD migrate | Button md primary icon=plus |
 
-## apps/gallery/web/src/screens/SettingsModal.tsx
+## app/web/src/screens/SettingsModal.tsx
 | line | control | built with | verdict | why/deviation |
 |---|---|---|---|---|
 | 329 | Modified-only filter (funnel svg) | raw `settings-nav-filter`, aria-pressed, inline `<svg>` | NOT, EXCEPTION OK | embedded control inside the nav search field (own look); could use `Icon` instead of inline svg |

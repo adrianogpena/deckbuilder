@@ -19,7 +19,7 @@ Content-Type: application/json
 Authorization: Bearer {{token}}
 
 {
-  "title": "Hello from deckbuilder",
+  "title": "Hello from kedalion",
   "body": "Imported from a .http file",
   "userId": 1
 }
