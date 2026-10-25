@@ -1,4 +1,4 @@
-// Import boundaries: a view-* package never imports another view-* package, and no package imports from apps/*.
+// Import boundaries: a view-* package never imports another view-* package, and no package imports from app/.
 // `bun scripts/check-boundaries.ts` exits 1 on violations; `findViolations(root)` is the testable core.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, relative, resolve, sep } from 'node:path';
@@ -12,7 +12,7 @@ export interface Violation {
 // Known existing exceptions (test reading app command/view registries); remove once moved.
 const ALLOWED = new Set(['packages/ui/tests/keybindings.test.ts']);
 const SOURCE = /\.(?:[cm]?[jt]sx?)$/;
-const SKIP_DIRS = new Set(['node_modules', 'dist', 'template', 'view-template']);
+const SKIP_DIRS = new Set(['node_modules', 'dist']);
 const IMPORT_RE =
   /(?:\b(?:import|export)\s[^'"`;]*?\bfrom\s*|\bimport\s*\(?\s*)['"]([^'"\n]+)['"]/g;
 
@@ -43,13 +43,8 @@ export function specifiersOf(source: string): string[] {
 
 export function findViolations(root: string): Violation[] {
   const packagesDir = join(root, 'packages');
-  const appsDir = join(root, 'apps');
-  const appNames = new Set(
-    listDirs(appsDir).flatMap((d) => {
-      const name = packageName(join(appsDir, d));
-      return name ? [name] : [];
-    }),
-  );
+  const appName = packageName(join(root, 'app'));
+  const appNames = new Set(appName ? [appName] : []);
   const violations: Violation[] = [];
   for (const pkg of listDirs(packagesDir)) {
     if (SKIP_DIRS.has(pkg)) continue;
@@ -63,7 +58,7 @@ export function findViolations(root: string): Violation[] {
         const add = (rule: string) => violations.push({ file: rel, specifier: spec, rule });
         if (spec.startsWith('.')) {
           const target = relative(root, resolve(file, '..', spec)).split(sep).join('/');
-          if (target === 'apps' || target.startsWith('apps/')) add('packages must not import from apps/*');
+          if (target === 'app' || target.startsWith('app/')) add('packages must not import from app/');
           else if (isView) {
             const m = /^packages\/(view-[^/]+)(?:\/|$)/.exec(target);
             if (m && m[1] !== pkg) add('view-* packages must not import another view-* package');
@@ -71,7 +66,7 @@ export function findViolations(root: string): Violation[] {
           continue;
         }
         if (appNames.has(spec) || [...appNames].some((n) => spec.startsWith(`${n}/`))) {
-          add('packages must not import from apps/*');
+          add('packages must not import from app/');
         } else if (isView) {
           const m = /^@[^/]+\/(view-[^/]+)(?:\/|$)/.exec(spec);
           if (m && spec.split('/').slice(0, 2).join('/') !== ownName) {
@@ -114,10 +109,10 @@ function isWebFile(rel: string): boolean {
   return /^packages\/view-[^/]+\/src\//.test(rel) && !/(?:^|\/)server(?:[./]|$)/.test(rel.slice(rel.indexOf('/src/') + 5));
 }
 
-/** Native OS dialog markers in non-test sources of `apps/` and `packages/`, and `alert`/`confirm`/`prompt` in web code. */
+/** Native OS dialog markers in non-test sources of `app/` and `packages/`, and `alert`/`confirm`/`prompt` in web code. */
 export function findNativeDialogs(root: string): Violation[] {
   const violations: Violation[] = [];
-  for (const top of ['apps', 'packages']) {
+  for (const top of ['app', 'packages']) {
     const dir = join(root, top);
     if (!existsSync(dir)) continue;
     for (const file of walkAll(dir)) {

@@ -13,8 +13,7 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', '.build']);
 const MARKER = /<button\b|createElement\(\s*['"]button['"]/g;
 
 const RAW_BUTTONS: Record<string, number> = {
-  'apps/gallery/web/src/screens/SettingsModal.tsx': 10,
-  'packages/build/template/web/src/screens/SettingsModal.tsx': 5,
+  'app/web/src/screens/SettingsModal.tsx': 10,
   'packages/editor/src/MarkdownToc.tsx': 2,
   'packages/editor/src/MarkdownView.tsx': 1,
   'packages/view-grid/src/panels/meeting/MeetingPanel.tsx': 1,

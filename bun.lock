@@ -9,7 +9,7 @@
         "typescript": "^5.7.2",
       },
     },
-    "apps/gallery": {
+    "app": {
       "name": "@deckbuilderkit/gallery",
       "version": "0.3.0",
       "dependencies": {
@@ -446,7 +446,7 @@
 
     "@deckbuilderkit/editor": ["@deckbuilderkit/editor@workspace:packages/editor"],
 
-    "@deckbuilderkit/gallery": ["@deckbuilderkit/gallery@workspace:apps/gallery"],
+    "@deckbuilderkit/gallery": ["@deckbuilderkit/gallery@workspace:app"],
 
     "@deckbuilderkit/platform": ["@deckbuilderkit/platform@workspace:packages/platform"],
 

@@ -1,7 +1,7 @@
 {
   "name": "@deckbuilderkit/gallery",
   "version": "0.3.0",
-  "description": "Example app built on the deckbuilder packages: tabs, grid, Explorer and Workbench demos.",
+  "description": "Kedalion desktop app, built on the deckbuilder packages.",
   "author": "Adriano Pena",
   "private": true,
   "type": "module",

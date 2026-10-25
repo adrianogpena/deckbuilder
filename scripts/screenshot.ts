@@ -144,7 +144,7 @@ let cdp: Awaited<ReturnType<typeof devtools>> | undefined;
 let failed = false;
 try {
   if (!args['no-build']) {
-    const build = Bun.spawnSync(['bun', 'run', '--cwd', 'apps/gallery', 'build:web'], { cwd: ROOT, stdio: ['ignore', 'ignore', 'inherit'] });
+    const build = Bun.spawnSync(['bun', 'run', '--cwd', 'app', 'build:web'], { cwd: ROOT, stdio: ['ignore', 'ignore', 'inherit'] });
     if (build.exitCode !== 0) throw new Error('build:web failed');
   }
 
@@ -171,7 +171,7 @@ try {
   for (const [name, value] of Object.entries(seed)) {
     await writeFile(join(home, '.deckbuilder', name), JSON.stringify(value, null, 2));
   }
-  const proc = Bun.spawn(['bun', 'apps/gallery/server/main.ts', '--dev', '--port', String(PORT)], {
+  const proc = Bun.spawn(['bun', 'app/server/main.ts', '--dev', '--port', String(PORT)], {
     cwd: ROOT,
     env: { ...process.env, USERPROFILE: home, HOME: home },
     stdio: ['ignore', 'pipe', 'inherit'],

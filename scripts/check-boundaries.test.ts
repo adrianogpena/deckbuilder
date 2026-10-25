@@ -13,14 +13,14 @@ function put(path: string, content: string) {
   writeFileSync(full, content);
 }
 
-put('apps/gallery/package.json', '{"name":"@deckbuilderkit/gallery"}');
-put('apps/gallery/web/main.ts', "import '@deckbuilderkit/view-a';\n");
+put('app/package.json', '{"name":"@deckbuilderkit/gallery"}');
+put('app/web/main.ts', "import '@deckbuilderkit/view-a';\n");
 put('packages/view-a/package.json', '{"name":"@deckbuilderkit/view-a"}');
 put('packages/view-a/src/ok.ts', "import { x } from '@deckbuilderkit/ui';\nimport { y } from './other';\nimport '@deckbuilderkit/view-a/src/y';\n");
 put('packages/view-a/src/bad-pkg.ts', "import { x } from '@deckbuilderkit/view-b';\n");
 put('packages/view-a/src/bad-rel.ts', "export * from '../../view-b/src/x';\n");
 put('packages/view-a/src/bad-dyn.ts', "const m = await import('@deckbuilderkit/view-b/src/x');\n");
-put('packages/view-a/src/bad-app.ts', "import '../../../apps/gallery/web/main';\n");
+put('packages/view-a/src/bad-app.ts', "import '../../../app/web/main';\n");
 put('packages/view-b/package.json', '{"name":"@deckbuilderkit/view-b"}');
 put('packages/ui/package.json', '{"name":"@deckbuilderkit/ui"}');
 put('packages/ui/src/bad.ts', "import { a } from '@deckbuilderkit/gallery';\n");
@@ -30,7 +30,7 @@ test('reports view-to-view and package-to-app imports only', () => {
   const found = findViolations(root).map((v) => `${v.file} ${v.specifier}`).sort();
   expect(found).toEqual([
     'packages/ui/src/bad.ts @deckbuilderkit/gallery',
-    'packages/view-a/src/bad-app.ts ../../../apps/gallery/web/main',
+    'packages/view-a/src/bad-app.ts ../../../app/web/main',
     'packages/view-a/src/bad-dyn.ts @deckbuilderkit/view-b/src/x',
     'packages/view-a/src/bad-pkg.ts @deckbuilderkit/view-b',
     'packages/view-a/src/bad-rel.ts ../../view-b/src/x',
@@ -59,10 +59,10 @@ test('reports native dialog markers, not the UI hooks', () => {
   write('packages/ui/src/web.tsx', "window.alert('x');\nif (confirm('sure?')) {}\nawait confirm({ title: 'x' });\nstores.ui.prompt('x');\n");
   write('packages/view-a/src/Screen.tsx', "window.prompt(t('x'));\n");
   write('packages/view-a/src/server.ts', "const confirm = (s: string) => s;\nconfirm('x');\n");
-  write('apps/gallery/web/src/a.ts', "alert(t('x'));\n");
+  write('app/web/src/a.ts', "alert(t('x'));\n");
   const found = findNativeDialogs(dialogRoot).map((v) => `${v.file} ${v.specifier}`).sort();
   expect(found).toEqual([
-    'apps/gallery/web/src/a.ts:1 alert(t(',
+    'app/web/src/a.ts:1 alert(t(',
     'packages/p/src/linux.ts:1 zenity',
     'packages/p/src/mac-choose.ts:1 choose folder',
     'packages/p/src/mac.ts:1 osascript\', \'-e\', \'display dialog',

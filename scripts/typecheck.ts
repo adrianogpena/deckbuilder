@@ -1,5 +1,4 @@
-// `bun run typecheck`: runs tsc on the root tsconfig.json (scripts/) and every one under packages/ and apps/, then the import and raw-button checks
-// (except the app template, whose placeholders only become valid names through `deckbuilder new`).
+// `bun run typecheck`: runs tsc on the root tsconfig.json (scripts/) and every one under packages/ and app/, then the import and raw-button checks.
 import { Glob } from 'bun';
 import { dirname, join } from 'node:path';
 import { findViolations, formatViolation } from './check-boundaries';
@@ -8,9 +7,9 @@ import { findRawButtons, formatRawButton } from './check-buttons';
 const ROOT = join(import.meta.dir, '..');
 const configs = [
   'tsconfig.json',
-  ...[...new Glob('{packages,apps}/**/tsconfig.json').scanSync({ cwd: ROOT })]
+  ...[...new Glob('{packages,app}/**/tsconfig.json').scanSync({ cwd: ROOT })]
     .map((path) => path.replaceAll('\\', '/'))
-    .filter((path) => !path.includes('node_modules') && !path.includes('/template/') && !path.includes('/view-template/'))
+    .filter((path) => !path.includes('node_modules'))
     .sort(),
 ];
 

@@ -203,8 +203,8 @@ describe('gallery default keymap', () => {
       window: { location: { href: 'http://localhost/', search: '', hash: '' }, history: { replaceState() {} }, sessionStorage: storage, localStorage: storage, matchMedia: () => ({ matches: false }) },
       localStorage: storage, sessionStorage: storage,
     });
-    const { commands } = await import('../../../apps/gallery/web/src/commands.ts');
-    const { views } = await import('../../../apps/gallery/web/src/views.ts');
+    const { commands } = await import('../../../app/web/src/commands.ts');
+    const { views } = await import('../../../app/web/src/views.ts');
     expect(conflictsOf(commands(views), {})).toEqual([]);
   });
 });

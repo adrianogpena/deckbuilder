@@ -6,15 +6,15 @@
   "type": "module",
   "workspaces": [
     "packages/*",
-    "apps/*"
+    "app"
   ],
   "scripts": {
-    "dev": "bun run --cwd apps/gallery dev",
-    "dev:window": "bun run --cwd apps/gallery dev:window",
-    "start": "bun run --cwd apps/gallery start",
-    "start:browser": "bun run --cwd apps/gallery start:browser",
-    "build:web": "bun run --cwd apps/gallery build:web",
-    "build": "bun run --cwd apps/gallery build",
+    "dev": "bun run --cwd app dev",
+    "dev:window": "bun run --cwd app dev:window",
+    "start": "bun run --cwd app start",
+    "start:browser": "bun run --cwd app start:browser",
+    "build:web": "bun run --cwd app build:web",
+    "build": "bun run --cwd app build",
     "typecheck": "bun scripts/typecheck.ts"
   },
   "devDependencies": {
