@@ -3,14 +3,11 @@ import { ContextMenu, Icon } from '@kedalion/ui';
 import { tKey } from '../../i18n';
 import { AUTO_BADGE_MS } from './auto-move';
 import type { Ticket } from './model';
-import { TicketPipeline } from './Pipeline';
-import type { TicketLink } from './types';
 
 interface Props {
   ticket: Ticket;
-  link?: TicketLink;
+  selected?: boolean;
   jiraBaseUrl: string;
-  onDescription(description: string): void;
   onDelete(): void;
   onAutoMove(value: boolean | null): void;
   onDetails(): void;
@@ -19,26 +16,36 @@ interface Props {
 
 export const jiraUrl = (base: string, key: string): string => (base.trim() ? `${base.trim().replace(/\/+$/, '')}/browse/${key}` : '');
 
-export function TicketCard({ ticket, link, jiraBaseUrl, onDescription, onDelete, onAutoMove, onDetails, onDragStart }: Props) {
-  const [editing, setEditing] = useState<string | null>(null);
+export function TicketCard({ ticket, selected, jiraBaseUrl, onDelete, onAutoMove, onDetails, onDragStart }: Props) {
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const url = jiraUrl(jiraBaseUrl, ticket.key);
 
-  const save = () => {
-    if (editing !== null && editing !== ticket.description) onDescription(editing);
-    setEditing(null);
-  };
   const open = (e: MouseEvent) => {
     e.preventDefault();
     setMenu({ x: e.clientX, y: e.clientY });
   };
 
   return (
-    <div className="tickets-card" draggable={editing === null} onDragStart={onDragStart} onContextMenu={open} onDoubleClick={onDetails}>
+    <div
+      className={`tickets-card${selected ? ' tickets-card--selected' : ''}`}
+      tabIndex={0}
+      role="button"
+      aria-pressed={selected}
+      draggable
+      onDragStart={onDragStart}
+      onContextMenu={open}
+      onClick={onDetails}
+      onKeyDown={(e) => {
+        if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault();
+          onDetails();
+        }
+      }}
+    >
       <div className="tickets-card-head">
         <Icon name="grip" size={12} />
         {url ? (
-          <a className="tickets-key" href={url} target="_blank" rel="noreferrer" title={url}>
+          <a className="tickets-key" href={url} target="_blank" rel="noreferrer" title={url} onClick={(e) => e.stopPropagation()}>
             {ticket.key}
           </a>
         ) : (
@@ -50,39 +57,7 @@ export function TicketCard({ ticket, link, jiraBaseUrl, onDescription, onDelete,
           </span>
         )}
       </div>
-      {editing !== null ? (
-        <textarea
-          className="tickets-edit"
-          autoFocus
-          rows={3}
-          value={editing}
-          aria-label={tKey('dash.tickets.editDescription')}
-          onChange={(e) => setEditing(e.target.value)}
-          onBlur={save}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') {
-              e.preventDefault();
-              setEditing(null);
-            } else if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              save();
-            }
-          }}
-        />
-      ) : (
-        <div
-          role="button"
-          tabIndex={0}
-          className={`tickets-desc${ticket.description ? '' : ' tickets-desc-empty'}`}
-          onClick={() => setEditing(ticket.description)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') setEditing(ticket.description);
-          }}
-        >
-          {ticket.description || tKey('dash.tickets.noDescription')}
-        </div>
-      )}
-      <TicketPipeline ticket={ticket} link={link} />
+      {ticket.description && <div className="tickets-desc">{ticket.description}</div>}
       {menu && (
         <ContextMenu
           at={menu}

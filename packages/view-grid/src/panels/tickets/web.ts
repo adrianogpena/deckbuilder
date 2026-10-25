@@ -18,7 +18,7 @@ const ticketsPanel = definePanel<TicketsConfig, TicketsData>({
   refreshMs: () => 60_000,
   allowMultiple: false,
   headerActions: TicketsActions,
-  render: ({ config, data, refresh }) => createElement(TicketsPanel, { config, data, refresh }),
+  render: ({ id, config, data, refresh, side }) => createElement(TicketsPanel, { id, side, config, data, refresh }),
 });
 
 export const panels: AnyPanelKind[] = [ticketsPanel];

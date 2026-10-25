@@ -10,6 +10,8 @@ export interface TicketLink {
   branches: string[];
   prs: TrackedPr[];
   pods: Pod[];
+  /** Ids (`podId`) of the pods linked by hand. */
+  manualPods: string[];
   hours: number | null;
 }
 
@@ -26,6 +28,8 @@ export interface TicketsData {
   tickets: Ticket[];
   links?: Record<string, TicketLink>;
   unlinked?: UnlinkedKey[];
+  /** Every pod tracked in the Pods panels, for linking by hand. */
+  pods?: Pod[];
   /** The PR fetch failed: links carry no PRs. */
   prError?: boolean;
 }

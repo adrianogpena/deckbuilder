@@ -46,6 +46,7 @@ function parseStore(raw: unknown): TicketStore {
         autoMove: typeof o.autoMove === 'boolean' ? o.autoMove : null,
         order: typeof o.order === 'number' && Number.isFinite(o.order) ? o.order : tickets.length,
       };
+      if (Array.isArray(o.podLinks)) t.podLinks = o.podLinks.filter((x): x is string => typeof x === 'string').map((x) => x.slice(0, 500)).slice(0, 50);
       if (typeof o.movedAt === 'number') t.movedAt = o.movedAt;
       if (typeof o.autoMovedAt === 'number') t.autoMovedAt = o.autoMovedAt;
       tickets.push(t);
@@ -92,12 +93,14 @@ export const ticketsSource = defineSource<TicketsConfig>({
       }
     }
     const hours = await readWeekHours(ctx.dataDir).catch(() => ({}) as Record<string, number>);
+    const pods = latestPods();
     const { links, unlinked } = linkTickets(
       tickets.map((t) => t.key),
       prs,
-      latestPods(),
+      pods,
       hours,
       config.keyPattern,
+      Object.fromEntries(tickets.filter((t) => t.podLinks?.length).map((t) => [t.key, t.podLinks!])),
     );
     const statuses = parseStatuses(config.statuses ?? '');
     if (config.connection && !prError) {
@@ -112,7 +115,7 @@ export const ticketsSource = defineSource<TicketsConfig>({
       });
       tickets = saved.tickets;
     }
-    return { statuses, tickets, links, unlinked, ...(prError ? { prError } : {}) };
+    return { statuses, tickets, links, unlinked, pods, ...(prError ? { prError } : {}) };
   },
   actions: {
     async add(payload, config, ctx) {
@@ -136,6 +139,22 @@ export const ticketsSource = defineSource<TicketsConfig>({
     async update(payload, _config, ctx) {
       const p = payloadOf(payload);
       return (await ticketsStore(ctx.dataDir).update((s) => ({ ...s, tickets: update(s.tickets, str(p.id, 100), { description: str(p.description) }) }))).tickets;
+    },
+    async 'link-pod'(payload, _config, ctx) {
+      const p = payloadOf(payload);
+      const pod = str(p.pod, 500);
+      if (!pod) throw invalid('ticket-invalid-pod', 'Not a pod.');
+      const on = p.linked !== false;
+      return (
+        await ticketsStore(ctx.dataDir).update((s) => ({
+          ...s,
+          tickets: s.tickets.map((t) => {
+            if (t.id !== str(p.id, 100)) return t;
+            const rest = (t.podLinks ?? []).filter((x) => x !== pod);
+            return { ...t, podLinks: on ? [...rest, pod] : rest };
+          }),
+        }))
+      ).tickets;
     },
     async 'set-auto-move'(payload, _config, ctx) {
       const p = payloadOf(payload);

@@ -63,12 +63,20 @@ describe('linkTickets', () => {
     expect(unlinked[0]!.scopes).toEqual(['review']);
     expect(unlinked[0]!.pods).toHaveLength(1);
   });
+  test('links a pod by hand', () => {
+    const p = pod('api-overwrite');
+    const { links, unlinked } = linkTickets(['ABC-3'], [], [p, pod('abc-4-api')], {}, DEFAULT_TICKET_PATTERN, { 'ABC-3': ['c/n/api-overwrite'] });
+    expect(links['ABC-3']!.pods).toEqual([p]);
+    expect(links['ABC-3']!.manualPods).toEqual(['c/n/api-overwrite']);
+    expect(unlinked.map((u) => u.key)).toEqual(['ABC-4']);
+  });
   test('nothing linked', () => {
     const { links } = linkTickets(['ABC-2'], [], [], {}, DEFAULT_TICKET_PATTERN);
     expect(links['ABC-2']!.stages).toEqual({ branch: 'none', pr: 'none', pods: 'none', hours: 'none' });
   });
-  test('pod key only at the start', () => {
+  test('pod key anywhere in the name', () => {
     expect(podKey('abc-1-x', DEFAULT_TICKET_PATTERN)).toBe('ABC-1');
-    expect(podKey('svc-abc-1', DEFAULT_TICKET_PATTERN)).toBe('');
+    expect(podKey('svc-abc-1', DEFAULT_TICKET_PATTERN)).toBe('ABC-1');
+    expect(podKey('svc-api', DEFAULT_TICKET_PATTERN)).toBe('');
   });
 });

@@ -1,9 +1,10 @@
 import { useEffect, useState, type DragEvent } from 'react';
 import { tKey } from '../../i18n';
+import { type PanelSide } from '../../panel';
 import { runAction } from '../../source';
 import { columns, type Ticket } from './model';
 import { TicketCard } from './TicketCard';
-import { TicketDetailDialog } from './TicketDetailDialog';
+import { ticketSideContent } from './TicketSide';
 import { UnlinkedList } from './UnlinkedList';
 import type { TicketsData } from './types';
 import './tickets.css';
@@ -16,6 +17,8 @@ export interface TicketsConfig {
 }
 
 interface Props {
+  id: string;
+  side?: PanelSide;
   config: TicketsConfig;
   data: TicketsData | undefined;
   refresh(): void;
@@ -26,10 +29,9 @@ const TICKETS_LOCAL_EVENT = 'tickets:local';
 /** Shows `tickets` on the board now, until the next load replaces them. */
 export const showTicketsNow = (tickets: Ticket[]) => window.dispatchEvent(new CustomEvent(TICKETS_LOCAL_EVENT, { detail: tickets }));
 
-export function TicketsPanel({ config, data, refresh }: Props) {
+export function TicketsPanel({ id, side, config, data, refresh }: Props) {
   const [error, setError] = useState('');
   const [over, setOver] = useState<{ status: string; index: number } | null>(null);
-  const [detail, setDetail] = useState<string | null>(null);
   const [local, setLocal] = useState<Ticket[] | null>(null);
 
   useEffect(() => setLocal(null), [data]);
@@ -63,7 +65,14 @@ export function TicketsPanel({ config, data, refresh }: Props) {
 
   const tickets = local ?? data.tickets;
   const cols = columns(tickets, data.statuses);
-  const detailTicket = detail ? tickets.find((t) => t.id === detail) : undefined;
+  const content = (t: Ticket) =>
+    ticketSideContent({ instanceId: id, ticket: t, link: data.links?.[t.key], allPods: data.pods ?? [], config, onChanged: refresh });
+  const toggle = (t: Ticket) => {
+    if (!side) return;
+    const c = content(t);
+    if (side.isOpen(c.id)) side.close();
+    else side.open(c);
+  };
 
   return (
     <div className="tickets">
@@ -98,12 +107,11 @@ export function TicketsPanel({ config, data, refresh }: Props) {
                 <TicketCard
                   key={t.id}
                   ticket={t}
-                  link={data.links?.[t.key]}
+                  selected={!!side && side.isOpen(content(t).id)}
                   jiraBaseUrl={config.jiraBaseUrl}
-                  onDescription={(description) => void act('update', { id: t.id, description })}
                   onDelete={() => void act('remove', { id: t.id })}
                   onAutoMove={(value) => void act('set-auto-move', { id: t.id, value })}
-                  onDetails={() => setDetail(t.id)}
+                  onDetails={() => toggle(t)}
                   onDragStart={(e) => {
                     e.dataTransfer.setData('text/plain', t.id);
                     e.dataTransfer.effectAllowed = 'move';
@@ -115,7 +123,6 @@ export function TicketsPanel({ config, data, refresh }: Props) {
         ))}
       </div>
       {data.unlinked && <UnlinkedList unlinked={data.unlinked} onAdd={(k) => void act('add', { key: k })} />}
-      {detailTicket && <TicketDetailDialog ticket={detailTicket} link={data.links?.[detailTicket.key]} onClose={() => setDetail(null)} />}
     </div>
   );
 }

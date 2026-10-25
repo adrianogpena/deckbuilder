@@ -6,10 +6,15 @@ export interface Ticket {
   description: string;
   status: string;
   autoMove: boolean | null;
+  /** Pods linked by hand (`podId`), for pods whose name carries no key. */
+  podLinks?: string[];
   order: number;
   movedAt?: number;
   autoMovedAt?: number;
 }
+
+/** Stable id of a pod on the board: `<context>/<namespace>/<name>`. */
+export const podId = (p: { cluster: string; name: string }): string => `${p.cluster}/${p.name}`;
 
 export const MAX_TICKETS = 300;
 export const DEFAULT_STATUSES = ['Open', 'In Progress', 'In Review', 'In Test', 'Ready to Merge', 'Done'];
@@ -61,7 +66,7 @@ export function move(tickets: Ticket[], id: string, status: string, index: numbe
   return renumber(rest);
 }
 
-export function update(tickets: Ticket[], id: string, patch: Partial<Pick<Ticket, 'description' | 'autoMove'>>): Ticket[] {
+export function update(tickets: Ticket[], id: string, patch: Partial<Pick<Ticket, 'description' | 'autoMove' | 'podLinks'>>): Ticket[] {
   return tickets.map((t) => (t.id === id ? { ...t, ...patch } : t));
 }
 

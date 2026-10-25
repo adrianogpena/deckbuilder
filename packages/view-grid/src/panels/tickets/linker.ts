@@ -1,9 +1,10 @@
 import { DEFAULT_TICKET_PATTERN, ticketKey } from '../github/map';
 import type { TrackedPr } from '../github/tracked';
 import type { Pod } from '../pods/model';
+import { podId } from './model';
 import type { Stage, TicketLink, UnlinkedKey } from './types';
 
-/** The key at the start of a pod name, upper-cased; '' when none. */
+/** The first key anywhere in a pod name, upper-cased; '' when none. */
 export function podKey(name: string, pattern: string): string {
   let re: RegExp;
   try {
@@ -13,7 +14,7 @@ export function podKey(name: string, pattern: string): string {
   }
   const text = name.toUpperCase();
   const m = re.exec(text);
-  return m && m.index === 0 ? m[0] : '';
+  return m ? m[0] : '';
 }
 
 export function prStage(prs: readonly TrackedPr[]): Stage {
@@ -47,6 +48,7 @@ export function linkTickets(
   pods: readonly Pod[],
   hours: Record<string, number>,
   pattern: string,
+  manualPods: Record<string, readonly string[]> = {},
 ): LinkResult {
   const prsBy = new Map<string, TrackedPr[]>();
   for (const pr of prs) {
@@ -67,7 +69,9 @@ export function linkTickets(
     const up = key.toUpperCase();
     known.add(up);
     const linkedPrs = prsBy.get(up) ?? [];
-    const linkedPods = podsBy.get(up) ?? [];
+    const manual = new Set(manualPods[key] ?? manualPods[up] ?? []);
+    const auto = podsBy.get(up) ?? [];
+    const linkedPods = [...auto, ...pods.filter((p) => manual.has(podId(p)) && !auto.includes(p))];
     const h = hoursBy.get(up) ?? null;
     const branches = [...new Set(linkedPrs.map((p) => p.branch).filter(Boolean))];
     links[key] = {
@@ -75,16 +79,18 @@ export function linkTickets(
       branches,
       prs: linkedPrs,
       pods: linkedPods,
+      manualPods: [...manual],
       hours: h,
     };
   }
 
   const unlinked: UnlinkedKey[] = [];
+  const manualIds = new Set(Object.values(manualPods).flat());
   for (const key of new Set([...prsBy.keys(), ...podsBy.keys()])) {
     if (known.has(key)) continue;
     const kp = prsBy.get(key) ?? [];
     const scopes = [...new Set(kp.map((p) => p.scope).filter((s): s is NonNullable<TrackedPr['scope']> => !!s))];
-    unlinked.push({ key, scopes, prs: kp, pods: podsBy.get(key) ?? [] });
+    unlinked.push({ key, scopes, prs: kp, pods: (podsBy.get(key) ?? []).filter((p) => !manualIds.has(podId(p))) });
   }
   return { links, unlinked };
 }
