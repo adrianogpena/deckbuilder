@@ -18,7 +18,7 @@ Decided:
 - The GitHub repository is renamed to Kedalion. The `repository.url` fields and README links change with it.
 - Everything called `deckbuilder` becomes `kedalion`: the CLI, the `@deckbuilderkit/*` import scope (now `@kedalion/*`, in all 413 files), the data folder, the persisted identifiers listed under "Where the name lives", and the docs. Saved state under the old identifiers is lost (theme choice, recent files, token); old backups are refused. This is acceptable because only the owner uses the app.
 
-- The `apps/gallery` folder is renamed to `apps/kedalion`, so the release tag becomes `kedalion-v<version>`. "gallery" was only the app's directory name, a leftover from when the repo was a kit and this was its example app. It appears in the folder, the package name `@deckbuilderkit/gallery` (now `@kedalion/kedalion`), the root scripts (`bun run --cwd apps/gallery`) and the release workflow, which takes the tag prefix from the folder name. About 25 files mention it. The name users see comes from `APP.name` in `app.ts`.
+- The `apps/gallery` folder is renamed to `apps/kedalion`, so the release tag becomes `kedalion-v<version>`. "gallery" was only the app's directory name, a leftover from when the repo was a kit and this was its example app. It appears in the folder, the package name `@deckbuilderkit/gallery` (now `@kedalion/app`), the root scripts (`bun run --cwd apps/gallery`) and the release workflow, which takes the tag prefix from the folder name. About 25 files mention it. The name users see comes from `APP.name` in `app.ts`.
 
 Nothing is open.
 
