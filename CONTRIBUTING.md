@@ -1,6 +1,6 @@
 # Contributing
 
-Developer guide for DeckBuilder. For what the project is and how to use it, see [README.md](README.md).
+Developer guide for Kedalion. For what the project is and how to use it, see [README.md](README.md).
 
 ## Requirements
 
@@ -11,7 +11,7 @@ Window mode needs the OS web view: WebView2 is part of Windows 10/11; Linux need
 
 ## Scripts
 
-Run at the root (they act on `apps/gallery`) or inside any app folder:
+Run at the root (they act on `app/`) or inside `app/`:
 
 | Command | What it does |
 |---|---|
@@ -19,16 +19,15 @@ Run at the root (they act on `apps/gallery`) or inside any app folder:
 | `bun run dev:window` | (in the app folder) The same, with a native window on the Vite URL (`bun run dev -- --app` for an app window). |
 | `bun run start` | Run from source in a native window. Needs `build:web` first. `bun run start -- --app` for an app window. |
 | `bun run start:browser` | Run from source in browser mode. Flags: `--port <n>`, `--no-open`. |
-| `bun run build:web` | Bundle the UI into `apps/<app>/dist/web`. |
-| `bun run build` | Build the UI, then the executable for this machine into `apps/<app>/release/`. |
+| `bun run build:web` | Bundle the UI into `app/dist/web`. |
+| `bun run build` | Build the UI, then the executable for this machine into `app/release/`. |
 | `bun run build --target all` | Executables for every target. Targets: `windows-x64`, `linux-x64`, `linux-arm64`, `darwin-x64`, `darwin-arm64`; comma-separate several. `--no-web` reuses the last UI build. |
-| `bun run new <dir> [--name] [--id]` | (root) Create an app in `apps/<dir>` from the template, see [New app](#new-app). |
 | `bun run typecheck` | Type-checks every package and app. |
 | `bun test` | (root) Unit tests of the packages. |
-| `bun scripts/screenshot.ts --out <png>` | (root) Screenshot of the gallery UI in headless Edge/Chrome, with its own `--dev` server on port 7799 and a temp home. Flags: `--hash <route>`, `--settings '<json>'` (seeds `settings.json`), `--seed '<json>'` (`{"<file>.json": value}` written beside it, e.g. `projects.json`), `--eval '<js>'`, `--size WxH`, `--wait <ms>`, `--no-build`, `--port <n>` (default 7799; distinct ports let runs overlap). |
-| `bun run deckbuilder release --to <folder>` | (in the app folder) Publish a release for the self-updater, see [Releases](#releases). |
-| `bun run deckbuilder manifest` | (in the app folder) Write `release/latest.json` and its signature for the built exes, see [Releases](#releases). |
-| `bun run deckbuilder keygen` | (in the app folder) Create the app's update signing key, see [Releases](#releases). |
+| `bun scripts/screenshot.ts --out <png>` | (root) Screenshot of the app UI in headless Edge/Chrome, with its own `--dev` server on port 7799 and a temp home. Flags: `--hash <route>`, `--settings '<json>'` (seeds `settings.json`), `--seed '<json>'` (`{"<file>.json": value}` written beside it, e.g. `projects.json`), `--eval '<js>'`, `--size WxH`, `--wait <ms>`, `--no-build`, `--port <n>` (default 7799; distinct ports let runs overlap). |
+| `bun run kedalion release --to <folder>` | (in the app folder) Publish a release for the self-updater, see [Releases](#releases). |
+| `bun run kedalion manifest` | (in the app folder) Write `release/latest.json` and its signature for the built exes, see [Releases](#releases). |
+| `bun run kedalion keygen` | (in the app folder) Create the app's update signing key, see [Releases](#releases). |
 
 The executable takes the same flags as the source: `--app` (Edge/Chrome app window),
 `--browser` (Settings then has a Quit button that stops the app; wins over `--app`),
@@ -70,53 +69,53 @@ packages/
                  transactions, /api/db/* routes
   terminal/      Opt-in integrated terminal: `TerminalPane` (xterm.js client view), protocol, and server
                  sessions (real PTY, screen replay, launchers, /api/terminal/* routes)
-  build/         The `deckbuilder` CLI used by app scripts: dev, build:web, build, release; new
-                 template/ is the app that `deckbuilder new` copies
-apps/
-  gallery/       Example app (Home, Tabs, Grid, Explorer, Workbench, REST, Terminal screens, Settings and Keyboard shortcuts modals, echo and toast endpoints)
-    app.ts         Name and id
-    server/        main.ts (composes routes, calls runApp) and routes.ts (the app's own API)
-    web/           Vite root: index.html, public/favicon.svg (also the exe icon), src/
+  build/         The `kedalion` CLI used by the app scripts: dev, build:web, build, release, manifest, keygen
+  view-*/        One package per view (Dashboard, Explorer, Git, REST, Terminal, Workbench, Agents, ...),
+                 each an island, see [Adding a view](#adding-a-view)
+app/             The Kedalion app (workspaces are `packages/*` and `app`)
+  app.ts         Name and id
+  server/        main.ts (composes routes, calls runApp) and routes.ts (the app's own API)
+  web/           Vite root: index.html, public/favicon.svg (also the exe icon), src/
 scripts/         Root scripts (typecheck, screenshot)
 ```
 
-The base imposes no layout: an app picks the components it needs. Packages export TypeScript
-source directly; there is no package build step.
+Packages export TypeScript source directly; there is no package build step. Every package is
+private: nothing is published to npm. The data folder is `~/.kedalion`.
 
-### Adding things to an app
+### Building blocks and how the app uses them
 
 - **An endpoint**: add `'GET /api/thing': ({ query, json }) => ...` to `server/routes.ts`, then a
   method in `api` in `web/src/api.ts`. Throw `invalid(...)`/`notFound(...)` from
-  `@deckbuilderkit/server-core` for errors the UI should show; add `error.<code>` to the app's i18n
+  `@kedalion/server-core` for errors the UI should show; add `error.<code>` to the app's i18n
   files to translate them.
 - **A screen**: add its id to `SCREENS` and an entry to `NAV` and `renderScreen` in
   `web/src/App.tsx`, a file in `web/src/screens/`, and its labels to `web/src/i18n/en.ts` and
   `pt-BR.ts` (TypeScript fails until both have every key).
 - **A setting**: extend `Settings` in `server/main.ts` and `web/src/api.ts`, give it a default,
   and validate it in the `apply` option of `settingsStore`; react to changes in `onChange`.
-- **Themes**: `useTheme(settings)` (from `@deckbuilderkit/ui`) applies the palette of `ThemeSettings`
-  (`theme`, `paletteDark`, `paletteLight`; palettes in `@deckbuilderkit/server-core/palettes`) to `<html>`.
+- **Themes**: `useTheme(settings)` (from `@kedalion/ui`) applies the palette of `ThemeSettings`
+  (`theme`, `paletteDark`, `paletteLight`; palettes in `@kedalion/server-core/palettes`) to `<html>`.
   Make the app `Settings` extend `ThemeSettings` and render `<AppearanceFields value onChange />` in
   its settings. Style with the `var(--…)` tokens only. Pass
-  `transformIndex: themeHead(settings)` (from `@deckbuilderkit/server-mods`) to `runApp`, so
+  `transformIndex: themeHead(settings)` (from `@kedalion/server-mods`) to `runApp`, so
   `index.html` already carries the saved palette and the first paint has its colours.
-- **Keyboard shortcuts**: `useCommand(def, run, { enabled? })` (from `@deckbuilderkit/ui`) runs `run`
+- **Keyboard shortcuts**: `useCommand(def, run, { enabled? })` (from `@kedalion/ui`) runs `run`
   on one of a `CommandDef`'s chords (`{ id, scope, label, keys, inInput?, inModal?, desktopOnly? }`;
   `scope` is `GLOBAL` or a screen id). Wrap the app in `<KeybindingProvider defs keymap scope>` to
   dispatch them from one listener: the current screen's (`scope`) commands win over global ones and
   a `Keymap` (`{ [id]: chords }`, `[]` unbinds) overrides the defaults; without a provider each
   command listens on its default keys. The pure model (`chordOf`, `normalizeChord`, `resolve`,
   `conflictsOf`, `validKeymap` for server-side settings validation) is in
-  `@deckbuilderkit/ui/keybindings`. Package commands come from `paletteCommand()`,
+  `@kedalion/ui/keybindings`. Package commands come from `paletteCommand()`,
   `tabCommands(scope)` and `explorerCommands(scope)`; list them in `defs`. Keys a focused widget
   handles itself (editor, tree and table navigation, dialogs) aren't commands.
 - **Keybindings editor**: `<KeybindingsEditor defs keymap onChange scopeLabel />` (from
-  `@deckbuilderkit/ui`) lists every command with its keys and edits them: change, add (up to 4) or
+  `@kedalion/ui`) lists every command with its keys and edits them: change, add (up to 4) or
   remove a chord, reset one or all, filter, and "Find by shortcut" (press a chord to see what uses
   it). It refuses a chord another command uses in the same scope or in `global`. Feed it
   `useKeybindings()`'s `defs` and the settings' `keymap`, and save `onChange`'s result as
   `settings.keybindings` (the settings route validates it with `validKeymap`). The provider re-reads
-  the keymap, so changes apply at once. See the gallery's and the template's `KeysModal.tsx`.
+  the keymap, so changes apply at once. See the app's `KeysModal.tsx`.
 - **Settings and keybindings modals**: `<Modal title onClose large>` is VS Code's modal editor (80% of
   the window, up to 1400x900, maximize button). Settings (Ctrl+,) and Keyboard shortcuts (Ctrl+K Ctrl+S,
   or the link under the Settings sections) open in it over the current screen and close with Escape or
@@ -124,18 +123,18 @@ source directly; there is no package build step.
   bold label, description, then the control; a boolean is one checkbox labelled by its description;
   the search shows a result count and per-section counts. See `SettingsModal.tsx`.
 - **File icons**: `fileIconOf(name)` → `{ icon, tone? }` and `folderIconOf(name, childFiles?)` (from
-  `@deckbuilderkit/ui`) pick a built-in icon by extension or folder name (an unnamed folder of two or
+  `@kedalion/ui`) pick a built-in icon by extension or folder name (an unnamed folder of two or
   more files of one kind gets that kind's icon). `TreeView` takes `iconOf` and `iconToneOf`;
-  `TabTitle` takes `icon` and `tone`. See the gallery's `ProjectTree.tsx`.
+  `TabTitle` takes `icon` and `tone`. See the app's `ProjectTree.tsx`.
 - **Icon-only main menu**: `<Sidebar collapsed>` shows only the icons (items keep their label and
   `hint` as tooltip); the app adds `nav-collapsed` to the `.app` element (narrow first column).
-  See the gallery's `App.tsx`.
+  See the app's `App.tsx`.
 - **Command palette**: `useCommandPalette()` (Ctrl+Shift+P, F1) gives `{ open, setOpen }`; render
-  `<CommandPalette items onClose />` (both from `@deckbuilderkit/ui`) with `PaletteItem`s
+  `<CommandPalette items onClose />` (both from `@kedalion/ui`) with `PaletteItem`s
   `{ id, group, label, hint?, keywords?, run }`. `keywords[0]` doubles as a prefix that narrows
-  to its group (`theme nord`). The gallery's `App.tsx` lists screens, themes and Quit.
+  to its group (`theme nord`). The app's `App.tsx` lists screens, themes and Quit.
 - **Tab workspace**: `<TabWorkspace layout onChange renderTab titleOf newRoute scope />` (from
-  `@deckbuilderkit/ui`) shows tabs in up to 4 panes: open, close (also middle-click), reorder,
+  `@kedalion/ui`) shows tabs in up to 4 panes: open, close (also middle-click), reorder,
   drag between panes, Back/Forward per tab (shown once a tab has history). Each tab bar has a
   Split button (Alt+click splits down; both also in its "…" menu with Close pane;
   `splitPane(layout, tabId, 'right' | 'down')`), so panes nest (a pane beside a column of two)
@@ -148,28 +147,28 @@ source directly; there is no package build step.
   to put the tab's actions in the bar (`primary`: icon buttons, `menu`: the "…" menu). Alt+1..9 select a
   tab; Ctrl+T, Ctrl+W and Ctrl+Tab only in the native window (browsers keep them); these are
   `tabCommands(scope)`, `scope` being the screen id. Persist with
-  `serialize(layout)` and read back with `restore(raw, isRoute)`; the gallery's Tabs screen keeps
-  it in the `tabsLayout` setting.
-- **Panel grid**: `<PanelGrid items defs render onChange />` (from `@deckbuilderkit/ui`) shows draggable,
+  `serialize(layout)` and read back with `restore(raw, isRoute)`; keep
+  it in a setting.
+- **Panel grid**: `<PanelGrid items defs render onChange />` (from `@kedalion/ui`) shows draggable,
   resizable panels in a 12-column grid (6 and 1 column on narrower windows). `defs` are `PanelDef`s
   `{ id, title, icon, defaultSize, minW, minH }`, `items` the `GridItem`s `{ id, x, y, w, h, collapsed? }`;
   `render(id)` returns a panel's content, the grid adds the frame (drag by the header, collapse,
   remove). Only the full-width layout is editable and reported through `onChange`; keep it in a
   setting through `useDebouncedSave`, validated on the server with `validGridItems(raw, ids)` from
-  `@deckbuilderkit/ui/grid` (no React; the gallery's `gridLayout`), and bring a removed panel back
+  `@kedalion/ui/grid` (no React; the app's `gridLayout`), and bring a removed panel back
   with `addItem(items, def)`. Inside a panel, `PanelLoading`, `PanelNotice` and `PanelBanner`
   show loading, empty/error and offline states. `PanelFrame` also works on its own (its `menu`
   prop adds a "…" button with `ContextMenuItem`s). Panels resize from both bottom corners. Each
   panel's menu offers Rename (1–40 characters) and Change icon, stored as `title` and `icon` on
   the `GridItem` (`icon` must be a built-in icon name); `IconPicker({ value, onPick, onClose })`
   is the searchable picker over the built-in set and works on its own. Instead of autosaving, the
-  gallery's Grid screen keeps a working layout next to the saved one: Save writes the setting,
+  Dashboard keeps a working layout next to the saved one: Save writes the setting,
   Reset returns to the saved layout, Restore default loads the factory one (`sameItems(a, b)`
   drives the unsaved dot); unsaved changes survive switching screens, not a restart.
 - **Explorer layout**: `<SplitView direction sizes onResize>` (resizable panes, persist `sizes` with
   `useDebouncedSave`), `<TreeView>` (lazy tree with keyboard, drag and rename), `<ContextMenu>` and
   `<Explorer scope>` (sidebar plus tab workspace; Ctrl+B, `explorerCommands(scope)`, folds the
-  sidebar). The gallery's Explorer screen puts them together: the sidebar shows one project tree
+  sidebar). The app's Explorer screen puts them together: the sidebar shows one project tree
   at a time (`TreePane`: a `ProjectPicker` header to switch, add, edit and remove projects, then
   the tree), a split-down button adds a second tree below with its own picker and a resizable
   divider (`trees` and `treeSizes` in the `explorer` setting), and Ctrl+Shift+F
@@ -191,9 +190,8 @@ source directly; there is no package build step.
   tree and the other panes (they stay mounted; `TabWorkspace`'s `onMaximizedChange`, `Explorer`'s
   `hidden`). **Zen mode**: Ctrl+K Z (`explorer.zen`) also hides the nav and the status bars; Esc
   twice leaves. An empty tab lists the main shortcuts from the keymap.
-- **A terminal**: add `@deckbuilderkit/terminal` (and `"lib": ["ESNext", "DOM", "DOM.Iterable", "DOM.AsyncIterable"]`
-  in the app's tsconfig). Server: spread `terminalRoutes({ sessions, shell, resolveCwd, launchers })`
-  (from `@deckbuilderkit/terminal/server`, `sessions = terminalSessions()`) into `routes`, and pass
+- **A terminal**: `@kedalion/terminal` (the app tsconfig needs `"lib": ["ESNext", "DOM", "DOM.Iterable", "DOM.AsyncIterable"]`). Server: spread `terminalRoutes({ sessions, shell, resolveCwd, launchers })`
+  (from `@kedalion/terminal/server`, `sessions = terminalSessions()`) into `routes`, and pass
   `sockets` and `onQuit: sessions.closeAll` to `runApp`; keep the shell in a setting
   (`terminal.shell`, checked with `isShellId`). Client: `<TerminalPane session cwd onSession />` in a
   tab, saving the id from `onSession` in the tab's route. Sessions survive socket drops and
@@ -201,13 +199,13 @@ source directly; there is no package build step.
   the tab closes. `launchers` start other programs by id (the client sends an id and args, never a
   program; `parse` validates the args). `preview` viewers and `listSessions()` info (title, bells,
   `lastOutputAt`, `meta`) feed a session sidebar. Terminal-first keys: the pane owns the keyboard
-  and only `appKeys` commands (the palette by default) pass through, by the first step of their chords (a gallery terminal passes Ctrl+K on to the app, not to the shell). A real PTY on every platform
-  through `Bun.spawn({ terminal })` (ConPTY on Windows). The gallery's Terminal screen and the
+  and only `appKeys` commands (the palette by default) pass through, by the first step of their chords (an app terminal passes Ctrl+K on to the app, not to the shell). A real PTY on every platform
+  through `Bun.spawn({ terminal })` (ConPTY on Windows). The app's Terminal screen and the
   Explorer's "Open terminal here" use it.
 - **Dialogs**: new dialogs use the `packages/ui` dialog components, never native ones;
   `bun run typecheck` fails on native dialog code (`scripts/check-boundaries.ts`). `<DialogHost/>`
   is mounted once per app. `dialogs.confirm/prompt/choose/pickFile/pickFolder/saveAs` (from
-  `@deckbuilderkit/ui`) return a promise: await it; it is `null` on cancel. `purpose` names the
+  `@kedalion/ui`) return a promise: await it; it is `null` on cancel. `purpose` names the
   dialog's remembered start folder; `filters` is `{ name, patterns: string[] }[]` (globs such as
   `*.md`). The dialog's OK commits the path to `stores.picks`, and a save or open route that takes
   the path back must `take` it from there, so a client can't hand in any other absolute path.
@@ -217,16 +215,16 @@ source directly; there is no package build step.
   build exports. `groupOf(row)` keeps rows of a lower group first whatever the sort (folders before
   files; `sortRows(rows, value, dir, group?)` does the same) and `onKeyDown` handles keys on the
   table; the Explorer's details view uses both.
-- **Editor and viewers**: add `@deckbuilderkit/editor` to the app. `CodeEditor` (Ctrl+Enter runs
-  `onRun`), `CodeView`, `MarkdownView`, `JsonTree` (from `@deckbuilderkit/ui`) and `FilePreview`
+- **Editor and viewers**: `@kedalion/editor`. `CodeEditor` (Ctrl+Enter runs
+  `onRun`), `CodeView`, `MarkdownView`, `JsonTree` (from `@kedalion/ui`) and `FilePreview`
   (picks a viewer by file name: markdown, JSON tree, log, highlighted code, CSV/TSV table,
   Jupyter notebook, HAR, `.env`, image, SVG, audio/video, PDF, archive, SQLite, font, else hex
-  for binaries; PDF, SVG and font viewers load lazily). The gallery's `FileTab.tsx` shows how
-  each kind gets its content from `/api/fs/*`. `MarkdownEditor` (`value`, `onChange`, `mode`: `'rich' | 'source'`, `host`, `wrap?`, `toc?`, `resolveImage?`) edits markdown in place. `rich` is a Milkdown pane (toolbar, tables, code blocks with highlighting, Mermaid, heading outline, zoom and reading width); `source` is the raw text in CodeMirror. The host shows the mode switch (the gallery has a Source toggle in the tab bar) and passes `host` (`RichHost`: `filePath`, `onOpenPath`, `pickFile`, `saveAs`, `resolveImage?`, `settings`). `onChange` fires only after a user edit, so an untouched file keeps its bytes. The rich pane lives in `packages/editor/src/rich/`: `RichMarkdown.tsx` (editor and round trip), `format.ts` and `Toolbar.tsx` (formatting, toolbar), `tables.ts`, `codeBlock.ts`, `mermaid.ts`, `nav.ts` and `navLinks.ts` (heading picker, outline, links), `view.ts` (zoom, reading width), and `features.ts` (the list). To add a feature, write a `RichFeature` (`plugins?`, `handlers?` per command id, `Overlay?`) as defined in `rich/commands.ts`, add the command id to `RICH_COMMAND_IDS`, and append the feature to `FEATURES` in `features.ts`; give the command a key in `MARKDOWN_KEYS` (`view-explorer/src/commands.ts`) and labels. Files that tests import must not import `@deckbuilderkit/ui` at runtime. Import Milkdown from its separate packages, not `@milkdown/kit`. The rich pane loads lazily (`React.lazy`, its own chunk) and Mermaid loads by dynamic `import()`; set `chunkSizeWarningLimit: 900` in `vite.config.ts`, as the gallery does.
-- **File associations**: `setFileAssociations(list)` (from `@deckbuilderkit/ui`) makes files whose
+  for binaries; PDF, SVG and font viewers load lazily). The app's `FileTab.tsx` shows how
+  each kind gets its content from `/api/fs/*`. `MarkdownEditor` (`value`, `onChange`, `mode`: `'rich' | 'source'`, `host`, `wrap?`, `toc?`, `resolveImage?`) edits markdown in place. `rich` is a Milkdown pane (toolbar, tables, code blocks with highlighting, Mermaid, heading outline, zoom and reading width); `source` is the raw text in CodeMirror. The host shows the mode switch (the app has a Source toggle in the tab bar) and passes `host` (`RichHost`: `filePath`, `onOpenPath`, `pickFile`, `saveAs`, `resolveImage?`, `settings`). `onChange` fires only after a user edit, so an untouched file keeps its bytes. The rich pane lives in `packages/editor/src/rich/`: `RichMarkdown.tsx` (editor and round trip), `format.ts` and `Toolbar.tsx` (formatting, toolbar), `tables.ts`, `codeBlock.ts`, `mermaid.ts`, `nav.ts` and `navLinks.ts` (heading picker, outline, links), `view.ts` (zoom, reading width), and `features.ts` (the list). To add a feature, write a `RichFeature` (`plugins?`, `handlers?` per command id, `Overlay?`) as defined in `rich/commands.ts`, add the command id to `RICH_COMMAND_IDS`, and append the feature to `FEATURES` in `features.ts`; give the command a key in `MARKDOWN_KEYS` (`view-explorer/src/commands.ts`) and labels. Files that tests import must not import `@kedalion/ui` at runtime. Import Milkdown from its separate packages, not `@milkdown/kit`. The rich pane loads lazily (`React.lazy`, its own chunk) and Mermaid loads by dynamic `import()`; set `chunkSizeWarningLimit: 900` in `vite.config.ts`, as the app does.
+- **File associations**: `setFileAssociations(list)` (from `@kedalion/ui`) makes files whose
   name matches a glob (`*`, `?`, case-insensitive) open and get icons as another extension, e.g.
   `{ pattern: '*.out', as: 'log' }`; `effectiveName(name)` applies it. Keep the list in a setting
-  validated with `validFileAssociations` (`@deckbuilderkit/ui/file-associations`). The gallery's
+  validated with `validFileAssociations` (`@kedalion/ui/file-associations`). The app's
   Settings have a File types section.
 - **Streaming**: `ndjson(req, async (emit, signal) => ...)` in a route streams items without
   buffering; `useStream().start(path, params)` reads them into state (`cancel()` aborts) and
@@ -237,17 +235,17 @@ source directly; there is no package build step.
   moves those fields into the secret store; the UI only sees `{ hasSecret: true }` and server code reads the
   value with `store.secret(id, 'token')`.
 - **REST client**: `httpExecutor()` and `httpRoutes(executor, { secretHeaders })` (from
-  `@deckbuilderkit/server-mods`) serve `POST /api/http/send` and `/api/http/save`; the UI is
-  `RequestEditor` and `ResponseView` from `@deckbuilderkit/editor` (pure helpers in
-  `@deckbuilderkit/editor/http`). `secretHeaders(ref, url)` returns headers to add from a stored
-  secret (the gallery sends a saved Authorization only to the origin it was saved with).
+  `@kedalion/server-mods`) serve `POST /api/http/send` and `/api/http/save`; the UI is
+  `RequestEditor` and `ResponseView` from `@kedalion/editor` (pure helpers in
+  `@kedalion/editor/http`). `secretHeaders(ref, url)` returns headers to add from a stored
+  secret (the app sends a saved Authorization only to the origin it was saved with).
   `validateDraft(raw)` checks a saved `HttpRequestDraft` (call it in the store's `validate`); the
   limits it shares with the send route and the editor are the `HTTP_*` constants in
-  `@deckbuilderkit/server-core/protocol`. Limits: 10 MB response body, 60 s default timeout,
+  `@kedalion/server-core/protocol`. Limits: 10 MB response body, 60 s default timeout,
   http/https URLs only. See the REST screen.
   Import: `parseCurl(text)` (browser "Copy as cURL", bash and cmd forms) and `parseHttpFile(text)`
   (VS Code REST Client / IntelliJ `.http`: `###`, `@var`/`{{var}}`, `# @name`) from
-  `@deckbuilderkit/editor` return `ImportedRequest`s: `{ name?, draft, auth?, warnings }`, with the
+  `@kedalion/editor` return `ImportedRequest`s: `{ name?, draft, auth?, warnings }`, with the
   Authorization value taken out of the headers into `auth` (the secret field) and `warnings` as
   `<code>:<argument>` strings to translate; `parseImport(text)` picks cURL or `.http`. A file
   import: the client picks the file with `dialogs.pickFile`, and a route reads the picked path and
@@ -257,30 +255,30 @@ source directly; there is no package build step.
   to curl and `.http`. Environments: `variableResolver(vars)` (`rest-env.ts`) resolves `{{name}}`
   on every send; `httpRoutes` options `environmentVars(id)` (variables of the request's
   `environment`) and `onSend(entry)` (history). An unknown `{{x}}` fails with `unknownVariable`.
-  The gallery serves `/api/rest/environments` and `/api/rest/history` (`rest/HistoryPanel.tsx`).
+  The app serves `/api/rest/environments` and `/api/rest/history` (`rest/HistoryPanel.tsx`).
 - **Rooted file system**: `rootedFs({ roots })` serves `/api/fs/*` (list, read, write, create,
   rename, move, delete, search; `raw` for binary content, with `limit=<bytes>` for the first
   bytes only; `sqlite` for a read-only page of 200 rows of a table). Requests carry a root id and a relative path, never an absolute
   path; deletes go to the recycle bin and a root can be `readOnly`. A link is never followed out
   of its root, but a path swapped between the check and the use (TOCTOU) is not guarded against.
   Archives: `POST /api/fs/extract {root,path,to}` and `POST /api/fs/compress {root,paths,name,format}`
-  (`FsExtractRequest`, `FsCompressRequest` in `@deckbuilderkit/server-core/protocol`) run 7z-wasm in
+  (`FsExtractRequest`, `FsCompressRequest` in `@kedalion/server-core/protocol`) run 7z-wasm in
   `archive-worker.ts`, which `packages/build/src/build.ts` ships as an extra entrypoint of the exe.
-  Properties: `GET /api/fs/info|du|hash` (the gallery's Properties dialog).
-- **Git (read-only)**: `gitRoutes(opts)` (from `@deckbuilderkit/server-mods`, `git.ts`) serves
+  Properties: `GET /api/fs/info|du|hash` (the app's Properties dialog).
+- **Git (read-only)**: `gitRoutes(opts)` (from `@kedalion/server-mods`, `git.ts`) serves
   `GET /api/git/repos|status|file|diff`; the types (`GitStatus` and others) are in
-  `@deckbuilderkit/server-core/protocol`. The gallery uses it for Explorer git badges (setting
+  `@kedalion/server-core/protocol`. The app uses it for Explorer git badges (setting
   `git.explorerDecorations`: coloured files, status letters, a dot on folders with changes) and
   Compare files. `<DiffView original modified lang mode onModeChange modeLabels ref />` (from
-  `@deckbuilderkit/editor`) shows a split or inline diff; `ref` has `next()` / `prev()` (F7 / Shift+F7).
-- **Secrets**: `secretStore(appId)` (from `@deckbuilderkit/platform`) encrypts values with the Windows
+  `@kedalion/editor`) shows a split or inline diff; `ref` has `next()` / `prev()` (F7 / Shift+F7).
+- **Secrets**: `secretStore(appId)` (from `@kedalion/platform`) encrypts values with the Windows
   user's DPAPI key; pass it as `secrets` to a `recordStore`. Routes must return `hasSecret`, never the value.
   Tested on Windows only.
-- **Opening files**: `revealInFolder` and `openWithDefault` (from `@deckbuilderkit/platform`); the
+- **Opening files**: `revealInFolder` and `openWithDefault` (from `@kedalion/platform`); the
   latter opens only documents, images and media (`isOpenable`), never programs or scripts.
 - **Startup work** (timers, update checks): put it in `runApp`'s `onStart`, which a launch that
   hands off to a running instance never reaches.
-- **Notifications** (Windows): `createToaster()` from `@deckbuilderkit/platform`, then
+- **Notifications** (Windows): `createToaster()` from `@kedalion/platform`, then
   `toaster.show({ title, body, launch })`; a click opens `launch`. Use `ctx.link(path)` (the
   context `onStart` and `routes(ctx)` get) as `launch`, so the click opens the app on `#<path>`. Test with
   `bun packages/platform/src/win/toast.ts --selftest`.
@@ -293,41 +291,40 @@ source directly; there is no package build step.
   (a generic icon from source; none with `--dev`), with "Open <name>" (also on double-click)
   and "Quit". Closing the last window then keeps the app running, and it exits when idle only
   with `--idle-exit`. Pass `tray: { openLabel, quitLabel, items: [{ id, label, run }] }` for
-  other labels and more entries between those two (ids must not start with `__`). The gallery
+  other labels and more entries between those two (ids must not start with `__`). The app
   reads it from a setting at startup, so a change takes effect after a restart. Test with
   `bun packages/platform/src/win/tray.ts --selftest`.
-- **Log viewer**: `<LogView lines highlights onHighlightsChange ... />` (from `@deckbuilderkit/ui`)
+- **Log viewer**: `<LogView lines highlights onHighlightsChange ... />` (from `@kedalion/ui`)
   shows log lines with level colours and counts, search (case, whole word, regex), find-this-word
   on double-click and highlight chips; with `follow`/`bookmarks` props it also follows the end and
   keeps bookmarks. `useLogTail(fetchChunk, { key })` polls `GET /api/fs/tail` (from
   `rootedFs`) into `lines`; `POST /api/fs/save-range` writes everything after a byte offset
   to a file picked in the save dialog. A bookmark is a byte offset, so it goes stale when the file
   is rotated or cleared (shown as stale; copy and save answer `rangeStale`) and does not follow a
-  rename. The gallery's `LogTab` (Explorer, `.log` files) persists highlights and bookmarks in
-  the `logs` setting, capped and validated by `validLogSettings` (`@deckbuilderkit/ui/log`, with `LogSettings` and the
+  rename. The app's `LogTab` (Explorer, `.log` files) persists highlights and bookmarks in
+  the `logs` setting, capped and validated by `validLogSettings` (`@kedalion/ui/log`, with `LogSettings` and the
   `MAX_*` limits): it drops invalid entries instead of rejecting the whole value, so a client that
   passes its state through it holds what the server saves.
-- **Open in editor**: `editorRoutes({ dir, fs })` (from `@deckbuilderkit/server-mods`, with a `rootedFs`)
+- **Open in editor**: `editorRoutes({ dir, fs })` (from `@kedalion/server-mods`, with a `rootedFs`)
   serves `/api/editors` (list, pick, override, open) for VS Code and IntelliJ IDEA. `findEditor`
   (platform) detects the real `.exe` (`code.cmd` on PATH leads to `Code.exe`; IntelliJ comes from the
   Toolbox script or the install folders); `openInEditor` opens the project folder, plus a file and
   line. The client never sends a program: it comes from detection or from an override chosen in a
   server-side file dialog (saved in `editors.json`). `.cmd` scripts are refused because they would
-  go through `cmd.exe`, which interprets `&`, `%` and `^` in a project path. The gallery adds the
+  go through `cmd.exe`, which interprets `&`, `%` and `^` in a project path. The app adds the
   entries to the Explorer's context menu and an External editors section to Settings.
-- **Backup**: `backupRoutes({ app, settings, stores, excludeSettings })` (from `@deckbuilderkit/server-mods`)
+- **Backup**: `backupRoutes({ app, settings, stores, excludeSettings })` (from `@kedalion/server-mods`)
   serves `/api/backup/*`: export writes the settings and the chosen record stores to a file picked
   in the save dialog; inspect reads a file picked in the open dialog (other app ids and malformed
   files are refused) and keeps it under a one-shot token for 10 minutes; import applies the chosen
-  parts. The file is JSON: `{ format: 'deckbuilder-backup', version: 1, app, appVersion, exportedAt,
+  parts. The file is JSON: `{ format: 'kedalion-backup', version: 1, app, appVersion, exportedAt,
   settings?, records?: { <store>: Rec[] } }`. Settings go through `settings.save`, so its validation
   drops unknown fields; records go through `store.importItems(items, 'merge' | 'replace')`, which
   runs `validate` (with `ctx.imported`) per item and reports skipped ones with their error code.
   Secret fields are never exported and imports never change them: the user enters them again.
-  Leave machine-specific settings out with `excludeSettings` (the gallery excludes `autostart`
-  and `updateFolder`). The gallery's Settings have a Backup section.
-- **Oracle database**: `@deckbuilderkit/db` (opt-in; add `"@deckbuilderkit/db": "workspace:*"` to the
-  app, since it bundles the `oracledb` driver in thin mode: pure JS, no Instant Client). The app
+  Leave machine-specific settings out with `excludeSettings` (the app excludes `autostart`
+  and `updateFolder`). The app's Settings have a Backup section.
+- **Oracle database**: `@kedalion/db` (it bundles the `oracledb` driver in thin mode: pure JS, no Instant Client). The app
   keeps the connections in a `recordStore` with `validate: validConnection` and
   `secretFields: ['password']`, and wires `dbRoutes({ sessions: dbSessions(), credentials })`,
   where `credentials(id)` reads the record, turns its `url` into a connect string with
@@ -354,39 +351,24 @@ source directly; there is no package build step.
   errors become `dbLogin`, `dbUnreachable` or `dbError` (the first line, full text in `detail`),
   with the password replaced by `***`. Call `sessions.close(id)` when a connection record is
   deleted (a process that exits drops its sessions and Oracle rolls them back).
-  The gallery's Workbench is the example: `server/routes.ts` keeps the `dbConnections` store
+  The app's Workbench is the example: `server/routes.ts` keeps the `dbConnections` store
   (also in the backup, without passwords) and spreads `dbRoutes`; the Source select picks Demo
   rows or a connection, "Connections…" opens `workbench/Connections.tsx` (`ResourceList` +
   `ResourceForm`, password shown as "Saved", Test button), and while a connection is the source a
   bar shows an "Uncommitted changes" badge with Commit, Rollback and Disconnect; a "Max rows" field (default 1000, kept in the settings) limits each query, and
   the Schema button opens a sidebar with the tables and columns whose names also feed completion.
   SQL history: `dbRoutes({ ..., history: sqlHistory({ dir, max }) })` (`sqlHistory` from
-  `@deckbuilderkit/db`, `history.ts`) records every run and serves `GET /api/db/history` and
+  `@kedalion/db`, `history.ts`) records every run and serves `GET /api/db/history` and
   `POST /api/db/history/delete|clear`; the Workbench shows it in `workbench/HistoryPanel.tsx`.
   `POST /api/db/explain {id, sql}` returns the plan rows (not recorded in the history) and
   `GET /api/db/table` the details of a table, with its DDL.
 
-## New app
-
-```sh
-bun run new <dir> [--name "<Name>"] [--id <id>]
-bun install
-cd apps/<dir> && bun run dev
-```
-
-Creates `apps/<dir>` from `packages/build/template/` (Home + Settings with Appearance, Updates,
-autostart and tray; no demos). `<dir>` is lowercase letters, digits and dashes; `--name` is the
-display name (default: the folder, capitalised); `--id` is the data folder `~/.<id>` and the URL
-scheme for deep links (default: the folder without dashes). Then:
-
-1. Replace `web/public/favicon.svg`; it is also the exe icon. Update `BrandMark` in
-   `packages/ui/src/components/ui.tsx` if the brand should change for every app.
-2. Add the app's endpoints in `server/routes.ts` and its screens under `web/src/screens/`.
-
 ## Adding a view
 
-1. Scaffold: `bun packages/build/src/cli.ts add view <id>`. It creates `packages/view-<id>` from `packages/build/view-template` and registers it in `apps/gallery/web/src/views.ts`, `apps/gallery/server/views.ts` and `apps/gallery/package.json`. Then run `bun install`.
-2. Boundaries: a view must not import another `view-*` package, and no package imports from `apps/*`. `scripts/check-boundaries.ts` enforces this; it runs in `bun run typecheck` and in CI. Exceptions go in its `ALLOWED` set.
+Each view is its own `view-*` package, an island that reaches only what it needs from the others. The views are not for building other apps; the separation is for isolation.
+
+1. Create: copy the shape of an existing `packages/view-<id>` (package.json, `src/view.tsx`, server entry), register it in `app/web/src/views.ts`, `app/server/views.ts` and `app/package.json`, then run `bun install`.
+2. Boundaries: a view must not import another `view-*` package, and no package imports from `app/`. `scripts/check-boundaries.ts` enforces this; it runs in `bun run typecheck` and in CI. Exceptions go in its `ALLOWED` set.
 3. View links: a view registers a link with `views.link`. Another view calls `useViewLink(id)`, which returns null when the target view is absent, or `useViewRequest(id)` to receive requests. Both live in `packages/ui/src/views.ts`.
 4. Capabilities: when two views need the same code (SQL/db, HTTP, git), put it in a shared non-view package and depend on that, not on the other view.
 5. Settings cards: set `ViewDef.settingsCards`; write the cards in `src/settings/cards.tsx` and wire them in `view.tsx`.
@@ -396,13 +378,13 @@ The Agents view lives in `packages/view-agents`.
 
 ## Releases
 
-The version comes from the app's `package.json`. Executables are named
+The version comes from `app/package.json`. Executables are named
 `<Name>-<version>-<win|linux|mac>-<arch>[.exe]`.
 
-**Locally**: bump `version`, then `bun run build --target all` in the app folder.
+**Locally**: bump `version`, then `bun run build --target all` in `app/`.
 
-**Signing key** (once per app): in the app folder, `bun run deckbuilder keygen` creates an
-Ed25519 key pair. The private key goes to `~/.deckbuilder-keys/<app id>.pem`, outside the repo:
+**Signing key** (once): in `app/`, `bun run kedalion keygen` creates an
+Ed25519 key pair. The private key goes to `~/.kedalion-keys/kedalion.pem`, outside the repo:
 back it up, because losing it means a new key and every user reinstalling by hand
 (`--force` replaces it). The public key goes to `update-key.pub` in the app folder: commit it;
 `build` embeds it in the exe (from source the server reads the file). `release` and `manifest`
@@ -410,18 +392,18 @@ sign the exact bytes of `latest.json` into `latest.json.sig` and refuse to run w
 (`--unsigned` skips the signature with a warning). The updater checks the signature before it
 reads the manifest: a missing or wrong one is an error and offers nothing, and a build without
 `update-key.pub` never updates. Exes built before signing ignore the `.sig`, so they accept the
-first signed release. CI reads the key from the `DECKBUILDER_SIGNING_KEY` secret (the PEM
+first signed release. CI reads the key from the `KEDALION_SIGNING_KEY` secret (the PEM
 content).
 
 **For the self-updater** (a shared folder, e.g. a UNC share): in the app folder,
 
 ```sh
-bun run deckbuilder release --to '\\server\share\releases' [--bump patch|minor|major] [--target <list>]
+bun run kedalion release --to '\\server\share\releases' [--bump patch|minor|major] [--target <list>]
 ```
 
 bumps the version, runs typecheck and tests (`--no-checks` skips them), builds this machine's
 exe (or `--target`), copies it with `latest.json` to `<folder>/<app name>/`, then commits the
-bump and tags `<app folder>-v<version>` locally; it never pushes. `--dry-run` publishes the
+bump and tags `kedalion-v<version>` locally; it never pushes. `--dry-run` publishes the
 same files but leaves `package.json` and git as they were. Users pick the folder (the root or
 the `<app name>` subfolder) with Browse under Settings › Updates. The app checks at start and every 6 h
 (30 min after a failure); applying copies the exe next to the running one, verifies its
@@ -432,23 +414,23 @@ name, so the WebView2 profile survives updates. A UNC update folder still makes 
 connection to that server at every check (and Windows may offer it your NTLM credentials); the
 signature protects the update, not that connection.
 
-**Through GitHub Actions**: push a tag `<app folder>-v<version>`, e.g.
+**Through GitHub Actions**: push a tag `kedalion-v<version>`, e.g.
 
 ```sh
-git tag gallery-v0.1.1 && git push origin gallery-v0.1.1
+git tag kedalion-v0.3.1 && git push origin kedalion-v0.3.1
 ```
 
 `.github/workflows/release.yml` checks the tag against `package.json`, builds every target on
-a Windows runner, writes `latest.json` and `latest.json.sig` with `deckbuilder manifest`
+a Windows runner, writes `latest.json` and `latest.json.sig` with `kedalion manifest`
 (SHA-256 per exe, notes from the commits since the previous tag; needs the
-`DECKBUILDER_SIGNING_KEY` repository secret) and publishes everything as a GitHub release (no draft step).
+`KEDALION_SIGNING_KEY` repository secret) and publishes everything as a GitHub release (no draft step).
 
-**GitHub releases as update source**: set `repo: 'owner/name'` in the app's `app.ts`
-(`AppIdentity.repo`) and build the app's server with `githubSource({ repo, tagPrefix })` from
-`@deckbuilderkit/server-mods` (the gallery does this when no update folder is set). The updater
-takes the newest published release whose tag starts with `<app folder>-v`, reads its
+**GitHub releases as update source**: `repo: 'owner/name'` in `app/app.ts`
+(`AppIdentity.repo`) and `githubSource({ repo, tagPrefix })` from
+`@kedalion/server-mods` make the app use them when no update folder is set. The updater
+takes the newest published release whose tag starts with `kedalion-v`, reads its
 `latest.json` and `latest.json.sig` assets and downloads the exe asset; `token` gives access to a private repo.
-`deckbuilder manifest` (in the app folder, after `build`) writes `release/latest.json` and its
+`kedalion manifest` (in the app folder, after `build`) writes `release/latest.json` and its
 `.sig` by hand.
 `.github/workflows/ci.yml` type-checks, runs the tests and builds a Linux executable for every
 push and pull request.
@@ -468,38 +450,10 @@ push and pull request.
 - **macOS**: the output is a plain executable, not an `.app` bundle, and it is unsigned:
   `xattr -d com.apple.quarantine <file>` after downloading. Not tested on a Mac yet.
 
-## Using deckbuilder in a new app
-
-```
-bunx @deckbuilderkit/build new <dir> --views agents,explorer,git,rest,terminal,workbench [--local] [--git] [--name <Name>] [--id <id>]
-```
-
-From this repo: `bun packages/build/src/cli.ts new ...`. `<dir>` is relative to the current directory.
-Home and Settings are always included. Each view brings its own server routes, stores
-(`appStores`/`dbStores`) and default client, so there is nothing app-side to write.
-
-- `--local`: dependencies become `link:@deckbuilderkit/<pkg>` and `new` runs `bun link` in each package
-  dir (registering them in bun's global link registry). Use it to try unpublished changes.
-- `--git`: runs `git init` in the new app.
-- `deckbuilder upgrade` (in the app dir): bumps all `@deckbuilderkit/*` deps together to the latest
-  published version, then runs `bun install`. `link:` and `workspace:` ranges are left alone.
-- `bun scripts/check-single-views.ts [id]`: generates each view alone and typechecks it. CI's
-  `single-view` job does the same per view.
-
-## Releasing packages
-
-Every `packages/*` is published to npm as `@deckbuilderkit/<name>` (TypeScript source; Bun resolves the `.ts` exports). `apps/*` are not published. All packages share the root `package.json` `version` and are bumped together.
-
-1. Bump `version` in the root `package.json` and in every `packages/*/package.json` (`scripts/publish.ts` refuses a mismatch).
-2. Check locally: `bun scripts/publish.ts --dry-run` prints the publish order and version and packs each package without publishing.
-3. Tag and push: `git tag v0.2.0 && git push origin v0.2.0`. The `publish` job in `.github/workflows/release.yml` checks the tag against the root version, type-checks, runs `bun scripts/publish.ts` through npm trusted publishing (each `@deckbuilderkit` package trusts this repo and `release.yml`; no token) and creates a GitHub release with the commits since the previous `v*` tag (`releaseNotes` in `packages/build/src/release.ts`).
-
-`publish.ts` replaces `workspace:*` with the version only in the packed manifests; the repo's `package.json` files are restored. Tags `v*` publish packages; tags `<app>-v*` release an app.
-
 ## Security model
 
 The server binds to `127.0.0.1` only. Every `/api` call needs the random token generated at
-start, sent in the `x-deckbuilder-token` header only; a token in the URL is ignored. The token
+start, sent in the `x-kedalion-token` header only; a token in the URL is ignored. The token
 never appears in a URL, because URLs land in browser history, command lines and terminal output.
 A terminal WebSocket can't send headers, so it takes a one-time, short-lived ticket in `?t=`
 (issued by `POST /api/terminal/open|attach`, which need the token) and still passes the Host and Origin checks.
@@ -527,7 +481,7 @@ A terminal WebSocket can't send headers, so it takes a one-time, short-lived tic
 
 To drive the API with curl, trade a printed code first:
 `curl -X POST http://127.0.0.1:<port>/api/session -d '{"code":"<code>"}'`, then send the returned
-token as `x-deckbuilder-token`.
+token as `x-kedalion-token`.
 
 ## Icon packs
 
@@ -558,7 +512,7 @@ Steps:
    mapping code goes in its own file with a test next to it. Reach the network with `sourceFetch(url, init, {signal})`
    and throw `SourceError(code, msg)`, both re-exported by `view-grid/src/server.ts`. For a connection use
    `ctx.connection(config.connection, 'github' | 'jira' | ...)` -> `{baseUrl, user?, token}`. Server-side
-   files import from `@deckbuilderkit/ui/grid` only (the React index breaks the server typecheck).
+   files import from `@kedalion/ui/grid` only (the React index breaks the server typecheck).
 4. Error codes reach the panel as `source-not-configured|auth|rate-limited|offline|upstream`; `PanelHost` shows
    the matching notice (not-configured: Set up button; auth: Check the connection, Set up, Retry), so a panel
    needs no notice of its own. An unset required field should throw `source-not-configured`.
@@ -574,7 +528,7 @@ Steps:
    `POST /api/grid/action/<id>/<name>`, body = payload). In the panel call `runAction(id, name, config, payload)`
    (exported by `view-grid/src/web.ts`), then `refresh()` to reload. Invalid payloads throw `invalid(code)`.
 9. Streams: `streams: {name: (config, query, ctx) => Response}` for live output (route
-   `GET /api/grid/stream/<id>/<name>`); build the response with `ndjson` from `@deckbuilderkit/server-core`
+   `GET /api/grid/stream/<id>/<name>`); build the response with `ndjson` from `@kedalion/server-core`
    (one JSON object per line). In the panel consume it with `streamSource` (web.ts); see `panels/pods/logs.ts`.
 10. Panel state that is not config (tickets, meeting notes, tracked PRs): `createJsonStore({dataDir, name, parse, empty})`
    (`view-grid/src/json-store.ts`) keeps it in `<dataDir>/grid/<name>.json`; `parse` validates what is read.
@@ -600,7 +554,7 @@ Foreground Bash output only reaches the transcript when the command ends. To see
 ```json
 { "hooks": { "PreToolUse": [{ "matcher": "Bash", "hooks": [{ "type": "command", "command": "bun \"/path/to/packages/view-agents/scripts/live-output-hook.ts\"" }] }] } }
 ```
-An optional second argument sets the agents dir (default `~/.deckbuilder/agents`; give an absolute path).
+An optional second argument sets the agents dir (default `~/.kedalion/agents`; give an absolute path).
 
 ## Adding a layout
 
