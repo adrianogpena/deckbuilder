@@ -7,7 +7,7 @@ release/
 .env.*
 *.pem
 *.key
-.deckbuilder/
-.deckbuilder-keys/
+.kedalion/
+.kedalion-keys/
 CLAUDE.local.md
 .claude/
