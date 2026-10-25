@@ -11,25 +11,22 @@ Internal codenames for the app, its views and its packages, taken from Greek myt
 Decided:
 
 - The new name is **Kedalion**. The codenames below were chosen to go with it: the story of Kedalion and Orion, and the workshop of Hephaestus.
-- The app id (`APP.id` in `apps/gallery/app.ts`, now `deckbuilder`) becomes `kedalion`. The data folder `~/.deckbuilder` must be moved by hand on the owner's machine (`mv ~/.deckbuilder ~/.kedalion`, app closed). Check whether secrets live in that folder or in the OS keychain.
-- npm release is dropped. The `@deckbuilderkit/*` packages are not published; users get only the app's executable (the "gallery" release).
+- The app id (`APP.id` in `apps/kedalion/app.ts`, now `deckbuilder`) becomes `kedalion`. The data folder `~/.deckbuilder` must be moved by hand on the owner's machine (`mv ~/.deckbuilder ~/.kedalion`, app closed). Check whether secrets live in that folder or in the OS keychain.
+- npm release is dropped. The `@deckbuilderkit/*` packages are not published; users get only the app's executable (the `kedalion-v<version>` release).
 - Only the owner uses the app, so there are no other users to migrate. A full rename is acceptable.
-- Home, Grid and Tabs stop being main views.
+- Home, Grid and Tabs stop being main views. The **Dashboard (Argus) is the main view** and opens first.
+- The GitHub repository is renamed to Kedalion. The `repository.url` fields and README links change with it.
+- Everything called `deckbuilder` becomes `kedalion`: the CLI, the `@deckbuilderkit/*` import scope (now `@kedalion/*`, in all 413 files), the data folder, the persisted identifiers listed under "Where the name lives", and the docs. Saved state under the old identifiers is lost (theme choice, recent files, token); old backups are refused. This is acceptable because only the owner uses the app.
 
-Open (ask the owner before doing these):
+- The `apps/gallery` folder is renamed to `apps/kedalion`, so the release tag becomes `kedalion-v<version>`. "gallery" was only the app's directory name, a leftover from when the repo was a kit and this was its example app. It appears in the folder, the package name `@deckbuilderkit/gallery` (now `@kedalion/kedalion`), the root scripts (`bun run --cwd apps/gallery`) and the release workflow, which takes the tag prefix from the folder name. About 25 files mention it. The name users see comes from `APP.name` in `app.ts`.
 
-- Whether to rename the `apps/gallery` folder (and so the release tag prefix `gallery-v<version>`).
-- Whether to rename the GitHub repository. Only the `repository.url` fields and README links change.
-- Which view opens first once Home is gone (Agents or the Dashboard are the candidates).
-
-Recommendation given: leave the `@deckbuilderkit` import scope alone (413 files, invisible to users).
+Nothing is open.
 
 ## Where the name lives
 
-- `apps/gallery/app.ts`: `APP.name` and `APP.id`, the single source for the window title, tray, autostart entry, quit dialog, toasts, executable and release file names, and (through `appHome(APP.id)`) the data folder, secrets, instance lock and port files. Backup files carry `app: APP.id`, so old backups are refused by a renamed id.
+- `apps/kedalion/app.ts`: `APP.name` and `APP.id`, the single source for the window title, tray, autostart entry, quit dialog, toasts, executable and release file names, and (through `appHome(APP.id)`) the data folder, secrets, instance lock and port files. Backup files carry `app: APP.id`, so old backups are refused by a renamed id.
 - `.github/workflows/release.yml`: tag `<app>-v<version>` must match `apps/<app>/package.json`. The `v*` tag runs the npm publish job.
-- About 25 files mention "gallery" (folder, scripts, `commands.ts`, tests, docs).
-- Leave these persistent identifiers alone, since renaming resets saved state: the theme id `deckbuilder-dark` / `deckbuilder-light`, the `x-deckbuilder-token` header, `deckbuilder.token`, `deckbuilder.recentFiles`, the `deckbuilder-backup` format, and the editor plugin keys.
+- Rename these persistent identifiers too, accepting the reset of saved state: the theme id `deckbuilder-dark` / `deckbuilder-light`, the `x-deckbuilder-token` header, `deckbuilder.token`, `deckbuilder.recentFiles`, the `deckbuilder-backup` format, and the editor plugin keys.
 
 ## Cleanup that follows from not publishing to npm
 
