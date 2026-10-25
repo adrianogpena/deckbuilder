@@ -160,7 +160,7 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
   const runCommand = useRunCommand();
   const chordOf = (id: string) => (keys ? effectiveKeys(keys.defs, keys.keymap).get(id)?.[0] : undefined);
 
-  const quit = useCallback(() => { api.quit().then(() => setStopped(true)).catch(() => { /* already gone */ }); }, []);
+  const quit = useCallback(() => { api.quit().then(({ ok }) => { if (ok) setStopped(true); }).catch(() => { /* already gone */ }); }, []);
   const nextTheme = kind === 'dark' ? 'light' : 'dark';
   const items = useMemo<PaletteItem[]>(() => {
     const goTo = inPopout ? [] : navItems.map((i): PaletteItem => ({

@@ -257,9 +257,15 @@ export async function runApp(opts: RunOptions): Promise<void> {
   const popouts = createPopouts<WindowHandle>();
   const routes: Routes = {
     ...(typeof opts.routes === 'function' ? opts.routes(ctx) : opts.routes),
-    'POST /api/quit': () => {
-      setTimeout(() => void quit(), 200);
-      return { ok: true };
+    'POST /api/quit': async () => {
+      let ok = true;
+      try {
+        ok = (await opts.confirmQuit?.()) !== false;
+      } catch (err) {
+        console.error(err);
+      }
+      if (ok) setTimeout(() => void quit(), 200);
+      return { ok };
     },
     'POST /api/alive': () => ({ ok: true }),
     'GET /api/window/popouts': () => ({ supported: mode === 'window', views: popouts.views() }),

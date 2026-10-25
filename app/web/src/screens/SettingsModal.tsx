@@ -526,8 +526,9 @@ function GeneralCard({ onQuit }: { onQuit: () => void }) {
     setBusy(true);
     setError(null);
     try {
-      await api.quit();
-      onQuit();
+      const { ok } = await api.quit();
+      if (ok) onQuit();
+      else setBusy(false);
     } catch (err) {
       setError(errorOf(err));
       setBusy(false);
