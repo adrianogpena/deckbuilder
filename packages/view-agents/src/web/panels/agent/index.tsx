@@ -69,7 +69,11 @@ function AgentPanel({ params, api, update }: PanelProps) {
     void listSessions().then(
       (all) => {
         const to = all.find((x) => x.id === terminal)?.meta?.agentSession;
-        if (alive && typeof to === 'string' && to !== sessionId) update({ sessionId: to });
+        if (!alive || typeof to !== 'string' || to === sessionId) return;
+        const active = document.activeElement;
+        const hadFocus = !active || active === document.body || active.closest('.agents-main') !== null;
+        update({ sessionId: to });
+        if (hadFocus) host.focusSoon();
       },
       () => undefined,
     );
