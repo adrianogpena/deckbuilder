@@ -11,34 +11,36 @@ Internal codenames for the app, its views and its packages, taken from Greek myt
 Decided:
 
 - The new name is **Kedalion**. The codenames below were chosen to go with it: the story of Kedalion and Orion, and the workshop of Hephaestus.
-- The app id (`APP.id` in `apps/kedalion/app.ts`, now `deckbuilder`) becomes `kedalion`. The data folder `~/.deckbuilder` must be moved by hand on the owner's machine (`mv ~/.deckbuilder ~/.kedalion`, app closed). Check whether secrets live in that folder or in the OS keychain.
+- The app id (`APP.id` in `app/app.ts`, now `deckbuilder`) becomes `kedalion`. The data folder `~/.deckbuilder` must be moved by hand on the owner's machine (`mv ~/.deckbuilder ~/.kedalion`, app closed). Check whether secrets live in that folder or in the OS keychain.
 - npm release is dropped. The `@deckbuilderkit/*` packages are not published; users get only the app's executable (the `kedalion-v<version>` release).
 - Only the owner uses the app, so there are no other users to migrate. A full rename is acceptable.
 - Home, Grid and Tabs stop being main views. The **Dashboard (Argus) is the main view** and opens first.
 - The GitHub repository is renamed to Kedalion. The `repository.url` fields and README links change with it.
 - Everything called `deckbuilder` becomes `kedalion`: the CLI, the `@deckbuilderkit/*` import scope (now `@kedalion/*`, in all 413 files), the data folder, the persisted identifiers listed under "Where the name lives", and the docs. Saved state under the old identifiers is lost (theme choice, recent files, token); old backups are refused. This is acceptable because only the owner uses the app.
 
-- The `apps/gallery` folder is renamed to `apps/kedalion`, so the release tag becomes `kedalion-v<version>`. "gallery" was only the app's directory name, a leftover from when the repo was a kit and this was its example app. It appears in the folder, the package name `@deckbuilderkit/gallery` (now `@kedalion/app`), the root scripts (`bun run --cwd apps/gallery`) and the release workflow, which takes the tag prefix from the folder name. About 25 files mention it. The name users see comes from `APP.name` in `app.ts`.
+- The `apps/gallery` folder becomes a single top-level `app/` folder, and the `apps/*` workspace goes away (workspaces become `packages/*` and `app`). "gallery" and `apps/*` are leftovers from when the repo was a kit for building several apps, with gallery as the example. Kedalion is the only app, so there is nothing to group. The package is `@kedalion/app`; the release tag is `kedalion-v<version>` and must match `app/package.json`. No backward compatibility is kept: this is a new app. The name users see comes from `APP.name` in `app/app.ts`.
 
 Nothing is open.
 
 ## Where the name lives
 
-- `apps/kedalion/app.ts`: `APP.name` and `APP.id`, the single source for the window title, tray, autostart entry, quit dialog, toasts, executable and release file names, and (through `appHome(APP.id)`) the data folder, secrets, instance lock and port files. Backup files carry `app: APP.id`, so old backups are refused by a renamed id.
-- `.github/workflows/release.yml`: tag `<app>-v<version>` must match `apps/<app>/package.json`. The `v*` tag runs the npm publish job.
+- `app/app.ts`: `APP.name` and `APP.id`, the single source for the window title, tray, autostart entry, quit dialog, toasts, executable and release file names, and (through `appHome(APP.id)`) the data folder, secrets, instance lock and port files. Backup files carry `app: APP.id`, so old backups are refused by a renamed id.
+- `.github/workflows/release.yml`: tag `kedalion-v<version>` must match `app/package.json`. The `v*` tag runs the npm publish job.
 - Rename these persistent identifiers too, accepting the reset of saved state: the theme id `deckbuilder-dark` / `deckbuilder-light`, the `x-deckbuilder-token` header, `deckbuilder.token`, `deckbuilder.recentFiles`, the `deckbuilder-backup` format, and the editor plugin keys.
 
 ## Cleanup that follows from not publishing to npm
 
 - Remove the `publish` job (the `v*` tag flow) from `release.yml`.
-- Remove `deckbuilder new`, `add view`, `upgrade` and `packages/build/template`, plus their tests. Keep `dev`, `build`, `build:web`, `release`, `manifest` and `keygen`, which the app's own build and release use.
+- Remove `deckbuilder new`, `add view`, `upgrade`, `packages/build/template` and `packages/build/view-template`, plus their tests, and the root `new` script. Keep `dev`, `build`, `build:web`, `release`, `manifest` and `keygen`, which the app's own build and release use.
 - Rewrite the README to "download the app": drop the five install options and the create-an-app and add-packages sections.
+- Remove `scripts/publish.ts` and `scripts/check-single-views.ts` (it generates an app per view with `new`), and the publishing fields of `packages/build/package.json` (`publishConfig`, `files`, `bin`).
+- Rewrite CONTRIBUTING.md for one app: drop `bun run new`, the template notes and the "add to your app" wording (the many `@deckbuilderkit/...` install instructions), and keep layout, scripts, releases, icon packs and layouts. The `view-*` packages stay as workspace packages; each is a view of this app, not a reusable kit piece.
 - Mark every package `"private": true` and drop the publishing `repository.url` fields.
 - If any package was already published, deprecate it on npm by hand.
 
 ## Dropping Home, Grid and Tabs
 
-- Home and Tabs live in the app (`apps/gallery/web/src/screens/home.view.tsx`, `tabs.view.tsx`).
+- Home and Tabs live in the app (`app/web/src/screens/home.view.tsx`, `tabs.view.tsx`).
 - The Grid view and the Dashboard share one package, `view-grid`. The Dashboard (`dashboardServerView`, its panels and sources) must stay; remove only the Grid parts. Its codename is Panoptes.
 - Do this as its own commit, apart from the rename.
 
