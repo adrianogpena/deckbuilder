@@ -14,7 +14,7 @@ import {
   startServer,
   VITE_PORT,
 } from '@kedalion/server-core';
-import { appHome, createTray, createUrlProtocol, findAppBrowser, isCompiledExe, openExternal, removeOldExe, type Tray, waitForUrl } from '@kedalion/platform';
+import { appHome, createTray, createUrlProtocol, findAppBrowser, isCompiledExe, openExternal, type Tray, waitForUrl } from '@kedalion/platform';
 import { appWindowsOpen, closeAppWindows, openAppWindow } from './app-window.ts';
 import { helpText, parseFlags } from './flags.ts';
 import { createIdleWatch, type IdleWatch } from './idle.ts';
@@ -159,12 +159,8 @@ export async function runApp(opts: RunOptions): Promise<void> {
   };
   if (!dev) {
     const lockFile = join(appHome(app.id), 'instance.lock');
-    // Started by the previous exe after it swapped itself out: wait until that one has exited.
-    if (flags.afterUpdate && isCompiledExe()) await removeOldExe(process.execPath);
-    else {
-      const running = await handOff(instanceFile, mode, startPath);
-      if (running) alreadyRunning(running);
-    }
+    const running = await handOff(instanceFile, mode, startPath);
+    if (running) alreadyRunning(running);
     if (acquireLock(lockFile) === 'held') await waitForOther();
   }
 

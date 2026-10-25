@@ -1,20 +1,7 @@
 import { join } from 'node:path';
 import { appHome, createAutostart, setBrowser } from '@kedalion/platform';
-import { applyViewSettings, checkViewSettings, type FieldSpec, forbidden, mountViews, updatePublicKey, validGroup } from '@kedalion/server-core';
-import {
-  backupRoutes,
-  createUpdater,
-  folderSource,
-  githubSource,
-  infoRoutes,
-  pickedPaths,
-  fileDialogRoutes,
-  settingsRoutes,
-  settingsStore,
-  themeHead,
-  updateRoutes,
-  type BaseSettings,
-} from '@kedalion/server-mods';
+import { applyViewSettings, checkViewSettings, type FieldSpec, mountViews, validGroup } from '@kedalion/server-core';
+import { backupRoutes, infoRoutes, fileDialogRoutes, settingsRoutes, settingsStore, themeHead, type BaseSettings } from '@kedalion/server-mods';
 import { runApp } from '@kedalion/shell';
 import type { ExplorerServerSettings } from '@kedalion/view-explorer/server';
 import type { GitServerSettings } from '@kedalion/view-git/server';
@@ -42,11 +29,6 @@ export interface Settings extends BaseSettings, TerminalServerSettings, Workbenc
   port: number;
   /** The Settings modal reopens on the last page shown (kept in memory by the UI). */
   rememberSettingsPage: boolean;
-  /**
-   * Folder `kedalion release --to` publishes to; empty: GitHub releases when `APP.repo` is set,
-   * else no update checks. Set only through the folder dialog of `POST /api/settings/update-folder`.
-   */
-  updateFolder: string;
   /** Keybinding overrides by command id, checked by `validKeymap`. */
   keybindings?: Keymap;
   /** Layout of the Tabs screen (`serialize` of `@kedalion/ui`'s tabs); the UI validates it on restore. */
@@ -110,21 +92,15 @@ const KEYBOARD_SPEC: Record<string, FieldSpec> = {
 const dataDir = appHome(APP.id);
 const browserOf = (s: Settings) => (typeof s.general?.browser === 'string' ? s.general.browser : undefined);
 const autostart = createAutostart({ name: APP.name });
-/** The folder the update-folder dialog returned; `apply` takes it once. */
-const pickedUpdateFolder = pickedPaths({ max: 1 });
 const settings = settingsStore<Settings>({
   dir: dataDir,
-  defaults: { theme: 'dark', autostart: false, closeToTray: false, port: 0, rememberSettingsPage: true, updateFolder: '' },
+  defaults: { theme: 'dark', autostart: false, closeToTray: false, port: 0, rememberSettingsPage: true },
   check: (patch, prev) => checkViewSettings(serverViews, patch, prev as unknown as Record<string, unknown>),
   apply(patch, next) {
     if (typeof patch.autostart === 'boolean') next.autostart = patch.autostart;
     if (typeof patch.closeToTray === 'boolean') next.closeToTray = patch.closeToTray;
     if (typeof patch.port === 'number' && Number.isInteger(patch.port) && (patch.port === 0 || (patch.port >= 1024 && patch.port <= 65535))) next.port = patch.port;
     if (typeof patch.rememberSettingsPage === 'boolean') next.rememberSettingsPage = patch.rememberSettingsPage;
-    // A client may only clear it: a typed path could be any UNC share.
-    if (patch.updateFolder === '' || (typeof patch.updateFolder === 'string' && pickedUpdateFolder.take(patch.updateFolder))) {
-      next.updateFolder = patch.updateFolder;
-    }
     if (typeof patch.tabsLayout === 'object' && patch.tabsLayout !== null && JSON.stringify(patch.tabsLayout).length < MAX_TABS_LAYOUT_BYTES) {
       next.tabsLayout = patch.tabsLayout;
     }
@@ -153,16 +129,6 @@ const settings = settingsStore<Settings>({
     stores.sqlHistory.setMax(historySizeOf(next));
     stores.restHistory.setMax(restHistorySizeOf(next));
     setBrowser(browserOf(next));
-    if (next.updateFolder !== prev.updateFolder) void updater.check();
-  },
-});
-const updater = createUpdater({
-  version: pkg.version,
-  publicKey: updatePublicKey(join(import.meta.dir, '..', 'update-key.pub')),
-  source: async () => {
-    const { updateFolder } = await settings.load();
-    if (updateFolder) return folderSource(updateFolder, { subfolder: APP.name });
-    return APP.repo ? githubSource({ repo: APP.repo, tagPrefix: 'gallery-v' }) : null;
   },
 });
 
@@ -180,15 +146,8 @@ await runApp({
   routes: (ctx) => ({
     ...infoRoutes({ app: APP, version: pkg.version, dataDir }),
     ...settingsRoutes(settings),
-    'POST /api/settings/update-folder': async ({ json }) => {
-      const { path } = await json<{ path?: unknown }>();
-      if (typeof path !== 'string' || !stores.picks.opened.take(path)) throw forbidden('notAPickedFolder', 'Choose the folder first.');
-      pickedUpdateFolder.add(path);
-      return settings.save({ updateFolder: path });
-    },
-    ...updateRoutes(updater, ctx.quit),
-    // Machine-specific: autostart writes the Run key, updateFolder is a local or share path, port is per machine.
-    ...backupRoutes({ app: { id: APP.id, version: pkg.version }, settings, stores: { projects: stores.projects, dbConnections: stores.dbConnections, requests: stores.requests, environments: stores.environments }, excludeSettings: ['autostart', 'updateFolder', 'port'], picks: stores.picks }),
+    // Machine-specific: autostart writes the Run key, port is per machine.
+    ...backupRoutes({ app: { id: APP.id, version: pkg.version }, settings, stores: { projects: stores.projects, dbConnections: stores.dbConnections, requests: stores.requests, environments: stores.environments }, excludeSettings: ['autostart', 'port'], picks: stores.picks }),
     ...(setAppLink(ctx.link), routes(ctx)),
     ...mounted.routes,
     ...fileDialogRoutes({ home: dataDir, picks: stores.picks }),
@@ -206,7 +165,6 @@ await runApp({
   urlProtocol: true,
   tray: closeToTray,
   async onStart() {
-    updater.start();
     // Repairs the Run entry after the exe moved.
     if ((await settings.load()).autostart) await autostart.fixUp();
   },

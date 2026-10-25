@@ -18,4 +18,3 @@ export * from './settings.ts';
 export type { SqliteContent } from './sqlite.ts';
 export * from './theme-head.ts';
 export * from './ui-broker.ts';
-export * from './update.ts';

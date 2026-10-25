@@ -25,9 +25,6 @@ Run at the root (they act on `app/`) or inside `app/`:
 | `bun run typecheck` | Type-checks every package and app. |
 | `bun test` | (root) Unit tests of the packages. |
 | `bun scripts/screenshot.ts --out <png>` | (root) Screenshot of the app UI in headless Edge/Chrome, with its own `--dev` server on port 7799 and a temp home. Flags: `--hash <route>`, `--settings '<json>'` (seeds `settings.json`), `--seed '<json>'` (`{"<file>.json": value}` written beside it, e.g. `projects.json`), `--eval '<js>'`, `--size WxH`, `--wait <ms>`, `--no-build`, `--port <n>` (default 7799; distinct ports let runs overlap). |
-| `bun run kedalion release --to <folder>` | (in the app folder) Publish a release for the self-updater, see [Releases](#releases). |
-| `bun run kedalion manifest` | (in the app folder) Write `release/latest.json` and its signature for the built exes, see [Releases](#releases). |
-| `bun run kedalion keygen` | (in the app folder) Create the app's update signing key, see [Releases](#releases). |
 
 The executable takes the same flags as the source: `--app` (Edge/Chrome app window),
 `--browser` (Settings then has a Quit button that stops the app; wins over `--app`),
@@ -49,17 +46,16 @@ packages/
   server-core/   Bun.serve server: host, Origin and token checks, launch codes, static files
                  with CSP, AppError, routes type; protocol.ts (token header, launch code
                  parameter, dev ports, error body) is shared with the UI
-                 release.ts: latest.json manifest, signature check and version helpers
+                 release.ts: platform labels of release file names
                  stream.ts: `ndjson` streaming responses
   server-mods/   Opt-in route modules: settings (GET/PUT /api/settings), info (GET /api/info),
-                 update (self-updater + GET /api/update, POST /api/update/check|apply),
                  records (JSON-file record store + CRUD routes), rooted-fs (/api/fs/*),
                  dialogs (/api/dialog/*)
   shell/         runApp(): parses flags, single instance, starts the server, opens a window
                  (one Worker per window, Webview.run() blocks its thread), an app window or
                  the browser
   platform/      OS-specific code: open URL, find Edge/Chrome for app windows, app data folder, error message box, processes
-                 (run with timeout, kill tree, start detached), exe swap for updates; json-file (atomic writes),
+                 (run with timeout, kill tree, start detached); json-file (atomic writes),
                  secrets (DPAPI), dialogs (native pickers), files (reveal, open), trash (recycle bin);
                  win/: toasts, tray, autostart (HKCU Run key), URL protocol, PowerShell helpers; theme.ts: osThemeKind
   ui/            React components (Sidebar, Badge, ErrorBanner, Modal, Icon, ...), hooks,
@@ -69,7 +65,7 @@ packages/
                  transactions, /api/db/* routes
   terminal/      Opt-in integrated terminal: `TerminalPane` (xterm.js client view), protocol, and server
                  sessions (real PTY, screen replay, launchers, /api/terminal/* routes)
-  build/         The `kedalion` CLI used by the app scripts: dev, build:web, build, release, manifest, keygen
+  build/         The `kedalion` CLI used by the app scripts: dev, build:web, build
   view-*/        One package per view (Dashboard, Explorer, Git, REST, Terminal, Workbench, Agents, ...),
                  each an island, see [Adding a view](#adding-a-view)
 app/             The Kedalion app (workspaces are `packages/*` and `app`)
@@ -323,7 +319,7 @@ private: nothing is published to npm. The data folder is `~/.kedalion`.
   runs `validate` (with `ctx.imported`) per item and reports skipped ones with their error code.
   Secret fields are never exported and imports never change them: the user enters them again.
   Leave machine-specific settings out with `excludeSettings` (the app excludes `autostart`
-  and `updateFolder`). The app's Settings have a Backup section.
+  and `port`). The app's Settings have a Backup section.
 - **Oracle database**: `@kedalion/db` (it bundles the `oracledb` driver in thin mode: pure JS, no Instant Client). The app
   keeps the connections in a `recordStore` with `validate: validConnection` and
   `secretFields: ['password']`, and wires `dbRoutes({ sessions: dbSessions(), credentials })`,
@@ -381,57 +377,31 @@ The Agents view lives in `packages/view-agents`.
 The version comes from `app/package.json`. Executables are named
 `<Name>-<version>-<win|linux|mac>-<arch>[.exe]`.
 
-**Locally**: bump `version`, then `bun run build --target all` in `app/`.
+To publish a release:
 
-**Signing key** (once): in `app/`, `bun run kedalion keygen` creates an
-Ed25519 key pair. The private key goes to `~/.kedalion-keys/kedalion.pem`, outside the repo:
-back it up, because losing it means a new key and every user reinstalling by hand
-(`--force` replaces it). The public key goes to `update-key.pub` in the app folder: commit it;
-`build` embeds it in the exe (from source the server reads the file). `release` and `manifest`
-sign the exact bytes of `latest.json` into `latest.json.sig` and refuse to run without a key
-(`--unsigned` skips the signature with a warning). The updater checks the signature before it
-reads the manifest: a missing or wrong one is an error and offers nothing, and a build without
-`update-key.pub` never updates. Exes built before signing ignore the `.sig`, so they accept the
-first signed release. CI reads the key from the `KEDALION_SIGNING_KEY` secret (the PEM
-content).
+1. Bump `version` in `app/package.json` and commit it.
+2. Tag the commit `kedalion-v<version>` and push the tag:
 
-**For the self-updater** (a shared folder, e.g. a UNC share): in the app folder,
+   ```sh
+   git tag kedalion-v0.3.1 && git push origin kedalion-v0.3.1
+   ```
 
-```sh
-bun run kedalion release --to '\\server\share\releases' [--bump patch|minor|major] [--target <list>]
-```
+3. `.github/workflows/release.yml` checks the tag against `app/package.json`, builds every
+   target on a Windows runner and publishes the executables as a GitHub release (no draft step).
 
-bumps the version, runs typecheck and tests (`--no-checks` skips them), builds this machine's
-exe (or `--target`), copies it with `latest.json` to `<folder>/<app name>/`, then commits the
-bump and tags `kedalion-v<version>` locally; it never pushes. `--dry-run` publishes the
-same files but leaves `package.json` and git as they were. Users pick the folder (the root or
-the `<app name>` subfolder) with Browse under Settings › Updates. The app checks at start and every 6 h
-(30 min after a failure); applying copies the exe next to the running one, verifies its
-SHA-256, renames the running exe to `<name>.old.exe` (Windows allows renaming a running exe,
-not replacing it), moves the new one in place, starts it with `--after-update` plus the same
-flags, and quits. The new exe deletes the old one once that has exited. The exe keeps its file
-name, so the WebView2 profile survives updates. A UNC update folder still makes an SMB
-connection to that server at every check (and Windows may offer it your NTLM credentials); the
-signature protects the update, not that connection.
-
-**Through GitHub Actions**: push a tag `kedalion-v<version>`, e.g.
+The app does not update itself. Users update by downloading the new executable from the
+[releases](https://github.com/adrianogpena/kedalion/releases), or by building from source:
 
 ```sh
-git tag kedalion-v0.3.1 && git push origin kedalion-v0.3.1
+git clone https://github.com/adrianogpena/kedalion.git
+cd kedalion
+bun install
+bun run build
 ```
 
-`.github/workflows/release.yml` checks the tag against `package.json`, builds every target on
-a Windows runner, writes `latest.json` and `latest.json.sig` with `kedalion manifest`
-(SHA-256 per exe, notes from the commits since the previous tag; needs the
-`KEDALION_SIGNING_KEY` repository secret) and publishes everything as a GitHub release (no draft step).
+`bun run build` writes the executable for this machine to `app/release/`; `--target all` builds
+every target.
 
-**GitHub releases as update source**: `repo: 'owner/name'` in `app/app.ts`
-(`AppIdentity.repo`) and `githubSource({ repo, tagPrefix })` from
-`@kedalion/server-mods` make the app use them when no update folder is set. The updater
-takes the newest published release whose tag starts with `kedalion-v`, reads its
-`latest.json` and `latest.json.sig` assets and downloads the exe asset; `token` gives access to a private repo.
-`kedalion manifest` (in the app folder, after `build`) writes `release/latest.json` and its
-`.sig` by hand.
 `.github/workflows/ci.yml` type-checks, runs the tests and builds a Linux executable for every
 push and pull request.
 

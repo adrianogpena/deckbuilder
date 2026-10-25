@@ -18,13 +18,13 @@ Self-test: open window 1, open window 2, probe the web Notification API, record 
 | RAM (server process) | 62 MB | 70 MB |
 | Console window | hidden with `--windows-hide-console` | none |
 | WebView2 data folder | `%APPDATA%\<exe name>\`, passed by the webview library; `WEBVIEW2_USER_DATA_FOLDER` has no effect (checked later) | `%LOCALAPPDATA%\<identifier>\` |
-| Updates | keep Dashboard's `latest.json` updater | built-in, with binary delta patches (needs `release.baseUrl`) |
+| Updates | none in the app: users download a new exe from GitHub releases (the `latest.json` updater was removed) | built-in, with binary delta patches (needs `release.baseUrl`) |
 | Setup weight | one npm package | Hutch toolchain: 286 MB in `~/.hutch`, adds itself to the user PATH. The installer breaks under Git Bash (GNU tar); run it from PowerShell |
 | Maturity / churn | small binding over the stable `webview` C library | v2 moved the SDK off npm to Hutch; default runtime is now "Cottontail", not Bun |
 
 ## Verdict
 
-**webview-bun** for the base. It keeps Dashboard's model (one exe, cross-build, own updater) and
+**webview-bun** for the base. It keeps Dashboard's model (one exe, cross-build) and
 covers multiple windows. The known gap is the **tray icon**, which only matters for background
 apps like Dashboard. Options there: a small tray helper (PowerShell `NotifyIcon` or a tiny native
 exe), or keep such apps in browser mode.

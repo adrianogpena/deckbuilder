@@ -42,11 +42,11 @@ The scheme follows three groups:
 | **Obol** | Hero | `terminal` | The coin paid to Charon for the crossing: the small package behind the Terminal view. |
 | **Tripod** | Hero | `sql-ui` | The seat on which the Pythia sat to give her answer: where the SQL answer is shown. |
 | **Panoptes** | Hero | `view-grid` | "All-seeing", the epithet of Argus: the package that holds the Dashboard's panels. |
-| **Telchines** | Smith | `server-mods` | The first metalworkers of myth, who made tools for the gods: a kit of ready tools (fs, http, archive, backup, update). |
+| **Telchines** | Smith | `server-mods` | The first metalworkers of myth, who made tools for the gods: a kit of ready tools (fs, http, archive, backup; update until it was removed). |
 | **Cadmus** | Smith | `editor` | The hero who brought the alphabet to Greece: writing. |
 | **Akmon** | Smith | `build` | The anvil of the forge; the build is where the app is hammered into an executable. |
 | **Daktyls** | Smith | `scripts/` | The small craftsmen of the fingers, helpers at the bench: small tools that check and polish. |
-| **Cerberus** | Olympian | The update signature check: `verifyManifest` (`server-core`), `verifiedRelease` (`server-mods/src/update.ts`) and the signing side in `build` (`keys.ts`, `release.ts`) | The three-headed dog at the gate: nothing passes unless it belongs, as an update runs only when signed. |
+| **Cerberus** | Olympian | The update signature check: `verifyManifest` (`server-core`), `verifiedRelease` (`server-mods/src/update.ts`) and the signing side in `build` (`keys.ts`, `release.ts`) | The three-headed dog at the gate: nothing passes unless it belongs, as an update runs only when signed. Removed with the self-updater; the name is kept for history. |
 
 ## Wordplay
 

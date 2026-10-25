@@ -23,7 +23,7 @@ Download the file for your system from the [releases](https://github.com/adriano
 
 On Linux and macOS, make it executable first (`chmod +x Kedalion-*`). The executable opens a native window; `--app` opens an Edge/Chrome app window instead, `--browser` a browser tab, and `--port <n>` sets the port. Window mode needs the OS web view: WebView2 on Windows 10/11, WebKitGTK 6.0 on Linux (`sudo apt install libwebkitgtk-6.0-4` on Debian/Ubuntu).
 
-Updates are signed: the app installs a new release only when its manifest signature verifies. Settings and data live in `~/.kedalion`.
+The app does not update itself. To update, download the newer file from the [releases](https://github.com/adrianogpena/kedalion/releases) and replace the old one, or pull the source and build it again (see below). Settings and data live in `~/.kedalion`.
 
 ## Run from source
 

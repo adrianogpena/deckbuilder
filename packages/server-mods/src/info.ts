@@ -10,6 +10,8 @@ export interface AppInfo {
   bun: string;
   dataDir: string;
   startedAt: string;
+  /** GitHub `owner/name` that hosts the releases, when the app has one. */
+  repo?: string;
 }
 
 /** GET /api/info: app version and runtime facts, for an About or Home screen. */
@@ -25,6 +27,7 @@ export function infoRoutes(opts: { app: AppIdentity; version: string; dataDir: s
       bun: Bun.version,
       dataDir: opts.dataDir,
       startedAt,
+      ...(opts.app.repo ? { repo: opts.app.repo } : {}),
     }),
   };
 }

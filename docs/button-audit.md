@@ -236,10 +236,6 @@ Notes that apply to many rows:
 | 337 | nav tree items | raw + settings-nav-item | EXCEPTION OK | nav/tree row |
 | 394 | clear search | raw btn-sm | NOT, SHOULD migrate | Button default sm (icon) |
 | 472 | quit | raw btn-sm btn-danger | NOT, SHOULD migrate | Button danger sm icon square |
-| 524 | browse update folder | raw btn-sm | NOT, SHOULD migrate | Button default sm |
-| 537 | clear update folder | raw btn-sm | NOT, SHOULD migrate | Button default sm |
-| 555 | check update | raw btn-sm | NOT, SHOULD migrate | Button default sm icon refresh |
-| 559 | apply update | raw btn-sm btn-primary | NOT, SHOULD migrate | Button primary sm icon download |
 
 ## ui/src/assets/icons/original/index.html
 | line | control | built with | verdict | why/deviation |
@@ -808,10 +804,6 @@ Notes: no `<IconButton>`, `buttonClass(...)`, `<a>` or `<label>` styled as a but
 | 587 | Add file-pattern | raw+btn sm | NOT, SHOULD migrate | Button sm icon plus |
 | 624 | Choose editor | raw+btn sm | NOT, SHOULD migrate | Button sm default |
 | 635 | Reset editor | raw+btn sm | NOT, SHOULD migrate | Button sm ghost icon rotate-ccw |
-| 691 | Browse update folder | raw+btn sm | NOT, SHOULD migrate | Button sm default icon folder |
-| 704 | Clear update folder | raw+btn sm | NOT, SHOULD migrate | Button sm ghost |
-| 722 | Check for update | raw+btn sm | NOT, SHOULD migrate | Button sm default icon refresh |
-| 726 | Apply update | raw+btn sm btn-primary | NOT, SHOULD migrate | Button sm primary icon download |
 | 789, 793, 886, 891, 908 | Backup scope/store/mode toggles | raw `chip`/`chip-on` | OK | filter-style toggle chips (no aria-pressed; 908 merge/replace is exclusive pair = future `seg`) |
 | 800 | Export backup | raw+btn sm | NOT, SHOULD migrate | Button sm icon download |
 | 817 | Import backup (pick file) | raw+btn sm | NOT, SHOULD migrate | Button sm icon download/upload |

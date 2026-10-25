@@ -17,7 +17,6 @@ describe('parseFlags', () => {
       dev: false,
       help: false,
       openUrl: undefined,
-      afterUpdate: false,
       window: false,
     });
   });
@@ -57,10 +56,9 @@ describe('parseFlags', () => {
     expect(parseFlags(['--idle-exit'])).toHaveProperty('error');
   });
 
-  test('--help, -h and --after-update', () => {
+  test('--help and -h', () => {
     expect(parse('--help').help).toBe(true);
     expect(parse('-h').help).toBe(true);
-    expect(parse('--after-update').afterUpdate).toBe(true);
   });
 
   test('rejects a bad port', () => {

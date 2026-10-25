@@ -1,7 +1,7 @@
 name: Release
 
 # Tag `kedalion-v<version>` (e.g. `kedalion-v0.3.0`) builds app/ for every target and
-# uploads the executables, latest.json and latest.json.sig to a GitHub Release. <version> must match app/package.json.
+# uploads the executables to a GitHub Release. <version> must match app/package.json.
 on:
   push:
     tags: ['kedalion-v*']
@@ -21,7 +21,6 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
-          fetch-depth: 0 # the release notes read the previous tags
           persist-credentials: false # gh uses GH_TOKEN
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
@@ -37,10 +36,6 @@ jobs:
           fi
       - run: bun run typecheck
       - run: bun run --cwd app build --target all
-      - run: bun run --cwd app kedalion manifest
-        env:
-          # PEM private key from `kedalion keygen`; the manifest step fails without it.
-          KEDALION_SIGNING_KEY: ${{ secrets.KEDALION_SIGNING_KEY }}
       - name: Upload to a release
         run: gh release create "$TAG" --title "$TAG" app/release/*
         env:

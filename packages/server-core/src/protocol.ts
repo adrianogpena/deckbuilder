@@ -31,30 +31,8 @@ export interface AppIdentity {
   name: string;
   /** Lowercase id: data folder (~/.<id>), executable name in help text. */
   id: string;
-  /** GitHub `owner/name` that hosts the releases; unset while the app has no remote. */
+  /** GitHub `owner/name` that hosts the releases (Settings > Updates links to them); unset while the app has no remote. */
   repo?: string;
-}
-
-/** GET /api/update: what the updater (updateRoutes in @kedalion/server-mods) knows. */
-export interface UpdateState {
-  /** `offline`: the release folder couldn't be read (off VPN, share down); the last good data is kept. */
-  status: 'not-configured' | 'ok' | 'offline' | 'error';
-  message?: string;
-  /** Message id (`error.<code>`) when the UI should show a translated text instead of `message`. */
-  code?: string;
-  /** The running version. */
-  current: string;
-  available: boolean;
-  /** Newest released version; null before a check succeeded. */
-  version: string | null;
-  notes: string | null;
-  /** False when running from source: the check works but only the exe can replace itself. */
-  canApply: boolean;
-  /** Epoch ms of the last successful check, and of the next scheduled one. */
-  checkedAt: number | null;
-  nextAt: number | null;
-  /** Id of the update source in use (`folder:<path>`, `github:<repo>`); null when none. */
-  source: string | null;
 }
 
 export const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'] as const;

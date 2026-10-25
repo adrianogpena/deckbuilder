@@ -1,7 +1,7 @@
 import type { SqlFormatOptions } from '@kedalion/editor';
 
 import type { ThemeSettings } from '@kedalion/server-core/palettes';
-import type { BackupInspect, EditorInfo, FsDuProgress, FsHash, FsInfo, ImportResult, SqlHistoryEntry, TailChunk, UpdateState } from '@kedalion/server-core/protocol';
+import type { BackupInspect, EditorInfo, FsDuProgress, FsHash, FsInfo, ImportResult, SqlHistoryEntry, TailChunk } from '@kedalion/server-core/protocol';
 
 export type { EditorInfo, FsDuProgress, FsHash, FsInfo, ImportResult, TailChunk };
 import type { SessionInfo, TerminalProfileInfo } from '@kedalion/terminal';
@@ -28,7 +28,6 @@ export interface Settings extends ThemeSettings, TerminalViewSettings, Workbench
   port: number;
   /** Settings reopens on the last page shown (until the app restarts). */
   rememberSettingsPage: boolean;
-  updateFolder: string;
   /** Layout of the Tabs screen; restored (and validated) by the screen. */
   tabsLayout?: unknown;
   /** State of the Explorer screen; the server validates it. */
@@ -129,6 +128,8 @@ export interface Info {
   bun: string;
   dataDir: string;
   startedAt: string;
+  /** GitHub `owner/name` of the app, when it has one. */
+  repo?: string;
 }
 
 export const api = {
@@ -137,11 +138,6 @@ export const api = {
   saveSettings: (patch: Partial<Settings>) => request<Settings>('PUT', '/api/settings', {}, patch),
   openSettingsFile: () => request<{ ok: true }>('POST', '/api/settings/open-file'),
   externalSettings: () => request<{ changed: boolean; settings: Settings }>('GET', '/api/settings/external'),
-  /** Saves a folder chosen in the in-app dialog as `updateFolder`. */
-  pickUpdateFolder: (path: string) => request<Settings>('POST', '/api/settings/update-folder', {}, { path }),
-  update: () => request<UpdateState>('GET', '/api/update'),
-  checkUpdate: () => request<UpdateState>('POST', '/api/update/check'),
-  applyUpdate: () => request<{ version: string }>('POST', '/api/update/apply'),
   quit: () => request<{ ok: true }>('POST', '/api/quit'),
   testToast: () => request<{ ok: true }>('POST', '/api/toast/test'),
   backupParts: () => request<{ stores: string[] }>('GET', '/api/backup/parts'),

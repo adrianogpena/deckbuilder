@@ -10,7 +10,6 @@ export interface Flags {
   dev: boolean;
   help: boolean;
   openUrl?: string;
-  afterUpdate: boolean;
   window: boolean;
 }
 
@@ -27,7 +26,7 @@ export function parseFlags(argv: string[]): Flags | { error: string } {
 
   const openUrl = option('--open-url');
   if (openUrl !== undefined) {
-    return { mode: 'window', noOpen: false, dev: false, help: false, openUrl, afterUpdate: false, window: false };
+    return { mode: 'window', noOpen: false, dev: false, help: false, openUrl, window: false };
   }
 
   let port: number | undefined;
@@ -55,7 +54,6 @@ export function parseFlags(argv: string[]): Flags | { error: string } {
     idleExitMinutes,
     dev,
     help: flag('--help') || flag('-h'),
-    afterUpdate: flag('--after-update'),
     window,
   };
 }

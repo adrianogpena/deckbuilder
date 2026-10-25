@@ -243,7 +243,7 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
       case 'editor.externalEditors': return <EditorsCard />;
       case 'keyboard': return <SettingRows ids={groupIds('keyboard')} settings={draft} onChange={change} />;
       case 'keyboard.shortcuts': return <ShortcutsSection settings={settings} onChange={onChange} />;
-      case 'system.updates': return <UpdatesCard folder={draft.updateFolder} onFolder={(updateFolder) => change({ updateFolder })} />;
+      case 'system.updates': return <UpdatesCard />;
       case 'system.backup': return (
         <BackupCard
           onSettings={(next) => {
@@ -648,100 +648,33 @@ function EditorsCard() {
   );
 }
 
-function UpdatesCard({ folder, onFolder }: { folder: string; onFolder: (folder: string) => void }) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<ApiError | null>(null);
-  const [restarting, setRestarting] = useState<string | null>(null);
-  const state = useAsync(() => api.update(), [folder], 60_000);
-
-  const run = async (fn: () => Promise<unknown>) => {
-    setBusy(true);
-    setError(null);
-    try {
-      await fn();
-    } catch (err) {
-      setError(errorOf(err));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const u = state.data;
-  const status = !u
-    ? null
-    : u.code
-      ? errorMessage({ kind: 'internal', code: u.code, message: u.message ?? '' })
-      : u.status === 'not-configured'
-      ? t('settings.update.notConfigured')
-      : u.available
-        ? t('settings.update.available', { version: u.version ?? '' })
-        : u.status === 'offline'
-          ? t('settings.update.offline')
-          : u.status === 'error'
-            ? (u.message ?? '')
-            : t('settings.update.latest');
-
+function UpdatesCard() {
+  const info = useAsync(() => api.info(), []);
+  const i = info.data;
   return (
     <section className="section">
       <div className="card form">
-        <div className="field">
-          <label className="mono-label" htmlFor="update-folder">{t('settings.updateFolder')}</label>
-          <div className="row">
-            <input id="update-folder" value={folder} placeholder={t('settings.updateFolder.none')} readOnly />
-            <Button size="sm" icon="folder" title={t('settings.updateFolder.browse')}
-              disabled={busy}
-              onClick={() => run(async () => {
-                const path = await dialogs.pickFolder({ title: t('settings.updateFolder.pick'), purpose: 'updateFolder', start: folder || undefined });
-                if (path === null) return;
-                const next = (await api.pickUpdateFolder(path)).updateFolder;
-                if (next !== folder) onFolder(next);
-              })}
-            >
-              {t('settings.updateFolder.browse')}
-            </Button>
-            {folder && (
-              <Button size="sm" variant="ghost" title={t('settings.updateFolder.clear')} disabled={busy} onClick={() => onFolder('')}>
-                {t('settings.updateFolder.clear')}
-              </Button>
+        {!i && !info.error && <Spinner small />}
+        {info.error && <ErrorBanner error={info.error} onRetry={info.reload} compact />}
+        {i && (
+          <div className="field">
+            <span>{t('settings.update.current', { version: i.version })}</span>
+            <span className="muted">{t('settings.update.howTo')}</span>
+            {i.repo && (
+              <div className="row">
+                <Button size="sm" icon="download" onClick={() => window.open(`https://github.com/${i.repo}/releases`, '_blank', 'noreferrer')}>
+                  {t('settings.update.openReleases')}
+                </Button>
+              </div>
             )}
           </div>
-          <span className="muted">{t('settings.updateFolder.hint')}</span>
-        </div>
-        {!u && !state.error && <Spinner small />}
-        {state.error && <ErrorBanner error={state.error} onRetry={state.reload} compact />}
-        {u && (
-          <div className="field">
-            <span>
-              {t('settings.update.current', { version: u.current })} {status}
-            </span>
-            {u.source && <span className="muted">{t('settings.update.source', { source: sourceLabel(u.source) })}</span>}
-            {u.available && u.notes && <pre className="mono muted">{u.notes}</pre>}
-            {u.available && !u.canApply && <span className="muted">{t('settings.update.fromSource')}</span>}
-            <div className="row">
-              <Button size="sm" icon="refresh" title={t('settings.update.check')} disabled={busy || !u.source} onClick={() => run(() => api.checkUpdate().then(() => state.reload()))}>
-                {t('settings.update.check')}
-              </Button>
-              {u.available && u.canApply && (
-                <Button size="sm" variant="primary" icon="download" title={t('settings.update.apply')}
-                  disabled={busy || restarting !== null}
-                  onClick={() => run(async () => setRestarting((await api.applyUpdate()).version))}
-                >
-                  {t('settings.update.apply')}
-                </Button>
-              )}
-            </div>
-          </div>
         )}
-        {restarting && <span className="muted">{t('settings.update.restarting', { version: restarting })}</span>}
-        {error && <ErrorBanner error={error} compact />}
       </div>
     </section>
   );
 }
 
-const sourceLabel = (id: string): string => (id.startsWith('github:') ? `GitHub ${id.slice(7)}` : `${t('settings.update.folder')} ${id.slice(7)}`);
-
-const STORE_LABELS: Record<string, MessageKey> = {
+const STORE_LABELS:Record<string, MessageKey> = {
   projects: 'settings.backup.store.projects',
   dbConnections: 'settings.backup.store.dbConnections',
   requests: 'settings.backup.store.requests',
