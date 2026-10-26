@@ -51,6 +51,11 @@ export function TicketCard({ ticket, selected, jiraBaseUrl, onDelete, onAutoMove
         ) : (
           <span className="tickets-key">{ticket.key}</span>
         )}
+        {ticket.pcr && (
+          <span className="tickets-pcr" title={tKey('dash.tickets.detail.pcr')}>
+            PCR#{ticket.pcr}
+          </span>
+        )}
         {ticket.autoMovedAt !== undefined && Date.now() - ticket.autoMovedAt < AUTO_BADGE_MS && (
           <span className="tickets-auto" title={tKey('dash.tickets.autoMove.badgeTitle')}>
             {tKey('dash.tickets.autoMove.badge')}

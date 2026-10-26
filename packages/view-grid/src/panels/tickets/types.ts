@@ -1,5 +1,6 @@
 import type { TrackedPr } from '../github/tracked';
 import type { Pod } from '../pods/model';
+import type { JiraInfo } from './jira-info';
 import type { Ticket } from './model';
 
 export type Stage = 'none' | 'ok' | 'pending' | 'warn' | 'fail';
@@ -30,8 +31,8 @@ export interface TicketsData {
   unlinked?: UnlinkedKey[];
   /** Every pod tracked in the Pods panels, for linking by hand. */
   pods?: Pod[];
-  /** Current Jira status per ticket key; empty without a Jira connection or when the fetch failed. */
-  jiraStatuses?: Record<string, string>;
+  /** Jira info per ticket key; empty without a Jira connection or when the fetch failed. */
+  jira?: Record<string, JiraInfo>;
   /** The PR fetch failed: links carry no PRs. */
   prError?: boolean;
 }

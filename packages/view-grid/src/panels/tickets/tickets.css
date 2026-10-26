@@ -14,6 +14,7 @@
 .tickets-card-head { display: flex; align-items: center; gap: var(--space-6); color: var(--text-dim); }
 .tickets-key { padding: 1px var(--space-6); border-radius: var(--radius-sm); font-size: var(--fs-xs); font-weight: 600; font-family: var(--font-mono, monospace); color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); text-decoration: none; }
 a.tickets-key:hover { text-decoration: underline; }
+.tickets-pcr { padding: 1px var(--space-6); border-radius: var(--radius-sm); font-size: var(--fs-xs); font-weight: 600; font-family: var(--font-mono, monospace); color: var(--info); background: var(--info-soft); }
 .tickets-desc { cursor: pointer; font-size: var(--fs-sm); line-height: 1.4; white-space: pre-wrap; overflow-wrap: anywhere; }
 .tickets-desc-empty { color: var(--text-dim); font-style: italic; }
 .tickets-edit { width: 100%; resize: vertical; font: inherit; font-size: var(--fs-sm); }
@@ -53,8 +54,28 @@ a.tickets-key:hover { text-decoration: underline; }
 .tickets-card p { margin: 0; }
 .tickets-ov-top { display: flex; flex-wrap: wrap; gap: var(--space-8); align-items: flex-start; }
 .tickets-ov-top .tickets-card { margin: 0; }
-.tickets-ov-top .tickets-card:first-child { flex: none; }
-.tickets-ov-top .tickets-card:last-child { flex: 1; min-width: 14em; }
+.tickets-ov-top .tickets-ov-small { flex: none; }
+.tickets-ov-top .tickets-ov-wide { flex: 1; min-width: 14em; }
+.tickets-ov-details { display: grid; grid-template-columns: auto 1fr; gap: var(--space-4) var(--space-12, 12px); margin: 0; font-size: var(--fs-sm); }
+.tickets-ov-details dt { color: var(--text-dim); }
+.tickets-ov-details dd { margin: 0; overflow-wrap: anywhere; }
+.tickets-overdue, .tickets-blocker { color: var(--danger); }
+.adf { font-size: var(--fs-sm); overflow-wrap: anywhere; }
+.adf p { margin: var(--space-4) 0; }
+.adf h5, .adf h6 { margin: var(--space-6) 0 var(--space-4); }
+.adf ul, .adf ol { margin: var(--space-4) 0; padding-left: 1.4em; }
+.adf pre { overflow-x: auto; padding: var(--space-6); background: var(--muted-soft); border-radius: var(--radius-sm); }
+.adf code { font-family: var(--font-mono, monospace); background: var(--muted-soft); padding: 0 var(--space-4); border-radius: var(--radius-sm); }
+.adf pre code { padding: 0; background: none; }
+.adf blockquote { margin: var(--space-4) 0; padding-left: var(--space-8); border-left: 2px solid var(--border-soft); }
+.adf details { margin: var(--space-4) 0; }
+.adf summary { cursor: pointer; font-weight: 600; }
+.adf-table-wrap { overflow-x: auto; margin: var(--space-6) 0; }
+.adf table { border-collapse: collapse; }
+.adf th, .adf td { padding: var(--space-4) var(--space-8); border: 1px solid var(--border-soft); text-align: left; vertical-align: top; }
+.adf th { background: var(--muted-soft); }
+.adf th p, .adf td p { margin: 0; }
+.adf-plain { white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--fs-sm); }
 .tickets-ov-top h4 { margin: 0 0 var(--space-4); font-weight: 400; color: var(--text-dim); }
 .tickets-card-edit { display: block; width: 100%; padding: 0; text-align: left; font: inherit; font-size: var(--fs-sm); color: inherit; background: none; border: 0; cursor: pointer; white-space: pre-wrap; overflow-wrap: anywhere; }
 .tickets-pr-full { margin-top: var(--space-6); padding-top: var(--space-6); border-top: 1px solid var(--border-soft); font-size: var(--fs-sm); }

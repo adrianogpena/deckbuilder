@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { add, columns, extractKey, move, parseStatuses, remove, update, DEFAULT_STATUSES, type Ticket } from './model';
+import { add, columns, extractKey, move, parsePcr, parseStatuses, remove, update, DEFAULT_STATUSES, type Ticket } from './model';
 
 const build = (): Ticket[] => {
   let t: Ticket[] = [];
@@ -58,4 +58,12 @@ describe('update, remove, columns', () => {
     const t = add([], 'A-1', 'Gone', '', 'a');
     expect(columns(t, ['Open', 'Done'])[0]!.tickets).toHaveLength(1);
   });
+});
+
+test('parsePcr keeps the digits and add stores the pcr', () => {
+  expect(parsePcr('PCR#163')).toBe('163');
+  expect(parsePcr('#12 ')).toBe('12');
+  expect(parsePcr('none')).toBe('');
+  expect(add([], 'A-1', 'Open', '', 'id', '163')[0]!.pcr).toBe('163');
+  expect(add([], 'A-1', 'Open', '', 'id')[0]!.pcr).toBeUndefined();
 });

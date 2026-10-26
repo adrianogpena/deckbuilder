@@ -4,6 +4,8 @@ export interface Ticket {
   id: string;
   key: string;
   description: string;
+  /** The PCR number (`PCR#163`): found in Jira when the ticket is added, editable by hand. */
+  pcr?: string;
   status: string;
   autoMove: boolean | null;
   /** Pods linked by hand (`podId`), for pods whose name carries no key. */
@@ -12,6 +14,9 @@ export interface Ticket {
   movedAt?: number;
   autoMovedAt?: number;
 }
+
+/** The digits of a PCR input (`163`, `#163`, `PCR#163`); empty when there are none. */
+export const parsePcr = (input: string): string => /\d+/.exec(input)?.[0] ?? '';
 
 /** Stable id of a pod on the board: `<context>/<namespace>/<name>`. */
 export const podId = (p: { cluster: string; name: string }): string => `${p.cluster}/${p.name}`;
@@ -46,9 +51,9 @@ const sorted = (tickets: Ticket[]) => [...tickets].sort((a, b) => a.order - b.or
 
 const renumber = (tickets: Ticket[]): Ticket[] => tickets.map((t, i) => (t.order === i ? t : { ...t, order: i }));
 
-export function add(tickets: Ticket[], key: string, status: string, description = '', id: string = crypto.randomUUID()): Ticket[] {
+export function add(tickets: Ticket[], key: string, status: string, description = '', id: string = crypto.randomUUID(), pcr = ''): Ticket[] {
   const order = tickets.reduce((n, t) => Math.max(n, t.order + 1), 0);
-  return [...tickets, { id, key, description, status, autoMove: null, order }];
+  return [...tickets, { id, key, description, status, autoMove: null, order, ...(pcr ? { pcr } : {}) }];
 }
 
 /** Moves a ticket to `status` at position `index` among that column's other tickets. */
@@ -66,7 +71,7 @@ export function move(tickets: Ticket[], id: string, status: string, index: numbe
   return renumber(rest);
 }
 
-export function update(tickets: Ticket[], id: string, patch: Partial<Pick<Ticket, 'description' | 'autoMove' | 'podLinks'>>): Ticket[] {
+export function update(tickets: Ticket[], id: string, patch: Partial<Pick<Ticket, 'description' | 'autoMove' | 'podLinks' | 'pcr'>>): Ticket[] {
   return tickets.map((t) => (t.id === id ? { ...t, ...patch } : t));
 }
 

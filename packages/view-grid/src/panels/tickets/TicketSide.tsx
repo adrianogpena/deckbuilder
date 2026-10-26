@@ -1,5 +1,6 @@
 import { copyText, IconButton, type SidePanelContent } from '@kedalion/ui';
 import { tKey } from '../../i18n';
+import type { JiraInfo } from './jira-info';
 import type { Pod } from '../pods/model';
 import type { Ticket } from './model';
 import { jiraUrl } from './TicketCard';
@@ -10,14 +11,14 @@ export interface TicketSideInput {
   instanceId: string;
   ticket: Ticket;
   link?: TicketLink;
-  jiraStatus?: string;
+  jira?: JiraInfo;
   allPods: Pod[];
   config: Record<string, unknown> & { jiraBaseUrl: string };
   onChanged(): void;
 }
 
 /** What the Tickets panel opens in the Dashboard side panel for one ticket. */
-export function ticketSideContent({ instanceId, ticket, link, jiraStatus, allPods, config, onChanged }: TicketSideInput): SidePanelContent {
+export function ticketSideContent({ instanceId, ticket, link, jira, allPods, config, onChanged }: TicketSideInput): SidePanelContent {
   const url = jiraUrl(config.jiraBaseUrl, ticket.key);
   return {
     id: `${instanceId}:${ticket.id}`,
@@ -28,7 +29,7 @@ export function ticketSideContent({ instanceId, ticket, link, jiraStatus, allPod
       {
         id: 'overview',
         label: tKey('dash.pods.tab.overview'),
-        render: () => <TicketOverview ticket={ticket} link={link} jiraStatus={jiraStatus} allPods={allPods} config={config} onChanged={onChanged} />,
+        render: () => <TicketOverview ticket={ticket} link={link} jira={jira} allPods={allPods} config={config} onChanged={onChanged} />,
       },
     ],
     actions: (

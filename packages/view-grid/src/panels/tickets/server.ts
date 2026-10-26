@@ -1,15 +1,16 @@
 import { invalid } from '@kedalion/server-core';
 import { createJsonStore, type JsonStore } from '../../json-store';
 import { defineSource, type DataSource, type GridPanelSpec } from '../../server';
-import { search } from '../jira/client';
+import { fieldIds, search } from '../jira/client';
 import { fetchPrPool, trackedStore } from '../github/server';
 import type { TrackedPr } from '../github/tracked';
 import { latestPods } from '../pods/server';
 import { readWeekHours } from '../timesheet/server';
 import { TICKETS_FIELDS } from './fields';
 import { planAutoMoves } from './auto-move';
+import { infoFields, mapInfo, pcrOf, type JiraInfo } from './jira-info';
 import { linkTickets } from './linker';
-import { add, extractKey, MAX_TICKETS, move, parseStatuses, remove, update, type Ticket } from './model';
+import { add, extractKey, MAX_TICKETS, move, parsePcr, parseStatuses, remove, update, type Ticket } from './model';
 import type { TicketsData } from './types';
 
 interface TicketsConfig {
@@ -49,6 +50,7 @@ function parseStore(raw: unknown): TicketStore {
         order: typeof o.order === 'number' && Number.isFinite(o.order) ? o.order : tickets.length,
       };
       if (Array.isArray(o.podLinks)) t.podLinks = o.podLinks.filter((x): x is string => typeof x === 'string').map((x) => x.slice(0, 500)).slice(0, 50);
+      if (parsePcr(str(o.pcr, 20))) t.pcr = parsePcr(str(o.pcr, 20));
       if (typeof o.movedAt === 'number') t.movedAt = o.movedAt;
       if (typeof o.autoMovedAt === 'number') t.autoMovedAt = o.autoMovedAt;
       tickets.push(t);
@@ -117,18 +119,19 @@ export const ticketsSource = defineSource<TicketsConfig>({
       });
       tickets = saved.tickets;
     }
-    const jiraStatuses: Record<string, string> = {};
+    const jira: Record<string, JiraInfo> = {};
     if (config.jiraConnection && tickets.length) {
       try {
         const conn = await ctx.connection(config.jiraConnection, 'jira');
         const keys = tickets.map((t) => t.key).filter((k) => /^[A-Za-z][A-Za-z0-9_]*-\d+$/.test(k));
-        const raw = keys.length ? await search(conn, `key in (${keys.join(',')})`, ['status'], keys.length, ctx.signal) : [];
-        for (const r of raw) jiraStatuses[String(r.key)] = String(r.fields?.status?.name ?? '');
+        const pointsId = (await fieldIds(conn, ctx.signal)).points;
+        const raw = keys.length ? await search(conn, `key in (${keys.join(',')})`, infoFields(pointsId), keys.length, ctx.signal) : [];
+        for (const r of raw) jira[String(r.key)] = mapInfo(r, pointsId);
       } catch {
-        // the Jira status is optional; the overview shows a dash
+        // the Jira info is optional; the overview shows a dash
       }
     }
-    return { statuses, tickets, links, unlinked, pods, jiraStatuses, ...(prError ? { prError } : {}) };
+    return { statuses, tickets, links, unlinked, pods, jira, ...(prError ? { prError } : {}) };
   },
   actions: {
     async add(payload, config, ctx) {
@@ -137,10 +140,20 @@ export const ticketsSource = defineSource<TicketsConfig>({
       if (!key) throw invalid('ticket-invalid-key', 'Not a ticket key.');
       const status = parseStatuses(config.statuses ?? '')[0]!;
       const description = str(p.description);
+      let pcr = parsePcr(str(p.pcr, 20));
+      if (!pcr && config.jiraConnection && /^[A-Za-z][A-Za-z0-9_]*-\d+$/.test(key)) {
+        try {
+          const conn = await ctx.connection(config.jiraConnection, 'jira');
+          const [raw] = await search(conn, `key = ${key}`, ['summary', 'parent', 'labels', 'issuelinks'], 1, ctx.signal);
+          if (raw) pcr = pcrOf(raw);
+        } catch {
+          // the PCR is optional; it can be typed in the side panel
+        }
+      }
       const saved = await ticketsStore(ctx.dataDir).update((s) => {
         if (s.tickets.some((t) => t.key === key)) throw invalid('ticket-duplicate', 'The ticket is already on the board.', { key });
         if (s.tickets.length >= MAX_TICKETS) throw invalid('ticket-limit', 'The board is full.');
-        return { ...s, tickets: add(s.tickets, key, status, description) };
+        return { ...s, tickets: add(s.tickets, key, status, description, undefined, pcr) };
       });
       return saved.tickets;
     },
@@ -151,7 +164,10 @@ export const ticketsSource = defineSource<TicketsConfig>({
     },
     async update(payload, _config, ctx) {
       const p = payloadOf(payload);
-      return (await ticketsStore(ctx.dataDir).update((s) => ({ ...s, tickets: update(s.tickets, str(p.id, 100), { description: str(p.description) }) }))).tickets;
+      const patch: Parameters<typeof update>[2] = {};
+      if ('description' in p) patch.description = str(p.description);
+      if ('pcr' in p) patch.pcr = parsePcr(str(p.pcr, 20));
+      return (await ticketsStore(ctx.dataDir).update((s) => ({ ...s, tickets: update(s.tickets, str(p.id, 100), patch) }))).tickets;
     },
     async 'link-pod'(payload, _config, ctx) {
       const p = payloadOf(payload);

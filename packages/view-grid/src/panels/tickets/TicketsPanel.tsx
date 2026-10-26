@@ -66,7 +66,7 @@ export function TicketsPanel({ id, side, config, data, refresh }: Props) {
   const tickets = local ?? data.tickets;
   const cols = columns(tickets, data.statuses);
   const content = (t: Ticket) =>
-    ticketSideContent({ instanceId: id, ticket: t, link: data.links?.[t.key], jiraStatus: data.jiraStatuses?.[t.key], allPods: data.pods ?? [], config, onChanged: refresh });
+    ticketSideContent({ instanceId: id, ticket: t, link: data.links?.[t.key], jira: data.jira?.[t.key], allPods: data.pods ?? [], config, onChanged: refresh });
   const toggle = (t: Ticket) => {
     if (!side) return;
     const c = content(t);

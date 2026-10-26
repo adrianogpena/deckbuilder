@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useState, type ReactNode } from 'react';
 import { Button, Icon } from '@kedalion/ui';
 import { tKey } from '../../i18n';
 import { Chip } from '../../kit';
@@ -7,7 +7,9 @@ import type { TrackedPr } from '../github/tracked';
 import { DescribeDialog } from '../pods/DescribeDialog';
 import type { Pod } from '../pods/model';
 import { PodLogsDialog } from '../pods/PodLogsDialog';
-import { podId, type Ticket } from './model';
+import { AdfView } from './AdfView';
+import { formatDuration, isOverdue, type JiraInfo } from './jira-info';
+import { parsePcr, podId, type Ticket } from './model';
 import type { TicketLink } from './types';
 import './tickets.css';
 
@@ -92,21 +94,24 @@ function PrCard({ pr }: { pr: TrackedPr }) {
 interface Props {
   ticket: Ticket;
   link?: TicketLink;
-  jiraStatus?: string;
+  jira?: JiraInfo;
   allPods: Pod[];
   config: Record<string, unknown>;
   onChanged(): void;
 }
 
 /** The ticket in the Dashboard side panel: description, linked PRs and pods (link or unlink pods by hand). */
-export function TicketOverview({ ticket, link, jiraStatus, allPods, config, onChanged }: Props) {
+export function TicketOverview({ ticket, link, jira, allPods, config, onChanged }: Props) {
   const [description, setDescription] = useState(ticket.description);
   const [manual, setManual] = useState<string[]>(link?.manualPods ?? ticket.podLinks ?? []);
   const [choice, setChoice] = useState('');
   const [logs, setLogs] = useState<Pod | null>(null);
   const [describe, setDescribe] = useState<{ pod: Pod; text?: string } | null>(null);
   const [editing, setEditing] = useState(false);
+  const [pcr, setPcr] = useState(ticket.pcr ?? '');
+  const [editingPcr, setEditingPcr] = useState(false);
   const [error, setError] = useState('');
+  const [showComment, setShowComment] = useState(false);
   const none = <p className="tickets-detail-none">{tKey('dash.tickets.detail.none')}</p>;
 
   const fromServer = new Set(link?.manualPods ?? []);
@@ -120,6 +125,19 @@ export function TicketOverview({ ticket, link, jiraStatus, allPods, config, onCh
     if (description === ticket.description) return;
     try {
       await runAction('tickets', 'update', config, { id: ticket.id, description });
+      setError('');
+    } catch (err) {
+      setError(String((err as Error)?.message ?? err));
+    }
+    onChanged();
+  };
+
+  const savePcr = async () => {
+    const value = parsePcr(pcr);
+    setPcr(value);
+    if (value === (ticket.pcr ?? '')) return;
+    try {
+      await runAction('tickets', 'update', config, { id: ticket.id, pcr: value });
       setError('');
     } catch (err) {
       setError(String((err as Error)?.message ?? err));
@@ -180,17 +198,80 @@ export function TicketOverview({ ticket, link, jiraStatus, allPods, config, onCh
     </div>
   );
 
+  const estimation = jira
+    ? [
+        jira.points !== null && tKey('dash.tickets.detail.estPoints', { n: jira.points }),
+        jira.originalEstimate !== null && tKey('dash.tickets.detail.estOriginal', { t: formatDuration(jira.originalEstimate) }),
+        jira.remainingEstimate !== null && tKey('dash.tickets.detail.estRemaining', { t: formatDuration(jira.remainingEstimate) }),
+        jira.timeSpent !== null && tKey('dash.tickets.detail.estSpent', { t: formatDuration(jira.timeSpent) }),
+      ]
+        .filter(Boolean)
+        .join(' · ')
+    : '';
+  const date = (iso: string) => new Date(iso).toLocaleDateString();
+  const details: [string, ReactNode][] = jira
+    ? [
+        [tKey('dash.tickets.detail.type'), jira.type],
+        [tKey('dash.tickets.detail.parent'), jira.parent],
+        [tKey('dash.tickets.detail.estimation'), estimation],
+        [tKey('dash.tickets.detail.fixVersions'), jira.fixVersions.join(', ')],
+        [tKey('dash.tickets.detail.labels'), jira.labels.join(', ')],
+        [tKey('dash.tickets.detail.due'), jira.due && <span className={isOverdue(jira.due, jira.tone) ? 'tickets-overdue' : undefined}>{date(jira.due)}</span>],
+        [tKey('dash.tickets.detail.updated'), jira.updated && date(jira.updated)],
+      ]
+    : [];
+  const shownDetails = details.filter(([, v]) => v);
   const projects = [...new Set((link?.prs ?? []).map((pr) => pr.repo))];
 
   return (
     <div className="tickets-ov">
       {error && <div className="tickets-error" role="alert">{error}</div>}
       <div className="tickets-ov-top">
-        <div className="tickets-card">
+        <div className="tickets-card tickets-ov-small">
           <h4>{tKey('dash.tickets.detail.status')}</h4>
-          <p>{jiraStatus || <span className="tickets-detail-dim">{tKey('dash.tickets.detail.jiraStatusNone')}</span>}</p>
+          <p>{jira?.status ? <Chip tone={jira.tone}>{jira.status}</Chip> : <span className="tickets-detail-dim">{tKey('dash.tickets.detail.jiraStatusNone')}</span>}</p>
         </div>
-        <div className="tickets-card">
+        {jira?.priority && (
+          <div className="tickets-card tickets-ov-small">
+            <h4>{tKey('dash.tickets.detail.priority')}</h4>
+            <p>{jira.priority}</p>
+          </div>
+        )}
+        <div className="tickets-card tickets-ov-small">
+          <h4>{tKey('dash.tickets.detail.pcr')}</h4>
+          {editingPcr ? (
+            <input
+              className="tickets-edit tickets-ov-pcr"
+              autoFocus
+              value={pcr}
+              placeholder="163"
+              aria-label={tKey('dash.tickets.editPcr')}
+              onChange={(e) => setPcr(e.target.value)}
+              onBlur={() => {
+                setEditingPcr(false);
+                void savePcr();
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') e.currentTarget.blur();
+                if (e.key !== 'Escape') return;
+                e.stopPropagation();
+                setPcr(ticket.pcr ?? '');
+                setEditingPcr(false);
+              }}
+            />
+          ) : (
+            <button type="button" className="tickets-card-edit" aria-label={tKey('dash.tickets.editPcr')} onClick={() => setEditingPcr(true)}>
+              {pcr ? `#${pcr}` : <span className="tickets-detail-dim">{tKey('dash.tickets.noPcr')}</span>}
+            </button>
+          )}
+        </div>
+        {jira?.assignee && (
+          <div className="tickets-card tickets-ov-small">
+            <h4>{tKey('dash.tickets.detail.assignee')}</h4>
+            <p>{jira.assignee}</p>
+          </div>
+        )}
+        <div className="tickets-card tickets-ov-wide">
           <h4>{tKey('dash.tickets.detail.description')}</h4>
           {editing ? (
             <textarea
@@ -219,6 +300,44 @@ export function TicketOverview({ ticket, link, jiraStatus, allPods, config, onCh
           )}
         </div>
       </div>
+      {shownDetails.length > 0 && (
+        <div className="tickets-card">
+          <dl className="tickets-ov-details">
+            {shownDetails.map(([label, value]) => (
+              <Fragment key={label}>
+                <dt>{label}</dt>
+                <dd>{value}</dd>
+              </Fragment>
+            ))}
+          </dl>
+        </div>
+      )}
+      {jira && jira.links.length > 0 && (
+        <section>
+          <h4>{tKey('dash.tickets.detail.links')}</h4>
+          {jira.links.map((l) => (
+            <div key={`${l.label}-${l.key}`} className="tickets-card">
+              <span className={l.blocker ? 'tickets-blocker' : 'tickets-detail-dim'}>{l.label}</span> <strong>{l.key}</strong> {l.summary}
+              {l.status && <span className="tickets-detail-dim"> · {l.status}</span>}
+            </div>
+          ))}
+        </section>
+      )}
+      {jira?.lastComment && (
+        <section>
+          <Button aria-expanded={showComment} onClick={() => setShowComment(!showComment)}>
+            <Icon name="chevron" size={12} /> {tKey('dash.tickets.detail.lastComment')}
+          </Button>
+          {showComment && (
+            <div className="tickets-card">
+              <span className="tickets-detail-dim">
+                {jira.lastComment.author} · {date(jira.lastComment.created)}
+              </span>
+              <AdfView body={jira.lastComment.body} />
+            </div>
+          )}
+        </section>
+      )}
       <section>
         <h4>{tKey('dash.tickets.detail.projects')}</h4>
         {projects.length ? <div className="tickets-ov-projects">{projects.map((r) => <Chip key={r}>{r}</Chip>)}</div> : none}
