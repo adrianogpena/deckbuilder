@@ -61,3 +61,4 @@ a.tickets-key:hover { text-decoration: underline; }
 .tickets-pr-full dl { display: grid; grid-template-columns: auto 1fr; gap: var(--space-4) var(--space-8); margin: 0 0 var(--space-6); }
 .tickets-pr-full dt { color: var(--text-dim); }
 .tickets-pr-full dd { margin: 0; overflow-wrap: anywhere; }
+.tickets-ov-projects { display: flex; flex-wrap: wrap; gap: var(--space-6); }

@@ -87,7 +87,7 @@ export const ticketsSource = defineSource<TicketsConfig>({
       try {
         const conn = await ctx.connection(config.connection, 'github');
         const { refs } = await trackedStore(ctx.dataDir).read();
-        prs = await fetchPrPool(conn, { tracked: refs, signal: ctx.signal });
+        prs = await fetchPrPool(conn, { tracked: refs, keys: tickets.map((t) => t.key), signal: ctx.signal });
       } catch {
         prError = true;
       }

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Button, Icon } from '@kedalion/ui';
 import { tKey } from '../../i18n';
+import { Chip } from '../../kit';
 import { runAction } from '../../source';
 import type { TrackedPr } from '../github/tracked';
 import { DescribeDialog } from '../pods/DescribeDialog';
@@ -178,6 +179,8 @@ export function TicketOverview({ ticket, link, allPods, config, onChanged }: Pro
     </div>
   );
 
+  const projects = [...new Set((link?.prs ?? []).map((pr) => pr.repo))];
+
   return (
     <div className="tickets-ov">
       {error && <div className="tickets-error" role="alert">{error}</div>}
@@ -215,6 +218,10 @@ export function TicketOverview({ ticket, link, allPods, config, onChanged }: Pro
           )}
         </div>
       </div>
+      <section>
+        <h4>{tKey('dash.tickets.detail.projects')}</h4>
+        {projects.length ? <div className="tickets-ov-projects">{projects.map((r) => <Chip key={r}>{r}</Chip>)}</div> : none}
+      </section>
       <section>
         <h4>{tKey('dash.tickets.detail.prs')}</h4>
         {link?.prs.length ? link.prs.map((pr) => <PrCard key={pr.url} pr={pr} />) : none}

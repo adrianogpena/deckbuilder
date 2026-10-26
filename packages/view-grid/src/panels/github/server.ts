@@ -197,8 +197,32 @@ const POOL_QUERY = `query($mine: String!, $review: String!) {
 
 type PoolNode = PrNode & { repository?: { nameWithOwner: string } };
 
-/** Open PRs of the user (`mine`), those awaiting their review (`review`) and the tracked ones, each tagged with its `scope`. */
-export async function fetchPrPool(conn: ResolvedConnection, { tracked, signal, ...opts }: { tracked: readonly PrRef[]; signal?: AbortSignal } & Partial<TrackedOptions>): Promise<TrackedPr[]> {
+const KEY_CHUNK = 10;
+const KEY_PRS = 10;
+
+/** Refs of PRs (any state, any author) whose title mentions one of `keys`, found by one light search per key. */
+async function findKeyPrRefs(conn: ResolvedConnection, keys: readonly string[], signal?: AbortSignal): Promise<PrRef[]> {
+  const out: PrRef[] = [];
+  for (let i = 0; i < keys.length; i += KEY_CHUNK) {
+    const chunk = keys.slice(i, i + KEY_CHUNK);
+    const query = `query(${chunk.map((_, k) => `$q${k}: String!`).join(', ')}) {
+${chunk.map((_, k) => `  k${k}: search(query: $q${k}, type: ISSUE, first: ${KEY_PRS}) { nodes { ... on PullRequest { number title repository { nameWithOwner } } } }`).join('\n')}
+}`;
+    const vars: Record<string, unknown> = {};
+    chunk.forEach((key, k) => Object.assign(vars, { [`q${k}`]: `is:pr in:title "${key}"` }));
+    const res = await graphql<Record<string, { nodes: ({ number: number; repository?: { nameWithOwner: string } } | null)[] }>>(conn, query, vars, signal);
+    chunk.forEach((_, k) => {
+      for (const node of res[`k${k}`]?.nodes ?? []) {
+        const [owner, repo] = node?.repository?.nameWithOwner.split('/') ?? [];
+        if (node && owner && repo) out.push({ owner, repo, number: node.number });
+      }
+    });
+  }
+  return out;
+}
+
+/** Open PRs of the user (`mine`), those awaiting their review (`review`), the tracked ones and, when `keys` is given, any PR titled with one of them; each but the last tagged with its `scope`. */
+export async function fetchPrPool(conn: ResolvedConnection, { tracked, keys = [], signal, ...opts }: { tracked: readonly PrRef[]; keys?: readonly string[]; signal?: AbortSignal } & Partial<TrackedOptions>): Promise<TrackedPr[]> {
   const labels = { ...DEFAULT_LABELS, ...opts };
   const res = await graphql<Record<'mine' | 'review', { nodes: (PoolNode | null)[] }>>(conn, POOL_QUERY, { mine: 'is:pr is:open author:@me', review: 'is:pr is:open review-requested:@me' }, signal);
   const out: TrackedPr[] = [];
@@ -209,6 +233,15 @@ export async function fetchPrPool(conn: ResolvedConnection, { tracked, signal, .
     }
   }
   for (const pr of await fetchPrs(conn, tracked, signal, labels)) out.push({ ...pr, scope: 'tracked' });
+  if (keys.length) {
+    try {
+      const seen = new Set(out.map((p) => `${p.owner}/${p.repo}#${p.number}`));
+      const refs = (await findKeyPrRefs(conn, keys, signal)).filter((r) => !seen.has(`${r.owner}/${r.repo}#${r.number}`));
+      out.push(...(await fetchPrs(conn, refs, signal, labels)));
+    } catch {
+      // the lookup by key is best-effort; keep the PRs already found
+    }
+  }
   return out;
 }
 
