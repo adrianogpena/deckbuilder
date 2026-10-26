@@ -92,13 +92,14 @@ function PrCard({ pr }: { pr: TrackedPr }) {
 interface Props {
   ticket: Ticket;
   link?: TicketLink;
+  jiraStatus?: string;
   allPods: Pod[];
   config: Record<string, unknown>;
   onChanged(): void;
 }
 
 /** The ticket in the Dashboard side panel: description, linked PRs and pods (link or unlink pods by hand). */
-export function TicketOverview({ ticket, link, allPods, config, onChanged }: Props) {
+export function TicketOverview({ ticket, link, jiraStatus, allPods, config, onChanged }: Props) {
   const [description, setDescription] = useState(ticket.description);
   const [manual, setManual] = useState<string[]>(link?.manualPods ?? ticket.podLinks ?? []);
   const [choice, setChoice] = useState('');
@@ -187,7 +188,7 @@ export function TicketOverview({ ticket, link, allPods, config, onChanged }: Pro
       <div className="tickets-ov-top">
         <div className="tickets-card">
           <h4>{tKey('dash.tickets.detail.status')}</h4>
-          <p>{ticket.status}</p>
+          <p>{jiraStatus || <span className="tickets-detail-dim">{tKey('dash.tickets.detail.jiraStatusNone')}</span>}</p>
         </div>
         <div className="tickets-card">
           <h4>{tKey('dash.tickets.detail.description')}</h4>

@@ -30,6 +30,8 @@ export interface TicketsData {
   unlinked?: UnlinkedKey[];
   /** Every pod tracked in the Pods panels, for linking by hand. */
   pods?: Pod[];
+  /** Current Jira status per ticket key; empty without a Jira connection or when the fetch failed. */
+  jiraStatuses?: Record<string, string>;
   /** The PR fetch failed: links carry no PRs. */
   prError?: boolean;
 }

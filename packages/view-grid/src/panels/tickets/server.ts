@@ -1,6 +1,7 @@
 import { invalid } from '@kedalion/server-core';
 import { createJsonStore, type JsonStore } from '../../json-store';
 import { defineSource, type DataSource, type GridPanelSpec } from '../../server';
+import { search } from '../jira/client';
 import { fetchPrPool, trackedStore } from '../github/server';
 import type { TrackedPr } from '../github/tracked';
 import { latestPods } from '../pods/server';
@@ -13,6 +14,7 @@ import type { TicketsData } from './types';
 
 interface TicketsConfig {
   connection: string;
+  jiraConnection?: string;
   statuses: string;
   keyPattern: string;
   jiraBaseUrl: string;
@@ -115,7 +117,18 @@ export const ticketsSource = defineSource<TicketsConfig>({
       });
       tickets = saved.tickets;
     }
-    return { statuses, tickets, links, unlinked, pods, ...(prError ? { prError } : {}) };
+    const jiraStatuses: Record<string, string> = {};
+    if (config.jiraConnection && tickets.length) {
+      try {
+        const conn = await ctx.connection(config.jiraConnection, 'jira');
+        const keys = tickets.map((t) => t.key).filter((k) => /^[A-Za-z][A-Za-z0-9_]*-\d+$/.test(k));
+        const raw = keys.length ? await search(conn, `key in (${keys.join(',')})`, ['status'], keys.length, ctx.signal) : [];
+        for (const r of raw) jiraStatuses[String(r.key)] = String(r.fields?.status?.name ?? '');
+      } catch {
+        // the Jira status is optional; the overview shows a dash
+      }
+    }
+    return { statuses, tickets, links, unlinked, pods, jiraStatuses, ...(prError ? { prError } : {}) };
   },
   actions: {
     async add(payload, config, ctx) {
