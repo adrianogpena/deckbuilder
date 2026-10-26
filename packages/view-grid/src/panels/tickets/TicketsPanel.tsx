@@ -122,7 +122,14 @@ export function TicketsPanel({ id, side, config, data, refresh }: Props) {
           </section>
         ))}
       </div>
-      {data.unlinked && <UnlinkedList unlinked={data.unlinked} onAdd={(k) => void act('add', { key: k })} />}
+      {data.unlinked && (
+        <UnlinkedList
+          unlinked={data.unlinked}
+          tickets={tickets}
+          onAdd={(k) => void act('add', { key: k })}
+          onLink={(k, ticketId) => void act('link-key', { id: ticketId, key: k })}
+        />
+      )}
     </div>
   );
 }

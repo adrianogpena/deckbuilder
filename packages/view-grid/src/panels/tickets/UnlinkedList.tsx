@@ -1,14 +1,24 @@
 import { useState } from 'react';
 import { Button, Icon } from '@kedalion/ui';
 import { tKey } from '../../i18n';
+import type { Ticket } from './model';
 import type { UnlinkedKey } from './types';
 
 /** Keys carried by PRs or pods that have no card; keys only seen through review-requested PRs are left out. */
 export const visibleUnlinked = (list: readonly UnlinkedKey[]): UnlinkedKey[] =>
   list.filter((u) => u.pods.length > 0 || u.prs.some((p) => p.scope !== 'review'));
 
-export function UnlinkedList({ unlinked, onAdd }: { unlinked: readonly UnlinkedKey[]; onAdd(key: string): void }) {
+interface Props {
+  unlinked: readonly UnlinkedKey[];
+  tickets: readonly Ticket[];
+  onAdd(key: string): void;
+  onLink(key: string, ticketId: string): void;
+}
+
+export function UnlinkedList({ unlinked, tickets, onAdd, onLink }: Props) {
   const [open, setOpen] = useState(true);
+  const [linking, setLinking] = useState<string | null>(null);
+  const [choice, setChoice] = useState('');
   const list = visibleUnlinked(unlinked);
   if (!list.length) return null;
   return (
@@ -24,6 +34,40 @@ export function UnlinkedList({ unlinked, onAdd }: { unlinked: readonly UnlinkedK
             <Button onClick={() => onAdd(u.key)}>
               <Icon name="plus" size={12} /> {tKey('dash.tickets.unlinked.add')}
             </Button>
+            {tickets.length > 0 &&
+              (linking === u.key ? (
+                <>
+                  <select value={choice} aria-label={tKey('dash.tickets.unlinked.pick')} onChange={(e) => setChoice(e.target.value)}>
+                    <option value="">{tKey('dash.tickets.unlinked.pick')}</option>
+                    {tickets.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.key}
+                        {t.description ? ` - ${t.description.slice(0, 60)}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <Button
+                    disabled={!choice}
+                    onClick={() => {
+                      onLink(u.key, choice);
+                      setLinking(null);
+                      setChoice('');
+                    }}
+                  >
+                    <Icon name="plus" size={12} /> {tKey('dash.tickets.detail.link')}
+                  </Button>
+                  <Button onClick={() => setLinking(null)}>{tKey('dash.tickets.unlinked.cancel')}</Button>
+                </>
+              ) : (
+                <Button
+                  onClick={() => {
+                    setLinking(u.key);
+                    setChoice('');
+                  }}
+                >
+                  {tKey('dash.tickets.unlinked.link')}
+                </Button>
+              ))}
           </div>
         ))}
     </section>

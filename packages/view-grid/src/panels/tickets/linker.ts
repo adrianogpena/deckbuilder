@@ -1,7 +1,7 @@
 import { DEFAULT_TICKET_PATTERN, ticketKey } from '../github/map';
 import type { TrackedPr } from '../github/tracked';
 import type { Pod } from '../pods/model';
-import { podId } from './model';
+import { normPodId, podId } from './model';
 import type { Stage, TicketLink, UnlinkedKey } from './types';
 
 /** The first key anywhere in a pod name, upper-cased; '' when none. */
@@ -49,6 +49,7 @@ export function linkTickets(
   hours: Record<string, number>,
   pattern: string,
   manualPods: Record<string, readonly string[]> = {},
+  aliases: Record<string, readonly string[]> = {},
 ): LinkResult {
   const prsBy = new Map<string, TrackedPr[]>();
   for (const pr of prs) {
@@ -67,10 +68,11 @@ export function linkTickets(
   const known = new Set<string>();
   for (const key of keys) {
     const up = key.toUpperCase();
-    known.add(up);
-    const linkedPrs = prsBy.get(up) ?? [];
-    const manual = new Set(manualPods[key] ?? manualPods[up] ?? []);
-    const auto = podsBy.get(up) ?? [];
+    const own = [up, ...(aliases[key] ?? []).map((a) => a.toUpperCase())];
+    for (const k of own) known.add(k);
+    const linkedPrs = [...new Set(own.flatMap((k) => prsBy.get(k) ?? []))];
+    const manual = new Set((manualPods[key] ?? manualPods[up] ?? []).map(normPodId));
+    const auto = [...new Set(own.flatMap((k) => podsBy.get(k) ?? []))];
     const linkedPods = [...auto, ...pods.filter((p) => manual.has(podId(p)) && !auto.includes(p))];
     const h = hoursBy.get(up) ?? null;
     const branches = [...new Set(linkedPrs.map((p) => p.branch).filter(Boolean))];
@@ -85,7 +87,7 @@ export function linkTickets(
   }
 
   const unlinked: UnlinkedKey[] = [];
-  const manualIds = new Set(Object.values(manualPods).flat());
+  const manualIds = new Set(Object.values(manualPods).flat().map(normPodId));
   for (const key of new Set([...prsBy.keys(), ...podsBy.keys()])) {
     if (known.has(key)) continue;
     const kp = prsBy.get(key) ?? [];

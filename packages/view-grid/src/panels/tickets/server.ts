@@ -10,7 +10,7 @@ import { TICKETS_FIELDS } from './fields';
 import { planAutoMoves } from './auto-move';
 import { infoFields, mapInfo, pcrOf, type JiraInfo } from './jira-info';
 import { linkTickets } from './linker';
-import { add, extractKey, MAX_TICKETS, move, parsePcr, parseStatuses, remove, update, type Ticket } from './model';
+import { add, extractKey, MAX_TICKETS, move, normPodId, parsePcr, parseStatuses, remove, update, type Ticket } from './model';
 import type { TicketsData } from './types';
 
 interface TicketsConfig {
@@ -50,6 +50,7 @@ function parseStore(raw: unknown): TicketStore {
         order: typeof o.order === 'number' && Number.isFinite(o.order) ? o.order : tickets.length,
       };
       if (Array.isArray(o.podLinks)) t.podLinks = o.podLinks.filter((x): x is string => typeof x === 'string').map((x) => x.slice(0, 500)).slice(0, 50);
+      if (Array.isArray(o.aliases)) t.aliases = o.aliases.filter((x): x is string => typeof x === 'string' && !!x).map((x) => x.slice(0, 100)).slice(0, 50);
       if (parsePcr(str(o.pcr, 20))) t.pcr = parsePcr(str(o.pcr, 20));
       if (typeof o.movedAt === 'number') t.movedAt = o.movedAt;
       if (typeof o.autoMovedAt === 'number') t.autoMovedAt = o.autoMovedAt;
@@ -91,7 +92,7 @@ export const ticketsSource = defineSource<TicketsConfig>({
       try {
         const conn = await ctx.connection(config.connection, 'github');
         const { refs } = await trackedStore(ctx.dataDir).read();
-        prs = await fetchPrPool(conn, { tracked: refs, keys: tickets.map((t) => t.key), signal: ctx.signal });
+        prs = await fetchPrPool(conn, { tracked: refs, keys: tickets.flatMap((t) => [t.key, ...(t.aliases ?? [])]), signal: ctx.signal });
       } catch {
         prError = true;
       }
@@ -105,6 +106,7 @@ export const ticketsSource = defineSource<TicketsConfig>({
       hours,
       config.keyPattern,
       Object.fromEntries(tickets.filter((t) => t.podLinks?.length).map((t) => [t.key, t.podLinks!])),
+      Object.fromEntries(tickets.filter((t) => t.aliases?.length).map((t) => [t.key, t.aliases!])),
     );
     const statuses = parseStatuses(config.statuses ?? '');
     if (config.connection && !prError) {
@@ -169,9 +171,23 @@ export const ticketsSource = defineSource<TicketsConfig>({
       if ('pcr' in p) patch.pcr = parsePcr(str(p.pcr, 20));
       return (await ticketsStore(ctx.dataDir).update((s) => ({ ...s, tickets: update(s.tickets, str(p.id, 100), patch) }))).tickets;
     },
+    async 'link-key'(payload, _config, ctx) {
+      const p = payloadOf(payload);
+      const key = str(p.key, 100).toUpperCase();
+      if (!key) throw invalid('ticket-invalid-key', 'Not a ticket key.');
+      return (
+        await ticketsStore(ctx.dataDir).update((s) => ({
+          ...s,
+          tickets: s.tickets.map((t) => {
+            if (t.id !== str(p.id, 100) || t.key.toUpperCase() === key || t.aliases?.includes(key)) return t;
+            return { ...t, aliases: [...(t.aliases ?? []), key].slice(0, 50) };
+          }),
+        }))
+      ).tickets;
+    },
     async 'link-pod'(payload, _config, ctx) {
       const p = payloadOf(payload);
-      const pod = str(p.pod, 500);
+      const pod = normPodId(str(p.pod, 500));
       if (!pod) throw invalid('ticket-invalid-pod', 'Not a pod.');
       const on = p.linked !== false;
       return (
@@ -179,7 +195,7 @@ export const ticketsSource = defineSource<TicketsConfig>({
           ...s,
           tickets: s.tickets.map((t) => {
             if (t.id !== str(p.id, 100)) return t;
-            const rest = (t.podLinks ?? []).filter((x) => x !== pod);
+            const rest = (t.podLinks ?? []).filter((x) => normPodId(x) !== pod);
             return { ...t, podLinks: on ? [...rest, pod] : rest };
           }),
         }))

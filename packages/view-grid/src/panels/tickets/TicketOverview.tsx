@@ -9,7 +9,7 @@ import type { Pod } from '../pods/model';
 import { PodLogsDialog } from '../pods/PodLogsDialog';
 import { AdfView } from './AdfView';
 import { formatDuration, isOverdue, type JiraInfo } from './jira-info';
-import { parsePcr, podId, type Ticket } from './model';
+import { normPodId, parsePcr, podId, type Ticket } from './model';
 import { showTicketsNow } from './TicketsPanel';
 import type { TicketLink } from './types';
 import './tickets.css';
@@ -115,12 +115,13 @@ export function TicketOverview({ ticket, link, jira, allPods, config, onChanged 
   const [showComment, setShowComment] = useState(false);
   const none = <p className="tickets-detail-none">{tKey('dash.tickets.detail.none')}</p>;
 
-  const fromServer = new Set(link?.manualPods ?? []);
+  const fromServer = new Set((link?.manualPods ?? []).map(normPodId));
   const auto = (link?.pods ?? []).filter((p) => !fromServer.has(podId(p)));
-  const byId = new Map([...(link?.pods ?? []), ...allPods].map((p) => [podId(p), p]));
-  const manualPods = manual.flatMap((id) => byId.get(id) ?? []);
+  const everyPod = [...new Map([...(link?.pods ?? []), ...allPods].map((p) => [`${p.cluster}/${p.name}`, p])).values()];
+  const manualIds = new Set(manual.map(normPodId));
+  const manualPods = everyPod.filter((p) => manualIds.has(podId(p)));
   const shown = new Set([...auto, ...manualPods].map(podId));
-  const candidates = allPods.filter((p) => !shown.has(podId(p)));
+  const candidates = [...new Map(allPods.filter((p) => !shown.has(podId(p))).map((p) => [podId(p), p])).values()];
 
   const latest = useRef({ description, pcr });
   latest.current = { description, pcr };
@@ -165,7 +166,8 @@ export function TicketOverview({ ticket, link, jira, allPods, config, onChanged 
 
   const setLinked = async (pod: string, linked: boolean) => {
     const before = manual;
-    setManual(linked ? [...manual.filter((x) => x !== pod), pod] : manual.filter((x) => x !== pod));
+    const rest = manual.filter((x) => normPodId(x) !== pod);
+    setManual(linked ? [...rest, pod] : rest);
     try {
       await runAction('tickets', 'link-pod', config, { id: ticket.id, pod, linked });
       setError('');

@@ -10,6 +10,8 @@ export interface Ticket {
   autoMove: boolean | null;
   /** Pods linked by hand (`podId`), for pods whose name carries no key. */
   podLinks?: string[];
+  /** Other keys whose PRs and pods belong to this ticket (linked from the unlinked list). */
+  aliases?: string[];
   order: number;
   movedAt?: number;
   autoMovedAt?: number;
@@ -18,8 +20,17 @@ export interface Ticket {
 /** The digits of a PCR input (`163`, `#163`, `PCR#163`); empty when there are none. */
 export const parsePcr = (input: string): string => /\d+/.exec(input)?.[0] ?? '';
 
-/** Stable id of a pod on the board: `<context>/<namespace>/<name>`. */
-export const podId = (p: { cluster: string; name: string }): string => `${p.cluster}/${p.name}`;
+/** Drops the generated tail of a pod name (Deployment `-<replicaset hash>-<id>`, StatefulSet/Job `-<n>`), so a rollout keeps the same id. */
+export const workloadName = (name: string): string => name.replace(/-[a-z0-9]{6,10}-[a-z0-9]{5}$/, '').replace(/-\d+$/, '');
+
+/** Stable id of a pod's workload on the board: `<context>/<namespace>/<workload name>`; survives pod restarts and rollouts. */
+export const podId = (p: { cluster: string; name: string }): string => `${p.cluster}/${workloadName(p.name)}`;
+
+/** Normalises an id stored before ids dropped the generated tail (full pod names). */
+export const normPodId = (id: string): string => {
+  const i = id.lastIndexOf('/');
+  return i < 0 ? id : `${id.slice(0, i + 1)}${workloadName(id.slice(i + 1))}`;
+};
 
 export const MAX_TICKETS = 300;
 export const DEFAULT_STATUSES = ['Open', 'In Progress', 'In Review', 'In Test', 'Ready to Merge', 'Done'];
@@ -71,7 +82,7 @@ export function move(tickets: Ticket[], id: string, status: string, index: numbe
   return renumber(rest);
 }
 
-export function update(tickets: Ticket[], id: string, patch: Partial<Pick<Ticket, 'description' | 'autoMove' | 'podLinks' | 'pcr'>>): Ticket[] {
+export function update(tickets: Ticket[], id: string, patch: Partial<Pick<Ticket, 'description' | 'autoMove' | 'podLinks' | 'aliases' | 'pcr'>>): Ticket[] {
   return tickets.map((t) => (t.id === id ? { ...t, ...patch } : t));
 }
 
