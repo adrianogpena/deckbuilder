@@ -1,4 +1,4 @@
-import { Fragment, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Button, Icon } from '@kedalion/ui';
 import { tKey } from '../../i18n';
 import { Chip } from '../../kit';
@@ -10,6 +10,7 @@ import { PodLogsDialog } from '../pods/PodLogsDialog';
 import { AdfView } from './AdfView';
 import { formatDuration, isOverdue, type JiraInfo } from './jira-info';
 import { parsePcr, podId, type Ticket } from './model';
+import { showTicketsNow } from './TicketsPanel';
 import type { TicketLink } from './types';
 import './tickets.css';
 
@@ -121,29 +122,46 @@ export function TicketOverview({ ticket, link, jira, allPods, config, onChanged 
   const shown = new Set([...auto, ...manualPods].map(podId));
   const candidates = allPods.filter((p) => !shown.has(podId(p)));
 
+  const latest = useRef({ description, pcr });
+  latest.current = { description, pcr };
+  const saved = useRef({ description: ticket.description, pcr: ticket.pcr ?? '' });
+
   const saveDescription = async () => {
-    if (description === ticket.description) return;
+    const value = latest.current.description;
+    if (value === saved.current.description) return;
+    saved.current.description = value;
     try {
-      await runAction('tickets', 'update', config, { id: ticket.id, description });
+      showTicketsNow(await runAction<Ticket[]>('tickets', 'update', config, { id: ticket.id, description: value }));
       setError('');
     } catch (err) {
+      saved.current.description = ticket.description;
       setError(String((err as Error)?.message ?? err));
     }
     onChanged();
   };
 
   const savePcr = async () => {
-    const value = parsePcr(pcr);
+    const value = parsePcr(latest.current.pcr);
     setPcr(value);
-    if (value === (ticket.pcr ?? '')) return;
+    if (value === saved.current.pcr) return;
+    saved.current.pcr = value;
     try {
-      await runAction('tickets', 'update', config, { id: ticket.id, pcr: value });
+      showTicketsNow(await runAction<Ticket[]>('tickets', 'update', config, { id: ticket.id, pcr: value }));
       setError('');
     } catch (err) {
+      saved.current.pcr = ticket.pcr ?? '';
       setError(String((err as Error)?.message ?? err));
     }
     onChanged();
   };
+
+  useEffect(
+    () => () => {
+      void saveDescription();
+      void savePcr();
+    },
+    [],
+  );
 
   const setLinked = async (pod: string, linked: boolean) => {
     const before = manual;
@@ -255,8 +273,7 @@ export function TicketOverview({ ticket, link, jira, allPods, config, onChanged 
                 if (e.key === 'Enter') e.currentTarget.blur();
                 if (e.key !== 'Escape') return;
                 e.stopPropagation();
-                setPcr(ticket.pcr ?? '');
-                setEditingPcr(false);
+                e.currentTarget.blur();
               }}
             />
           ) : (
@@ -289,8 +306,7 @@ export function TicketOverview({ ticket, link, jira, allPods, config, onChanged 
               onKeyDown={(e) => {
                 if (e.key !== 'Escape') return;
                 e.stopPropagation();
-                setDescription(ticket.description);
-                setEditing(false);
+                e.currentTarget.blur();
               }}
             />
           ) : (

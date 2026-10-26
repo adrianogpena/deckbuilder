@@ -210,11 +210,12 @@ ${chunk.map((_, k) => `  k${k}: search(query: $q${k}, type: ISSUE, first: ${KEY_
 }`;
     const vars: Record<string, unknown> = {};
     chunk.forEach((key, k) => Object.assign(vars, { [`q${k}`]: `is:pr in:title "${key}"` }));
-    const res = await graphql<Record<string, { nodes: ({ number: number; repository?: { nameWithOwner: string } } | null)[] }>>(conn, query, vars, signal);
-    chunk.forEach((_, k) => {
+    const res = await graphql<Record<string, { nodes: ({ number: number; title: string; repository?: { nameWithOwner: string } } | null)[] }>>(conn, query, vars, signal);
+    chunk.forEach((key, k) => {
+      const whole = new RegExp(`(?<![A-Za-z0-9])${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?!\\d)`, 'i');
       for (const node of res[`k${k}`]?.nodes ?? []) {
         const [owner, repo] = node?.repository?.nameWithOwner.split('/') ?? [];
-        if (node && owner && repo) out.push({ owner, repo, number: node.number });
+        if (node && owner && repo && whole.test(node.title)) out.push({ owner, repo, number: node.number });
       }
     });
   }
