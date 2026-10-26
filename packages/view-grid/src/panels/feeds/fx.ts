@@ -5,6 +5,8 @@ export interface FxData {
   dates: string[];
   /** The quote per base unit, oldest first. */
   values: number[];
+  /** Set when the series comes from the live provider (Twelve Data) instead of the daily ECB reference. */
+  live?: boolean;
 }
 
 export interface FxSummary {
@@ -36,6 +38,18 @@ export function mapSeries(raw: any, base: string, quote: string): FxData {
     }
   }
   return { base, quote, dates, values };
+}
+
+/** The rates of a Twelve Data `time_series` response (`{ values: [{ datetime, close }] }`, newest first), oldest first. */
+export function mapTwelveData(raw: any, base: string, quote: string): FxData {
+  const rows: any[] = Array.isArray(raw?.values) ? raw.values : [];
+  const points: { date: string; value: number }[] = [];
+  for (const row of rows) {
+    const value = Number(row?.close);
+    if (typeof row?.datetime === 'string' && Number.isFinite(value)) points.push({ date: row.datetime.slice(0, 10), value });
+  }
+  points.sort((a, b) => a.date.localeCompare(b.date));
+  return { base, quote, dates: points.map((p) => p.date), values: points.map((p) => p.value), live: true };
 }
 
 /** Latest value and the change vs. the first day; undefined without data. */

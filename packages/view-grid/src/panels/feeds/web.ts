@@ -46,8 +46,8 @@ const exchangeRatePanel = definePanel<FxConfig, FxData>({
   category: 'dash.category.feeds',
   size: { w: 4, h: 8, minW: 3, minH: 5 },
   config: { fields: FX_FIELDS },
-  load: (config) => fetchSource<FxData>('feeds-fx', { base: config.base, quote: config.quote, days: config.days }),
-  refreshMs: 60 * MIN,
+  load: (config) => fetchSource<FxData>('feeds-fx', { base: config.base, quote: config.quote, days: config.days, apiKey: config.apiKey }),
+  refreshMs: (config) => (config.apiKey?.trim() ? 5 * MIN : 60 * MIN),
   render: ({ config, data }) => createElement(ExchangeRatePanel, { config, data }),
 });
 

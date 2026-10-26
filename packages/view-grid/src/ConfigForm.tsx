@@ -122,6 +122,8 @@ function FieldRow({ field, value, onChange, connections }: { field: PanelField; 
         <label className="field">
           <span className="mono-label">{tKey(field.label)}</span>
           <input
+            type={field.secret ? 'password' : undefined}
+            autoComplete={field.secret ? 'off' : undefined}
             value={typeof value === 'string' ? value : field.default}
             placeholder={field.placeholder ? tKey(field.placeholder) : undefined}
             maxLength={field.maxLength}

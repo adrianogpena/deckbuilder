@@ -2,7 +2,7 @@ import { sourceFetch } from '../../connections/errors';
 import { notifyChanges, notifyScope } from '../../notify-changes';
 import { defineSource,type DataSource, type GridPanelSpec } from '../../server';
 import { fields, FX_FIELDS, RSS_SOURCE_FIELDS, WEATHER_SOURCE_FIELDS } from './fields';
-import { currencyCode, mapSeries, startDate, type FxData } from './fx';
+import { currencyCode, mapSeries, mapTwelveData, startDate, type FxData } from './fx';
 import { feedUrls, mergeFeeds, parseFeed, type Feed, type FeedItem } from './rss';
 import { emptyWeather, forecastParams, mapForecast, placeName, type WeatherData, type WeatherUnits } from './weather';
 
@@ -68,13 +68,32 @@ export const rssSource = defineSource<{ urls: string; max: number; notify: boole
   },
 });
 
-export const fxSource = defineSource<{ base: string; quote: string; days: number }>({
+/** Live series from Twelve Data (1 credit); the last daily bar tracks the current rate. Undefined on any failure, so the caller falls back. */
+async function fetchLiveFx(base: string, quote: string, days: number, apiKey: string, signal: AbortSignal): Promise<FxData | undefined> {
+  try {
+    const url = `https://api.twelvedata.com/time_series?symbol=${base}/${quote}&interval=1day&outputsize=${days + 1}`;
+    const res = await sourceFetch(url, { headers: { ...headers, authorization: `apikey ${apiKey}` } }, { signal });
+    const raw: any = await res.json();
+    if (raw?.status === 'error') return undefined;
+    const data = mapTwelveData(raw, base, quote);
+    return data.values.length > 0 ? data : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export const fxSource = defineSource<{ base: string; quote: string; days: number; apiKey?: string }>({
   id: 'feeds-fx',
   fields: FX_FIELDS,
   async fetch(config, { signal }): Promise<FxData> {
     const base = currencyCode(config.base, 'EUR');
     const quote = currencyCode(config.quote, 'BRL');
     if (base === quote) return { base, quote, dates: [], values: [] };
+    const apiKey = config.apiKey?.trim();
+    if (apiKey) {
+      const live = await fetchLiveFx(base, quote, config.days, apiKey, signal);
+      if (live) return live;
+    }
     const res = await sourceFetch(`https://api.frankfurter.app/${startDate(new Date(), config.days)}..?from=${base}&to=${quote}`, { headers }, { signal });
     return mapSeries(await res.json(), base, quote);
   },

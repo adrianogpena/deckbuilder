@@ -31,6 +31,7 @@ export const FX_FIELDS: readonly PanelField[] = [
   { key: 'base', kind: 'string', label: 'dash.feeds.fx.base', description: 'dash.feeds.fx.code.hint', default: 'EUR', maxLength: 3 },
   { key: 'quote', kind: 'string', label: 'dash.feeds.fx.quote', description: 'dash.feeds.fx.code.hint', default: 'BRL', maxLength: 3 },
   { key: 'days', kind: 'enum', label: 'dash.feeds.fx.days', default: 30, values: [7, 30, 90], optionLabel: 'dash.feeds.fx.days' },
+  { key: 'apiKey', kind: 'string', label: 'dash.feeds.fx.apiKey', description: 'dash.feeds.fx.apiKey.hint', default: '', maxLength: 64, secret: true },
 ];
 
 /** Config field lists of the feeds panels (no React), by kind. */

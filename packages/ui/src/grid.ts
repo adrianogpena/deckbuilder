@@ -17,7 +17,7 @@ interface PanelFieldBase {
 export type PanelField =
   | (PanelFieldBase & { kind: 'boolean'; default: boolean })
   | (PanelFieldBase & { kind: 'number'; default: number; min?: number; max?: number })
-  | (PanelFieldBase & { kind: 'string'; default: string; placeholder?: string; maxLength?: number })
+  | (PanelFieldBase & { kind: 'string'; default: string; placeholder?: string; maxLength?: number; /** Masks the input like a password. */ secret?: boolean })
   | (PanelFieldBase & { kind: 'enum'; default: string | number; values: readonly (string | number)[]; /** i18n key prefix: `<prefix>.<value>` is the option text when it exists. */ optionLabel?: string })
   | (PanelFieldBase & { kind: 'multi'; default: string[]; values: readonly string[]; /** i18n key prefix: `<prefix>.<value>` is the option text when it exists. */ optionLabel?: string })
   | (PanelFieldBase & { kind: 'text'; default: string; maxLength?: number; rows?: number; placeholder?: string; /** Shows an "Import OPML" button that appends the feed URLs of a chosen file. */ importOpml?: boolean })

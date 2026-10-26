@@ -57,6 +57,11 @@ export const en = {
   'dash.feeds.fx.days.90': '90 days',
   'dash.feeds.fx.period': '{days} days',
   'dash.feeds.fx.empty': 'No rates for this pair.',
+  'dash.feeds.fx.verify': 'Verify this rate on xe.com',
+  'dash.feeds.fx.note': 'Daily ECB reference rate from {date}, not a live market rate.',
+  'dash.feeds.fx.note.live': 'Market rate from Twelve Data, refreshed every 5 minutes.',
+  'dash.feeds.fx.apiKey': 'Twelve Data API key',
+  'dash.feeds.fx.apiKey.hint': 'Optional. With a key the rate is live and refreshes every 5 minutes; without one, or if Twelve Data fails, the daily ECB rate (Frankfurter) is used.',
 };
 
 export const ptBR: Messages<typeof en> = {
@@ -116,4 +121,9 @@ export const ptBR: Messages<typeof en> = {
   'dash.feeds.fx.days.90': '90 dias',
   'dash.feeds.fx.period': '{days} dias',
   'dash.feeds.fx.empty': 'Sem cotações para este par.',
+  'dash.feeds.fx.verify': 'Confirmar esta cotação no xe.com',
+  'dash.feeds.fx.note': 'Cotação de referência diária do BCE de {date}, não é cotação de mercado ao vivo.',
+  'dash.feeds.fx.note.live': 'Cotação de mercado da Twelve Data, atualizada a cada 5 minutos.',
+  'dash.feeds.fx.apiKey': 'Chave de API da Twelve Data',
+  'dash.feeds.fx.apiKey.hint': 'Opcional. Com uma chave a cotação é ao vivo e atualiza a cada 5 minutos; sem chave, ou se a Twelve Data falhar, usa-se a cotação diária do BCE (Frankfurter).',
 };

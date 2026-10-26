@@ -7,6 +7,7 @@ export interface FxConfig {
   base: string;
   quote: string;
   days: number;
+  apiKey?: string;
   [key: string]: unknown;
 }
 
@@ -27,6 +28,10 @@ export function ExchangeRatePanel({ config, data }: { config: FxConfig; data: Fx
         delta={`${sign}${fmt(summary.change)} (${sign}${fmt(summary.percent, 2)}%) · ${tKey('dash.feeds.fx.period', { days: config.days })}`}
       />
       {data.values.length > 1 && <Sparkline values={data.values} height={40} title={`${data.base}/${data.quote}`} />}
+      <p className="fx-note">{tKey(data.live ? 'dash.feeds.fx.note.live' : 'dash.feeds.fx.note', { date: data.dates[data.dates.length - 1] ?? '' })}</p>
+      <a className="fx-verify"href={`https://www.xe.com/currencyconverter/convert/?Amount=1&From=${data.base}&To=${data.quote}`} target="_blank" rel="noreferrer">
+        {tKey('dash.feeds.fx.verify')}
+      </a>
     </div>
   );
 }
