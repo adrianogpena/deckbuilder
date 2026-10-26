@@ -1,0 +1,318 @@
+import type { ReactNode } from 'react';
+import { copyText, IconButton, useAsync, type SidePanelContent } from '@kedalion/ui';
+import { tKey } from '../../i18n';
+import { Chip, relTime, type Tone } from '../../kit';
+import { runAction } from '../../source';
+import { latestRc, RC_STEPS, type RcBuild, type RcInfo, type RcStepState } from './rc';
+import type { BotEntry } from './bot';
+import type { PrItem } from './map';
+import type { PullRequestsConfig } from './PullRequests';
+import type { CheckDetail, CheckState } from './tracked';
+import './github.css';
+
+export const REVIEW_TONE: Record<string, Tone> = { approved: 'ok', changes: 'danger', required: 'warn' };
+export const CI_TONE: Record<string, Tone> = { pass: 'ok', fail: 'danger', pending: 'warn' };
+
+export interface PrSideInput {
+  instanceId: string;
+  pr: PrItem;
+  config: PullRequestsConfig;
+}
+
+const when = (iso: string) => {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleString();
+};
+
+function Card({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="gh-pr-card">
+      <h4>{title}</h4>
+      {children}
+    </section>
+  );
+}
+
+function Line({ label, title, children }: { label: string; title?: string; children: ReactNode }) {
+  return (
+    <div className="gh-pr-line" title={title}>
+      <span className="muted">{label}</span>
+      {children}
+    </div>
+  );
+}
+
+const CHECK_TONE: Record<CheckState, Tone> = { failure: 'danger', pending: 'warn', success: 'ok', neutral: 'neutral' };
+const NOTE_MAX = 160;
+
+const duration = (ms: number) => {
+  const s = Math.max(0, Math.round(ms / 1000));
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  return m < 60 ? `${m}m ${s % 60}s` : `${Math.floor(m / 60)}h ${m % 60}m`;
+};
+
+function CheckRow({ check }: { check: CheckDetail }) {
+  const start = check.startedAt ? Date.parse(check.startedAt) : NaN;
+  const end = check.completedAt ? Date.parse(check.completedAt) : NaN;
+  let took = '';
+  if (check.state === 'pending') {
+    if (!Number.isNaN(start)) took = tKey('dash.github.pr.check.running', { elapsed: duration(Date.now() - start) });
+  } else if (!Number.isNaN(start) && !Number.isNaN(end)) took = duration(end - start);
+  const endMs = check.completedAt ? Date.parse(check.completedAt) : NaN;
+  const finished = Number.isNaN(endMs) ? '' : relTime(endMs);
+  const finishedAbs = check.completedAt ? when(check.completedAt) : '';
+  const note = check.state === 'failure' ? (check.note ?? '').split('\n')[0]!.trim() : '';
+  const cut = check.name.lastIndexOf(' / ');
+  const group = cut > 0 ? check.name.slice(0, cut) : check.workflow && !check.name.includes(check.workflow) ? check.workflow : '';
+  const job = cut > 0 ? check.name.slice(cut + 3) : check.name;
+  return (
+    <div className={`gh-check gh-check-${check.state}`}>
+      <div className="gh-check-row">
+        <Chip tone={CHECK_TONE[check.state]}>{tKey(`dash.github.pr.check.${check.state}`)}</Chip>
+        <span className="gh-check-name" title={check.name}>
+          {group && <span className="muted">{group} / </span>}
+          <strong>{job}</strong>
+        </span>
+        <span className="gh-check-num">{took}</span>
+        <span className="gh-check-num muted" title={finishedAbs ? tKey('dash.github.pr.check.finished', { when: finishedAbs }) : undefined}>{finished}</span>
+        {check.url ? <IconButton icon="link" label={tKey('dash.github.pr.check.open')} onClick={() => window.open(check.url, '_blank', 'noreferrer')} /> : <span />}
+      </div>
+      {note && (
+        <div className="gh-check-note muted" title={note}>
+          {note.length > NOTE_MAX ? `${note.slice(0, NOTE_MAX - 1)}…` : note}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const checkKey = (c: CheckDetail) => `${c.workflow ?? ''}/${c.name}`;
+
+function CheckGroups({ list }: { list: readonly CheckDetail[] }) {
+  const by = (s: CheckState) => list.filter((c) => c.state === s);
+  const sub = (s: CheckState, items: CheckDetail[]) => (
+    <div className="gh-check-sub">{tKey(`dash.github.pr.checks.group.${s}`, { n: items.length })}</div>
+  );
+  const rows = (items: CheckDetail[]) => items.map((c) => <CheckRow key={checkKey(c)} check={c} />);
+  const failed = by('failure');
+  const running = by('pending');
+  const passed = by('success');
+  const skipped = by('neutral');
+  return (
+    <div className="gh-check-list">
+      {failed.length > 0 && <>{sub('failure', failed)}{rows(failed)}</>}
+      {running.length > 0 && <>{sub('pending', running)}{rows(running)}</>}
+      {passed.length > 0 &&
+        (passed.length > 8 ? (
+          <details className="gh-check-fold">
+            <summary className="gh-check-sub">{tKey('dash.github.pr.checks.group.success', { n: passed.length })}</summary>
+            {rows(passed)}
+          </details>
+        ) : (
+          <>{sub('success', passed)}{rows(passed)}</>
+        ))}
+      {skipped.length > 0 && (
+        <details className="gh-check-fold">
+          <summary className="gh-check-sub">{tKey('dash.github.pr.checks.group.neutral', { n: skipped.length })}</summary>
+          {rows(skipped)}
+        </details>
+      )}
+    </div>
+  );
+}
+
+const STEP_TONE: Record<RcStepState, Tone> = { ok: 'ok', fail: 'danger', none: 'neutral' };
+const STEP_MARK: Record<RcStepState, string> = { ok: '✅', fail: '❌', none: '🚧' };
+
+const hasRcLabel = (labels: readonly string[], wanted: unknown) => {
+  const w = (typeof wanted === 'string' && wanted.trim() ? wanted : 'RC branch').trim().toLowerCase();
+  return labels.some((l) => l.toLowerCase().includes(w));
+};
+
+function BuildDate({ date }: { date: string }) {
+  const t = Date.parse(date);
+  if (Number.isNaN(t)) return <span className="muted">{date}</span>;
+  return <span className="muted" title={new Date(t).toLocaleString()}>{relTime(t)}</span>;
+}
+
+function Steps({ build }: { build: RcBuild }) {
+  return (
+    <span className="gh-chips">
+      {RC_STEPS.map((s) => {
+        const state = build.steps[s] ?? 'none';
+        return (
+          <Chip key={s} tone={STEP_TONE[state]} title={tKey(`dash.github.rc.state.${state}`)}>
+            {STEP_MARK[state]} {tKey(`dash.github.rc.step.${s}`)}
+          </Chip>
+        );
+      })}
+    </span>
+  );
+}
+
+interface PrExtra {
+  rc: RcInfo | null;
+  bot: BotEntry[];
+}
+
+function BotCard({ entries }: { entries: readonly BotEntry[] }) {
+  const count = entries.reduce((n, e) => n + e.lines.length, 0);
+  return (
+    <section className="gh-pr-card">
+      <details className="gh-bot">
+        <summary>
+          <h4>{tKey('dash.github.bot.title', { n: count })}</h4>
+        </summary>
+        {entries.map((e, i) => {
+          const t = Date.parse(e.updatedAt);
+          return (
+            <div key={i} className="gh-bot-entry">
+              <div className="gh-pr-line">
+                <strong>{e.source}</strong>
+                {!Number.isNaN(t) && <span className="muted" title={new Date(t).toLocaleString()}>{relTime(t)}</span>}
+                {e.url && <IconButton icon="link" label={tKey('dash.github.bot.open')} onClick={() => window.open(e.url, '_blank', 'noreferrer')} />}
+              </div>
+              <ul className="gh-bot-lines">{e.lines.map((l, j) => <li key={j}>{l}</li>)}</ul>
+            </div>
+          );
+        })}
+      </details>
+    </section>
+  );
+}
+
+function RcCard({ state }: { state: { data: PrExtra | undefined; error?: { message: string } | null } }) {
+  const info = state.data?.rc;
+  const { latest, lastGood } = latestRc(info?.modules ?? []);
+  return (
+    <Card title={tKey('dash.github.rc.title')}>
+      {state.error && !info ? (
+        <span className="gh-error">{state.error.message}</span>
+      ) : info === undefined ? (
+        <span className="muted">{tKey('dash.github.rc.loading')}</span>
+      ) : !info || !latest ? (
+        <span className="muted">{tKey('dash.github.rc.none')}</span>
+      ) : (
+        <>
+          <div className="gh-pr-line">
+            {latest.failed || !latest.version ? (
+              <Chip tone="danger">{tKey('dash.github.rc.failed')}</Chip>
+            ) : (
+              <>
+                <code>{latest.version}</code>
+                <IconButton icon="copy" label={tKey('dash.github.rc.copy')} onClick={() => void copyText(latest.version ?? '')} />
+              </>
+            )}
+            <BuildDate date={latest.date} />
+            {latest.npmUrl && <IconButton icon="link" label={tKey('dash.github.rc.npm')} onClick={() => window.open(latest.npmUrl, '_blank', 'noreferrer')} />}
+          </div>
+          <Steps build={latest} />
+          {latest.failed && lastGood && <div className="gh-pr-line">{tKey('dash.github.rc.lastGood', { version: lastGood })}</div>}
+          {info.modules.map((m) => (
+            <details key={m.name} className="gh-rc-builds">
+              <summary>{m.name} · {tKey('dash.github.rc.all', { n: m.builds.length })}</summary>
+              {[...m.builds].reverse().map((b, i) => (
+                <div key={i} className="gh-check">
+                  <div className="gh-pr-line">
+                    {b.failed || !b.version ? <Chip tone="danger">{tKey('dash.github.rc.failed')}</Chip> : <code>{b.version}</code>}
+                    <BuildDate date={b.date} />
+                  </div>
+                  <Steps build={b} />
+                </div>
+              ))}
+            </details>
+          ))}
+          {info.warnings.length > 0 && <div className="gh-rc-warn">{info.warnings.map((w, i) => <div key={i}>{w}</div>)}</div>}
+        </>
+      )}
+    </Card>
+  );
+}
+
+function PrOverview({ pr, config }: { pr: PrItem; config: PullRequestsConfig }) {
+  const c = pr.checks;
+  const extra = useAsync(() => runAction<PrExtra>('github-prs', 'rc', config, { repo: pr.repo, number: pr.number }), [pr.id]);
+  return (
+    <div className="gh-pr">
+      <Card title={tKey('dash.github.pr.status')}>
+        <Line label={tKey('dash.github.pr.review')}>
+          {pr.review === 'none' ? <span>{tKey('dash.github.pr.noReview')}</span> : <Chip tone={REVIEW_TONE[pr.review]}>{tKey(`dash.github.review.${pr.review}`)}</Chip>}
+        </Line>
+        <Line label={tKey('dash.github.pr.conflicts')}>
+          {pr.conflicts ? <Chip tone="danger">{tKey('dash.github.conflicts')}</Chip> : <span>{tKey('dash.github.pr.noConflicts')}</span>}
+        </Line>
+        <Line label={tKey('dash.github.pr.draft')}>
+          <span>{pr.draft ? tKey('dash.github.pr.draft') : tKey('dash.github.pr.ready')}</span>
+        </Line>
+        {pr.autoMerge && <Chip tone="info">{tKey('dash.github.pr.autoMerge')}</Chip>}
+        <Line label={tKey('dash.github.pr.comments')}>
+          <span>{pr.comments}</span>
+        </Line>
+        <Line label={tKey('dash.github.pr.threads')} title={tKey('dash.github.pr.threadsHint')}>
+          <span>{pr.threads}</span>
+        </Line>
+      </Card>
+      <Card title={tKey('dash.github.pr.checks')}>
+        {pr.ci === 'none' ? (
+          <span>{tKey('dash.github.pr.noChecks')}</span>
+        ) : (
+          <div className="gh-pr-line">
+            <Chip tone={CI_TONE[pr.ci]}>{tKey(`dash.github.ci.${pr.ci}`)}</Chip>
+            <span>{tKey('dash.github.pr.checkCounts', { passed: c.passed, failed: c.failed, pending: c.pending })}</span>
+          </div>
+        )}
+        <CheckGroups list={pr.checkList} />
+      </Card>
+      {hasRcLabel(pr.labels, config.rcLabel) && <RcCard state={extra} />}
+      <Card title={tKey('dash.github.pr.branch')}>
+        <div className="gh-pr-line"><code>{pr.branch}</code><span>{'→'}</span><code>{pr.base}</code></div>
+      </Card>
+      <Card title={tKey('dash.github.pr.size')}>
+        <div className="gh-pr-line">
+          <span className="gh-pr-add">+{pr.additions}</span>
+          <span className="gh-pr-del">{'−'}{pr.deletions}</span>
+          <span className="muted">{tKey('dash.github.pr.files', { n: pr.files })}</span>
+        </div>
+      </Card>
+      <Card title={tKey('dash.github.pr.dates')}>
+        <Line label={tKey('dash.github.pr.created')}><span>{when(pr.createdAt)}</span></Line>
+        <Line label={tKey('dash.github.pr.updated')}><span>{when(pr.updatedAt)}</span></Line>
+      </Card>
+      {pr.labels.length > 0 && (
+        <Card title={tKey('dash.github.pr.labels')}>
+          <span className="gh-chips">{pr.labels.map((l) => <Chip key={l}>{l}</Chip>)}</span>
+        </Card>
+      )}
+      <Card title={tKey('dash.github.pr.ticket')}>
+        <div className="gh-pr-line">
+          {pr.ticket && <Chip tone="info">{pr.ticket}</Chip>}
+          {!pr.linked && (
+            <Chip tone="warn" title={pr.ticket ? tKey('dash.github.noTicket.notOnBoard', { key: pr.ticket }) : tKey('dash.github.noTicket.noKey')}>
+              {tKey('dash.github.noTicket')}
+            </Chip>
+          )}
+        </div>
+      </Card>
+      {extra.data && extra.data.bot.length > 0 && <BotCard entries={extra.data.bot} />}
+    </div>
+  );
+}
+
+/** What the Pull Requests panel opens in the Dashboard side panel for one PR. */
+export function prSideContent({ instanceId, pr, config }: PrSideInput): SidePanelContent {
+  return {
+    id: `${instanceId}:${pr.id}`,
+    title: `#${pr.number} ${pr.title}`,
+    subtitle: pr.repo,
+    icon: 'link',
+    tabs: [{ id: 'overview', label: tKey('dash.github.pr.tab.overview'), render: () => <PrOverview pr={pr} config={config} /> }],
+    actions: (
+      <>
+        <IconButton icon="link" label={tKey('dash.github.pr.open')} onClick={() => window.open(pr.url, '_blank', 'noreferrer')} />
+        <IconButton icon="copy" label={tKey('dash.github.pr.copyLink')} onClick={() => void copyText(pr.url)} />
+        <IconButton icon="copy" label={tKey('dash.github.pr.copyBranch')} onClick={() => void copyText(pr.branch)} />
+      </>
+    ),
+  };
+}

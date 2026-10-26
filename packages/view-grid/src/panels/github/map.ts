@@ -1,3 +1,5 @@
+import { summarizeChecks, type CheckDetail, type ContextNode } from './tracked';
+
 export const DEFAULT_TICKET_PATTERN = '[A-Z][A-Z0-9]+-\\d+';
 export const MIN_REFRESH_MS = 60_000;
 export const PR_REFRESH_MS = 5 * 60_000;
@@ -37,7 +39,12 @@ export function buildQuery(kind: SearchKind, mode: string, repo: string, query: 
 
 interface Rollup {
   state?: string;
-  contexts?: { nodes?: ({ __typename?: string; name?: string; conclusion?: string | null; context?: string; state?: string } | null)[] };
+  contexts?: { nodes?: (ContextNode | null)[] };
+}
+
+/** The checks of a rollup as detail rows: latest run per name, failures first. */
+export function mapCheckList(rollup: Rollup | null | undefined): CheckDetail[] {
+  return summarizeChecks((rollup?.contexts?.nodes ?? []).filter((n): n is ContextNode => !!n)).details;
 }
 
 const FAIL_CONCLUSIONS = new Set(['FAILURE', 'TIMED_OUT', 'CANCELLED', 'STARTUP_FAILURE', 'ACTION_REQUIRED']);
@@ -65,6 +72,30 @@ export function reduceChecks(rollup: Rollup | null | undefined): { state: CiStat
     default:
       return { state: 'none', failing: [] };
   }
+}
+
+export interface CheckCounts {
+  passed: number;
+  failed: number;
+  pending: number;
+  total: number;
+}
+
+/** The checks in a rollup (first 50 contexts) counted by outcome. */
+export function countChecks(rollup: Rollup | null | undefined): CheckCounts {
+  const c: CheckCounts = { passed: 0, failed: 0, pending: 0, total: 0 };
+  for (const n of rollup?.contexts?.nodes ?? []) {
+    if (!n) continue;
+    c.total++;
+    if (n.__typename === 'CheckRun') {
+      if (!n.conclusion) c.pending++;
+      else if (FAIL_CONCLUSIONS.has(n.conclusion)) c.failed++;
+      else c.passed++;
+    } else if (n.state === 'FAILURE' || n.state === 'ERROR') c.failed++;
+    else if (n.state === 'PENDING' || n.state === 'EXPECTED') c.pending++;
+    else c.passed++;
+  }
+  return c;
 }
 
 /** The first ticket key in the title, else in the branch; '' when none or the pattern is not a valid regex. */
@@ -108,6 +139,14 @@ interface Node {
   assignees?: { nodes?: ({ login?: string } | null)[] } | null;
   comments?: { totalCount?: number } | null;
   milestone?: { title?: string } | null;
+  createdAt?: string;
+  additions?: number;
+  deletions?: number;
+  changedFiles?: number;
+  mergeable?: string;
+  baseRefName?: string;
+  autoMergeRequest?: { enabledAt?: string } | null;
+  reviewThreads?: { nodes?: ({ isResolved?: boolean } | null)[] } | null;
 }
 
 export interface SearchResponse {
@@ -132,7 +171,20 @@ export interface PrItem {
   ci: CiState;
   failing: string[];
   ticket: string;
+  /** The ticket key is on the Tickets board (always true when the board could not be read). */
+  linked: boolean;
   updatedAt: string;
+  createdAt: string;
+  additions: number;
+  deletions: number;
+  files: number;
+  conflicts: boolean;
+  threads: number;
+  comments: number;
+  base: string;
+  autoMerge: boolean;
+  checks: CheckCounts;
+  checkList: CheckDetail[];
 }
 
 export interface IssueItem {
@@ -184,7 +236,19 @@ export function mapPullRequests(res: SearchResponse, ticketPattern: string): Sea
       ci: checks.state,
       failing: checks.failing,
       ticket: ticketKey(title, branch, ticketPattern),
+      linked: true,
       updatedAt: n.updatedAt ?? '',
+      createdAt: n.createdAt ?? '',
+      additions: n.additions ?? 0,
+      deletions: n.deletions ?? 0,
+      files: n.changedFiles ?? 0,
+      conflicts: n.mergeable === 'CONFLICTING',
+      threads: (n.reviewThreads?.nodes ?? []).filter((t) => t && t.isResolved === false).length,
+      comments: n.comments?.totalCount ?? 0,
+      base: n.baseRefName ?? '',
+      autoMerge: !!n.autoMergeRequest?.enabledAt,
+      checks: countChecks(n.commits?.nodes?.[0]?.commit?.statusCheckRollup),
+      checkList: mapCheckList(n.commits?.nodes?.[0]?.commit?.statusCheckRollup),
     });
   }
   return { total: res.search?.issueCount ?? items.length, items };

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { buildQuery, mapIssues, mapPullRequests, nextRefreshMs, reduceChecks, searchRefreshMs, ticketKey } from './map';
+import { buildQuery, countChecks, mapCheckList, mapIssues, mapPullRequests, nextRefreshMs, reduceChecks, searchRefreshMs, ticketKey } from './map';
 
 describe('buildQuery', () => {
   test('fixed modes', () => {
@@ -35,6 +35,38 @@ describe('reduceChecks', () => {
   });
 });
 
+describe('countChecks', () => {
+  test('counts by outcome', () => {
+    const r = countChecks({
+      state: 'PENDING',
+      contexts: { nodes: [{ __typename: 'CheckRun', name: 'a', conclusion: 'SUCCESS' }, { __typename: 'CheckRun', name: 'b', conclusion: null }, { __typename: 'CheckRun', name: 'c', conclusion: 'FAILURE' }, { __typename: 'StatusContext', context: 'x', state: 'PENDING' }] },
+    });
+    expect(r).toEqual({ passed: 1, failed: 1, pending: 2, total: 4 });
+    expect(countChecks(null).total).toBe(0);
+  });
+});
+
+describe('mapCheckList', () => {
+  test('latest run per name, failures first, with workflow, times and note', () => {
+    const wf = (name: string) => ({ workflowRun: { workflow: { name } } });
+    const list = mapCheckList({
+      contexts: {
+        nodes: [
+          { __typename: 'CheckRun', name: 'build', status: 'COMPLETED', conclusion: 'SUCCESS', startedAt: '2026-01-01T00:00:00Z', completedAt: '2026-01-01T00:01:00Z', detailsUrl: 'u1', checkSuite: wf('CI') },
+          { __typename: 'CheckRun', name: 'build', status: 'COMPLETED', conclusion: 'FAILURE', startedAt: '2026-01-01T01:00:00Z', completedAt: '2026-01-01T01:02:00Z', detailsUrl: 'u2', checkSuite: wf('CI'), title: 'Tests failed', summary: 'x' },
+          { __typename: 'CheckRun', name: 'lint', status: 'IN_PROGRESS', startedAt: '2026-01-01T01:00:00Z' },
+          { __typename: 'StatusContext', context: 'ci/x', state: 'SUCCESS', targetUrl: 'u3', description: 'ok' },
+          null,
+        ],
+      },
+    });
+    expect(list.map((c) => [c.name, c.state])).toEqual([['build', 'failure'], ['lint', 'pending'], ['ci/x', 'success']]);
+    expect(list[0]).toMatchObject({ workflow: 'CI', url: 'u2', startedAt: '2026-01-01T01:00:00Z', completedAt: '2026-01-01T01:02:00Z', note: 'Tests failed' });
+    expect(list[2]).toMatchObject({ url: 'u3', note: 'ok' });
+    expect(mapCheckList(null)).toEqual([]);
+  });
+});
+
 describe('ticketKey', () => {
   test('title first, then branch', () => {
     expect(ticketKey('ABC-12 fix', 'feat/XYZ-3', '')).toBe('ABC-12');
@@ -63,7 +95,7 @@ describe('mapping', () => {
           issueCount: 7,
           nodes: [
             null,
-            { number: 3, url: 'u3', title: 'ABC-9 x', isDraft: true, state: 'OPEN', headRefName: 'b', reviewDecision: 'APPROVED', author: { login: 'me' }, repository: { nameWithOwner: 'a/b' }, labels: { nodes: [{ name: 'bug' }] }, commits: { nodes: [{ commit: { statusCheckRollup: { state: 'SUCCESS' } } }] }, updatedAt: 't' },
+            { number: 3, url: 'u3', title: 'ABC-9 x', isDraft: true, state: 'OPEN', headRefName: 'b', reviewDecision: 'APPROVED', author: { login: 'me' }, repository: { nameWithOwner: 'a/b' }, labels: { nodes: [{ name: 'bug' }] }, commits: { nodes: [{ commit: { statusCheckRollup: { state: 'SUCCESS' } } }] }, updatedAt: 't', createdAt: 'c', additions: 5, deletions: 2, changedFiles: 3, mergeable: 'CONFLICTING', baseRefName: 'main', autoMergeRequest: { enabledAt: 'x' }, comments: { totalCount: 2 }, reviewThreads: { nodes: [{ isResolved: false }, { isResolved: true }] } },
           ],
         },
       },
@@ -72,6 +104,7 @@ describe('mapping', () => {
     expect(d.total).toBe(7);
     expect(d.items).toHaveLength(1);
     expect(d.items[0]).toMatchObject({ draft: true, review: 'approved', ci: 'pass', ticket: 'ABC-9', labels: ['bug'], repo: 'a/b' });
+    expect(d.items[0]).toMatchObject({ createdAt: 'c', additions: 5, deletions: 2, files: 3, conflicts: true, base: 'main', autoMerge: true, comments: 2, threads: 1, linked: true, checkList: [] });
   });
   test('issues', () => {
     const d = mapIssues({ search: { nodes: [{ number: 1, url: 'u', title: 't', comments: { totalCount: 4 }, assignees: { nodes: [{ login: 'z' }] }, milestone: { title: 'M' } }] } });

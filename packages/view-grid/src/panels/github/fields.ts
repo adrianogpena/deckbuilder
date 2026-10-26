@@ -2,7 +2,7 @@ import type { PanelField } from '@kedalion/ui/grid';
 import { DEFAULT_TICKET_PATTERN, ISSUE_MODES, PR_MODES } from './map';
 import { NOTIFICATION_COLUMNS, OVERVIEW_STATS, RUN_COLUMNS } from './more';
 
-export const PR_COLUMNS = ['repo', 'author', 'review', 'checks', 'labels', 'branch', 'ticket', 'updated'] as const;
+export const PR_COLUMNS = ['repo', 'author', 'review', 'checks', 'labels', 'branch', 'ticket', 'size', 'threads', 'created', 'updated'] as const;
 export const ISSUE_COLUMNS = ['repo', 'author', 'labels', 'assignees', 'comments', 'milestone', 'updated'] as const;
 
 const connection: PanelField = { key: 'connection', kind: 'connection', connectionType: 'github', label: 'dash.github.connection', default: '' };
@@ -20,6 +20,7 @@ export const PULL_REQUESTS_FIELDS: readonly PanelField[] = [
   { key: 'columns', kind: 'multi', label: 'dash.github.columns', default: ['repo', 'review', 'checks', 'updated'], values: PR_COLUMNS, optionLabel: 'dash.github.col' },
   density,
   { key: 'ticketPattern', kind: 'string', label: 'dash.github.ticketPattern', description: 'dash.github.ticketPattern.hint', default: DEFAULT_TICKET_PATTERN, maxLength: 100 },
+  { key: 'rcLabel', kind: 'string', label: 'dash.github.rcLabel', description: 'dash.github.rcLabel.hint', default: 'RC branch', maxLength: 100 },
 ];
 
 export const ISSUES_FIELDS: readonly PanelField[] = [

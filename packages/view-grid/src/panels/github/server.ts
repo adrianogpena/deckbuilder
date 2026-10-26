@@ -7,18 +7,25 @@ import { ACTIONS_SOURCE_FIELDS, TRACKED_SOURCE_FIELDS, fields,ISSUE_SOURCE_FIELD
 import { mapNotifications, mapReleases, mapRepoStats, mapRuns, parseRepo, runsPath, type RepoResponse } from './more';
 import { buildQuery, mapIssues, mapPullRequests, nextRefreshMs, PR_REFRESH_MS, type SearchResponse } from './map';
 
-const RATE = 'rateLimit { remaining limit resetAt }';
+import { BOT_LOGIN, parseBotComments, type BotComment } from './bot';
+import { isRcComment, parseRcComment } from './rc';
+
+const RATE ='rateLimit { remaining limit resetAt }';
 
 const PR_QUERY = `query($q: String!, $n: Int!) {
   search(query: $q, type: ISSUE, first: $n) {
     issueCount
     nodes {
       ... on PullRequest {
-        number title url isDraft state headRefName updatedAt reviewDecision
+        number title url isDraft state headRefName baseRefName updatedAt createdAt reviewDecision
+        additions deletions changedFiles mergeable
+        autoMergeRequest { enabledAt }
+        comments { totalCount }
+        reviewThreads(first: 100) { nodes { isResolved } }
         author { login }
         repository { nameWithOwner }
         labels(first: 10) { nodes { name } }
-        commits(last: 1) { nodes { commit { statusCheckRollup { state contexts(first: 50) { nodes { __typename ... on CheckRun { name conclusion } ... on StatusContext { context state } } } } } } }
+        commits(last: 1) { nodes { commit { statusCheckRollup { state contexts(first: 50) { nodes { __typename ... on CheckRun { name status conclusion startedAt completedAt detailsUrl title summary checkSuite { workflowRun { workflow { name } } } } ... on StatusContext { context state targetUrl description } } } } } } }
       }
     }
   }
@@ -71,7 +78,38 @@ export const githubPrsSource = defineSource<SearchConfig>({
   fields: PR_SOURCE_FIELDS,
   async fetch(config, ctx) {
     const { res, nextRefreshMs } = await search('pr', config, ctx);
-    return { ...mapPullRequests(res, config.ticketPattern ?? ''), ...(nextRefreshMs ? { nextRefreshMs } : {}) };
+    const data = mapPullRequests(res, config.ticketPattern ?? '');
+    let board: Set<string> | null = null;
+    try {
+      const { ticketsStore } = await import('../tickets/server');
+      board = new Set((await ticketsStore(ctx.dataDir).read()).tickets.map((t) => t.key.toUpperCase()));
+    } catch {
+      board = null;
+    }
+    const items = board ? data.items.map((pr) => ({ ...pr, linked: !!pr.ticket && board.has(pr.ticket.toUpperCase()) })) : data.items;
+    return { ...data, items, ...(nextRefreshMs ? { nextRefreshMs } : {}) };
+  },
+  actions: {
+    async rc(payload, config, ctx) {
+      const p = payload as { repo?: unknown; number?: unknown } | null;
+      const ref = typeof p?.repo === 'string' ? parseRepo(p.repo) : null;
+      const number = Number(p?.number);
+      if (!ref || !Number.isInteger(number) || number <= 0) throw invalid('rc-pr-ref', 'A pull request is required.');
+      const conn = await ctx.connection(config.connection, 'github');
+      let found: string | null = null;
+      const botComments: BotComment[] = [];
+      for (let page = 1; page <= 5; page++) {
+        const list = await rest<{ body?: string | null; user?: { login?: string } | null; updated_at?: string; html_url?: string }[]>(conn, `/repos/${ref}/issues/${number}/comments?per_page=100&page=${page}`, ctx.signal);
+        for (const c of list) {
+          if (!c.body || c.user?.login !== BOT_LOGIN) continue;
+          const rc = isRcComment(c.body);
+          if (rc) found = c.body;
+          botComments.push({ body: c.body, updatedAt: c.updated_at ?? '', url: c.html_url ?? '', rc });
+        }
+        if (list.length < 100) break;
+      }
+      return { rc: found ? parseRcComment(found) : null, bot: parseBotComments(botComments) };
+    },
   },
 });
 

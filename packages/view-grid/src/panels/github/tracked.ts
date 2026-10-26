@@ -10,6 +10,11 @@ export interface CheckDetail {
   name: string;
   state: CheckState;
   url: string;
+  workflow?: string;
+  startedAt?: string;
+  completedAt?: string;
+  /** Output title or description, first line of the summary otherwise. */
+  note?: string;
 }
 
 export interface TrackedChecks {
@@ -45,6 +50,10 @@ export interface ContextNode {
   context?: string;
   state?: string;
   targetUrl?: string | null;
+  description?: string | null;
+  title?: string | null;
+  summary?: string | null;
+  checkSuite?: { workflowRun?: { workflow?: { name?: string } | null } | null } | null;
 }
 
 export interface PrNode {
@@ -96,12 +105,21 @@ export function summarizeChecks(nodes: readonly ContextNode[] | undefined): Trac
     else if (node.conclusion === 'SUCCESS') state = 'success';
     else if (node.conclusion === 'NEUTRAL' || node.conclusion === 'SKIPPED') state = 'neutral';
     else state = 'failure';
-    details.push({ name, state, url: node.detailsUrl ?? '' });
+    const note = node.title || (node.summary ?? '').split('\n').find((l) => l.trim()) || '';
+    details.push({
+      name,
+      state,
+      url: node.detailsUrl ?? '',
+      workflow: node.checkSuite?.workflowRun?.workflow?.name ?? '',
+      startedAt: node.startedAt ?? '',
+      completedAt: node.completedAt ?? '',
+      note,
+    });
   }
   for (const node of nodes ?? []) {
     if (!(node.__typename === 'StatusContext' || (node.context !== undefined && node.name === undefined))) continue;
     const state: CheckState = node.state === 'SUCCESS' ? 'success' : node.state === 'PENDING' || node.state === 'EXPECTED' ? 'pending' : 'failure';
-    details.push({ name: node.context ?? '', state, url: node.targetUrl ?? '' });
+    details.push({ name: node.context ?? '', state, url: node.targetUrl ?? '', note: node.description ?? '' });
   }
   for (const d of details) {
     const m = /^(.+?) \/ (.+)$/.exec(d.name);

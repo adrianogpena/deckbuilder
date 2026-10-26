@@ -13,6 +13,9 @@
 .kit-rows { list-style: none; margin: 0; padding: 0; height: 100%; overflow-y: auto; }
 .kit-row { display: flex; align-items: center; gap: var(--space-8); padding: var(--space-4) var(--space-2); border-bottom: 1px solid var(--border-soft); min-width: 0; }
 .kit-row:last-child { border-bottom: 0; }
+.kit-row--click { cursor: pointer; }
+.kit-row--click:hover { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.kit-row--selected, .kit-row--selected:hover { background: color-mix(in srgb, var(--accent) 14%, transparent); box-shadow: inset 3px 0 0 var(--accent); }
 .kit-row-main { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .kit-row-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); text-decoration: none; }
 a.kit-row-title:hover { color: var(--accent-2); text-decoration: underline; }

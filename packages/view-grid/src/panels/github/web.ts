@@ -23,7 +23,7 @@ const prsPanel = definePanel<PullRequestsConfig, SearchData<PrItem>>({
   config: { fields: PULL_REQUESTS_FIELDS },
   load: (config) => fetchSource<SearchData<PrItem>>('github-prs', config),
   refreshMs: (_config, data) => searchRefreshMs(data),
-  render: ({ config, data }) => createElement(PullRequestsPanel, { config, data }),
+  render: ({ id, config, data, side }) => createElement(PullRequestsPanel, { id, config, data, side }),
 });
 
 const issuesPanel = definePanel<IssuesConfig, SearchData<IssueItem>>({

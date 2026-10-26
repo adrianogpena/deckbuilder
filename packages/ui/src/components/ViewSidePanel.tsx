@@ -81,7 +81,7 @@ const STEP = 16;
 
 export function ViewSidePanel({ side, children }: { side: ViewSidePanelState; children: ReactNode }) {
   const { scope, content, tab, close, setTab } = side;
-  const [width, setWidth] = useState(() => readSideWidth(scope) ?? defaultSideWidth(window.innerWidth));
+  const [width, setWidth] = useState(() => readSideWidth(scope) ?? defaultSideWidth(window.innerWidth, scope));
   const save = useDebouncedSave<number>((w) => writeSideWidth(scope, w), 300);
   const drag = useRef<{ x: number; w: number } | null>(null);
   const resize = (w: number) => {
@@ -127,7 +127,7 @@ export function ViewSidePanel({ side, children }: { side: ViewSidePanelState; ch
             aria-label={t('viewSide.resize')} aria-valuemin={560} aria-valuemax={980} aria-valuenow={width}
             onPointerDown={onPointerDown} onPointerMove={onPointerMove}
             onPointerUp={() => { drag.current = null; }} onPointerCancel={() => { drag.current = null; }}
-            onDoubleClick={() => resize(defaultSideWidth(window.innerWidth))} onKeyDown={onKeyDown} />
+            onDoubleClick={() => resize(defaultSideWidth(window.innerWidth, scope))} onKeyDown={onKeyDown} />
           <header className="view-side-head">
             {content.icon && <Icon name={content.icon} size={18} />}
             <div className="view-side-titles">
