@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
-import { useAsync } from '@kedalion/ui';
+import { copyText, IconButton, useAsync } from '@kedalion/ui';
 import { tKey } from '../../i18n';
 import { Chip, relTime, type Tone as ChipTone } from '../../kit';
 import { runAction } from '../../source';
-import { podOverview, type Amounts, type PodOverview as Overview, type PodUsage } from './detail';
+import { podEvents, podOverview, type Amounts, type PodEvent, type PodOverview as Overview, type PodUsage } from './detail';
 import type { Pod } from './model';
 import type { Tone } from './status';
 import type { PodsConfig } from './PodsPanel';
@@ -31,7 +31,21 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
 
 const amounts = (a: { cpu: string; memory: string }) => `${a.cpu || '–'} / ${a.memory || '–'}`;
 
-function Body({ ov, target, ready }: { ov: Overview; target: PodTarget; ready: string }) {
+function EventRow({ ev }: { ev: PodEvent }) {
+  return (
+    <div className="pod-event">
+      <div className="pod-event-head">
+        <Chip tone={ev.type === 'Warning' ? 'warn' : 'neutral'}>{ev.type || 'Normal'}</Chip>
+        <strong>{ev.reason}</strong>
+        {ev.time && <span className="pod-dim">{relTime(ev.time)}</span>}
+        {ev.count > 1 && <span className="pod-dim">×{ev.count}</span>}
+      </div>
+      <div className="pod-event-msg">{ev.message}</div>
+    </div>
+  );
+}
+
+function Body({ ov, target, ready, urls }: { ov: Overview; target: PodTarget; ready: string; urls: string[] }) {
   const u = ov.totals.usage;
   const [r, total] = ready.split('/').map(Number);
   const allReady = r === total;
@@ -51,9 +65,24 @@ function Body({ ov, target, ready }: { ov: Overview; target: PodTarget; ready: s
         <Fact label={tKey('dash.pods.ov.created')}>
           {ov.created ? `${new Date(ov.created).toLocaleString()} (${relTime(ov.created)})` : '–'}
         </Fact>
+        <Fact label={tKey('dash.pods.ov.started')}>
+          {ov.started ? `${new Date(ov.started).toLocaleString()} (${relTime(ov.started)})` : '–'}
+        </Fact>
         <Fact label={tKey('dash.pods.ov.status')}><Chip tone={chipTone(ov.tone)}>{ov.status}</Chip></Fact>
+        {ov.owner && <Fact label={tKey('dash.pods.ov.owner')}>{ov.owner}</Fact>}
+        {urls.length > 0 && (
+          <Fact label={tKey('dash.pods.ov.ingress')}>
+            {urls.map((u) => (
+              <div key={u} className="pod-url">
+                <span>{u}</span>
+                <IconButton icon="copy" label={tKey('dash.pods.ov.copyUrl')} onClick={() => void copyText(u)} />
+              </div>
+            ))}
+          </Fact>
+        )}
         <Fact label={tKey('dash.pods.ov.node')}>{ov.node || '–'}</Fact>
         <Fact label={tKey('dash.pods.ov.podIP')}>{ov.podIP || '–'}</Fact>
+        <Fact label={tKey('dash.pods.ov.hostIP')}>{ov.hostIP || '–'}</Fact>
         <Fact label={tKey('dash.pods.ov.cpu')}>{usageText(u, 'cpu', ov.totals.requests.cpu, ov.totals.limits.cpu)}</Fact>
         <Fact label={tKey('dash.pods.ov.memory')}>{usageText(u, 'memory', ov.totals.requests.memory, ov.totals.limits.memory)}</Fact>
       </dl>
@@ -125,6 +154,19 @@ function Body({ ov, target, ready }: { ov: Overview; target: PodTarget; ready: s
         </div>
       )}
 
+      {ov.events.length > 0 && (
+        <>
+          <h4 className="pod-h">{tKey('dash.pods.ov.events')}</h4>
+          <EventRow ev={ov.events[0]} />
+          {ov.events.length > 1 && (
+            <details className="pod-events-older">
+              <summary>{tKey('dash.pods.ov.olderEvents')} ({ov.events.length - 1})</summary>
+              {ov.events.slice(1).map((e, i) => <EventRow key={i} ev={e} />)}
+            </details>
+          )}
+        </>
+      )}
+
       {annotations.length > 0 && (
         <details className="pod-annotations">
           <summary>{tKey('dash.pods.ov.annotations')} ({annotations.length})</summary>
@@ -165,11 +207,11 @@ function Basics({ pod }: { pod: Pod }) {
 export function PodOverview({ config, target, pod }: { config: PodsConfig; target: PodTarget; pod: Pod }) {
   const ready = pod.ready;
   const state = useAsync(
-    () => runAction<{ pod: unknown; usage?: PodUsage }>('pods', 'detail', config, target),
+    () => runAction<{ pod: unknown; usage?: PodUsage; events?: unknown }>('pods', 'detail', config, target),
     [target.context, target.namespace, target.pod],
     config.refreshSec * 1000,
   );
   if (state.error && !state.data) return <p className="pods-error">{state.error.message}</p>;
   if (!state.data) return <Basics pod={pod} />;
-  return <Body ov={podOverview(state.data.pod, state.data.usage)} target={target} ready={ready} />;
+  return <Body ov={podOverview(state.data.pod, state.data.usage, Date.now(), podEvents(state.data.events))} target={target} ready={ready} urls={pod.urls} />;
 }

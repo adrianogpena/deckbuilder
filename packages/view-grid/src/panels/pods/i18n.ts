@@ -74,6 +74,13 @@ export const en = {
   'dash.pods.ov.ready': 'Ready: {ready} containers ready',
   'dash.pods.ov.notReady': 'Not ready: {ready} containers ready',
   'dash.pods.ov.none': 'None',
+  'dash.pods.ov.ingress': 'Ingress',
+  'dash.pods.ov.owner': 'Owner',
+  'dash.pods.ov.started': 'Started',
+  'dash.pods.ov.hostIP': 'Host IP',
+  'dash.pods.ov.events': 'Latest event',
+  'dash.pods.ov.olderEvents': 'Older events',
+  'dash.pods.ov.copyUrl': 'Copy URL',
 };
 
 export const ptBR: Messages<typeof en> = {
@@ -150,4 +157,11 @@ export const ptBR: Messages<typeof en> = {
   'dash.pods.ov.ready': 'Pronto: {ready} contêineres prontos',
   'dash.pods.ov.notReady': 'Não pronto: {ready} contêineres prontos',
   'dash.pods.ov.none': 'Nenhum',
+  'dash.pods.ov.ingress': 'Ingress',
+  'dash.pods.ov.owner': 'Dono',
+  'dash.pods.ov.started': 'Iniciado',
+  'dash.pods.ov.hostIP': 'IP do host',
+  'dash.pods.ov.events': 'Último evento',
+  'dash.pods.ov.olderEvents': 'Eventos anteriores',
+  'dash.pods.ov.copyUrl': 'Copiar URL',
 };

@@ -83,8 +83,32 @@ export interface ConditionOverview {
   lastTransitionTime: string;
 }
 
+export interface PodEvent {
+  type: string;
+  reason: string;
+  message: string;
+  count: number;
+  time: string;
+}
+
+/** Events newest first; the time is the last occurrence. */
+export function podEvents(list: unknown): PodEvent[] {
+  const items: any[] = (list as { items?: any[] } | null)?.items ?? [];
+  return items
+    .map((e) => ({
+      type: e.type ?? '',
+      reason: e.reason ?? '',
+      message: e.message ?? '',
+      count: e.series?.count ?? e.count ?? 1,
+      time: e.lastTimestamp ?? e.series?.lastObservedTime ?? e.eventTime ?? e.firstTimestamp ?? e.metadata?.creationTimestamp ?? '',
+    }))
+    .sort((a, b) => (Date.parse(b.time) || 0) - (Date.parse(a.time) || 0));
+}
+
 export interface PodOverview {
   created: string;
+  started: string;
+  events: PodEvent[];
   /** Milliseconds since creation. */
   ageMs: number;
   status: string;
@@ -108,7 +132,7 @@ function stateMessage(c: any): string {
   return x?.message ?? '';
 }
 
-export function podOverview(json: any, usage?: PodUsage, now = Date.now()): PodOverview {
+export function podOverview(json: any, usage?: PodUsage, now = Date.now(), events: PodEvent[] = []): PodOverview {
   const meta = json?.metadata ?? {};
   const spec = json?.spec ?? {};
   const st = json?.status ?? {};
@@ -151,6 +175,8 @@ export function podOverview(json: any, usage?: PodUsage, now = Date.now()): PodO
 
   return {
     created,
+    started: st.startTime ?? '',
+    events,
     ageMs: Number.isNaN(createdMs) ? 0 : Math.max(0, now - createdMs),
     status: text,
     tone,

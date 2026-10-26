@@ -235,8 +235,18 @@ export const podsSource =defineSource<PodsConfig>({
         }
         return undefined;
       };
-      const [podJson, usage] = await Promise.all([podJsonOf(cluster, pod, ctx.signal), metrics()]);
-      return { pod: sanitizePod(podJson), ...(usage ? { usage } : {}) };
+      const events = async (): Promise<unknown> => {
+        try {
+          return await viaProxy(cluster.context, () => kubePaths.podEvents(cluster.namespace, pod), ctx.signal, TIMEOUT_MS, () =>
+            json(cluster, ['get', 'events', '--field-selector', `involvedObject.name=${pod},involvedObject.kind=Pod`], ctx.signal),
+          );
+        } catch (err) {
+          if (ctx.signal.aborted) throw err;
+        }
+        return undefined;
+      };
+      const [podJson, usage, eventList] = await Promise.all([podJsonOf(cluster, pod, ctx.signal), metrics(), events()]);
+      return { pod: sanitizePod(podJson), ...(usage ? { usage } : {}), ...(eventList ? { events: eventList } : {}) };
     },
     async restart(payload, config, ctx) {
       const { cluster, pod } = pick(config, payload);

@@ -34,6 +34,8 @@ export const kubePaths = {
   pods: (ns: string) => `/api/v1/namespaces/${name(ns, 'namespace')}/pods`,
   pod: (ns: string, pod: string) => `/api/v1/namespaces/${name(ns, 'namespace')}/pods/${name(pod, 'pod')}`,
   ingresses: (ns: string) => `/apis/networking.k8s.io/v1/namespaces/${name(ns, 'namespace')}/ingresses`,
+  podEvents: (ns: string, pod: string) =>
+    `/api/v1/namespaces/${name(ns, 'namespace')}/events?fieldSelector=${encodeURIComponent(`involvedObject.name=${name(pod, 'pod')},involvedObject.kind=Pod`)}`,
   podMetrics: (ns: string, pod: string) => `/apis/metrics.k8s.io/v1beta1/namespaces/${name(ns, 'namespace')}/pods/${name(pod, 'pod')}`,
 };
 
