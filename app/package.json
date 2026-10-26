@@ -1,6 +1,6 @@
 {
   "name": "@kedalion/app",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Kedalion desktop app, built on the kedalion packages.",
   "author": "Adriano Pena",
   "private": true,
