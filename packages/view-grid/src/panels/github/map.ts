@@ -81,18 +81,13 @@ export interface CheckCounts {
   total: number;
 }
 
-/** The checks in a rollup (first 50 contexts) counted by outcome. */
+/** The checks of a rollup counted by outcome, over the same list the side panel groups (latest run per name; skipped counts as passed). */
 export function countChecks(rollup: Rollup | null | undefined): CheckCounts {
   const c: CheckCounts = { passed: 0, failed: 0, pending: 0, total: 0 };
-  for (const n of rollup?.contexts?.nodes ?? []) {
-    if (!n) continue;
+  for (const d of mapCheckList(rollup)) {
     c.total++;
-    if (n.__typename === 'CheckRun') {
-      if (!n.conclusion) c.pending++;
-      else if (FAIL_CONCLUSIONS.has(n.conclusion)) c.failed++;
-      else c.passed++;
-    } else if (n.state === 'FAILURE' || n.state === 'ERROR') c.failed++;
-    else if (n.state === 'PENDING' || n.state === 'EXPECTED') c.pending++;
+    if (d.state === 'failure') c.failed++;
+    else if (d.state === 'pending') c.pending++;
     else c.passed++;
   }
   return c;

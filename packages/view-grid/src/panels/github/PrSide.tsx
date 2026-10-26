@@ -258,7 +258,7 @@ function PrOverview({ pr, config }: { pr: PrItem; config: PullRequestsConfig }) 
           <span>{tKey('dash.github.pr.noChecks')}</span>
         ) : (
           <div className="gh-pr-line">
-            <Chip tone={CI_TONE[pr.ci]}>{tKey(`dash.github.ci.${pr.ci}`)}</Chip>
+            <Chip tone={CI_TONE[pr.ci]}>{tKey(`dash.github.ci.${pr.ci}`)} {c.passed}/{c.total}</Chip>
             <span>{tKey('dash.github.pr.checkCounts', { passed: c.passed, failed: c.failed, pending: c.pending })}</span>
           </div>
         )}

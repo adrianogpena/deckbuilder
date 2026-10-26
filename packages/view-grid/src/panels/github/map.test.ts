@@ -37,11 +37,21 @@ describe('reduceChecks', () => {
 
 describe('countChecks', () => {
   test('counts by outcome', () => {
+    const done = { status: 'COMPLETED' };
     const r = countChecks({
       state: 'PENDING',
-      contexts: { nodes: [{ __typename: 'CheckRun', name: 'a', conclusion: 'SUCCESS' }, { __typename: 'CheckRun', name: 'b', conclusion: null }, { __typename: 'CheckRun', name: 'c', conclusion: 'FAILURE' }, { __typename: 'StatusContext', context: 'x', state: 'PENDING' }] },
+      contexts: {
+        nodes: [
+          { __typename: 'CheckRun', name: 'a', ...done, conclusion: 'SUCCESS', completedAt: '1' },
+          { __typename: 'CheckRun', name: 'a', ...done, conclusion: 'SUCCESS', completedAt: '2' },
+          { __typename: 'CheckRun', name: 's', ...done, conclusion: 'SKIPPED' },
+          { __typename: 'CheckRun', name: 'b', status: 'IN_PROGRESS', conclusion: null },
+          { __typename: 'CheckRun', name: 'c', ...done, conclusion: 'FAILURE' },
+          { __typename: 'StatusContext', context: 'x', state: 'PENDING' },
+        ],
+      },
     });
-    expect(r).toEqual({ passed: 1, failed: 1, pending: 2, total: 4 });
+    expect(r).toEqual({ passed: 2, failed: 1, pending: 2, total: 5 });
     expect(countChecks(null).total).toBe(0);
   });
 });
