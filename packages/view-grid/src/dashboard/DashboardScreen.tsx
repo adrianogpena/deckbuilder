@@ -42,7 +42,7 @@ export function DashboardScreen({ settings, onSave, panels }: DashboardScreenPro
   const [creating, setCreating] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [configuring, setConfiguring] = useState<string | null>(null);
-  const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
+  const [menuAt, setMenuAt] = useState<{ x: number; y: number; id: string } | null>(null);
   const { confirm, prompt, choose, element } = useDialogs();
   const side = useViewSidePanel('dashboard');
 
@@ -104,30 +104,36 @@ export function DashboardScreen({ settings, onSave, panels }: DashboardScreenPro
     if (!(await settle())) return;
     await addLayout(tKey('dash.newName'), []);
   };
-  const duplicate = async () => {
+  const duplicate = async (id: string) => {
     if (!(await settle())) return;
-    await addLayout(tKey('dash.copyName', { name: current.name }), dirty ? items : current.items);
+    const source = state.layouts.find((l) => l.id === id)!;
+    await addLayout(tKey('dash.copyName', { name: source.name }), id === current.id && dirty ? items : source.items);
   };
-  const rename = async () => {
-    const chosen = await askName(current.name);
+  const rename = async (id: string) => {
+    const source = state.layouts.find((l) => l.id === id)!;
+    const chosen = await askName(source.name);
     if (chosen === null) return;
-    persist({ ...base(), layouts: base().layouts.map((l) => (l.id === current.id ? { ...l, name: chosen.trim() } : l)) });
+    persist({ ...base(), layouts: base().layouts.map((l) => (l.id === id ? { ...l, name: chosen.trim() } : l)) });
   };
-  const remove = async () => {
+  const remove = async (id: string) => {
     if (state.layouts.length <= 1) return;
-    const ok = await confirm({ title: tKey('dash.deleteTitle'), body: tKey('dash.deleteBody', { name: current.name }), okLabel: tKey('dash.delete.ok'), danger: true });
+    const source = state.layouts.find((l) => l.id === id)!;
+    const ok = await confirm({ title: tKey('dash.deleteTitle'), body: tKey('dash.deleteBody', { name: source.name }), okLabel: tKey('dash.delete.ok'), danger: true });
     if (!ok) return;
+    const rest = state.layouts.filter((l) => l.id !== id);
+    if (id !== current.id) {
+      persist({ ...base(), layouts: rest });
+      return;
+    }
     unsaved = null;
-    const rest = state.layouts.filter((l) => l.id !== current.id);
     show({ ...state, layouts: rest }, rest[0]!.id);
   };
 
   const full = state.layouts.length >= MAX_LAYOUTS;
-  const menu: ContextMenuItem[] = [
-    { id: 'new', label: tKey('dash.new'), icon: 'plus', disabled: full, hint: full ? tKey('dash.tooMany') : undefined, run: () => void newEmpty() },
-    { id: 'duplicate', label: tKey('dash.duplicate'), icon: 'copy', disabled: full, hint: full ? tKey('dash.tooMany') : undefined, run: () => void duplicate() },
-    { id: 'rename', label: tKey('dash.rename'), icon: 'edit', run: () => void rename() },
-    { id: 'delete', label: tKey('dash.delete'), icon: 'trash', danger: true, disabled: state.layouts.length <= 1, hint: state.layouts.length <= 1 ? tKey('dash.deleteLast') : undefined, run: () => void remove() },
+  const menuOf = (id: string): ContextMenuItem[] => [
+    { id: 'duplicate', label: tKey('dash.duplicate'), icon: 'copy', disabled: full, hint: full ? tKey('dash.tooMany') : undefined, run: () => void duplicate(id) },
+    { id: 'rename', label: tKey('dash.rename'), icon: 'edit', run: () => void rename(id) },
+    { id: 'delete', label: tKey('dash.delete'), icon: 'trash', danger: true, disabled: state.layouts.length <= 1, hint: state.layouts.length <= 1 ? tKey('dash.deleteLast') : undefined, run: () => void remove(id) },
   ];
 
   const storePresets = (next: DashboardPreset[]) => {
@@ -174,21 +180,25 @@ export function DashboardScreen({ settings, onSave, panels }: DashboardScreenPro
   return (
     <div className="content">
       <PageHead title={tKey('nav.dashboard')}>
-        <select className="dash-layout-select" aria-label={tKey('dash.layout')} value={current.id} onChange={(e) => void switchTo(e.target.value)}>
+        <div className="dash-layout-tabs" role="tablist" aria-label={tKey('dash.layout')}>
           {state.layouts.map((l) => (
-            <option key={l.id} value={l.id}>{l.name}</option>
+            <button
+              key={l.id}
+              type="button"
+              role="tab"
+              aria-selected={l.id === current.id}
+              className={`dash-layout-tab${l.id === current.id ? ' active' : ''}`}
+              onClick={() => void switchTo(l.id)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setMenuAt({ x: e.clientX, y: e.clientY, id: l.id });
+              }}
+            >
+              {l.name}
+            </button>
           ))}
-        </select>
-        <Button
-          size="sm"
-          icon="more"
-          title={tKey('dash.menu')}
-          aria-label={tKey('dash.menu')}
-          onClick={(e) => {
-            const r = e.currentTarget.getBoundingClientRect();
-            setMenuAt({ x: r.left, y: r.bottom });
-          }}
-        />
+          <Button size="sm" icon="plus" title={full ? tKey('dash.tooMany') : tKey('dash.new')} aria-label={tKey('dash.new')} onClick={() => void newEmpty()} disabled={full} />
+        </div>
         <Button size="sm" icon="plus" title={tKey('grid.add')} onClick={() => setCreating(true)} disabled={!canAdd}>{tKey('grid.add')}</Button>
         <Button size="sm" icon="link" title={tKey('dash.connections')} onClick={() => setConnecting(true)}>{tKey('dash.connections')}</Button>
         <Button size="sm" variant={dirty ? 'primary' : 'default'} icon="check" title={tKey('grid.save')} onClick={save} disabled={!dirty}>
@@ -234,7 +244,7 @@ export function DashboardScreen({ settings, onSave, panels }: DashboardScreenPro
       </div>
       </ViewSidePanel>
       {connecting && <ConnectionsDialog onClose={() => setConnecting(false)} />}
-      {menuAt && <ContextMenu at={menuAt} items={menu} onClose={() => setMenuAt(null)} />}
+      {menuAt && <ContextMenu at={menuAt} items={menuOf(menuAt.id)} onClose={() => setMenuAt(null)} />}
       {creating && (
         <PanelCreator
           kinds={panels}
