@@ -2,6 +2,7 @@ import { invalid } from '@kedalion/server-core';
 import { defineSource, SourceError, type DataSource, type GridPanelSpec, type ResolvedConnection } from '../../server';
 import { createJsonStore, type JsonStore } from '../../json-store';
 import { graphql, rest } from './client';
+import { mapLimit } from './limit';
 import { parseTrackedPrRef, toTrackedPr, type PrNode, type PrRef, type TrackedPr } from './tracked';
 import { ACTIONS_SOURCE_FIELDS, TRACKED_SOURCE_FIELDS, fields,ISSUE_SOURCE_FIELDS, NOTIFICATIONS_SOURCE_FIELDS, OVERVIEW_SOURCE_FIELDS, PR_SOURCE_FIELDS, RELEASES_FIELDS } from './fields';
 import { mapNotifications, mapReleases, mapRepoStats, mapRuns, parseRepo, runsPath, type RepoResponse } from './more';
@@ -200,6 +201,8 @@ const PR_FIELDS = `number title url isDraft state merged headRefName
   commits(last: 1) { nodes { commit { statusCheckRollup { contexts(first: 100) { nodes { __typename ... on CheckRun { name status conclusion startedAt completedAt detailsUrl } ... on StatusContext { context state targetUrl } } } } } } }`;
 
 const CHUNK = 5;
+/** Concurrent GraphQL requests per lookup; GitHub penalizes many at once. */
+const CONCURRENCY = 4;
 export const MAX_TRACKED = 50;
 
 export interface TrackedOptions {
@@ -212,7 +215,8 @@ const DEFAULT_LABELS: TrackedOptions = { readyLabel: 'ready to merge', rcLabel: 
 /** The PRs of `refs` (chunks of 5 per GraphQL request), in the order of `refs`; PRs that no longer resolve are left out. */
 export async function fetchPrs(conn: ResolvedConnection, refs: readonly PrRef[], signal?: AbortSignal, opts: TrackedOptions = DEFAULT_LABELS): Promise<TrackedPr[]> {
   const out: (TrackedPr | undefined)[] = new Array(refs.length);
-  for (let i = 0; i < refs.length; i += CHUNK) {
+  const starts = Array.from({ length: Math.ceil(refs.length / CHUNK) }, (_, c) => c * CHUNK);
+  await mapLimit(starts, CONCURRENCY, async (i) => {
     const chunk = refs.slice(i, i + CHUNK);
     const query = `query(${chunk.map((_, k) => `$o${k}: String!, $n${k}: String!, $p${k}: Int!`).join(', ')}) {
 ${chunk.map((_, k) => `  t${k}: repository(owner: $o${k}, name: $n${k}) { pullRequest(number: $p${k}) { ${PR_FIELDS} } }`).join('\n')}
@@ -224,7 +228,7 @@ ${chunk.map((_, k) => `  t${k}: repository(owner: $o${k}, name: $n${k}) { pullRe
       const node = res[`t${k}`]?.pullRequest;
       if (node) out[i + k] = toTrackedPr(node, ref, opts);
     });
-  }
+  });
   return out.filter((p): p is TrackedPr => !!p);
 }
 
@@ -240,8 +244,9 @@ const KEY_PRS = 10;
 
 /** Refs of PRs (any state, any author) whose title mentions one of `keys`, found by one light search per key. */
 async function findKeyPrRefs(conn: ResolvedConnection, keys: readonly string[], signal?: AbortSignal): Promise<PrRef[]> {
-  const out: PrRef[] = [];
-  for (let i = 0; i < keys.length; i += KEY_CHUNK) {
+  const starts = Array.from({ length: Math.ceil(keys.length / KEY_CHUNK) }, (_, c) => c * KEY_CHUNK);
+  const parts = await mapLimit(starts, CONCURRENCY, async (i) => {
+    const out: PrRef[] = [];
     const chunk = keys.slice(i, i + KEY_CHUNK);
     const query = `query(${chunk.map((_, k) => `$q${k}: String!`).join(', ')}) {
 ${chunk.map((_, k) => `  k${k}: search(query: $q${k}, type: ISSUE, first: ${KEY_PRS}) { nodes { ... on PullRequest { number title repository { nameWithOwner } } } }`).join('\n')}
@@ -256,14 +261,19 @@ ${chunk.map((_, k) => `  k${k}: search(query: $q${k}, type: ISSUE, first: ${KEY_
         if (node && owner && repo && whole.test(node.title)) out.push({ owner, repo, number: node.number });
       }
     });
-  }
-  return out;
+    return out;
+  });
+  return parts.flat();
 }
 
 /** Open PRs of the user (`mine`), those awaiting their review (`review`), the tracked ones and, when `keys` is given, any PR titled with one of them; each but the last tagged with its `scope`. */
 export async function fetchPrPool(conn: ResolvedConnection, { tracked, keys = [], signal, ...opts }: { tracked: readonly PrRef[]; keys?: readonly string[]; signal?: AbortSignal } & Partial<TrackedOptions>): Promise<TrackedPr[]> {
   const labels = { ...DEFAULT_LABELS, ...opts };
-  const res = await graphql<Record<'mine' | 'review', { nodes: (PoolNode | null)[] }>>(conn, POOL_QUERY, { mine: 'is:pr is:open author:@me', review: 'is:pr is:open review-requested:@me' }, signal);
+  const [res, trackedPrs, keyRefs] = await Promise.all([
+    graphql<Record<'mine' | 'review', { nodes: (PoolNode | null)[] }>>(conn, POOL_QUERY, { mine: 'is:pr is:open author:@me', review: 'is:pr is:open review-requested:@me' }, signal),
+    fetchPrs(conn, tracked, signal, labels),
+    keys.length ? findKeyPrRefs(conn, keys, signal).catch((): PrRef[] | null => null) : Promise.resolve<PrRef[] | null>([]),
+  ]);
   const out: TrackedPr[] = [];
   for (const scope of ['mine', 'review'] as const) {
     for (const node of res[scope].nodes) {
@@ -271,11 +281,11 @@ export async function fetchPrPool(conn: ResolvedConnection, { tracked, keys = []
       if (node && owner && repo) out.push({ ...toTrackedPr(node, { owner, repo, number: node.number }, labels), scope });
     }
   }
-  for (const pr of await fetchPrs(conn, tracked, signal, labels)) out.push({ ...pr, scope: 'tracked' });
-  if (keys.length) {
+  for (const pr of trackedPrs) out.push({ ...pr, scope: 'tracked' });
+  if (keyRefs?.length) {
     try {
       const seen = new Set(out.map((p) => `${p.owner}/${p.repo}#${p.number}`));
-      const refs = (await findKeyPrRefs(conn, keys, signal)).filter((r) => !seen.has(`${r.owner}/${r.repo}#${r.number}`));
+      const refs = keyRefs.filter((r) => !seen.has(`${r.owner}/${r.repo}#${r.number}`));
       out.push(...(await fetchPrs(conn, refs, signal, labels)));
     } catch {
       // the lookup by key is best-effort; keep the PRs already found

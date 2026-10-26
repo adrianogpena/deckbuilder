@@ -54,6 +54,8 @@ export interface PanelKind<C extends PanelConfig = PanelConfig, D = any> {
   refreshMs?: number | ((config: C, data: D | undefined) => number);
   /** Skips the interval reloads while the panel is scrolled out of view (it reloads when it shows again and is due). */
   pauseOffscreen?: boolean;
+  /** Keeps the last data in localStorage, so it shows while the first load runs after a page reload. */
+  persist?: boolean;
   render: (props: PanelRenderProps<C, D>) => ReactNode;
   /** Buttons in the panel header; call `requestRefresh(kind)` after changing data. */
   headerActions?: ComponentType<{ config: C; setConfig?(next: C): void; side?: PanelSide }>;

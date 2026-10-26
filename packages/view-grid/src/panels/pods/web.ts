@@ -55,6 +55,7 @@ const podsPanel = definePanel<PodsConfig, PodsPanelData>({
   load: loadPods,
   refreshMs: (config) => backoffMs(Math.max(5, config.refreshSec || 30) * 1000, unchanged.get(config.clusters) ?? 0),
   pauseOffscreen: true,
+  persist: true,
   allowMultiple: true,
   headerActions: PodsActions,
   configEditor: PodsConfigEditor,

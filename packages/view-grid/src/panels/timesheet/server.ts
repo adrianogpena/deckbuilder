@@ -1,6 +1,6 @@
 import { createJsonStore } from '../../json-store';
 import { defineSource, type DataSource, type GridPanelSpec } from '../../server';
-import { applyLocks, emptyData, parseData, toggleLock, weekBounds, weekTotals, localDay, splitRoots, type TimesheetData } from './analysis';
+import { applyLocks, emptyData, parseData, toggleLock, weekBounds,localDay, splitRoots, type TimesheetData } from './analysis';
 import { collectWeek } from './collect';
 import { TIMESHEET_FIELDS } from './fields';
 
@@ -18,12 +18,6 @@ export interface TimesheetResult extends TimesheetData {
 }
 
 const storeOf = (dataDir: string) => createJsonStore<TimesheetData>({ dataDir, name: 'timesheet', parse: parseData, empty: emptyData });
-
-/** This week's total hours per ticket, from the stored timesheet. */
-export async function readWeekHours(dataDir: string): Promise<Record<string, number>> {
-  const data = await storeOf(dataDir).read();
-  return data.week === weekBounds(new Date()).monday ? weekTotals(data) : {};
-}
 
 async function compute(config: TimesheetConfig, dataDir: string, signal: AbortSignal): Promise<TimesheetResult> {
   const now = new Date();

@@ -15,6 +15,7 @@ import { PR_REFRESH_MS, searchRefreshMs,type IssueItem, type PrItem, type Search
 
 const prsPanel = definePanel<PullRequestsConfig, SearchData<PrItem>>({
   kind: 'github-prs',
+  persist: true,
   title: 'dash.github.panel.prs',
   description: 'dash.github.panel.prs.description',
   icon: 'link',
@@ -93,6 +94,7 @@ const overviewPanel = definePanel<OverviewConfig, RepoStats>({
 
 const trackedPanel = definePanel<TrackedConfig, { items: TrackedPr[] }>({
   kind: 'github-tracked',
+  persist: true,
   title: 'dash.github.panel.tracked',
   description: 'dash.github.panel.tracked.description',
   icon: 'pin',

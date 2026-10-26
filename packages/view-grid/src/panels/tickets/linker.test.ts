@@ -51,13 +51,11 @@ describe('linkTickets', () => {
       ['ABC-1'],
       [pr(), pr({ number: 2, title: 'other', branch: 'xyz-9-y', scope: 'review' })],
       [pod('abc-1-api-7f'), pod('xyz-9-api')],
-      { 'abc-1': 2.5 },
       DEFAULT_TICKET_PATTERN,
     );
     const l = links['ABC-1']!;
     expect(l.branches).toEqual(['feature/abc-1-x']);
-    expect(l.stages).toEqual({ branch: 'ok', pr: 'ok', pods: 'ok', hours: 'ok' });
-    expect(l.hours).toBe(2.5);
+    expect(l.stages).toEqual({ branch: 'ok', pr: 'ok', pods: 'ok' });
     expect(unlinked).toHaveLength(1);
     expect(unlinked[0]!.key).toBe('XYZ-9');
     expect(unlinked[0]!.scopes).toEqual(['review']);
@@ -65,14 +63,14 @@ describe('linkTickets', () => {
   });
   test('links a pod by hand', () => {
     const p = pod('api-overwrite');
-    const { links, unlinked } = linkTickets(['ABC-3'], [], [p, pod('abc-4-api')], {}, DEFAULT_TICKET_PATTERN, { 'ABC-3': ['c/n/api-overwrite'] });
+    const { links, unlinked } = linkTickets(['ABC-3'], [], [p, pod('abc-4-api')], DEFAULT_TICKET_PATTERN, { 'ABC-3': ['c/n/api-overwrite'] });
     expect(links['ABC-3']!.pods).toEqual([p]);
     expect(links['ABC-3']!.manualPods).toEqual(['c/n/api-overwrite']);
     expect(unlinked.map((u) => u.key)).toEqual(['ABC-4']);
   });
   test('nothing linked', () => {
-    const { links } = linkTickets(['ABC-2'], [], [], {}, DEFAULT_TICKET_PATTERN);
-    expect(links['ABC-2']!.stages).toEqual({ branch: 'none', pr: 'none', pods: 'none', hours: 'none' });
+    const { links } = linkTickets(['ABC-2'], [], [], DEFAULT_TICKET_PATTERN);
+    expect(links['ABC-2']!.stages).toEqual({ branch: 'none', pr: 'none', pods: 'none' });
   });
   test('pod key anywhere in the name', () => {
     expect(podKey('abc-1-x', DEFAULT_TICKET_PATTERN)).toBe('ABC-1');

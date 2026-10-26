@@ -5,7 +5,6 @@ import { fieldIds, search } from '../jira/client';
 import { fetchPrPool, trackedStore } from '../github/server';
 import type { TrackedPr } from '../github/tracked';
 import { latestPods } from '../pods/server';
-import { readWeekHours } from '../timesheet/server';
 import { TICKETS_FIELDS } from './fields';
 import { planAutoMoves } from './auto-move';
 import { infoFields, mapInfo, pcrOf, type JiraInfo } from './jira-info';
@@ -78,6 +77,9 @@ export function ticketsStore(dataDir: string): JsonStore<TicketStore> {
   return s;
 }
 
+/** A deterministic string of an auto-move memory (keys sorted), to compare two of them. */
+const memorySig = (m: Record<string, string[]>): string => JSON.stringify(Object.keys(m).sort().map((k) => [k, m[k]]));
+
 const payloadOf = (p: unknown) => (p ?? {}) as Record<string, unknown>;
 
 export const ticketsSource = defineSource<TicketsConfig>({
@@ -85,25 +87,41 @@ export const ticketsSource = defineSource<TicketsConfig>({
   fields: TICKETS_FIELDS,
   async fetch(config, ctx): Promise<TicketsData> {
     const store = ticketsStore(ctx.dataDir);
-    let { tickets } = await store.read();
-    let prs: TrackedPr[] = [];
+    const stored = await store.read();
+    let { tickets } = stored;
     let prError = false;
-    if (config.connection) {
+    const loadPrs = async (): Promise<TrackedPr[]> => {
+      if (!config.connection) return [];
       try {
         const conn = await ctx.connection(config.connection, 'github');
         const { refs } = await trackedStore(ctx.dataDir).read();
-        prs = await fetchPrPool(conn, { tracked: refs, keys: tickets.flatMap((t) => [t.key, ...(t.aliases ?? [])]), signal: ctx.signal });
+        return await fetchPrPool(conn, { tracked: refs, keys: tickets.flatMap((t) => [t.key, ...(t.aliases ?? [])]), signal: ctx.signal });
       } catch {
         prError = true;
+        return [];
       }
-    }
-    const hours = await readWeekHours(ctx.dataDir).catch(() => ({}) as Record<string, number>);
+    };
+    const loadJira = async (): Promise<Record<string, JiraInfo>> => {
+      const jira: Record<string, JiraInfo> = {};
+      if (config.jiraConnection && tickets.length) {
+        try {
+          const conn = await ctx.connection(config.jiraConnection, 'jira');
+          const keys = tickets.map((t) => t.key).filter((k) => /^[A-Za-z][A-Za-z0-9_]*-\d+$/.test(k));
+          const pointsId = (await fieldIds(conn, ctx.signal)).points;
+          const raw = keys.length ? await search(conn, `key in (${keys.join(',')})`, infoFields(pointsId), keys.length, ctx.signal) : [];
+          for (const r of raw) jira[String(r.key)] = mapInfo(r, pointsId);
+        } catch {
+          // the Jira info is optional; the overview shows a dash
+        }
+      }
+      return jira;
+    };
+    const [prs, jira] = await Promise.all([loadPrs(), loadJira()]);
     const pods = latestPods();
     const { links, unlinked } = linkTickets(
       tickets.map((t) => t.key),
       prs,
       pods,
-      hours,
       config.keyPattern,
       Object.fromEntries(tickets.filter((t) => t.podLinks?.length).map((t) => [t.key, t.podLinks!])),
       Object.fromEntries(tickets.filter((t) => t.aliases?.length).map((t) => [t.key, t.aliases!])),
@@ -111,26 +129,18 @@ export const ticketsSource = defineSource<TicketsConfig>({
     const statuses = parseStatuses(config.statuses ?? '');
     if (config.connection && !prError) {
       const now = Date.now();
-      const saved = await store.update((s) => {
-        const plan = planAutoMoves(s.tickets, links, statuses, s.autoMoveMemory, config.autoMove !== false, config.readyLabel || 'ready to merge');
-        let list = s.tickets;
-        for (const m of plan.moves) {
-          list = move(list, m.id, m.status, Number.MAX_SAFE_INTEGER, now).map((t) => (t.id === m.id ? { ...t, autoMovedAt: now } : t));
-        }
-        return { tickets: list, autoMoveMemory: plan.memory };
-      });
-      tickets = saved.tickets;
-    }
-    const jira: Record<string, JiraInfo> = {};
-    if (config.jiraConnection && tickets.length) {
-      try {
-        const conn = await ctx.connection(config.jiraConnection, 'jira');
-        const keys = tickets.map((t) => t.key).filter((k) => /^[A-Za-z][A-Za-z0-9_]*-\d+$/.test(k));
-        const pointsId = (await fieldIds(conn, ctx.signal)).points;
-        const raw = keys.length ? await search(conn, `key in (${keys.join(',')})`, infoFields(pointsId), keys.length, ctx.signal) : [];
-        for (const r of raw) jira[String(r.key)] = mapInfo(r, pointsId);
-      } catch {
-        // the Jira info is optional; the overview shows a dash
+      const ready = config.readyLabel || 'ready to merge';
+      const plan0 = planAutoMoves(stored.tickets, links, statuses, stored.autoMoveMemory, config.autoMove !== false, ready);
+      if (plan0.moves.length || memorySig(plan0.memory) !== memorySig(stored.autoMoveMemory)) {
+        const saved = await store.update((s) => {
+          const plan = planAutoMoves(s.tickets, links, statuses, s.autoMoveMemory, config.autoMove !== false, ready);
+          let list = s.tickets;
+          for (const m of plan.moves) {
+            list = move(list, m.id, m.status, Number.MAX_SAFE_INTEGER, now).map((t) => (t.id === m.id ? { ...t, autoMovedAt: now } : t));
+          }
+          return { tickets: list, autoMoveMemory: plan.memory };
+        });
+        tickets = saved.tickets;
       }
     }
     return { statuses, tickets, links, unlinked, pods, jira, ...(prError ? { prError } : {}) };

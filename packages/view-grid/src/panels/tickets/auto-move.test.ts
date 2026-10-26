@@ -7,7 +7,7 @@ import type { TicketLink } from './types';
 const pr = (over: Partial<TrackedPr> = {}): TrackedPr =>
   ({ owner: 'o', repo: 'r', number: 1, title: '', url: 'u', state: 'open', draft: false, branch: '', labels: [], reviewDecision: null, changesRequested: false, checks: { state: 'none', passed: 0, total: 0, details: [] }, ready: false, rc: false, ...over }) as TrackedPr;
 
-const link = (prs: TrackedPr[]): TicketLink => ({ stages: { branch: 'none', pr: 'none', pods: 'none', hours: 'none' }, branches: [], prs, pods: [], manualPods: [], hours: null });
+const link = (prs: TrackedPr[]): TicketLink => ({ stages: { branch: 'none', pr: 'none', pods: 'none' }, branches: [], prs, pods: [], manualPods: [] });
 const ticket = (status: string, autoMove: boolean | null = null): Ticket => ({ id: 'a', key: 'A-1', description: '', status, autoMove, order: 0 });
 const statuses = ['Open', 'In Review', 'Ready to Merge', 'Done'];
 

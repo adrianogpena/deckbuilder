@@ -41,12 +41,11 @@ export interface LinkResult {
   unlinked: UnlinkedKey[];
 }
 
-/** Links the ticket keys to the PRs, pods and week hours that carry the same (upper-cased) key. */
+/** Links the ticket keys to the PRs and pods that carry the same (upper-cased) key. */
 export function linkTickets(
   keys: readonly string[],
   prs: readonly TrackedPr[],
   pods: readonly Pod[],
-  hours: Record<string, number>,
   pattern: string,
   manualPods: Record<string, readonly string[]> = {},
   aliases: Record<string, readonly string[]> = {},
@@ -61,8 +60,6 @@ export function linkTickets(
     const key = podKey(pod.name, pattern);
     if (key) podsBy.set(key, [...(podsBy.get(key) ?? []), pod]);
   }
-  const hoursBy = new Map<string, number>();
-  for (const [k, v] of Object.entries(hours)) hoursBy.set(k.toUpperCase(), (hoursBy.get(k.toUpperCase()) ?? 0) + v);
 
   const links: Record<string, TicketLink> = {};
   const known = new Set<string>();
@@ -74,15 +71,13 @@ export function linkTickets(
     const manual = new Set((manualPods[key] ?? manualPods[up] ?? []).map(normPodId));
     const auto = [...new Set(own.flatMap((k) => podsBy.get(k) ?? []))];
     const linkedPods = [...auto, ...pods.filter((p) => manual.has(podId(p)) && !auto.includes(p))];
-    const h = hoursBy.get(up) ?? null;
     const branches = [...new Set(linkedPrs.map((p) => p.branch).filter(Boolean))];
     links[key] = {
-      stages: { branch: branches.length ? 'ok' : 'none', pr: prStage(linkedPrs), pods: podsStage(linkedPods), hours: h === null ? 'none' : 'ok' },
+      stages: { branch: branches.length ? 'ok' : 'none', pr: prStage(linkedPrs), pods: podsStage(linkedPods) },
       branches,
       prs: linkedPrs,
       pods: linkedPods,
       manualPods: [...manual],
-      hours: h,
     };
   }
 

@@ -5,15 +5,14 @@ import type { Ticket } from './model';
 
 export type Stage = 'none' | 'ok' | 'pending' | 'warn' | 'fail';
 
-/** What the linker knows about a ticket: its branch, PRs, pods and hours this week. */
+/** What the linker knows about a ticket: its branch, PRs, and pods. */
 export interface TicketLink {
-  stages: { branch: Stage; pr: Stage; pods: Stage; hours: Stage };
+  stages: { branch: Stage; pr: Stage; pods: Stage };
   branches: string[];
   prs: TrackedPr[];
   pods: Pod[];
   /** Ids (`podId`) of the pods linked by hand. */
   manualPods: string[];
-  hours: number | null;
 }
 
 /** A key found in PRs or pods that is not on the board. */

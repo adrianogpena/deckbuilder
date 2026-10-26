@@ -6,6 +6,34 @@ import { fieldsOf, onRefreshRequest, type AnyPanelKind, type PanelSide } from '.
 /** Last data per instance and config, so a collapsed or re-shown panel starts with what it had. */
 const cache = new Map<string, unknown>();
 
+const STORAGE_PREFIX = 'kedalion.panel.';
+const MAX_STORED = 512 * 1024;
+
+function readStored(key: string): unknown {
+  try {
+    const raw = localStorage.getItem(STORAGE_PREFIX + key);
+    return raw === null ? undefined : JSON.parse(raw);
+  } catch {
+    return undefined;
+  }
+}
+
+function writeStored(key: string, value: unknown): void {
+  try {
+    const raw = JSON.stringify(value);
+    if (raw !== undefined && raw.length <= MAX_STORED) localStorage.setItem(STORAGE_PREFIX + key, raw);
+  } catch {
+    // storage full or unavailable: the panel just loads without a stored copy
+  }
+}
+
+/** The cached data of `key`; a `persist` kind falls back to localStorage when memory misses. */
+function cached(kind: AnyPanelKind, key: string): unknown {
+  const hit = cache.get(key);
+  if (hit !== undefined || !kind.persist) return hit;
+  return readStored(key);
+}
+
 const intervalOf = (kind: AnyPanelKind, config: Record<string, unknown>, data: unknown): number => {
   const ms = typeof kind.refreshMs === 'function' ? kind.refreshMs(config, data) : kind.refreshMs;
   return ms && ms > 0 ? ms : 0;
@@ -49,7 +77,7 @@ function Rendered({ kind, id, config, data, size, refresh, configure, side, setC
 
 function Loaded({ kind, id, config, size, configure, side, setConfig }: HostProps) {
   const key = `${id}:${kind.kind}:${JSON.stringify(config)}`;
-  const [data, setData] = useState<unknown>(() => cache.get(key));
+  const [data, setData] = useState<unknown>(() => cached(kind, key));
   const [error, setError] = useState<ApiError>();
   const generation = useRef(0);
   const abort = useRef<AbortController>();
@@ -78,6 +106,7 @@ function Loaded({ kind, id, config, size, configure, side, setConfig }: HostProp
       .then((value) => {
         if (gen !== generation.current) return;
         cache.set(cacheKey, value);
+        if (k.persist) writeStored(cacheKey, value);
         setData(value);
         setError(undefined);
       })
@@ -88,7 +117,7 @@ function Loaded({ kind, id, config, size, configure, side, setConfig }: HostProp
   }, []);
 
   useEffect(() => {
-    setData(cache.get(key));
+    setData(cached(latest.current.kind, key));
     setError(undefined);
     run();
     return () => {
