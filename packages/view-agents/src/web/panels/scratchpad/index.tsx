@@ -72,16 +72,6 @@ function ScratchpadBody({ project }: { project: string | undefined }) {
 
   return (
     <div className="agents-scratchpad">
-      <label className="agents-scratchpad-label" htmlFor="agents-scratchpad-notes">{t('panel.scratchpad.notes')}</label>
-      <textarea
-        id="agents-scratchpad-notes"
-        className="agents-scratchpad-notes"
-        value={pad.notes}
-        placeholder={t('panel.scratchpad.notesPlaceholder')}
-        spellCheck={false}
-        onChange={(e) => change({ ...pad, notes: e.target.value })}
-      />
-      <div className="agents-scratchpad-label">{t('panel.scratchpad.todos')}</div>
       <ul className="agents-scratchpad-todos">
         {pad.todos.map((x, i) => (
           <li key={x.id} className="agents-scratchpad-todo" data-done={x.done}>
