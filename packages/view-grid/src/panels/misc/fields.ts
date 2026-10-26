@@ -1,4 +1,5 @@
 import type { PanelField } from '@kedalion/ui/grid';
+import { notifyField } from '../../notify-field';
 
 export const MAX_URLS = 20;
 export const SYSTEM_COLUMNS = ['cpu', 'memory', 'disk', 'uptime'] as const;
@@ -26,6 +27,7 @@ export const fields: Record<string, readonly PanelField[]> = {
     { key: 'layout', kind: 'enum', label: 'dash.misc.health.layout', default: 'list', values: ['list', 'dots'], optionLabel: 'dash.misc.health.layout' },
     { key: 'timeoutMs', kind: 'number', label: 'dash.misc.health.timeoutMs', default: 5000, min: 1000, max: 30000 },
     { key: 'refreshMin', kind: 'enum', label: 'dash.misc.refreshMin', default: 5, values: [1, 5, 15] },
+    notifyField(true),
   ],
   'json-metric': [
     { key: 'url', kind: 'string', label: 'dash.misc.json.url', default: '', maxLength: 200, placeholder: 'https://' },
@@ -33,6 +35,7 @@ export const fields: Record<string, readonly PanelField[]> = {
     { key: 'label', kind: 'string', label: 'dash.misc.json.label', default: '', maxLength: 60 },
     { key: 'unit', kind: 'string', label: 'dash.misc.json.unit', default: '', maxLength: 20 },
     { key: 'refreshMin', kind: 'enum', label: 'dash.misc.refreshMin', default: 5, values: [1, 5, 15] },
+    notifyField(false),
   ],
   system: [
     { key: 'layout', kind: 'enum', label: 'dash.misc.system.layout', default: 'tiles', values: ['tiles', 'bars'], optionLabel: 'dash.misc.system.layout' },

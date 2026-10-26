@@ -6,6 +6,7 @@ import { fetchPrPool, trackedStore } from '../github/server';
 import type { TrackedPr } from '../github/tracked';
 import { latestPods } from '../pods/server';
 import { TICKETS_FIELDS } from './fields';
+import { notifyChanges, notifyScope } from '../../notify-changes';
 import { planAutoMoves } from './auto-move';
 import { infoFields, mapInfo, pcrOf, type JiraInfo } from './jira-info';
 import { linkTickets } from './linker';
@@ -20,6 +21,7 @@ interface TicketsConfig {
   jiraBaseUrl: string;
   autoMove?: boolean;
   readyLabel?: string;
+  notify?: boolean;
   [key: string]: unknown;
 }
 
@@ -90,6 +92,7 @@ export const ticketsSource = defineSource<TicketsConfig>({
     const stored = await store.read();
     let { tickets } = stored;
     let prError = false;
+    let jiraError = false;
     const loadPrs = async (): Promise<TrackedPr[]> => {
       if (!config.connection) return [];
       try {
@@ -111,12 +114,25 @@ export const ticketsSource = defineSource<TicketsConfig>({
           const raw = keys.length ? await search(conn, `key in (${keys.join(',')})`, infoFields(pointsId), keys.length, ctx.signal) : [];
           for (const r of raw) jira[String(r.key)] = mapInfo(r, pointsId);
         } catch {
-          // the Jira info is optional; the overview shows a dash
+          jiraError = true;
         }
       }
       return jira;
     };
     const [prs, jira] = await Promise.all([loadPrs(), loadJira()]);
+    if (config.notify !== false && config.jiraConnection && !jiraError) {
+      notifyChanges(
+        ctx,
+        notifyScope('tickets', config),
+        tickets.filter((t) => jira[t.key]),
+        {
+          key: (t) => t.key,
+          sig: (t) => `${jira[t.key]!.status}|${jira[t.key]!.assignee}|${jira[t.key]!.priority}`,
+          title: 'Ticket changes',
+          line: (t) => `${t.key}: ${jira[t.key]!.status}`,
+        },
+      );
+    }
     const pods = latestPods();
     const { links, unlinked } = linkTickets(
       tickets.map((t) => t.key),

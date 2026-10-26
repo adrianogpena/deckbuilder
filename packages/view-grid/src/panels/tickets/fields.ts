@@ -1,5 +1,6 @@
 import type { PanelField } from '@kedalion/ui/grid';
 import { DEFAULT_TICKET_PATTERN } from '../github/map';
+import { notifyField } from '../../notify-field';
 import { DEFAULT_STATUSES } from './model';
 
 export const TICKETS_FIELDS: readonly PanelField[] = [
@@ -10,6 +11,7 @@ export const TICKETS_FIELDS: readonly PanelField[] = [
   { key: 'autoMove', kind: 'boolean', label: 'dash.tickets.autoMove', description: 'dash.tickets.autoMove.hint', default: true },
   { key: 'readyLabel', kind: 'string', label: 'dash.tickets.readyLabel', description: 'dash.tickets.readyLabel.hint', default: 'ready to merge', maxLength: 100 },
   { key: 'jiraBaseUrl', kind: 'string', label: 'dash.tickets.jiraBaseUrl', description: 'dash.tickets.jiraBaseUrl.hint', placeholder: 'dash.tickets.jiraBaseUrl.placeholder', default: '', maxLength: 300 },
+  notifyField(true),
 ];
 
 export const fields: Record<string, readonly PanelField[]> = { tickets: TICKETS_FIELDS };

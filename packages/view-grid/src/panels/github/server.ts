@@ -5,7 +5,8 @@ import { graphql, rest } from './client';
 import { mapLimit } from './limit';
 import { parseTrackedPrRef, toTrackedPr, type PrNode, type PrRef, type TrackedPr } from './tracked';
 import { ACTIONS_SOURCE_FIELDS, TRACKED_SOURCE_FIELDS, fields,ISSUE_SOURCE_FIELDS, NOTIFICATIONS_SOURCE_FIELDS, OVERVIEW_SOURCE_FIELDS, PR_SOURCE_FIELDS, RELEASES_FIELDS } from './fields';
-import { mapNotifications, mapReleases, mapRepoStats, mapRuns, parseRepo, runsPath, type RepoResponse } from './more';
+import { notifyChanges, notifyScope } from '../../notify-changes';
+import { latestSettledRuns, mapNotifications, mapReleases, mapRepoStats, mapRuns, parseRepo, runsPath, type RepoResponse } from './more';
 import { buildQuery, mapIssues, mapPullRequests, nextRefreshMs, PR_REFRESH_MS, type SearchResponse } from './map';
 
 import { BOT_LOGIN, parseBotComments, type BotComment } from './bot';
@@ -88,6 +89,14 @@ export const githubPrsSource = defineSource<SearchConfig>({
       board = null;
     }
     const items = board ? data.items.map((pr) => ({ ...pr, linked: !!pr.ticket && board.has(pr.ticket.toUpperCase()) })) : data.items;
+    if (config.notify !== false) {
+      notifyChanges(ctx, notifyScope('github-prs', config), items, {
+        key: (pr) => pr.id,
+        sig: (pr) => [pr.state, pr.review, `${pr.checks.passed}/${pr.checks.total}`].join('|'),
+        title: 'Pull requests',
+        line: (pr) => `${pr.repo}#${pr.number} ${pr.title} (${pr.state}, ${pr.checks.passed}/${pr.checks.total} checks, review ${pr.review})`,
+      });
+    }
     return { ...data, items, ...(nextRefreshMs ? { nextRefreshMs } : {}) };
   },
   actions: {
@@ -119,7 +128,16 @@ export const githubIssuesSource = defineSource<SearchConfig>({
   fields: ISSUE_SOURCE_FIELDS,
   async fetch(config, ctx) {
     const { res, nextRefreshMs } = await search('issue', config, ctx);
-    return { ...mapIssues(res), ...(nextRefreshMs ? { nextRefreshMs } : {}) };
+    const data = mapIssues(res);
+    if (config.notify !== false) {
+      notifyChanges(ctx, notifyScope('github-issues', config), data.items, {
+        key: (i) => i.id,
+        sig: (i) => [i.state, i.assignees.join(','), i.title].join('|'),
+        title: 'Issues',
+        line: (i) => `${i.repo}#${i.number} ${i.title} (${i.state})`,
+      });
+    }
+    return { ...data, ...(nextRefreshMs ? { nextRefreshMs } : {}) };
   },
 });
 
@@ -143,7 +161,16 @@ export const githubActionsSource = defineSource<RepoConfig & { branch: string; w
     const repo = needRepo(config.repo);
     const conn = await ctx.connection(config.connection, 'github');
     const raw = await rest<Parameters<typeof mapRuns>[0]>(conn, runsPath(repo, config.branch ?? '', config.workflow ?? '', config.max), ctx.signal);
-    return mapRuns(raw, config.max);
+    const data = mapRuns(raw, config.max);
+    if (config.notify !== false) {
+      notifyChanges(ctx, notifyScope('github-actions', config), latestSettledRuns(data.items), {
+        key: (r) => r.workflow || r.title,
+        sig: (r) => r.status,
+        title: 'Workflow runs',
+        line: (r) => `${r.workflow || r.title} ${r.status === 'failure' ? 'failed' : 'recovered'}${r.branch ? ` on ${r.branch}` : ''}`,
+      });
+    }
+    return data;
   },
 });
 
@@ -155,7 +182,16 @@ export const githubNotificationsSource = defineSource<{ connection: string; part
     const q = new URLSearchParams({ per_page: String(config.max) });
     if (config.participatingOnly) q.set('participating', 'true');
     const raw = await rest<Parameters<typeof mapNotifications>[0]>(conn, `/notifications?${q}`, ctx.signal);
-    return mapNotifications(raw, config.max);
+    const data = mapNotifications(raw, config.max);
+    if (config.notify !== false) {
+      notifyChanges(ctx, notifyScope('github-notifications', config), data.items, {
+        key: (n) => n.id,
+        sig: () => '',
+        title: 'GitHub notifications',
+        line: (n) => `${n.repo}: ${n.title}`,
+      });
+    }
+    return data;
   },
 });
 
@@ -166,7 +202,16 @@ export const githubReleasesSource = defineSource<RepoConfig & { includePrereleas
     const repo = needRepo(config.repo);
     const conn = await ctx.connection(config.connection, 'github');
     const raw = await rest<Parameters<typeof mapReleases>[0]>(conn, `/repos/${repo}/releases?per_page=${Math.min(100, config.max * 2)}`, ctx.signal);
-    return mapReleases(raw, config.max, !!config.includePrereleases);
+    const data = mapReleases(raw, config.max, !!config.includePrereleases);
+    if (config.notify !== false) {
+      notifyChanges(ctx, notifyScope('github-releases', config), data.items, {
+        key: (r) => r.id,
+        sig: () => '',
+        title: `New release in ${repo}`,
+        line: (r) => r.name,
+      });
+    }
+    return data;
   },
 });
 
@@ -340,7 +385,16 @@ export const githubTrackedSource = defineSource<TrackedConfig>({
     const { refs } = await trackedStore(ctx.dataDir).read();
     if (!refs.length) return { items: [] as TrackedPr[] };
     const conn = await ctx.connection(config.connection, 'github');
-    return { items: await fetchPrs(conn, refs, ctx.signal, config) };
+    const items = await fetchPrs(conn, refs, ctx.signal, config);
+    if (config.notify !== false) {
+      notifyChanges(ctx, notifyScope('github-tracked', config), items, {
+        key: (p) => `${p.owner}/${p.repo}#${p.number}`,
+        sig: (p) => [p.state, p.reviewDecision ?? '', p.changesRequested, `${p.checks.passed}/${p.checks.total}`].join('|'),
+        title: 'Tracked pull requests',
+        line: (p) => `${p.owner}/${p.repo}#${p.number} ${p.title} (${p.state}, ${p.checks.passed}/${p.checks.total} checks)`,
+      });
+    }
+    return { items };
   },
   actions: {
     async track(payload, _config, ctx) {

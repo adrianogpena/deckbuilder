@@ -1,4 +1,5 @@
 import type { PanelField } from '@kedalion/ui/grid';
+import { notifyField } from '../../notify-field';
 import { DEFAULT_TICKET_PATTERN, ISSUE_MODES, PR_MODES } from './map';
 import { NOTIFICATION_COLUMNS, OVERVIEW_STATS, RUN_COLUMNS } from './more';
 
@@ -21,6 +22,7 @@ export const PULL_REQUESTS_FIELDS: readonly PanelField[] = [
   density,
   { key: 'ticketPattern', kind: 'string', label: 'dash.github.ticketPattern', description: 'dash.github.ticketPattern.hint', default: DEFAULT_TICKET_PATTERN, maxLength: 100 },
   { key: 'rcLabel', kind: 'string', label: 'dash.github.rcLabel', description: 'dash.github.rcLabel.hint', default: 'RC branch', maxLength: 100 },
+  notifyField(true),
 ];
 
 export const ISSUES_FIELDS: readonly PanelField[] = [
@@ -31,6 +33,7 @@ export const ISSUES_FIELDS: readonly PanelField[] = [
   max,
   { key: 'columns', kind: 'multi', label: 'dash.github.columns', default: ['repo', 'labels', 'updated'], values: ISSUE_COLUMNS, optionLabel: 'dash.github.col' },
   density,
+  notifyField(false),
 ];
 
 /** What a panel sends to the github search sources. */
@@ -46,6 +49,7 @@ export const ACTIONS_FIELDS: readonly PanelField[] = [
   { key: 'workflow', kind: 'string', label: 'dash.github.workflow', description: 'dash.github.workflow.hint', placeholder: 'dash.github.workflow.placeholder', default: '', maxLength: 100 },
   maxRows,
   { key: 'columns', kind: 'multi', label: 'dash.github.columns', default: ['branch', 'duration', 'updated'], values: RUN_COLUMNS, optionLabel: 'dash.github.col' },
+  notifyField(true),
 ];
 
 export const NOTIFICATIONS_FIELDS: readonly PanelField[] = [
@@ -53,6 +57,7 @@ export const NOTIFICATIONS_FIELDS: readonly PanelField[] = [
   { key: 'participatingOnly', kind: 'boolean', label: 'dash.github.participatingOnly', default: false },
   maxRows,
   { key: 'columns', kind: 'multi', label: 'dash.github.columns', default: ['repo', 'reason', 'updated'], values: NOTIFICATION_COLUMNS, optionLabel: 'dash.github.col' },
+  notifyField(false),
 ];
 
 export const RELEASES_FIELDS: readonly PanelField[] = [
@@ -60,6 +65,7 @@ export const RELEASES_FIELDS: readonly PanelField[] = [
   repo,
   maxRows,
   { key: 'includePrereleases', kind: 'boolean', label: 'dash.github.includePrereleases', default: false },
+  notifyField(true),
 ];
 
 export const OVERVIEW_FIELDS: readonly PanelField[] = [
@@ -72,6 +78,7 @@ export const TRACKED_FIELDS: readonly PanelField[] = [
   connection,
   { key: 'readyLabel', kind: 'string', label: 'dash.github.tracked.readyLabel', default: 'ready to merge', maxLength: 100 },
   { key: 'rcLabel', kind: 'string', label: 'dash.github.tracked.rcLabel', default: 'rc', maxLength: 100 },
+  notifyField(false),
 ];
 export const TRACKED_SOURCE_FIELDS: readonly PanelField[] = TRACKED_FIELDS;
 

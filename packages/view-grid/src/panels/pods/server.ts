@@ -119,7 +119,7 @@ function publish(config: PodsConfig, clusters: readonly Cluster[], notify?: (n: 
     out.pods.push(...r.pods);
   }
   latest = out.pods;
-  if (config.notifyHealth !== false && notify) {
+  if (config.notify !== false && notify) {
     for (const { pod, healthy } of healthChanges(healthSeen, out.pods)) {
       notify({ title: healthy ? 'Pod recovered' : 'Pod unhealthy', body: `${pod.context}/${pod.namespace}/${pod.name}: ${pod.status}` }).catch(() => {});
     }

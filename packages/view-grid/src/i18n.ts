@@ -82,6 +82,7 @@ export const en = {
   'conn.hasToken': 'Token stored',
   'conn.pick': 'Select a connection',
   'conn.new': 'New connection…',
+  'dash.notify': 'Notify on changes',
 };
 
 export const ptBR: Messages<typeof en> = {
@@ -166,6 +167,7 @@ export const ptBR: Messages<typeof en> = {
   'conn.hasToken': 'Token guardado',
   'conn.pick': 'Selecione uma conexão',
   'conn.new': 'Nova conexão…',
+  'dash.notify': 'Avisar quando mudar',
 };
 
 export type GridMessageKey = keyof typeof en;

@@ -1,4 +1,5 @@
 import type { PanelField } from '@kedalion/ui/grid';
+import { notifyField } from '../../notify-field';
 
 const connection: PanelField = { key: 'connection', kind: 'connection', connectionType: 'jira', default: '', label: 'dash.jira.connection' };
 
@@ -19,6 +20,7 @@ export const ISSUES_FIELDS: readonly PanelField[] = [
   { key: 'columns', kind: 'multi', label: 'dash.jira.columns', default: ['status', 'priority', 'updated'], values: ISSUE_COLUMNS, optionLabel: 'dash.jira.col' },
   { key: 'groupBy', kind: 'enum', label: 'dash.jira.groupBy', default: 'none', values: GROUP_BY, optionLabel: 'dash.jira.groupBy' },
   { key: 'refreshMin', kind: 'enum', label: 'dash.jira.refreshMin', default: 5, values: REFRESH_MINUTES, optionLabel: 'dash.jira.refreshMin' },
+  notifyField(true),
 ];
 
 export const COUNT_FIELDS: readonly PanelField[] = [
@@ -27,6 +29,7 @@ export const COUNT_FIELDS: readonly PanelField[] = [
   { key: 'label', kind: 'string', label: 'dash.jira.label', default: '', maxLength: 60 },
   { key: 'display', kind: 'enum', label: 'dash.jira.display', default: 'number', values: DISPLAYS, optionLabel: 'dash.jira.display' },
   { key: 'refreshMin', kind: 'enum', label: 'dash.jira.refreshMin', default: 5, values: REFRESH_MINUTES, optionLabel: 'dash.jira.refreshMin' },
+  notifyField(false),
 ];
 
 export const BOARD_FIELDS: readonly PanelField[] = [
@@ -34,6 +37,7 @@ export const BOARD_FIELDS: readonly PanelField[] = [
   { key: 'boardId', kind: 'number', label: 'dash.jira.boardId', description: 'dash.jira.boardId.hint', default: 0, min: 0, max: 1_000_000 },
   { key: 'columns', kind: 'multi', label: 'dash.jira.columns', default: ['assignee', 'points'], values: SPRINT_COLUMNS, optionLabel: 'dash.jira.col' },
   { key: 'refreshMin', kind: 'enum', label: 'dash.jira.refreshMin', default: 5, values: REFRESH_MINUTES, optionLabel: 'dash.jira.refreshMin' },
+  notifyField(true),
 ];
 
 /** Config field lists of the jira panels (no React), by kind. */

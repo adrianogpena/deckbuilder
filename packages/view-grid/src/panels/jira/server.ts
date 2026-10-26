@@ -1,3 +1,4 @@
+import { notifyChanges, notifyScope } from '../../notify-changes';
 import { defineSource, SourceError, type DataSource, type GridPanelSpec } from '../../server';
 import { agile, count, fieldIds, search } from './client';
 import { BOARD_FIELDS, COUNT_FIELDS, fields, ISSUES_FIELDS } from './fields';
@@ -12,33 +13,50 @@ export interface CountData {
   slices: Slice[];
 }
 
-const issuesSource = defineSource<{ connection: string; jql: string; max: number; columns: string[] }>({
+const issuesSource = defineSource<{ connection: string; jql: string; max: number; columns: string[]; notify: boolean }>({
   id: 'jira-issues',
   fields: ISSUES_FIELDS,
-  async fetch({ connection, jql, max, columns }, ctx): Promise<IssuesData> {
+  async fetch({ connection, jql, max, columns, notify }, ctx): Promise<IssuesData> {
     const conn = await ctx.connection(connection, 'jira');
     const ids = columns.includes('sprint') ? await fieldIds(conn, ctx.signal) : {};
     const raw = await search(conn, jql, requestFields(columns, ids), max, ctx.signal);
-    return { issues: raw.map((r) => mapIssue(r, conn.baseUrl, ids)) };
+    const issues = raw.map((r) => mapIssue(r, conn.baseUrl, ids));
+    if (notify !== false) {
+      notifyChanges(ctx, notifyScope('jira-issues', { connection, jql, max }), issues, {
+        key: (i) => i.key,
+        sig: (i) => `${i.status}|${i.assignee}`,
+        title: 'Jira issues',
+        line: (i) => `${i.key}: ${i.summary} (${i.status})`,
+      });
+    }
+    return { issues };
   },
 });
 
-const countSource = defineSource<{ connection: string; jql: string; display: string }>({
+const countSource = defineSource<{ connection: string; jql: string; display: string; notify: boolean }>({
   id: 'jira-count',
   fields: COUNT_FIELDS,
-  async fetch({ connection, jql, display }, ctx): Promise<CountData> {
+  async fetch({ connection, jql, display, notify }, ctx): Promise<CountData> {
     const conn = await ctx.connection(connection, 'jira');
     const total = await count(conn, jql, ctx.signal);
+    if (notify === true) {
+      notifyChanges(ctx, notifyScope('jira-count', { connection, jql }), [total], {
+        key: () => 'count',
+        sig: (n) => String(n),
+        title: 'Jira count',
+        line: (n) => `Count: ${n}`,
+      });
+    }
     if (display !== 'status' && display !== 'assignee' && display !== 'priority') return { total, slices: [] };
     const raw = await search(conn, jql, requestFields([display]), 100, ctx.signal);
     return { total, slices: breakdown(raw.map((r) => mapIssue(r, conn.baseUrl)), display) };
   },
 });
 
-const sprintSource = defineSource<{ connection: string; boardId: number; columns: string[] }>({
+const sprintSource = defineSource<{ connection: string; boardId: number; columns: string[]; notify: boolean }>({
   id: 'jira-sprint',
   fields: BOARD_FIELDS,
-  async fetch({ connection, boardId, columns }, ctx): Promise<SprintData | null> {
+  async fetch({ connection, boardId, columns, notify }, ctx): Promise<SprintData | null> {
     const conn = await ctx.connection(connection, 'jira');
     if (!boardId) throw SourceError('not-configured', 'No board is set.');
     const sprints = await agile(conn, `/board/${boardId}/sprint?state=active`, ctx.signal);
@@ -48,7 +66,18 @@ const sprintSource = defineSource<{ connection: string; boardId: number; columns
     const wanted = requestFields(columns, ids);
     const q = new URLSearchParams({ maxResults: '100', fields: wanted.join(',') });
     const res = await agile(conn, `/sprint/${sprint.id}/issue?${q}`, ctx.signal);
-    return mapSprint(sprint, ((res.issues ?? []) as Record<string, any>[]).map((r) => mapIssue(r, conn.baseUrl, ids)));
+    const data = mapSprint(sprint, ((res.issues ?? []) as Record<string, any>[]).map((r) => mapIssue(r, conn.baseUrl, ids)));
+    if (notify !== false) {
+      const column = (list: JiraIssue[], name: string) => list.map((issue) => ({ issue, column: name }));
+      const placed = [...column(data.todo, 'To do'), ...column(data.doing, 'In progress'), ...column(data.finished, 'Done')];
+      notifyChanges(ctx, notifyScope('jira-sprint', { connection, boardId }), placed, {
+        key: (p) => p.issue.key,
+        sig: (p) => p.column,
+        title: `Sprint ${data.name}`,
+        line: (p) => `${p.issue.key}: ${p.issue.summary} (${p.column})`,
+      });
+    }
+    return data;
   },
 });
 

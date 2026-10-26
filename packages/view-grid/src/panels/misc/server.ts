@@ -1,4 +1,5 @@
 import type { PanelConfig } from '@kedalion/ui/grid';
+import { notifyChanges, notifyScope } from '../../notify-changes';
 import type { DataSource, GridPanelSpec } from '../../server';
 import { fields } from './fields';
 import { checkUrl, fetchJson, type HealthResult } from './health';
@@ -27,7 +28,16 @@ const urlHealth: DataSource<PanelConfig> = {
   fields: fields['url-health']!,
   async fetch(config, ctx): Promise<HealthResult[]> {
     const items = parseLines(String(config.urls ?? ''), MAX_URLS);
-    return Promise.all(items.map((i) => checkUrl(i.label, i.url, Number(config.timeoutMs), ctx.signal)));
+    const results = await Promise.all(items.map((i) => checkUrl(i.label, i.url, Number(config.timeoutMs), ctx.signal)));
+    if (config.notify !== false) {
+      notifyChanges(ctx, notifyScope('url-health', { urls: config.urls, timeoutMs: config.timeoutMs }), results, {
+        key: (r) => r.url,
+        sig: (r) => (r.ok ? 'up' : 'down'),
+        title: 'URL health',
+        line: (r) => `${r.label || r.url} ${r.ok ? 'recovered' : 'is down'}`,
+      });
+    }
+    return results;
   },
 };
 
@@ -38,7 +48,17 @@ const jsonMetric: DataSource<PanelConfig> = {
     const found = lookupPath(await fetchJson(String(config.url ?? ''), 10_000, ctx.signal), String(config.path ?? ''));
     const value = asNumber(found);
     const raw = value === undefined && found !== undefined ? (typeof found === 'object' ? JSON.stringify(found) : String(found)).slice(0, 200) : undefined;
-    return { value, ...(raw !== undefined && { raw }) };
+    const data: JsonMetricData = { value, ...(raw !== undefined && { raw }) };
+    if (config.notify === true) {
+      const name = String(config.label || config.path || config.url);
+      notifyChanges(ctx, notifyScope('json-metric', { url: config.url, path: config.path }), [data], {
+        key: () => 'value',
+        sig: (d) => String(d.value ?? d.raw ?? ''),
+        title: 'Metric changed',
+        line: (d) => `${name}: ${d.value ?? d.raw ?? 'no value'}${config.unit ? ` ${config.unit}` : ''}`,
+      });
+    }
+    return data;
   },
 };
 

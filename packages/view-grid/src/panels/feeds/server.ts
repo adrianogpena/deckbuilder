@@ -1,5 +1,6 @@
 import { sourceFetch } from '../../connections/errors';
-import { defineSource, type DataSource, type GridPanelSpec } from '../../server';
+import { notifyChanges, notifyScope } from '../../notify-changes';
+import { defineSource,type DataSource, type GridPanelSpec } from '../../server';
 import { fields, FX_FIELDS, RSS_SOURCE_FIELDS, WEATHER_SOURCE_FIELDS } from './fields';
 import { currencyCode, mapSeries, startDate, type FxData } from './fx';
 import { feedUrls, mergeFeeds, parseFeed, type Feed, type FeedItem } from './rss';
@@ -45,16 +46,25 @@ async function loadFeed(url: string, signal: AbortSignal): Promise<Feed> {
   return parseFeed(text.length > MAX_FEED_BYTES ? text.slice(0, MAX_FEED_BYTES) : text, new URL(url).hostname);
 }
 
-export const rssSource = defineSource<{ urls: string; max: number }>({
+export const rssSource = defineSource<{ urls: string; max: number; notify: boolean }>({
   id: 'feeds-rss',
   fields: RSS_SOURCE_FIELDS,
-  async fetch({ urls, max }, { signal }): Promise<FeedItem[]> {
+  async fetch({ urls, max, notify }, ctx): Promise<FeedItem[]> {
     const list = feedUrls(urls);
     if (list.length === 0) return [];
-    const results = await Promise.allSettled(list.map((url) => loadFeed(url, signal)));
+    const results = await Promise.allSettled(list.map((url) => loadFeed(url, ctx.signal)));
     const feeds = results.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []));
     if (feeds.length === 0) throw (results[0] as PromiseRejectedResult).reason;
-    return mergeFeeds(feeds, max);
+    const items = mergeFeeds(feeds, max);
+    if (notify !== false) {
+      notifyChanges(ctx, notifyScope('feeds-rss', { urls, max }), items, {
+        key: (i) => i.link || i.title,
+        sig: () => '',
+        title: feeds.length === 1 ? `New in ${feeds[0]!.title}` : 'New feed items',
+        line: (i) => (feeds.length === 1 ? i.title : `${i.source}: ${i.title}`),
+      });
+    }
+    return items;
   },
 });
 

@@ -10,6 +10,8 @@ interface PanelFieldBase {
   label: string;
   /** i18n key of the description. */
   description?: string;
+  /** Older keys of this setting; `validConfig` reads the first present one when `key` is absent. */
+  legacyKeys?: readonly string[];
 }
 
 export type PanelField =
@@ -40,7 +42,8 @@ export function validConfig(fields: readonly PanelField[], raw: unknown): PanelC
   const src = typeof raw === 'object' && raw !== null && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
   const out: PanelConfig = {};
   for (const f of fields) {
-    const v = Object.hasOwn(src, f.key) ? src[f.key] : undefined;
+    const from = [f.key, ...(f.legacyKeys ?? [])].find((k) => Object.hasOwn(src, k));
+    const v = from === undefined ? undefined : src[from];
     switch (f.kind) {
       case 'boolean':
         out[f.key] = typeof v === 'boolean' ? v : f.default;

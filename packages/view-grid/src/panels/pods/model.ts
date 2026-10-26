@@ -4,7 +4,7 @@ export interface PodsConfig {
   clusters: string;
   refreshSec: number;
   showHealthy: boolean;
-  notifyHealth: boolean;
+  notify: boolean;
 }
 
 /** One tracked line: a context, a namespace and a full or partial pod name. */

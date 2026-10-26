@@ -1,5 +1,6 @@
 import { runCli } from '../../cli';
-import { defineSource, SourceError, type DataSource, type GridPanelSpec } from '../../server';
+import { notifyChanges, notifyScope } from '../../notify-changes';
+import { defineSource,SourceError, type DataSource, type GridPanelSpec } from '../../server';
 import { CONTAINERS_FIELDS } from './fields';
 import { isMachineDown, parseDocker, parsePinned, parsePodman, sortPinned, type Container } from './model';
 
@@ -42,7 +43,19 @@ async function control(verb: 'start' | 'stop', payload: unknown, config: Contain
 export const containersSource = defineSource<ContainersConfig>({
   id: 'containers',
   fields: CONTAINERS_FIELDS,
-  fetch: (config, ctx) => list(config, ctx.signal),
+  async fetch(config, ctx) {
+    const data = await list(config, ctx.signal);
+    if (config.notify !== false && !data.machineDown) {
+      const up = (c: Container) => c.state === 'running' && !/unhealthy/i.test(c.status);
+      notifyChanges(ctx, notifyScope('containers', { engine: config.engine }), data.containers, {
+        key: (c) => c.name,
+        sig: (c) => (up(c) ? 'up' : 'down'),
+        title: 'Containers',
+        line: (c) => (up(c) ? `${c.name} recovered` : `${c.name} is ${/unhealthy/i.test(c.status) ? 'unhealthy' : c.state || 'stopped'}`),
+      });
+    }
+    return data;
+  },
   actions: {
     start: (payload, config, ctx) => control('start', payload, config, ctx.signal),
     stop: (payload, config, ctx) => control('stop', payload, config, ctx.signal),

@@ -1,4 +1,5 @@
 import type { PanelField } from '@kedalion/ui/grid';
+import { notifyField } from '../../notify-field';
 
 export const WEATHER_FIELDS: readonly PanelField[] = [
   { key: 'location', kind: 'string', label: 'dash.feeds.weather.location', description: 'dash.feeds.weather.location.hint', placeholder: 'dash.feeds.weather.location.placeholder', default: '', maxLength: 80 },
@@ -20,10 +21,11 @@ export const RSS_FIELDS: readonly PanelField[] = [
   { key: 'max', kind: 'number', label: 'dash.feeds.rss.max', default: 20, min: 1, max: 50 },
   { key: 'showSummary', kind: 'boolean', label: 'dash.feeds.rss.showSummary', default: false },
   { key: 'showSource', kind: 'boolean', label: 'dash.feeds.rss.showSource', default: true },
+  notifyField(true),
 ];
 
 /** What an RSS panel sends to the `feeds-rss` source. */
-export const RSS_SOURCE_FIELDS: readonly PanelField[] = [RSS_FIELDS[0]!, RSS_FIELDS[1]!];
+export const RSS_SOURCE_FIELDS: readonly PanelField[] = [RSS_FIELDS[0]!, RSS_FIELDS[1]!, RSS_FIELDS[4]!];
 
 export const FX_FIELDS: readonly PanelField[] = [
   { key: 'base', kind: 'string', label: 'dash.feeds.fx.base', description: 'dash.feeds.fx.code.hint', default: 'EUR', maxLength: 3 },

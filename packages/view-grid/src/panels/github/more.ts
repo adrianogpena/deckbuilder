@@ -10,6 +10,7 @@ export type RunStatus = 'success' | 'failure' | 'in_progress' | 'queued' | 'canc
 export interface RunItem {
   id: string;
   title: string;
+  workflow: string;
   url: string;
   status: RunStatus;
   branch: string;
@@ -58,6 +59,7 @@ export function mapRuns(raw: { workflow_runs?: RawRun[] }, max: number): RunsDat
     return {
       id: String(r.id ?? ''),
       title: r.display_title || r.name || '',
+      workflow: r.name ?? '',
       url: r.html_url ?? '',
       status: runStatus(r.status, r.conclusion),
       branch: r.head_branch ?? '',
@@ -68,6 +70,16 @@ export function mapRuns(raw: { workflow_runs?: RawRun[] }, max: number): RunsDat
     };
   });
   return { items };
+}
+
+/** The newest finished run (success or failure) of each workflow, from runs listed newest first. */
+export function latestSettledRuns(items: readonly RunItem[]): RunItem[] {
+  const out = new Map<string, RunItem>();
+  for (const r of items) {
+    const key = r.workflow || r.title;
+    if ((r.status === 'success' || r.status === 'failure') && !out.has(key)) out.set(key, r);
+  }
+  return [...out.values()];
 }
 
 /** 60 s while any run is queued or in progress, else 5 min. */
