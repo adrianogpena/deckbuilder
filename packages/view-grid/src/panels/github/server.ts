@@ -233,32 +233,32 @@ ${chunk.map((_, k) => `  t${k}: repository(owner: $o${k}, name: $n${k}) { pullRe
 }
 
 const POOL_QUERY = `query($mine: String!, $review: String!) {
-  mine: search(query: $mine, type: ISSUE, first: 50) { nodes { ... on PullRequest { ${PR_FIELDS} repository { nameWithOwner } } } }
-  review: search(query: $review, type: ISSUE, first: 50) { nodes { ... on PullRequest { ${PR_FIELDS} repository { nameWithOwner } } } }
+  mine: search(query: $mine, type: ISSUE, first: 50) { nodes { ... on PullRequest { number repository { nameWithOwner } } } }
+  review: search(query: $review, type: ISSUE, first: 50) { nodes { ... on PullRequest { number repository { nameWithOwner } } } }
 }`;
 
-type PoolNode = PrNode & { repository?: { nameWithOwner: string } };
+type PoolNode = { number: number; repository?: { nameWithOwner: string } };
 
 const KEY_CHUNK = 10;
 const KEY_PRS = 10;
 
-/** Refs of PRs (any state, any author) whose title mentions one of `keys`, found by one light search per key. */
+/** Refs of PRs (any state, any author) whose title or branch mentions one of `keys`, found by one light search per key. */
 async function findKeyPrRefs(conn: ResolvedConnection, keys: readonly string[], signal?: AbortSignal): Promise<PrRef[]> {
   const starts = Array.from({ length: Math.ceil(keys.length / KEY_CHUNK) }, (_, c) => c * KEY_CHUNK);
   const parts = await mapLimit(starts, CONCURRENCY, async (i) => {
     const out: PrRef[] = [];
     const chunk = keys.slice(i, i + KEY_CHUNK);
     const query = `query(${chunk.map((_, k) => `$q${k}: String!`).join(', ')}) {
-${chunk.map((_, k) => `  k${k}: search(query: $q${k}, type: ISSUE, first: ${KEY_PRS}) { nodes { ... on PullRequest { number title repository { nameWithOwner } } } }`).join('\n')}
+${chunk.map((_, k) => `  k${k}: search(query: $q${k}, type: ISSUE, first: ${KEY_PRS}) { nodes { ... on PullRequest { number title headRefName repository { nameWithOwner } } } }`).join('\n')}
 }`;
     const vars: Record<string, unknown> = {};
-    chunk.forEach((key, k) => Object.assign(vars, { [`q${k}`]: `is:pr in:title "${key}"` }));
-    const res = await graphql<Record<string, { nodes: ({ number: number; title: string; repository?: { nameWithOwner: string } } | null)[] }>>(conn, query, vars, signal);
+    chunk.forEach((key, k) => Object.assign(vars, { [`q${k}`]: `is:pr in:title,body "${key}" sort:updated-desc` }));
+    const res = await graphql<Record<string, { nodes: ({ number: number; title: string; headRefName?: string; repository?: { nameWithOwner: string } } | null)[] }>>(conn, query, vars, signal);
     chunk.forEach((key, k) => {
       const whole = new RegExp(`(?<![A-Za-z0-9])${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?!\\d)`, 'i');
       for (const node of res[`k${k}`]?.nodes ?? []) {
         const [owner, repo] = node?.repository?.nameWithOwner.split('/') ?? [];
-        if (node && owner && repo && whole.test(node.title)) out.push({ owner, repo, number: node.number });
+        if (node && owner && repo && (whole.test(node.title) || whole.test(node.headRefName ?? ''))) out.push({ owner, repo, number: node.number });
       }
     });
     return out;
@@ -274,18 +274,25 @@ export async function fetchPrPool(conn: ResolvedConnection, { tracked, keys = []
     fetchPrs(conn, tracked, signal, labels),
     keys.length ? findKeyPrRefs(conn, keys, signal).catch((): PrRef[] | null => null) : Promise.resolve<PrRef[] | null>([]),
   ]);
-  const out: TrackedPr[] = [];
-  for (const scope of ['mine', 'review'] as const) {
-    for (const node of res[scope].nodes) {
+  const refKey = (r: PrRef) => `${r.owner}/${r.repo}#${r.number}`;
+  const scoped = (['mine', 'review'] as const).flatMap((scope) =>
+    res[scope].nodes.flatMap((node) => {
       const [owner, repo] = node?.repository?.nameWithOwner.split('/') ?? [];
-      if (node && owner && repo) out.push({ ...toTrackedPr(node, { owner, repo, number: node.number }, labels), scope });
-    }
+      return node && owner && repo ? [{ scope, ref: { owner, repo, number: node.number } }] : [];
+    }),
+  );
+  const unique = [...new Map(scoped.map((s) => [refKey(s.ref), s.ref])).values()];
+  const byKey = new Map((await fetchPrs(conn, unique, signal, labels)).map((p) => [refKey(p), p]));
+  const out: TrackedPr[] = [];
+  for (const { scope, ref } of scoped) {
+    const pr = byKey.get(refKey(ref));
+    if (pr) out.push({ ...pr, scope });
   }
   for (const pr of trackedPrs) out.push({ ...pr, scope: 'tracked' });
   if (keyRefs?.length) {
     try {
-      const seen = new Set(out.map((p) => `${p.owner}/${p.repo}#${p.number}`));
-      const refs = keyRefs.filter((r) => !seen.has(`${r.owner}/${r.repo}#${r.number}`));
+      const seen = new Set(out.map(refKey));
+      const refs = keyRefs.filter((r) => !seen.has(refKey(r)));
       out.push(...(await fetchPrs(conn, refs, signal, labels)));
     } catch {
       // the lookup by key is best-effort; keep the PRs already found

@@ -61,13 +61,15 @@ export function DashboardScreen({ settings, onSave, panels }: DashboardScreenPro
     ...layouts,
     layouts: layouts.layouts.map((l) => (l.id === id ? { ...l, items: next } : l)),
   });
-  const save = () => {
-    persist(withItems(state, current.id, items));
+  const save = (): DashboardLayouts => {
+    const next = withItems(state, current.id, items);
+    persist(next);
     unsaved = null;
+    return next;
   };
-  /** Resolves true when it is fine to leave the layout: nothing unsaved, or the user saved or discarded. */
-  const settle = async (): Promise<boolean> => {
-    if (!dirty) return true;
+  /** Resolves to the layouts to continue from when it is fine to leave the layout (nothing unsaved, or the user saved or discarded), else null. */
+  const settle = async (): Promise<DashboardLayouts | null> => {
+    if (!dirty) return state;
     const answer = await choose({
       title: tKey('dash.unsaved.title'),
       body: tKey('dash.unsaved.body', { name: current.name }),
@@ -76,10 +78,10 @@ export function DashboardScreen({ settings, onSave, panels }: DashboardScreenPro
         { id: 'discard', label: tKey('dash.unsaved.discard'), danger: true },
       ],
     });
-    if (answer === null) return false;
-    if (answer === 'save') save();
-    else unsaved = null;
-    return true;
+    if (answer === null) return null;
+    if (answer === 'save') return save();
+    unsaved = null;
+    return state;
   };
   const show = (layouts: DashboardLayouts, id: string) => {
     const target = layouts.layouts.find((l) => l.id === id)!;
@@ -90,24 +92,26 @@ export function DashboardScreen({ settings, onSave, panels }: DashboardScreenPro
   const base = (): DashboardLayouts => (dirty ? withItems(state, current.id, current.items) : state);
 
   const switchTo = async (id: string) => {
-    if (id === current.id || !(await settle())) return;
-    show(state, id);
+    if (id === current.id) return;
+    const layouts = await settle();
+    if (layouts) show(layouts, id);
   };
   const askName = (value: string) => prompt({ title: tKey('dash.rename'), label: tKey('dash.nameLabel'), value, validate: nameError });
-  const addLayout = async (name: string, from: GridItem[]) => {
+  const addLayout = async (layouts: DashboardLayouts, name: string, from: GridItem[]) => {
     const chosen = await askName(name);
     if (chosen === null) return;
-    const id = newLayoutId(state.layouts);
-    show({ ...state, layouts: [...state.layouts, { id, name: chosen.trim(), items: from }] }, id);
+    const id = newLayoutId(layouts.layouts);
+    show({ ...layouts, layouts: [...layouts.layouts, { id, name: chosen.trim(), items: from }] }, id);
   };
   const newEmpty = async () => {
-    if (!(await settle())) return;
-    await addLayout(tKey('dash.newName'), []);
+    const layouts = await settle();
+    if (layouts) await addLayout(layouts, tKey('dash.newName'), []);
   };
   const duplicate = async (id: string) => {
-    if (!(await settle())) return;
-    const source = state.layouts.find((l) => l.id === id)!;
-    await addLayout(tKey('dash.copyName', { name: source.name }), id === current.id && dirty ? items : source.items);
+    const layouts = await settle();
+    if (!layouts) return;
+    const source = layouts.layouts.find((l) => l.id === id)!;
+    await addLayout(layouts, tKey('dash.copyName', { name: source.name }), source.items);
   };
   const rename = async (id: string) => {
     const source = state.layouts.find((l) => l.id === id)!;
