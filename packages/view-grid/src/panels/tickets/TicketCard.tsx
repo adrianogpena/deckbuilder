@@ -45,7 +45,7 @@ export function TicketCard({ ticket, selected, jiraBaseUrl, onDelete, onAutoMove
       <div className="tickets-card-head">
         <Icon name="grip" size={12} />
         {url ? (
-          <a className="tickets-key" href={url} target="_blank" rel="noreferrer" title={url} onClick={(e) => e.stopPropagation()}>
+          <a className="tickets-key" href={url} target="_blank" rel="noreferrer" title={url} onClick={(e) => { e.preventDefault(); e.stopPropagation(); window.open(url, '_blank', 'noreferrer'); }}>
             {ticket.key}
           </a>
         ) : (
