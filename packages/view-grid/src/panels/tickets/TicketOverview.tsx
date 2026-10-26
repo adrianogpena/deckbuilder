@@ -32,20 +32,36 @@ const target = (p: Pod) => ({ context: p.context, namespace: p.namespace, pod: p
 const stateLabel = (pr: TrackedPr) =>
   pr.draft ? tKey('dash.tickets.detail.draft') : tKey(`dash.tickets.pipeline.${pr.state}` as 'dash.tickets.pipeline.merged');
 
-/** One PR as a card: the basics, and the full information (branch, labels, review, every check) on click. */
+type Tone = 'ok' | 'warn' | 'danger' | 'info' | 'neutral';
+
+const stateTone = (pr: TrackedPr): Tone => (pr.draft ? 'neutral' : pr.state === 'merged' ? 'ok' : pr.state === 'open' ? 'info' : 'neutral');
+const checksTone = (pr: TrackedPr): Tone => ({ passed: 'ok', failed: 'danger', pending: 'warn', none: 'neutral' })[pr.checks.state] as Tone;
+const reviewTone = (pr: TrackedPr): Tone => (pr.reviewDecision === 'APPROVED' ? 'ok' : pr.reviewDecision === 'CHANGES_REQUESTED' ? 'danger' : pr.reviewDecision ? 'warn' : 'neutral');
+
+/** The one tone that says whether the PR needs attention: red when blocked, amber when waiting, green when good. */
+function attention(pr: TrackedPr): Tone {
+  if (pr.state === 'merged') return 'ok';
+  if (pr.state === 'closed') return 'neutral';
+  if (checksTone(pr) === 'danger' || reviewTone(pr) === 'danger') return 'danger';
+  if (pr.draft || checksTone(pr) === 'warn' || reviewTone(pr) === 'warn') return 'warn';
+  return checksTone(pr) === 'ok' && reviewTone(pr) === 'ok' ? 'ok' : 'neutral';
+}
+
+/** One PR as a card: a status stripe, state/checks/review chips, and the full information (branch, labels, every check) on click. */
 function PrCard({ pr }: { pr: TrackedPr }) {
   const [open, setOpen] = useState(false);
   const review = pr.reviewDecision ? tKey(REVIEW[pr.reviewDecision] as 'dash.tickets.pipeline.approved') : tKey('dash.tickets.pipeline.noReview');
   return (
-    <div className="tickets-card tickets-pr-card">
+    <div className={`tickets-card tickets-pr-card tickets-pr-${attention(pr)}`}>
       <button type="button" className="tickets-card-edit" aria-expanded={open} onClick={() => setOpen(!open)}>
         <strong>
           {pr.repo}#{pr.number}
         </strong>{' '}
         {pr.title}
-        <span className="tickets-detail-dim">
-          {' · '}
-          {stateLabel(pr)} · {tKey('dash.tickets.pipeline.checks', { passed: pr.checks.passed, total: pr.checks.total })} · {review}
+        <span className="tickets-pr-chips">
+          <Chip tone={stateTone(pr)}>{stateLabel(pr)}</Chip>
+          <Chip tone={checksTone(pr)}>{tKey('dash.tickets.pipeline.checks', { passed: pr.checks.passed, total: pr.checks.total })}</Chip>
+          <Chip tone={reviewTone(pr)}>{review}</Chip>
         </span>
       </button>
       {open && (
@@ -362,6 +378,15 @@ export function TicketOverview({ ticket, link, jira, allPods, config, onChanged 
       </section>
       <section>
         <h4>{tKey('dash.tickets.detail.prs')}</h4>
+        {link && link.prs.length > 1 && (
+          <p className="tickets-detail-dim">
+            {tKey('dash.tickets.detail.prsSummary', {
+              open: link.prs.filter((p) => p.state === 'open').length,
+              merged: link.prs.filter((p) => p.state === 'merged').length,
+              closed: link.prs.filter((p) => p.state === 'closed').length,
+            })}
+          </p>
+        )}
         {link?.prs.length ? link.prs.map((pr) => <PrCard key={pr.url} pr={pr} />) : none}
       </section>
       <section>
