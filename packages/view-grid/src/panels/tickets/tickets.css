@@ -48,3 +48,16 @@ a.tickets-key:hover { text-decoration: underline; }
 .tickets-ov-pod { flex-wrap: wrap; }
 .tickets-ov-add { display: flex; gap: var(--space-8); margin-top: var(--space-6); }
 .tickets-ov-add select { flex: 1; min-width: 0; }
+.tickets-card { padding: var(--space-8); background: var(--surface-2, transparent); border: 1px solid var(--border-soft); border-radius: var(--radius-sm); }
+.tickets-card + .tickets-card, .tickets-ov section .tickets-card + .tickets-card { margin-top: var(--space-6); }
+.tickets-card p { margin: 0; }
+.tickets-ov-top { display: flex; flex-wrap: wrap; gap: var(--space-8); align-items: flex-start; }
+.tickets-ov-top .tickets-card { margin: 0; }
+.tickets-ov-top .tickets-card:first-child { flex: none; }
+.tickets-ov-top .tickets-card:last-child { flex: 1; min-width: 14em; }
+.tickets-ov-top h4 { margin: 0 0 var(--space-4); font-weight: 400; color: var(--text-dim); }
+.tickets-card-edit { display: block; width: 100%; padding: 0; text-align: left; font: inherit; font-size: var(--fs-sm); color: inherit; background: none; border: 0; cursor: pointer; white-space: pre-wrap; overflow-wrap: anywhere; }
+.tickets-pr-full { margin-top: var(--space-6); padding-top: var(--space-6); border-top: 1px solid var(--border-soft); font-size: var(--fs-sm); }
+.tickets-pr-full dl { display: grid; grid-template-columns: auto 1fr; gap: var(--space-4) var(--space-8); margin: 0 0 var(--space-6); }
+.tickets-pr-full dt { color: var(--text-dim); }
+.tickets-pr-full dd { margin: 0; overflow-wrap: anywhere; }

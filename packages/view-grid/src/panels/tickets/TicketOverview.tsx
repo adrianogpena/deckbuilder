@@ -25,6 +25,69 @@ export function prLine(pr: TrackedPr): string {
 const podsConfig = (p: Pod) => ({ clusters: `${p.context} ${p.namespace} *` });
 const target = (p: Pod) => ({ context: p.context, namespace: p.namespace, pod: p.name });
 
+const stateLabel = (pr: TrackedPr) =>
+  pr.draft ? tKey('dash.tickets.detail.draft') : tKey(`dash.tickets.pipeline.${pr.state}` as 'dash.tickets.pipeline.merged');
+
+/** One PR as a card: the basics, and the full information (branch, labels, review, every check) on click. */
+function PrCard({ pr }: { pr: TrackedPr }) {
+  const [open, setOpen] = useState(false);
+  const review = pr.reviewDecision ? tKey(REVIEW[pr.reviewDecision] as 'dash.tickets.pipeline.approved') : tKey('dash.tickets.pipeline.noReview');
+  return (
+    <div className="tickets-card tickets-pr-card">
+      <button type="button" className="tickets-card-edit" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <strong>
+          {pr.repo}#{pr.number}
+        </strong>{' '}
+        {pr.title}
+        <span className="tickets-detail-dim">
+          {' · '}
+          {stateLabel(pr)} · {tKey('dash.tickets.pipeline.checks', { passed: pr.checks.passed, total: pr.checks.total })} · {review}
+        </span>
+      </button>
+      {open && (
+        <div className="tickets-pr-full">
+          <dl>
+            <dt>{tKey('dash.tickets.detail.branch')}</dt>
+            <dd>{pr.branch}</dd>
+            <dt>{tKey('dash.tickets.detail.state')}</dt>
+            <dd>{stateLabel(pr)}</dd>
+            <dt>{tKey('dash.tickets.detail.review')}</dt>
+            <dd>{review}</dd>
+            {pr.labels.length > 0 && (
+              <>
+                <dt>{tKey('dash.tickets.detail.labels')}</dt>
+                <dd>{pr.labels.join(', ')}</dd>
+              </>
+            )}
+          </dl>
+          <h4>{tKey('dash.tickets.detail.checks')}</h4>
+          {pr.checks.details.length > 0 ? (
+            <ul className="tickets-detail-checks" aria-label={tKey('dash.tickets.detail.checks')}>
+              {pr.checks.details.map((c) => (
+                <li key={`${c.name}-${c.url}`} className={`tickets-detail-check tickets-detail-check-${c.state}`}>
+                  {c.url ? (
+                    <a href={c.url} target="_blank" rel="noreferrer">
+                      {c.name}
+                    </a>
+                  ) : (
+                    c.name
+                  )}{' '}
+                  · {c.state}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="tickets-detail-none">{tKey('dash.tickets.detail.noChecks')}</p>
+          )}
+          <a href={pr.url} target="_blank" rel="noreferrer">
+            {tKey('dash.tickets.detail.openPr')}
+          </a>
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface Props {
   ticket: Ticket;
   link?: TicketLink;
@@ -33,13 +96,14 @@ interface Props {
   onChanged(): void;
 }
 
-/** The ticket in the Dashboard side panel: description, linked PRs and pods (link or unlink pods by hand), hours. */
+/** The ticket in the Dashboard side panel: description, linked PRs and pods (link or unlink pods by hand). */
 export function TicketOverview({ ticket, link, allPods, config, onChanged }: Props) {
   const [description, setDescription] = useState(ticket.description);
   const [manual, setManual] = useState<string[]>(link?.manualPods ?? ticket.podLinks ?? []);
   const [choice, setChoice] = useState('');
   const [logs, setLogs] = useState<Pod | null>(null);
   const [describe, setDescribe] = useState<{ pod: Pod; text?: string } | null>(null);
+  const [editing, setEditing] = useState(false);
   const [error, setError] = useState('');
   const none = <p className="tickets-detail-none">{tKey('dash.tickets.detail.none')}</p>;
 
@@ -117,55 +181,43 @@ export function TicketOverview({ ticket, link, allPods, config, onChanged }: Pro
   return (
     <div className="tickets-ov">
       {error && <div className="tickets-error" role="alert">{error}</div>}
-      <section>
-        <h4>{tKey('dash.tickets.detail.status')}</h4>
-        <p>{ticket.status}</p>
-      </section>
-      <section>
-        <h4>{tKey('dash.tickets.detail.description')}</h4>
-        <textarea
-          className="tickets-edit"
-          rows={4}
-          value={description}
-          placeholder={tKey('dash.tickets.noDescription')}
-          aria-label={tKey('dash.tickets.editDescription')}
-          onChange={(e) => setDescription(e.target.value)}
-          onBlur={() => void saveDescription()}
-        />
-      </section>
+      <div className="tickets-ov-top">
+        <div className="tickets-card">
+          <h4>{tKey('dash.tickets.detail.status')}</h4>
+          <p>{ticket.status}</p>
+        </div>
+        <div className="tickets-card">
+          <h4>{tKey('dash.tickets.detail.description')}</h4>
+          {editing ? (
+            <textarea
+              className="tickets-edit"
+              rows={4}
+              autoFocus
+              value={description}
+              placeholder={tKey('dash.tickets.noDescription')}
+              aria-label={tKey('dash.tickets.editDescription')}
+              onChange={(e) => setDescription(e.target.value)}
+              onBlur={() => {
+                setEditing(false);
+                void saveDescription();
+              }}
+              onKeyDown={(e) => {
+                if (e.key !== 'Escape') return;
+                e.stopPropagation();
+                setDescription(ticket.description);
+                setEditing(false);
+              }}
+            />
+          ) : (
+            <button type="button" className="tickets-card-edit" aria-label={tKey('dash.tickets.editDescription')} onClick={() => setEditing(true)}>
+              {description || <span className="tickets-detail-dim">{tKey('dash.tickets.noDescription')}</span>}
+            </button>
+          )}
+        </div>
+      </div>
       <section>
         <h4>{tKey('dash.tickets.detail.prs')}</h4>
-        {link?.prs.length
-          ? link.prs.map((pr) => (
-              <div key={pr.url} className="tickets-detail-pr">
-                <a href={pr.url} target="_blank" rel="noreferrer">
-                  {prLine(pr)}
-                </a>
-                <span className="tickets-detail-dim">
-                  {' '}
-                  {pr.title}
-                  {pr.draft ? ` (${tKey('dash.tickets.detail.draft')})` : ''}
-                  {pr.state !== 'open' ? ` (${tKey(pr.state === 'merged' ? 'dash.tickets.pipeline.merged' : 'dash.tickets.pipeline.closed')})` : ''}
-                </span>
-                {pr.checks.details.length > 0 && (
-                  <ul className="tickets-detail-checks" aria-label={tKey('dash.tickets.detail.checks')}>
-                    {pr.checks.details.map((c) => (
-                      <li key={`${c.name}-${c.url}`} className={`tickets-detail-check tickets-detail-check-${c.state}`}>
-                        {c.url ? (
-                          <a href={c.url} target="_blank" rel="noreferrer">
-                            {c.name}
-                          </a>
-                        ) : (
-                          c.name
-                        )}{' '}
-                        · {c.state}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            ))
-          : none}
+        {link?.prs.length ? link.prs.map((pr) => <PrCard key={pr.url} pr={pr} />) : none}
       </section>
       <section>
         <h4>{tKey('dash.tickets.detail.pods')}</h4>
@@ -193,10 +245,6 @@ export function TicketOverview({ ticket, link, allPods, config, onChanged }: Pro
             </Button>
           </div>
         )}
-      </section>
-      <section>
-        <h4>{tKey('dash.tickets.detail.hours')}</h4>
-        <p>{link?.hours == null ? tKey('dash.tickets.detail.none') : Math.round(link.hours * 10) / 10}</p>
       </section>
       {logs && <PodLogsDialog pod={logs} onClose={() => setLogs(null)} />}
       {describe && <DescribeDialog title={describe.pod.name} text={describe.text} onClose={() => setDescribe(null)} />}
