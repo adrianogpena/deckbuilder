@@ -3,6 +3,7 @@ import { Button, LogView, Modal, type HighlightTerm, type LogLine } from '@kedal
 import { tKey } from '../../i18n';
 import { streamSource } from '../../source';
 import { detectLevel, type LogStatus } from './logs';
+import { workloadName } from '../tickets/model';
 import type { Pod } from './model';
 import './pods.css';
 
@@ -50,7 +51,7 @@ export function PodLogsDialog({ pod, onClose }: { pod: Pod; onClose: () => void 
 
   return (
     <Modal
-      title={`${tKey('dash.pods.logs')} · ${pod.name}`}
+      title={`${tKey('dash.pods.logs')} · ${workloadName(pod.name)}`}
       onClose={onClose}
       large
       footer={

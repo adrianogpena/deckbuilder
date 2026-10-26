@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button, Icon } from '@kedalion/ui';
 import { tKey } from '../../i18n';
-import type { Ticket } from './model';
+import { workloadName, type Ticket } from './model';
 import type { UnlinkedKey } from './types';
 
 /** Keys carried by PRs or pods that have no card; keys only seen through review-requested PRs are left out. */
@@ -30,7 +30,7 @@ export function UnlinkedList({ unlinked, tickets, onAdd, onLink }: Props) {
         list.map((u) => (
           <div key={u.key} className="tickets-unlinked-row">
             <strong>{u.key}</strong>
-            <span className="tickets-unlinked-names">{[...u.prs.map((p) => p.title), ...u.pods.map((p) => p.name)].join(' · ')}</span>
+            <span className="tickets-unlinked-names">{[...u.prs.map((p) => p.title), ...new Set(u.pods.map((p) => workloadName(p.name)))].join(' · ')}</span>
             <Button onClick={() => onAdd(u.key)}>
               <Icon name="plus" size={12} /> {tKey('dash.tickets.unlinked.add')}
             </Button>

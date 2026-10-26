@@ -9,7 +9,7 @@ import type { Pod } from '../pods/model';
 import { PodLogsDialog } from '../pods/PodLogsDialog';
 import { AdfView } from './AdfView';
 import { formatDuration, isOverdue, type JiraInfo } from './jira-info';
-import { normPodId, parsePcr, podId, type Ticket } from './model';
+import { normPodId, parsePcr, podId, workloadName, type Ticket } from './model';
 import { showTicketsNow } from './TicketsPanel';
 import type { TicketLink } from './types';
 import './tickets.css';
@@ -199,7 +199,7 @@ export function TicketOverview({ ticket, link, jira, allPods, config, onChanged 
   const podRow = (p: Pod, byHand: boolean) => (
     <div key={podId(p)} className="tickets-detail-pod tickets-ov-pod">
       <span className="tickets-detail-podname">
-        {p.name} · {p.status} · {tKey('dash.tickets.pipeline.restarts', { n: p.restarts })}
+        {workloadName(p.name)} · {p.status} · {tKey('dash.tickets.pipeline.restarts', { n: p.restarts })}
       </span>
       <Button onClick={() => setLogs(p)}>
         <Icon name="log" size={12} /> {tKey('dash.tickets.detail.logs')}
@@ -375,7 +375,7 @@ export function TicketOverview({ ticket, link, jira, allPods, config, onChanged 
               <option value="">{tKey('dash.tickets.detail.linkPod')}</option>
               {candidates.map((p) => (
                 <option key={podId(p)} value={podId(p)}>
-                  {p.name} ({p.cluster})
+                  {workloadName(p.name)} ({p.cluster})
                 </option>
               ))}
             </select>
@@ -392,7 +392,7 @@ export function TicketOverview({ ticket, link, jira, allPods, config, onChanged 
         )}
       </section>
       {logs && <PodLogsDialog pod={logs} onClose={() => setLogs(null)} />}
-      {describe && <DescribeDialog title={describe.pod.name} text={describe.text} onClose={() => setDescribe(null)} />}
+      {describe && <DescribeDialog title={workloadName(describe.pod.name)} text={describe.text} onClose={() => setDescribe(null)} />}
     </div>
   );
 }
