@@ -88,3 +88,5 @@ a.tickets-key:hover { text-decoration: underline; }
 .tickets-pr-full dt { color: var(--text-dim); }
 .tickets-pr-full dd { margin: 0; overflow-wrap: anywhere; }
 .tickets-ov-projects { display: flex; flex-wrap: wrap; gap: var(--space-6); }
+.tickets-notes { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.tickets-notes > .cm-editor, .tickets-notes > div:last-child { flex: 1; min-height: 0; }

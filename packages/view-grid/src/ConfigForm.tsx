@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ComponentType } from 'react';
 import { Button, IconButton, MAX_TEXT_FIELD, Modal, OnOffField, validConfig, type PanelConfig, type PanelField } from '@kedalion/ui';
 import { ConnectionDialog, listConnections, type ConnectionType, type PublicConnection } from './connections/ConnectionDialog';
+import { FolderField } from './FolderField';
 import { tKey } from './i18n';
 import { opmlUrls } from './panels/feeds/opml';
 import { feedUrls } from './panels/feeds/rss';
@@ -107,6 +108,8 @@ function FieldRow({ field, value, onChange, connections }: { field: PanelField; 
         </label>
       );
     }
+    case 'folder':
+      return <FolderField label={tKey(field.label)} hint={hint} value={typeof value === 'string' ? value : field.default} onChange={onChange} />;
     case 'boolean':
       return <OnOffField label={tKey(field.label)} hint={hint} value={value === true} onChange={onChange} />;
     case 'number':

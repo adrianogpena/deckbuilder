@@ -11,6 +11,7 @@ export const TICKETS_FIELDS: readonly PanelField[] = [
   { key: 'autoMove', kind: 'boolean', label: 'dash.tickets.autoMove', description: 'dash.tickets.autoMove.hint', default: true },
   { key: 'readyLabel', kind: 'string', label: 'dash.tickets.readyLabel', description: 'dash.tickets.readyLabel.hint', default: 'ready to merge', maxLength: 100 },
   { key: 'jiraBaseUrl', kind: 'string', label: 'dash.tickets.jiraBaseUrl', description: 'dash.tickets.jiraBaseUrl.hint', placeholder: 'dash.tickets.jiraBaseUrl.placeholder', default: '', maxLength: 300 },
+  { key: 'notesFolder', kind: 'folder', label: 'dash.tickets.notesFolder', description: 'dash.tickets.notesFolder.hint', default: '' },
   notifyField(true),
 ];
 

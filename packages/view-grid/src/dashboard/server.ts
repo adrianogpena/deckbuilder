@@ -1,6 +1,6 @@
 import { defineServerView, type Routes } from '@kedalion/server-core';
 import { connectionRoutes } from '../connections/routes';
-import { callbackRoutes, checkSources, kindSpecsOf, sourceRoutes, type DataSource, type GridNotifications, type GridPanelSpec } from '../server';
+import { callbackRoutes, checkSources, kindSpecsOf, sourceRoutes, type DataSource, type GridNotifications, type GridPanelSpec, type SourceContext } from '../server';
 import { validDashboardLayouts, validDashboardPresets, type DashboardLayouts, type DashboardPreset } from './model';
 
 /** The part of the server settings the Dashboard view owns; the app's `Settings` extends it. */
@@ -27,7 +27,7 @@ export function dashboardServerView({ panels, sources = [], notifications }: Das
   return defineServerView<DashboardServerSettings>({
     id: 'dashboard',
     icon: 'cube',
-    routes: (ctx): Routes => ({ ...sourceRoutes(sources, ctx.dataDir, notifications), ...connectionRoutes(ctx.dataDir) }),
+    routes: (ctx): Routes => ({ ...sourceRoutes(sources, ctx.dataDir, notifications, ctx.stores.projectRoots as SourceContext['projectRoots']), ...connectionRoutes(ctx.dataDir) }),
     unauthenticated: (ctx): Routes => callbackRoutes(sources, ctx.dataDir),
     settings: {
       validate: {

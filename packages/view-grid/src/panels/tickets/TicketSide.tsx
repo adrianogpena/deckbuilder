@@ -4,6 +4,7 @@ import type { JiraInfo } from './jira-info';
 import type { Pod } from '../pods/model';
 import type { Ticket } from './model';
 import { jiraUrl } from './TicketCard';
+import { TicketNotes } from './TicketNotes';
 import { TicketOverview } from './TicketOverview';
 import type { TicketLink } from './types';
 
@@ -31,6 +32,7 @@ export function ticketSideContent({ instanceId, ticket, link, jira, allPods, con
         label: tKey('dash.pods.tab.overview'),
         render: () => <TicketOverview ticket={ticket} link={link} jira={jira} allPods={allPods} config={config} onChanged={onChanged} />,
       },
+      { id: 'notes', label: tKey('dash.tickets.tab.notes'), render: () => <TicketNotes ticketId={ticket.id} config={config} /> },
     ],
     actions: (
       <>

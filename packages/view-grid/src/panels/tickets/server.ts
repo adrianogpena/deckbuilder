@@ -1,6 +1,8 @@
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { isAbsolute, join, relative, resolve } from 'node:path';
 import { invalid } from '@kedalion/server-core';
 import { createJsonStore, type JsonStore } from '../../json-store';
-import { defineSource, type DataSource, type GridPanelSpec } from '../../server';
+import { defineSource, type DataSource, type GridPanelSpec, type SourceContext } from '../../server';
 import { fieldIds, search } from '../jira/client';
 import { fetchPrPool, trackedStore } from '../github/server';
 import type { TrackedPr } from '../github/tracked';
@@ -22,6 +24,7 @@ interface TicketsConfig {
   autoMove?: boolean;
   readyLabel?: string;
   notify?: boolean;
+  notesFolder?: string;
   [key: string]: unknown;
 }
 
@@ -32,6 +35,25 @@ interface TicketStore {
 }
 
 const str = (v: unknown, max = 5000) => (typeof v === 'string' ? v.slice(0, max) : '');
+
+const MAX_NOTES = 200_000;
+const SAFE_KEY = /^[A-Za-z0-9_-]+$/;
+
+/** The linked notes folder, '' when none; it must lie inside an Explorer project. */
+async function notesFolderOf(config: { notesFolder?: string }, ctx: SourceContext): Promise<string> {
+  const folder = (config.notesFolder ?? '').trim();
+  if (!folder) return '';
+  const roots = (await ctx.projectRoots?.()) ?? [];
+  const inside = roots.some((r) => {
+    const rel = relative(resolve(r.path), resolve(folder));
+    return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
+  });
+  if (!inside) throw invalid('ticket-notes-folder', 'The notes folder is not inside an Explorer project.', { folder });
+  return folder;
+}
+
+/** The notes file of a ticket key in the linked folder, or null for an unsafe key. */
+const notesFile = (folder: string, key: string): string | null => (SAFE_KEY.test(key) ? join(folder, `${key}.md`) : null);
 
 function parseStore(raw: unknown): TicketStore {
   const list = (raw as { tickets?: unknown })?.tickets;
@@ -53,6 +75,7 @@ function parseStore(raw: unknown): TicketStore {
       if (Array.isArray(o.podLinks)) t.podLinks = o.podLinks.filter((x): x is string => typeof x === 'string').map((x) => x.slice(0, 500)).slice(0, 50);
       if (Array.isArray(o.aliases)) t.aliases = o.aliases.filter((x): x is string => typeof x === 'string' && !!x).map((x) => x.slice(0, 100)).slice(0, 50);
       if (parsePcr(str(o.pcr, 20))) t.pcr = parsePcr(str(o.pcr, 20));
+      if (typeof o.notes === 'string' && o.notes) t.notes = str(o.notes, MAX_NOTES);
       if (typeof o.movedAt === 'number') t.movedAt = o.movedAt;
       if (typeof o.autoMovedAt === 'number') t.autoMovedAt = o.autoMovedAt;
       tickets.push(t);
@@ -196,6 +219,39 @@ export const ticketsSource = defineSource<TicketsConfig>({
       if ('description' in p) patch.description = str(p.description);
       if ('pcr' in p) patch.pcr = parsePcr(str(p.pcr, 20));
       return (await ticketsStore(ctx.dataDir).update((s) => ({ ...s, tickets: update(s.tickets, str(p.id, 100), patch) }))).tickets;
+    },
+    async 'notes-get'(payload, config, ctx): Promise<string> {
+      const p = payloadOf(payload);
+      const ticket = (await ticketsStore(ctx.dataDir).read()).tickets.find((t) => t.id === str(p.id, 100));
+      if (!ticket) return '';
+      const folder = await notesFolderOf(config, ctx);
+      const file = folder ? notesFile(folder, ticket.key) : null;
+      if (!file) return ticket.notes ?? '';
+      try {
+        return await readFile(file, 'utf8');
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') return ticket.notes ?? '';
+        throw invalid('ticket-notes-read', 'The notes file could not be read.', { file });
+      }
+    },
+    async 'notes-set'(payload, config, ctx) {
+      const p = payloadOf(payload);
+      const text = str(p.text, MAX_NOTES);
+      const ticket = (await ticketsStore(ctx.dataDir).read()).tickets.find((t) => t.id === str(p.id, 100));
+      if (!ticket) return;
+      const folder = await notesFolderOf(config, ctx);
+      if (!folder) {
+        await ticketsStore(ctx.dataDir).update((s) => ({ ...s, tickets: update(s.tickets, ticket.id, { notes: text }) }));
+        return;
+      }
+      const file = notesFile(folder, ticket.key);
+      if (!file) throw invalid('ticket-invalid-key', 'Not a ticket key.');
+      try {
+        await mkdir(folder, { recursive: true });
+        await writeFile(file, text, 'utf8');
+      } catch {
+        throw invalid('ticket-notes-write', 'The notes file could not be saved.', { file });
+      }
     },
     async 'link-key'(payload, _config, ctx) {
       const p = payloadOf(payload);

@@ -12,6 +12,8 @@ export interface Ticket {
   podLinks?: string[];
   /** Other keys whose PRs and pods belong to this ticket (linked from the unlinked list). */
   aliases?: string[];
+  /** Notes kept in the store while no notes folder is linked. */
+  notes?: string;
   order: number;
   movedAt?: number;
   autoMovedAt?: number;
@@ -82,7 +84,7 @@ export function move(tickets: Ticket[], id: string, status: string, index: numbe
   return renumber(rest);
 }
 
-export function update(tickets: Ticket[], id: string, patch: Partial<Pick<Ticket, 'description' | 'autoMove' | 'podLinks' | 'aliases' | 'pcr'>>): Ticket[] {
+export function update(tickets: Ticket[], id: string, patch: Partial<Pick<Ticket, 'description' | 'autoMove' | 'podLinks' | 'aliases' | 'pcr' | 'notes'>>): Ticket[] {
   return tickets.map((t) => (t.id === id ? { ...t, ...patch } : t));
 }
 

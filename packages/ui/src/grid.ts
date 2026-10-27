@@ -22,6 +22,8 @@ export type PanelField =
   | (PanelFieldBase & { kind: 'multi'; default: string[]; values: readonly string[]; /** i18n key prefix: `<prefix>.<value>` is the option text when it exists. */ optionLabel?: string })
   | (PanelFieldBase & { kind: 'text'; default: string; maxLength?: number; rows?: number; placeholder?: string; /** Shows an "Import OPML" button that appends the feed URLs of a chosen file. */ importOpml?: boolean })
   | (PanelFieldBase & { kind: 'date'; default: '' })
+  /** An absolute folder inside an Explorer project, chosen with a dialog that lists only the projects. */
+  | (PanelFieldBase & { kind: 'folder'; default: '' })
   /** A connection id (see the Dashboard's Connections); the form shows a select of the connections of `connectionType`. */
   | (PanelFieldBase & { kind: 'connection'; connectionType: 'jira' | 'github'; default: '' });
 
@@ -69,6 +71,9 @@ export function validConfig(fields: readonly PanelField[], raw: unknown): PanelC
         break;
       case 'date':
         out[f.key] = typeof v === 'string' && DATE_RE.test(v) && !Number.isNaN(Date.parse(v)) ? v : f.default;
+        break;
+      case 'folder':
+        out[f.key] = typeof v === 'string' && v.length <= 500 ? v : f.default;
         break;
       case 'connection':
         out[f.key] = typeof v === 'string' && v.length <= MAX_ID ? v : f.default;
