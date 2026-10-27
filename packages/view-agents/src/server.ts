@@ -19,7 +19,7 @@ import { checkHookSettings, createHookApprovals, createHooks, type HookConfirm }
 import { createNotifier, createTransitions, NOTIFY_LABEL } from './server/notify.ts';
 import { CLAUDE_LAUNCHER_ID, claudeLauncher } from './server/launcher.ts';
 import { claudeCommand } from './server/claude-command.ts';
-import { findSessionFile, loadHistory } from './server/chat/normalize.ts';
+import { findSessionFile, loadHistory, sessionFilesOf } from './server/chat/normalize.ts';
 import { createTailer, type Tailer } from './server/tail.ts';
 import { lastResponse } from './server/last-response.ts';
 import { readTrace } from './server/trace.ts';
@@ -31,7 +31,7 @@ import { createProjectsStore, projectKey, type ProjectsStore } from './server/pr
 import { createAccountPrefsStore } from './server/account-prefs.ts';
 import { createRunningStore, type RunningRecord, type RunningStore } from './server/running.ts';
 import { createNotesStore } from './server/notes.ts';
-import { createSessionStateStore, tagCounts, type SessionStateStore } from './server/session-state.ts';
+import { createSessionStateStore, isUuid, tagCounts, type SessionStateStore } from './server/session-state.ts';
 import { applyAccountView, createTreeStore } from './server/tree.ts';
 import { searchSessions } from './server/search.ts';
 import { createStatuslineInstaller } from './server/statusline-install.ts';
@@ -338,6 +338,7 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
       const st = sessionState?.get(x.id);
       return { ...x, ...st, pinned: st?.pin === 'top' || undefined, statusSince: tracker.since(x.id, x.status, x.updatedAt) };
     });
+    if (!quick) tracker.prune(everyOwner.map((x) => x.id));
     // The per-project cap counts only listed sessions (the account-filtered feed); new ptys without a transcript are never capped.
     const listed = ownerView.showAllSessions ? everyOwner : applyAccountView(everyOwner, accs, ownerView);
     const sessions = capPerProject(listed, sessionCap, (x) => (scannedIds.has(x.id) ? (x.node ?? x.project) : undefined));
@@ -443,6 +444,7 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
     routes: (ctx) => {
       uiBroker = (ctx.stores as { ui?: { confirm(o: { title: string; message: string; ok?: string; okKey?: string }): Promise<boolean> } }).ui;
       approvalsFile = join(ctx.dataDir, 'agents', 'approved-hooks.json');
+      claudeCommand.setApproved((key) => approvals.isApprovedSync(key));
       seenFile = join(ctx.dataDir, 'agents', 'seen.json');
       alertsDir = join(ctx.dataDir, 'agents', 'alerts');
       usageDir = join(ctx.dataDir, 'agents', 'usage');
@@ -457,7 +459,8 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
       const tree = createTreeStore(join(ctx.dataDir, 'agents', 'tree.json'));
       const notes = createNotesStore(join(ctx.dataDir, 'agents', 'notes'));
       loadSettings = () => ctx.settings.load();
-      void loadSettings().then((s) => {
+      // Approvals load first so the sync check behind the launcher sees them.
+      void Promise.all([loadSettings(), approvals.isApproved('').catch(() => false)]).then(([s]) => {
         claudeCommand.configure(s.agents);
         git.setEnabled(s.agents?.gitStatus !== false);
       }, () => {});
@@ -631,7 +634,7 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
         // Pin / rename / archive one session (no path params in the router, so the id is in the body); '' or null clears the name.
         'PATCH /api/agents/session-state': async ({ json }) => {
           const b = await json<{ id?: unknown; pin?: unknown; pinned?: unknown; name?: unknown; archived?: unknown; tags?: unknown }>();
-          if (typeof b.id !== 'string' || !b.id) return { ok: false };
+          if (!isUuid(b.id)) return { ok: false };
           states.set(b.id, b);
           await refresh(true);
           return { ok: true };
@@ -642,7 +645,7 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
         'POST /api/agents/tags/add': async ({ json }) => {
           const b = await json<{ ids?: unknown; tags?: unknown }>();
           if (!Array.isArray(b.ids)) return { ok: false };
-          states.addTags(b.ids.filter((x): x is string => typeof x === 'string'), b.tags);
+          states.addTags(b.ids.filter(isUuid), b.tags);
           await refresh(true);
           return { ok: true };
         },
@@ -669,9 +672,15 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
           const q = query.get('q') ?? '';
           const accs = accounts();
           const files: Array<{ id: string; file: string }> = [];
+          const byAccount = new Map<string, Map<string, string>>();
+          const filesOf = (dir: string) => {
+            let m = byAccount.get(dir);
+            if (!m) byAccount.set(dir, (m = sessionFilesOf(dir)));
+            return m;
+          };
           for (const x of (await compute()).sessions) {
             const dir = accs.find((a) => a.id === x.account)?.dir;
-            const file = dir ? findSessionFile(dir, x.id) : undefined;
+            const file = dir ? filesOf(dir).get(x.id) : undefined;
             if (file) files.push({ id: x.id, file });
           }
           return ndjson(req, (emit, signal) => searchSessions(files, q, emit, signal));

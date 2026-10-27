@@ -42,7 +42,7 @@ export function ListRows({ rows, empty }: { rows: readonly ListRow[]; empty: str
         >
           {r.chip}
           <span className="kit-row-main">
-            {r.href ? (
+            {r.href && /^https?:/i.test(r.href) ? (
               <a className="kit-row-title" href={r.href} target="_blank" rel="noreferrer" title={r.title}>{r.title}</a>
             ) : (
               <span className="kit-row-title" title={r.title}>{r.title}</span>

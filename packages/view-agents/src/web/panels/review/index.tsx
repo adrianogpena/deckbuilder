@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GitDiff, GitFile } from '@kedalion/server-core/protocol';
-import { Button, ErrorBanner, IconButton, PanelLoading, request, useAsync } from '@kedalion/ui';
+import { Button, ErrorBanner, errorOf, IconButton, PanelLoading, request, useAsync, useToast } from '@kedalion/ui';
 import { t } from '../../../i18n';
 import { useAgentsHost } from '../../workspace/host';
 import type { PanelModule, PanelProps } from '../../workspace/types';
@@ -153,13 +153,18 @@ function ReviewPanel({ project, api, visible }: PanelProps) {
   const [target, setTarget] = useState('');
   const timer = useRef<ReturnType<typeof setTimeout>>();
   const pending = useRef<State>();
+  const changed = useRef<Set<string>>();
+  const toast = useToast();
 
   const flush = useCallback(() => {
     clearTimeout(timer.current);
     const s = pending.current;
     pending.current = undefined;
-    if (s) void putState(project, s).catch(() => undefined);
-  }, [project]);
+    if (!s) return;
+    const paths = changed.current;
+    const next = paths ? { ...s, viewed: s.viewed.filter((p) => paths.has(p)) } : s;
+    void putState(project, next).catch((e) => toast({ kind: 'error', message: errorOf(e).message }));
+  }, [project, toast]);
 
   useEffect(() => {
     setState(undefined);
@@ -185,6 +190,7 @@ function ReviewPanel({ project, api, visible }: PanelProps) {
     for (const f of status.data?.files ?? []) m.set(f.path, [...(m.get(f.path) ?? []), f]);
     return [...m.entries()];
   }, [status.data]);
+  changed.current = status.data ? new Set(status.data.files.map((f) => f.path)) : undefined;
 
   const projectId = host.projectIdOf(project);
   const sessions = host.sessions.filter((s) => s.project === projectId && s.live && !s.external);

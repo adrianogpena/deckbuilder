@@ -1,6 +1,6 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { readFileSync } from 'node:fs';
 import type { AgentProject } from '../protocol.ts';
+import { quarantine, writeJsonSync } from './session-state.ts';
 
 export interface ProjectsStore {
   /** The shown projects (hidden ones left out). */
@@ -26,8 +26,15 @@ export function createProjectsStore(file: string): ProjectsStore {
   let hid: string[] = [];
   const load = () => {
     if (items) return items;
+    let text: string;
     try {
-      const raw = JSON.parse(readFileSync(file, 'utf8')) as unknown;
+      text = readFileSync(file, 'utf8');
+    } catch {
+      items = [];
+      return items;
+    }
+    try {
+      const raw = JSON.parse(text) as unknown;
       const list = Array.isArray(raw) ? raw : (raw as { projects?: unknown })?.projects;
       const h = Array.isArray(raw) ? [] : (raw as { hidden?: unknown })?.hidden;
       items = Array.isArray(list)
@@ -36,17 +43,11 @@ export function createProjectsStore(file: string): ProjectsStore {
       hid = Array.isArray(h) ? h.filter((k): k is string => typeof k === 'string') : [];
     } catch {
       items = [];
+      quarantine(file);
     }
     return items;
   };
-  const save = () => {
-    try {
-      mkdirSync(dirname(file), { recursive: true });
-      writeFileSync(file, JSON.stringify({ projects: items ?? [], hidden: hid }));
-    } catch {
-      /* best effort */
-    }
-  };
+  const save = () => writeJsonSync(file, { projects: items ?? [], hidden: hid });
   return {
     list: () => load().filter((x) => !hid.includes(slash(x.path))),
     hidden: () => (load(), [...hid]),

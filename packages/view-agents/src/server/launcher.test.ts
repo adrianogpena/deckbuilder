@@ -27,8 +27,8 @@ test('rejects unknown accounts and bad ids', () => {
   expect(reg.resolve('claude', { account: '.claude', sessionId: '--x' }, { shell: ['sh'] })).toBeNull();
 });
 
-test('mode and prompt come before the user args', () => {
+test('mode comes before the user args and the prompt follows --', () => {
   const r = reg.resolve('claude', { account: '.claude', sessionId: ID, mode: 'plan', prompt: 'add a route' }, { shell: ['sh'] })!;
-  expect(r.cmd).toEqual(['claude', '--session-id', ID, '--permission-mode', 'plan', 'add a route']);
+  expect(r.cmd).toEqual(['claude', '--session-id', ID, '--permission-mode', 'plan', '--', 'add a route']);
   expect(reg.resolve('claude', { account: '.claude', sessionId: ID, mode: 'bypass' }, { shell: ['sh'] })).toBeNull();
 });

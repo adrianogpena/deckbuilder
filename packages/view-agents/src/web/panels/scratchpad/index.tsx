@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Button, IconButton, request } from '@kedalion/ui';
+import { Button, errorOf, IconButton, request, useToast } from '@kedalion/ui';
 import { t } from '../../../i18n';
 import type { PanelModule, PanelProps, SectionProps } from '../../workspace/types';
 import './style.css';
@@ -25,13 +25,14 @@ function ScratchpadBody({ project }: { project: string | undefined }) {
   const [draft, setDraft] = useState('');
   const pending = useRef<{ project: string; pad: Pad }>();
   const timer = useRef<ReturnType<typeof setTimeout>>();
+  const toast = useToast();
 
   const flush = useCallback(() => {
     clearTimeout(timer.current);
     const p = pending.current;
     pending.current = undefined;
-    if (p) void putPad(p.project, p.pad).catch(() => undefined);
-  }, []);
+    if (p) void putPad(p.project, p.pad).catch((e) => toast({ kind: 'error', message: errorOf(e).message }));
+  }, [toast]);
 
   useEffect(() => {
     setPad(undefined);

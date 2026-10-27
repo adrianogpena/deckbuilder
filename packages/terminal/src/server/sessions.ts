@@ -75,6 +75,7 @@ export interface TerminalSessionsOptions {
 
 const SCROLLBACK = 5000;
 const MAX_LABEL = 80;
+const MAX_TITLE = 256;
 const MAX_META_BYTES = 4096;
 
 interface Viewer {
@@ -164,7 +165,8 @@ export function terminalSessions({ spawn = spawnPty, max = 20, now = Date.now }:
     term.onData((reply) => {
       if (!interactive(e) && e.exited === undefined) pty.write(reply);
     });
-    term.onTitleChange((title) => {
+    term.onTitleChange((raw) => {
+      const title = raw.slice(0, MAX_TITLE);
       e.title = title;
       broadcast(e, control({ type: 'title', title }));
     });

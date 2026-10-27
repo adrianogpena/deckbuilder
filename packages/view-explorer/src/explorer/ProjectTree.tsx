@@ -15,6 +15,7 @@ import {
   type TreeViewHandle,
   useAsync,
   useDialogs,
+  useFileIconVersion,
   useViewToast,
 } from '@kedalion/ui';
 import { multiDeleteEnabled } from '../options';
@@ -43,12 +44,19 @@ interface Node {
 
 const isRoot = (node: Node) => node.path === '';
 const isDir = (node: Node) => node.kind === 'dir' || node.target === 'dir';
+/** Drops paths that sit under another path of the list (deleting the folder removes them). */
+const topPaths = (paths: string[]) => {
+  const unique = [...new Set(paths)];
+  return unique.filter((p) => !unique.some((o) => o !== p && relPath.isUnder(p, o)));
+};
 const isArchive = (node: Node) => !isDir(node) && previewKind(node.name) === 'archive';
 
 export interface ProjectTreeProps {
   project: Project;
   expanded: string[];
   onExpandedChange(ids: string[]): void;
+  /** Adds one id to the latest expanded list (used after awaits, where `expanded` may be stale). */
+  onExpandedAdd?(id: string): void;
   onOpenFile(project: string, path: string): void;
   /** A single click on a file; absent: a click only selects. */
   onPreviewFile?(project: string, path: string): void;
@@ -154,11 +162,12 @@ export interface ProjectTreeApi {
 }
 
 /** The lazy tree of a project's folder, with the file actions. */
-export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, onPreviewFile, onOpenFileToSide, onOpenTerminal, compareWith, onSelectForCompare, onCompare, onOpenDetails, onMoved, onDeleted, apiRef, undo, dirtyCount, view, compact, confirmDelete = true, confirmDragDrop = false, nesting, find, gitDecorations = false }: ProjectTreeProps) {
+export function ProjectTree({ project, expanded, onExpandedChange, onExpandedAdd, onOpenFile, onPreviewFile, onOpenFileToSide, onOpenTerminal, compareWith, onSelectForCompare, onCompare, onOpenDetails, onMoved, onDeleted, apiRef, undo, dirtyCount, view, compact, confirmDelete = true, confirmDragDrop = false, nesting, find, gitDecorations = false }: ProjectTreeProps) {
   const tree = useRef<TreeViewHandle<Node>>(null);
   const clipboard = useRef<{ mode: 'copy' | 'cut'; paths: string[] }>();
   const { confirm, choose, prompt, element } = useDialogs();
   const [creating, setCreating] = useState<{ dir: string; kind: 'file' | 'dir' }>();
+  useFileIconVersion();
   const toast = useViewToast('folder');
   const copyPath = useCopyPath();
   const [menu, setMenu] = useState<{ at: { x: number; y: number }; node: Node; selection: Node[] }>();
@@ -199,7 +208,8 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
   };
 
   const expand = (id: string) => {
-    if (!expanded.includes(id)) onExpandedChange([...expanded, id]);
+    if (onExpandedAdd) onExpandedAdd(id);
+    else if (!expanded.includes(id)) onExpandedChange([...expanded, id]);
   };
 
   const nester = useMemo(() => nesting && new FileNesting(nesting), [JSON.stringify(nesting)]);
@@ -257,7 +267,9 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
   gitOn.current = gitDecorations;
   const gitSeq = useRef(0);
   const gitKey = useRef('');
-  const refreshGit = () => {
+  const gitIgnored = useRef<string[]>();
+  /** `withIgnored` false reuses the last ignored list (the ignored walk is the costly part). */
+  const refreshGit = (withIgnored = true) => {
     const seq = ++gitSeq.current;
     const done = (files?: GitFile[], ignored?: string[]) => {
       if (seq !== gitSeq.current) return;
@@ -266,13 +278,20 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
       gitKey.current = key;
       setGit(files && gitMarksOf(files, ignored));
     };
-    if (!gitOn.current) return done();
-    api.gitStatus(project.id, true).then(
-      (status) => done(status.files, status.ignored),
+    if (!gitOn.current) {
+      gitIgnored.current = undefined;
+      return done();
+    }
+    const fetchIgnored = withIgnored || !gitIgnored.current;
+    api.gitStatus(project.id, fetchIgnored).then(
+      (status) => {
+        if (fetchIgnored && seq === gitSeq.current) gitIgnored.current = status.ignored ?? [];
+        done(status.files, fetchIgnored ? status.ignored : gitIgnored.current);
+      },
       () => done(),
     );
   };
-  useEffect(refreshGit, [project.id, gitOn.current]);
+  useEffect(() => refreshGit(), [project.id, gitOn.current]);
 
   const decorationOf = (n: Node) => {
     if (!git || n.outside || isRoot(n)) return undefined;
@@ -290,17 +309,20 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
   };
 
   useEffect(() => {
-    const refresh = () => {
+    let tick = 0;
+    const refresh = (withIgnored: boolean) => {
       if (document.visibilityState !== 'visible') return;
       folderFiles.current.clear();
       tree.current?.reload();
-      refreshGit();
+      refreshGit(withIgnored);
     };
-    const timer = setInterval(refresh, 4000);
-    window.addEventListener('focus', refresh);
+    // The ignored list is fetched on every 4th tick and on focus.
+    const timer = setInterval(() => refresh(++tick % 4 === 0), 8000);
+    const onFocus = () => refresh(true);
+    window.addEventListener('focus', onFocus);
     return () => {
       clearInterval(timer);
-      window.removeEventListener('focus', refresh);
+      window.removeEventListener('focus', onFocus);
     };
   }, [project.id]);
 
@@ -413,11 +435,10 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
       });
       if (!ok) return;
       const parents = new Set(targets.map((n) => relPath.dirname(n.path)));
+      const paths = topPaths(targets.map((n) => n.path));
       try {
-        for (const n of targets) {
-          await api.fsDelete(project.id, [n.path]);
-          onDeleted(project.id, n.path);
-        }
+        await api.fsDelete(project.id, paths);
+        for (const path of paths) onDeleted(project.id, path);
       } finally {
         for (const dir of parents) reloadDir(dir);
       }
@@ -496,10 +517,9 @@ export function ProjectTree({ project, expanded, onExpandedChange, onOpenFile, o
             danger: true,
           });
           if (!ok) return void undo.push(op);
-          for (const path of op.paths) {
-            await api.fsDelete(op.project, [path]);
-            onDeleted(op.project, path);
-          }
+          const paths = topPaths(op.paths);
+          await api.fsDelete(op.project, paths);
+          for (const path of paths) onDeleted(op.project, path);
           toast({ message: t('explorer.undone', { what: t(DID[op.kind], { name: labelOf(op.paths) }) }) });
         } else {
           const pending = [...op.moves].reverse();

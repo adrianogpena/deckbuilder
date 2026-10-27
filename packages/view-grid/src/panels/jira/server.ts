@@ -11,7 +11,14 @@ export interface IssuesData {
 export interface CountData {
   total: number;
   slices: Slice[];
+  /** How many issues the slices count when that is fewer than `total` (breakdown capped at `BREAKDOWN_CAP`). */
+  sampled?: number;
 }
+
+/** Most issues read for a Count breakdown (10 pages of 100). */
+const BREAKDOWN_CAP = 1000;
+/** Most issues read for a sprint board (pages of 100). */
+const SPRINT_CAP = 1000;
 
 const issuesSource = defineSource<{ connection: string; jql: string; max: number; columns: string[]; notify: boolean }>({
   id: 'jira-issues',
@@ -48,8 +55,9 @@ const countSource = defineSource<{ connection: string; jql: string; display: str
       });
     }
     if (display !== 'status' && display !== 'assignee' && display !== 'priority') return { total, slices: [] };
-    const raw = await search(conn, jql, requestFields([display]), 100, ctx.signal);
-    return { total, slices: breakdown(raw.map((r) => mapIssue(r, conn.baseUrl)), display) };
+    const raw = await search(conn, jql, requestFields([display]), BREAKDOWN_CAP, ctx.signal);
+    const slices = breakdown(raw.map((r) => mapIssue(r, conn.baseUrl)), display);
+    return raw.length < total ? { total, slices, sampled: raw.length } : { total, slices };
   },
 });
 
@@ -64,9 +72,16 @@ const sprintSource = defineSource<{ connection: string; boardId: number; columns
     if (!sprint) return null;
     const ids = await fieldIds(conn, ctx.signal);
     const wanted = requestFields(columns, ids);
-    const q = new URLSearchParams({ maxResults: '100', fields: wanted.join(',') });
-    const res = await agile(conn, `/sprint/${sprint.id}/issue?${q}`, ctx.signal);
-    const data = mapSprint(sprint, ((res.issues ?? []) as Record<string, any>[]).map((r) => mapIssue(r, conn.baseUrl, ids)));
+    const raw: Record<string, any>[] = [];
+    for (let startAt = 0; startAt < SPRINT_CAP; ) {
+      const q = new URLSearchParams({ startAt: String(startAt), maxResults: '100', fields: wanted.join(',') });
+      const res = await agile(conn, `/sprint/${sprint.id}/issue?${q}`, ctx.signal);
+      const page = (res.issues ?? []) as Record<string, any>[];
+      raw.push(...page);
+      startAt += page.length;
+      if (page.length === 0 || startAt >= Number(res.total ?? 0)) break;
+    }
+    const data = mapSprint(sprint, raw.map((r) => mapIssue(r, conn.baseUrl, ids)));
     if (notify !== false) {
       const column = (list: JiraIssue[], name: string) => list.map((issue) => ({ issue, column: name }));
       const placed = [...column(data.todo, 'To do'), ...column(data.doing, 'In progress'), ...column(data.finished, 'Done')];

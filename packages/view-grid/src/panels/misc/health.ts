@@ -1,4 +1,5 @@
 import { AppError } from '@kedalion/server-core';
+import { declaredTooLarge, readLimited } from '../../connections/errors';
 import { isHttpUrl } from './lines';
 
 export interface HealthResult {
@@ -39,8 +40,13 @@ export async function fetchJson(url: string, timeoutMs: number, signal: AbortSig
     throw new AppError('internal', 'dash.misc.fetchFailed', 'Could not fetch the URL', { detail: err instanceof Error ? err.message : String(err) });
   }
   if (!res.ok) throw new AppError('internal', 'dash.misc.fetchFailed', `The URL answered ${res.status}`, { detail: String(res.status) });
-  const text = await res.text();
-  if (text.length > MAX_JSON_BYTES) throw new AppError('invalid', 'dash.misc.tooLarge', 'The response is too large');
+  const tooLarge = () => new AppError('invalid', 'dash.misc.tooLarge', 'The response is too large');
+  if (declaredTooLarge(res, MAX_JSON_BYTES)) {
+    await res.body?.cancel().catch(() => {});
+    throw tooLarge();
+  }
+  const { text, truncated } = await readLimited(res, MAX_JSON_BYTES);
+  if (truncated) throw tooLarge();
   try {
     return JSON.parse(text);
   } catch {

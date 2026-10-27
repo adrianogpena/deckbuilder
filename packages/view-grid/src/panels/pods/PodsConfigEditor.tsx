@@ -3,7 +3,7 @@ import { Button, IconButton } from '@kedalion/ui';
 import { ConfigForm } from '../../ConfigForm';
 import { tKey } from '../../i18n';
 import { PODS_FIELDS } from './fields';
-import { formatEntries, parseEntries, type PodEntry } from './model';
+import { formatEntries, isEntryValid, parseEntries, type PodEntry } from './model';
 import type { PodsConfig } from './PodsPanel';
 import { PodEntryFields, usePodChoices } from './PodEntryFields';
 import './pods.css';
@@ -25,7 +25,7 @@ export function PodsConfigEditor({ value, onChange }: { value: PodsConfig; onCha
   const entries = parseEntries(value.clusters ?? '');
   const [draft, setDraft] = useState<PodEntry>({ context: '', namespace: '', pod: '' });
   const save = (next: PodEntry[]) => onChange({ ...value, clusters: formatEntries(next) });
-  const valid = draft.context !== '' && draft.namespace !== '' && draft.pod !== '';
+  const valid = isEntryValid(draft);
   return (
     <div className="pods-editor">
       {entries.map((entry, i) => (

@@ -29,6 +29,8 @@ export interface ExplorerSqlProps {
 interface Options {
   project: string;
   name: string;
+  /** Project-relative path; keys remembered parameter values (falls back to `name`). */
+  path?: string;
   /** Treat the file as SQL whatever its extension (SQL view of a query XML). */
   asSql?: boolean;
   /** The text editor shows (not a preview). */
@@ -74,7 +76,7 @@ function ParamsDialog({ params, initial, onSubmit, onClose }: { params: SqlParam
  * below the editor. Only `.sql` files; the rest get nothing.
  * The connection's DB session is the Workbench's.
  */
-export function useExplorerSql({ project, name, asSql, active, focused, draft, sql, confirm, onRunStart }: Options) {
+export function useExplorerSql({ project, name, path, asSql, active, focused, draft, sql, confirm, onRunStart }: Options) {
   const settings = useMemo(() => withWorkbenchDefaults(sql?.workbench), [sql?.workbench]);
   const enabled = !!sql && active && (asSql || langOfFile(name) === 'sql');
   const connections = useAsync(() => (enabled ? sqlClient.connections() : Promise.resolve([])), [enabled]);
@@ -87,7 +89,7 @@ export function useExplorerSql({ project, name, asSql, active, focused, draft, s
   const [resultSizes, setResultSizes] = useState<[number, number]>(DEFAULT_RESULTS);
   const chordOf = useChordOf();
 
-  const fileKey = `${project}/${name}`;
+  const fileKey = `${project}/${path ?? name}`;
   const [remembered, setRemembered] = useState<Record<string, Record<number, string>>>({});
   const [dialog, setDialog] = useState<{ text: string; mode: RunMode } | 'edit' | null>(null);
   const [paramError, setParamError] = useState<string>();

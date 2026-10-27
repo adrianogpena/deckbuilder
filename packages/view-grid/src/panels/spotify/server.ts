@@ -35,6 +35,8 @@ interface Session {
   store: JsonStore<Stored>;
   pending: Map<string, Pending>;
   refreshing?: Promise<Tokens>;
+  /** Bumped on disconnect so a refresh already in flight does not save its tokens. */
+  generation: number;
   me?: Cache<{ premium: boolean; user: string }>;
   recent?: Cache<SpotifyData['recent']>;
   playlists?: Cache<SpotifyData['playlists']>;
@@ -50,7 +52,7 @@ function sessionOf(dataDir: string): Session {
       const ok = typeof t?.accessToken === 'string' && t.accessToken && typeof t?.refreshToken === 'string' && t.refreshToken;
       return { clientId: typeof raw?.clientId === 'string' ? raw.clientId : '', ...(ok ? { tokens: { accessToken: t.accessToken, refreshToken: t.refreshToken, expiresAt: Number(t.expiresAt) || 0 } } : {}) };
     };
-    sessions.set(dataDir, (s = { store: createJsonStore({ dataDir, name: 'spotify', parse, empty: () => ({ clientId: '' }) }), pending: new Map() }));
+    sessions.set(dataDir, (s = { store: createJsonStore({ dataDir, name: 'spotify', parse, empty: () => ({ clientId: '' }) }), pending: new Map(), generation: 0 }));
   }
   return s;
 }
@@ -79,15 +81,23 @@ async function accessToken(ctx: SourceContext, clientId: string, stale?: string)
   const t = stored.tokens;
   if (!isExpired(t, Date.now()) && t.accessToken !== stale) return t.accessToken;
   s.refreshing ??= (async () => {
+    const generation = s.generation;
+    const current = (v: Stored) => s.generation === generation && v.tokens?.refreshToken === t.refreshToken;
     try {
-      const raw = await tokenRequest({ grant_type: 'refresh_token', refresh_token: t.refreshToken, client_id: clientId }, ctx.signal);
+      const raw = await tokenRequest({ grant_type: 'refresh_token', refresh_token: t.refreshToken, client_id: clientId }, AbortSignal.timeout(15_000));
       const next = parseTokens(raw, Date.now(), t.refreshToken);
       if (!next) throw SourceError('upstream', 'Spotify returned no token.');
-      await s.store.update((v) => ({ ...v, tokens: next }));
+      let saved = false;
+      await s.store.update((v) => {
+        if (!current(v)) return v;
+        saved = true;
+        return { ...v, tokens: next };
+      });
+      if (!saved) throw notConnected();
       return next;
     } catch (err) {
       if ((err as { code?: string }).code === 'source-auth') {
-        await s.store.update((v) => ({ clientId: v.clientId }));
+        await s.store.update((v) => (current(v) ? { clientId: v.clientId } : v));
         throw notConnected();
       }
       throw err;
@@ -202,6 +212,7 @@ export const spotifySource = defineSource<{ clientId: string }>({
     },
     async disconnect(_payload, _config, ctx) {
       const s = sessionOf(ctx.dataDir);
+      s.generation++;
       s.me = s.recent = s.playlists = undefined;
       await s.store.update((v) => ({ clientId: v.clientId }));
     },
@@ -240,6 +251,7 @@ export const spotifySource = defineSource<{ clientId: string }>({
         const raw = await tokenRequest({ grant_type: 'authorization_code', code, redirect_uri: pending.redirectUri, client_id: pending.clientId, code_verifier: pending.verifier }, ctx.signal);
         const tokens = parseTokens(raw, Date.now());
         if (!tokens) return page(502, 'Spotify returned no token. Try again.');
+        s.generation++;
         s.me = s.recent = s.playlists = undefined;
         await s.store.update(() => ({ clientId: pending.clientId, tokens }));
       } catch (err) {

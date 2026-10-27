@@ -65,12 +65,16 @@ export function createConnectionStore(dataDir: string) {
   let queue: Promise<unknown> = Promise.resolve();
 
   const read = async (): Promise<Connection[]> => {
+    let text: string;
     try {
-      const raw = JSON.parse(await readFile(file, 'utf8'));
-      return Array.isArray(raw) ? raw.filter((c): c is Connection => !!c && ID_RE.test(c.id) && isConnectionType(c.type)) : [];
-    } catch {
-      return [];
+      text = await readFile(file, 'utf8');
+    } catch (err) {
+      // Only a missing file means "no connections"; any other error must stop save/remove from overwriting the file.
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return [];
+      throw err;
     }
+    const raw = JSON.parse(text);
+    return Array.isArray(raw) ? raw.filter((c): c is Connection => !!c && ID_RE.test(c.id) && isConnectionType(c.type)) : [];
   };
   const write = async (all: Connection[]) => {
     await mkdir(dir, { recursive: true });

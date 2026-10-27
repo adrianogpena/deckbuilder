@@ -170,7 +170,8 @@ function TextFileTab({ project, projectName, projectPath, path, focused, preview
             content = read;
           }
         }
-        if (gen === generation.current) {
+        // A disk reload that resolves after the user started typing keeps their draft.
+        if (gen === generation.current && !(silent && dirtyRef.current)) {
           if ('text' in content) setDraft(content.text);
           setEol(format.current.eol);
           setDisk({ size: read.size, readOnly });
@@ -392,7 +393,7 @@ function TextFileTab({ project, projectName, projectPath, path, focused, preview
     if (mergeOn) return;
     setDraft(xmlStmts ? applyCombinedXml(draft, xmlStmts, v) : v);
   };
-  const sqlUi = useExplorerSql({ project, name, asSql: !!xmlStmts, active, focused, draft: editorValue, sql, confirm, onRunStart: () => setStepsOpen(false) });
+  const sqlUi = useExplorerSql({ project, name, path, asSql: !!xmlStmts, active, focused, draft: editorValue, sql, confirm, onRunStart: () => setStepsOpen(false) });
   const curlUi = useExplorerCurl({ name, active, draft, sql });
   const chordOf = useChordOf();
   const stepsPanel = (): ReactNode => isSql && stepsOpen ? (

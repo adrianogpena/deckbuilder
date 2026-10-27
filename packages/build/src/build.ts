@@ -9,12 +9,9 @@ export type Target = (typeof TARGETS)[number];
 
 /** `--target` value → targets; none means this machine. */
 export function parseTargets(value: string | undefined): Target[] {
-  if (!value) {
-    const os = process.platform === 'win32' ? 'windows' : process.platform;
-    return [`${os}-${process.arch}` as Target];
-  }
   if (value === 'all') return [...TARGETS];
-  const list = value.split(',').map((t) => t.trim());
+  const os = process.platform === 'win32' ? 'windows' : process.platform;
+  const list = value ? value.split(',').map((t) => t.trim()) : [`${os}-${process.arch}`];
   for (const t of list) if (!(TARGETS as readonly string[]).includes(t)) throw new Error(`unknown target ${t}; use ${TARGETS.join(', ')}`);
   return list as Target[];
 }

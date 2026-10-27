@@ -33,10 +33,13 @@ describe('createJsonStore', () => {
     expect(JSON.parse(await readFile(join(dir, 'grid', 'counter.json'), 'utf8'))).toEqual({ n: 10 });
   });
 
-  test('unreadable JSON reads as empty', async () => {
+  test('malformed JSON rejects and update leaves the file untouched', async () => {
     const store = await make();
+    const file = join(dir, 'grid', 'counter.json');
     await mkdir(join(dir, 'grid'), { recursive: true });
-    await writeFile(join(dir, 'grid', 'counter.json'), '{nope');
-    expect(await store.read()).toEqual({ n: 0 });
+    await writeFile(file, '{nope');
+    await expect(store.read()).rejects.toThrow();
+    await expect(store.update((v) => ({ n: v.n + 1 }))).rejects.toThrow();
+    expect(await readFile(file, 'utf8')).toBe('{nope');
   });
 });

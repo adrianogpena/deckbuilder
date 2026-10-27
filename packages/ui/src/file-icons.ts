@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from 'react';
 import type { Tone } from './components/ui';
 import { effectiveName, LOG_NAME } from './file-associations';
 import type { IconName } from './icons';
@@ -7,7 +8,7 @@ export interface FileIcon {
   tone?: Tone;
 }
 
-const BY_EXTENSION: Record<string, FileIcon> = {};
+const BY_EXTENSION: Record<string, FileIcon> = Object.create(null);
 const add = (extensions: string, icon: IconName, tone?: Tone) => {
   for (const ext of extensions.split(' ')) BY_EXTENSION[ext] = { icon, tone };
 };
@@ -36,8 +37,23 @@ add('txt', 'file-text');
 
 /** Extensions the active icon set draws with its own file icon (atom); set by LayoutProvider. */
 let variantExts: ReadonlySet<string> = new Set();
+let variantVersion = 0;
+const variantListeners = new Set<() => void>();
 export function setFileIconVariants(keys: Iterable<string> | undefined): void {
-  variantExts = new Set([...(keys ?? [])].map((k) => k.slice(k.indexOf(':') + 1)));
+  const next = new Set([...(keys ?? [])].map((k) => k.slice(k.indexOf(':') + 1)));
+  if (next.size === variantExts.size && [...next].every((e) => variantExts.has(e))) return;
+  variantExts = next;
+  variantVersion++;
+  for (const listener of variantListeners) listener();
+}
+const subscribeVariants = (listener: () => void) => {
+  variantListeners.add(listener);
+  return () => variantListeners.delete(listener);
+};
+const variantSnapshot = () => variantVersion;
+/** Re-renders the caller when the active set's file-icon variants change; call it in components that use fileIconOf/folderIconOf while rendering. */
+export function useFileIconVersion(): number {
+  return useSyncExternalStore(subscribeVariants, variantSnapshot, variantSnapshot);
 }
 
 const CONFIG_FILE: FileIcon = { icon: 'settings-file' };
@@ -56,7 +72,7 @@ export function fileIconOf(name: string): FileIcon {
   return variantExts.has(ext) ? { ...hit, icon: `${hit.icon}:${ext}` as IconName } : hit;
 }
 
-const FOLDER_NAMES: Record<string, IconName> = {};
+const FOLDER_NAMES: Record<string, IconName> = Object.create(null);
 const addFolders = (names: string, icon: IconName) => {
   for (const n of names.split(' ')) FOLDER_NAMES[n] = icon;
 };

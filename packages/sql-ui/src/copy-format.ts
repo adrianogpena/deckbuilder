@@ -11,6 +11,8 @@ export interface CopyColumn<T> {
   raw: (row: T) => unknown;
   /** `'number'` columns are written unquoted by `insert`; unknown types are quoted. */
   type?: string;
+  /** A TIMESTAMP column: `insert` writes its `'date'` values with TO_TIMESTAMP instead of TO_DATE. */
+  timestamp?: boolean;
 }
 
 export const DEFAULT_TABLE_NAME = 'table_name';
@@ -31,23 +33,49 @@ const toMarkdown = <T>(cols: CopyColumn<T>[], rows: readonly T[]): string => {
   return [line(cols.map((c) => c.label)), line(cols.map(() => '---')), ...rows.map((r) => line(cols.map((c) => c.text(r))))].join('\n');
 };
 
-const toJson = <T>(cols: CopyColumn<T>[], rows: readonly T[]): string =>
-  JSON.stringify(rows.map((r) => Object.fromEntries(cols.map((c) => [c.label, c.raw(r) ?? null]))), null, 2);
+/** JSON keys for `labels`: a repeated label gets `_2`, `_3`... (`ID`, `ID_2`) so no column is lost. */
+export function uniqueLabels(labels: string[]): string[] {
+  const used = new Set<string>();
+  return labels.map((label) => {
+    let key = label;
+    for (let n = 2; used.has(key); n++) key = `${label}_${n}`;
+    used.add(key);
+    return key;
+  });
+}
+
+const toJson = <T>(cols: CopyColumn<T>[], rows: readonly T[]): string => {
+  const keys = uniqueLabels(cols.map((c) => c.label));
+  return JSON.stringify(rows.map((r) => Object.fromEntries(cols.map((c, i) => [keys[i], c.raw(r) ?? null]))), null, 2);
+};
 
 const NUMERIC = /^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i;
+const ISO_DATE = /^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}:\d{2}:\d{2})(\.\d+)?)?/;
 
-/** One SQL literal: null → NULL, numbers bare only in a number column, anything else single-quoted. */
-export function sqlLiteral(value: unknown, type?: string): string {
+/**
+ * One SQL literal: null → NULL, numbers bare only in a number column, an ISO value in a date column as
+ * TO_DATE (TO_TIMESTAMP when `timestamp`), anything else single-quoted.
+ */
+export function sqlLiteral(value: unknown, type?: string, timestamp?: boolean): string {
   if (value === null || value === undefined) return 'NULL';
   if (typeof value === 'boolean') return value ? '1' : '0';
   const text = typeof value === 'object' ? JSON.stringify(value) : String(value);
   if (type === 'number' && NUMERIC.test(text)) return text;
+  const date = type === 'date' ? ISO_DATE.exec(text) : null;
+  if (date) {
+    const time = date[2] ?? '00:00:00';
+    if (timestamp) return `TO_TIMESTAMP('${date[1]} ${time}${date[3] ?? ''}', 'YYYY-MM-DD HH24:MI:SS${date[3] ? '.FF' : ''}')`;
+    return `TO_DATE('${date[1]} ${time}', 'YYYY-MM-DD HH24:MI:SS')`;
+  }
   return `'${text.replace(/'/g, "''")}'`;
 }
 
+/** A column name as written in SQL: a plain uppercase identifier bare, anything else double-quoted. */
+const sqlName = (label: string) => (/^[A-Z][A-Z0-9_$#]*$/.test(label) ? label : `"${label.replace(/"/g, '""')}"`);
+
 const toInserts = <T>(cols: CopyColumn<T>[], rows: readonly T[], table: string): string => {
-  const names = cols.map((c) => c.label).join(', ');
-  return rows.map((r) => `INSERT INTO ${table} (${names}) VALUES (${cols.map((c) => sqlLiteral(c.raw(r), c.type)).join(', ')});`).join('\n');
+  const names = cols.map((c) => sqlName(c.label)).join(', ');
+  return rows.map((r) => `INSERT INTO ${table} (${names}) VALUES (${cols.map((c) => sqlLiteral(c.raw(r), c.type, c.timestamp)).join(', ')});`).join('\n');
 };
 
 /** The clipboard text of `rows` in `format`. */

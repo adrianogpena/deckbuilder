@@ -16,7 +16,7 @@ const issuesPanel = definePanel<IssuesConfig, IssuesData>({
   category: 'dash.category.jira',
   size: { w: 6, h: 14, minW: 4, minH: 6 },
   config: { fields: ISSUES_FIELDS },
-  load: (config) => fetchSource<IssuesData>('jira-issues', config),
+  load: (config, ctx) => fetchSource<IssuesData>('jira-issues', config, ctx.signal),
   refreshMs: (config) => refreshMs(config.refreshMin),
   render: ({ config, data }) => createElement(IssuesPanel, { config, data }),
 });
@@ -29,7 +29,7 @@ const countPanel = definePanel<CountConfig, CountData>({
   category: 'dash.category.jira',
   size: { w: 4, h: 8, minW: 3, minH: 4 },
   config: { fields: COUNT_FIELDS },
-  load: (config) => fetchSource<CountData>('jira-count', config),
+  load: (config, ctx) => fetchSource<CountData>('jira-count', config, ctx.signal),
   refreshMs: (config) => refreshMs(config.refreshMin),
   render: ({ config, data }) => createElement(CountPanel, { config, data }),
 });
@@ -42,7 +42,7 @@ const sprintPanel = definePanel<BoardConfig, SprintData | null>({
   category: 'dash.category.jira',
   size: { w: 10, h: 14, minW: 6, minH: 8 },
   config: { fields: BOARD_FIELDS },
-  load: (config) => (config.boardId ? fetchSource<SprintData | null>('jira-sprint', config) : Promise.resolve(null)),
+  load: (config, ctx) => (config.boardId ? fetchSource<SprintData | null>('jira-sprint', config, ctx.signal) : Promise.resolve(null)),
   refreshMs: (config) => refreshMs(config.refreshMin),
   render: ({ config, data, configure }) => createElement(SprintBoardPanel, { config, data, configure }),
 });

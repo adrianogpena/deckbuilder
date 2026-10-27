@@ -135,7 +135,23 @@ export function TerminalScreen({ settings, onSave }: { settings: Settings; onSav
     setLayout(next);
     save(next);
     const kept = sessionIds(next);
-    for (const id of sessionIds(prev).keys()) if (!kept.has(id)) void closeSession(id).catch(() => {});
+    const closed = [...sessionIds(prev).keys()].filter((id) => !kept.has(id));
+    for (const id of closed) {
+      void closeSession(id).catch(() => {});
+      delete running.current[id];
+      delete seenBells.current[id];
+    }
+    if (closed.length) {
+      const without = <T,>(rec: Record<string, T>) => {
+        if (!closed.some((id) => id in rec)) return rec;
+        const out = { ...rec };
+        for (const id of closed) delete out[id];
+        return out;
+      };
+      setTitles(without);
+      setCwds(without);
+      setRang(without);
+    }
   };
 
   const refresh = async () => {

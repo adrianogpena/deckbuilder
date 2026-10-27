@@ -41,6 +41,7 @@ import {
   type QuickOpenFile,
   useProvideQuickOpen,
   fileIconOf,
+  useFileIconVersion,
   fileSettingsOf,
   relPath,
   type SortState,
@@ -90,6 +91,23 @@ const refUnder = (ref: FileRef, project: string, path: string) => ref.project ==
 const UNTITLED: Route = { kind: 'untitled', lang: 'text', text: '' };
 /** A tab a newly opened file, terminal or view takes over: the welcome page or an untouched untitled tab. */
 const isBlank = (r: Route) => r.kind === 'welcome' || (r.kind === 'untitled' && !r.text && !r.target);
+/** Under the server's 64 KB `tabs` limit, leaving room for the JSON the server measures. */
+const MAX_TABS_BYTES = 60 * 1024;
+/** The saved tab layout; untitled text is left out when the layout would exceed the budget, and the tabs too when that is not enough. */
+function tabsToSave(layout: Layout<Route>): unknown {
+  const full = serialize(layout);
+  if (JSON.stringify(full).length < MAX_TABS_BYTES) return full;
+  const trimmed = serialize({
+    ...layout,
+    panes: layout.panes.map((p) => ({
+      ...p,
+      tabs: p.tabs.map((t) =>
+        t.route.kind === 'untitled' ? { ...t, route: { kind: 'untitled' as const, lang: t.route.lang, text: '', ...(t.route.target !== undefined && { target: t.route.target }) } } : t,
+      ),
+    })),
+  });
+  return JSON.stringify(trimmed).length < MAX_TABS_BYTES ? trimmed : undefined;
+}
 const MAX_EXPANDED = 2000;
 const MAX_RECENT = 50;
 const RECENT_KEY = 'kedalion.recentFiles';
@@ -212,6 +230,7 @@ export interface ExplorerRequest {
 export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSave: (patch: Partial<Settings>) => void }) {
   const projects = useAsync(() => api.projects(), []);
   const keys = useKeybindings();
+  useFileIconVersion();
   const list = projects.data ?? [];
   const [state, setState] = useState(() => initialState(settings.explorer, editorSettingsOf(settings).wordWrap, fileSettingsOf(settings.files).restoreTabs));
   const latest = useRef(state);
@@ -249,7 +268,8 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
   const copyPath = useCopyPath();
   const undo = useFileUndo();
 
-  const persist = useDebouncedSave((s: State) =>
+  const persist = useDebouncedSave((s: State) => {
+    const tabs = tabsToSave(s.layout);
     onSave({
       explorer: {
         sizes: s.sizes,
@@ -260,10 +280,10 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
         wrapLines: s.wrapLines,
         ...(s.sqlSizes && { sqlSizes: s.sqlSizes }),
         ...(s.connections && { connections: s.connections }),
-        tabs: serialize(s.layout),
+        ...(tabs !== undefined && { tabs }),
       },
-    }),
-  );
+    });
+  });
   const files = fileSettingsOf(settings.files);
   const sql: ExplorerSqlProps = {
     workbench: settings.workbench,
@@ -626,6 +646,12 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
                   {...pickerHandlers}
                   expanded={state.expanded[project.id] ?? [nodeId(project.id, '')]}
                   onExpandedChange={(ids) => setExpanded(project.id, ids)}
+                  onExpandedAdd={(id) =>
+                    update((s) => {
+                      const ids = s.expanded[project.id] ?? [nodeId(project.id, '')];
+                      return ids.includes(id) ? s : { ...s, expanded: { ...s.expanded, [project.id]: [...ids, id].slice(-MAX_EXPANDED) } };
+                    })
+                  }
                   onOpenFile={(p, path) => openFile(p, path)}
                   apiRef={(h) => void (trees.current[i] = h)}
                   onOpenFileToSide={openFileToSide}
@@ -675,7 +701,7 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
           renderTab={(tab, ctx) =>
             tab.route.kind === 'file' ? (
               <Suspense fallback={<PanelLoading />}>
-                <FileTab project={tab.route.project} projectName={nameOf(tab.route.project)} projectPath={pathOf(tab.route.project)} path={tab.route.path} focused={ctx.focused} preview={tab.preview} logs={logs} onLogsChange={changeLogs} onDirty={ctx.setDirty} onSaver={ctx.setSaver} onActions={ctx.setActions} sql={sql} wrapLines={state.wrapLines} onWrapLinesChange={(wrapLines) => update((s) => ({ ...s, wrapLines }))} files={files} onOpenPath={(p) => tab.route.kind === 'file' && openFile(tab.route.project, p, files.previewTabs)} />
+                <FileTab key={`${tab.route.project}\0${tab.route.path}`} project={tab.route.project} projectName={nameOf(tab.route.project)} projectPath={pathOf(tab.route.project)} path={tab.route.path} focused={ctx.focused} preview={tab.preview} logs={logs} onLogsChange={changeLogs} onDirty={ctx.setDirty} onSaver={ctx.setSaver} onActions={ctx.setActions} sql={sql} wrapLines={state.wrapLines} onWrapLinesChange={(wrapLines) => update((s) => ({ ...s, wrapLines }))} files={files} onOpenPath={(p) => tab.route.kind === 'file' && openFile(tab.route.project, p, files.previewTabs)} />
               </Suspense>
             ) : tab.route.kind === 'untitled' ? (
               <Suspense fallback={<PanelLoading />}>

@@ -1,7 +1,8 @@
 import { isUuid, type Launcher } from '@kedalion/terminal/server';
 import type { AgentAccount } from './accounts.ts';
 import { claudeEnv } from './claude-env.ts';
-import { claudeCommand } from './claude-command.ts';
+import { invalid } from '@kedalion/server-core';
+import { claudeCommand, isInterpreterSafeArg, isViaInterpreter } from './claude-command.ts';
 
 export const CLAUDE_LAUNCHER_ID = 'claude';
 const MAX_PROMPT = 30_000;
@@ -39,14 +40,23 @@ export function claudeLauncher(opts: ClaudeLauncherOptions): Launcher<ClaudeLaun
       if (a.prompt !== undefined && (typeof a.prompt !== 'string' || a.prompt.length > MAX_PROMPT)) return null;
       return { account: a.account, sessionId: a.sessionId, resume: a.resume === true, mode: a.mode, prompt: a.prompt };
     },
-    command: (a) => [
-      ...(opts.cmd ? [opts.cmd] : claudeCommand.argv()),
-      a.resume ? '--resume' : '--session-id',
-      a.sessionId,
-      ...(a.mode ? ['--permission-mode', a.mode] : []),
-      ...(a.prompt ? [a.prompt] : []),
-      ...claudeCommand.extraArgs(),
-    ],
+    command: (a) => {
+      const base = opts.cmd ? [opts.cmd] : claudeCommand.argv();
+      const extra = claudeCommand.extraArgs();
+      if (isViaInterpreter(base)) {
+        // cmd.exe re-parses the line: a free-text prompt could be cut at a newline or run commands.
+        if (a.prompt) throw invalid('claudePromptViaCmd', 'A prompt cannot be passed to a .cmd/.bat claude command; set the claude command to claude.exe in Settings.');
+        if (!extra.every(isInterpreterSafeArg)) throw invalid('claudeArgsViaCmd', 'Claude arguments with " % ! ^ & | < > ( ) or line breaks cannot be passed to a .cmd/.bat claude command.');
+      }
+      return [
+        ...base,
+        a.resume ? '--resume' : '--session-id',
+        a.sessionId,
+        ...(a.mode ? ['--permission-mode', a.mode] : []),
+        ...extra,
+        ...(a.prompt ? ['--', a.prompt] : []),
+      ];
+    },
     env: (a) => claudeEnv(find(a.account)!, opts.env ?? process.env),
     meta: (a) => ({ agentSession: a.sessionId, account: a.account }),
   };

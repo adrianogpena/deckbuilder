@@ -24,26 +24,39 @@ export function isPidAlive(pid: number): boolean {
 
 const PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
 
+const kernel32Symbols = (FFIType: typeof import('bun:ffi').FFIType) => ({
+  OpenProcess: { args: [FFIType.u32, FFIType.i32, FFIType.u32], returns: FFIType.ptr },
+  GetProcessTimes: { args: [FFIType.ptr, FFIType.ptr, FFIType.ptr, FFIType.ptr, FFIType.ptr], returns: FFIType.i32 },
+  CloseHandle: { args: [FFIType.ptr], returns: FFIType.i32 },
+} as const);
+
+let k32: { lib: import('bun:ffi').Library<ReturnType<typeof kernel32Symbols>>; ptr: typeof import('bun:ffi').ptr } | null | undefined;
+
+/** kernel32, opened once on first use; null when it cannot be loaded. */
+function kernel32() {
+  if (k32 !== undefined) return k32;
+  try {
+    const { dlopen, FFIType, ptr } = require('bun:ffi') as typeof import('bun:ffi');
+    k32 = { lib: dlopen('kernel32.dll', kernel32Symbols(FFIType)), ptr };
+  } catch {
+    k32 = null;
+  }
+  return k32;
+}
+
 /** Creation time of a process as a Windows FILETIME string (what Claude writes as `procStart`); undefined elsewhere or when unreadable. */
 export function processStart(pid: number): string | undefined {
   if (process.platform !== 'win32') return undefined;
+  const k = kernel32();
+  if (!k) return undefined;
   try {
-    const { dlopen, FFIType, ptr } = require('bun:ffi') as typeof import('bun:ffi');
-    const k32 = dlopen('kernel32.dll', {
-      OpenProcess: { args: [FFIType.u32, FFIType.i32, FFIType.u32], returns: FFIType.ptr },
-      GetProcessTimes: { args: [FFIType.ptr, FFIType.ptr, FFIType.ptr, FFIType.ptr, FFIType.ptr], returns: FFIType.i32 },
-      CloseHandle: { args: [FFIType.ptr], returns: FFIType.i32 },
-    });
-    try {
-      const h = k32.symbols.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
-      if (!h) return undefined;
-      const t = new BigUint64Array(4);
-      const ok = k32.symbols.GetProcessTimes(h, ptr(t), ptr(t, 8), ptr(t, 16), ptr(t, 24));
-      k32.symbols.CloseHandle(h);
-      return ok ? t[0].toString() : undefined;
-    } finally {
-      k32.close();
-    }
+    const { symbols } = k.lib;
+    const h = symbols.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
+    if (!h) return undefined;
+    const t = new BigUint64Array(4);
+    const ok = symbols.GetProcessTimes(h, k.ptr(t), k.ptr(t, 8), k.ptr(t, 16), k.ptr(t, 24));
+    symbols.CloseHandle(h);
+    return ok ? t[0].toString() : undefined;
   } catch {
     return undefined;
   }
@@ -201,6 +214,11 @@ export function createStatusTracker(now: () => number = Date.now) {
       const at = cur ? now() : fallback;
       sinceAt.set(sessionId, { status, at });
       return at;
+    },
+    /** Drops the done / error / since marks of sessions not in `keep` and not running (no longer listed). */
+    prune(keep: Iterable<string>) {
+      const k = new Set(keep);
+      for (const m of [doneAt, errorAt, sinceAt]) for (const id of [...m.keys()]) if (!k.has(id) && !prev.has(id)) m.delete(id);
     },
     /** Writes a fresh done (mark unread on a session with no status). */
     forceDone(sessionId: string) {

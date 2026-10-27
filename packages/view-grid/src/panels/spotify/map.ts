@@ -89,10 +89,11 @@ export function mapPlayer(raw: any): Player | undefined {
   };
 }
 
-/** `GET /me/player/recently-played`, without episodes and without repeats of the same track in a row. */
+/** `GET /me/player/recently-played`, without episodes; each track once, at its most recent play. */
 export function mapRecent(raw: any): Track[] {
-  const tracks = (Array.isArray(raw?.items) ? raw.items : []).flatMap((i: any) => mapTrack(i?.track) ?? []);
-  return tracks.filter((t: Track, i: number) => i === 0 || t.uri !== tracks[i - 1]!.uri);
+  const tracks: Track[] = (Array.isArray(raw?.items) ? raw.items : []).flatMap((i: any) => mapTrack(i?.track) ?? []);
+  const seen = new Set<string>();
+  return tracks.filter((t) => !seen.has(t.uri) && !!seen.add(t.uri));
 }
 
 export function mapPlaylists(raw: any): Playlist[] {

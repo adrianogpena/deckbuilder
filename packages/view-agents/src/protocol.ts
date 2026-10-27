@@ -416,4 +416,4 @@ export interface AgentStatuslineStatus {
   settingsOk: boolean;
 }
 
-export type AgentStatuslineError = 'unknownAccount' | 'invalidSettings' | 'writeFailed';
+export type AgentStatuslineError = 'unknownAccount' | 'invalidSettings' | 'sharedSettings' | 'writeFailed';

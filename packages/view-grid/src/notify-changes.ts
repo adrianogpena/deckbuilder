@@ -1,6 +1,8 @@
 import type { SourceContext } from './server';
 
 const MAX_LINES = 3;
+/** Most scopes remembered; old configs of edited panels fall out. */
+const MAX_SCOPES = 200;
 
 const seen = new Map<string, Map<string, string>>();
 
@@ -22,7 +24,10 @@ export interface NotifyChangesOptions<T> {
 export function notifyChanges<T>(ctx: Pick<SourceContext, 'notify'>, scope: string, items: readonly T[], o: NotifyChangesOptions<T>): void {
   const next = new Map(items.map((i) => [o.key(i), o.sig(i)] as const));
   const prev = seen.get(scope);
+  // Re-insert so the Map order is least recently used first, then drop the oldest scopes past the cap.
+  seen.delete(scope);
   seen.set(scope, next);
+  while (seen.size > MAX_SCOPES) seen.delete(seen.keys().next().value!);
   if (!prev || !ctx.notify) return;
   const changed = items.filter((i) => prev.get(o.key(i)) !== next.get(o.key(i)));
   if (changed.length === 0) return;

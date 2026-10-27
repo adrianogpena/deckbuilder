@@ -12,7 +12,7 @@ const containersPanel = definePanel<ContainersConfig, ContainersPanelData>({
   category: 'dash.category.containers',
   size: { w: 10, h: 10, minW: 5, minH: 4 },
   config: { fields: CONTAINERS_FIELDS },
-  load: (config) => fetchSource<ContainersPanelData>('containers', config),
+  load: (config, ctx) => fetchSource<ContainersPanelData>('containers', config, ctx.signal),
   refreshMs: 30_000,
   allowMultiple: true,
   render: ({ config, data, refresh }) => createElement(ContainersPanel, { config, data, refresh }),

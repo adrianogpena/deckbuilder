@@ -117,7 +117,13 @@ export class FileNesting {
   nest(files: string[], dirname: string): Map<string, Set<string>> {
     const parents = new PreTrie();
     for (const file of files) {
-      for (const child of this.root.get(file, attributesOf(file, dirname))) parents.add(child, file);
+      for (const child of this.root.get(file, attributesOf(file, dirname))) {
+        try {
+          parents.add(child, file);
+        } catch {
+          // a child pattern with two stars cannot be indexed; skip it
+        }
+      }
     }
 
     const rootsOf = (file: string, seen = new Set<string>()): string[] => {

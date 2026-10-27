@@ -2,7 +2,6 @@ import { copyText, IconButton, type SidePanelContent } from '@kedalion/ui';
 import { tKey } from '../../i18n';
 import { requestRefresh } from '../../panel';
 import { runAction } from '../../source';
-import { workloadName } from '../tickets/model';
 import { PodDescribeTab } from './PodDescribeTab';
 import { PodLogsTab } from './PodLogsTab';
 import { PodOverview } from './PodOverview';
@@ -27,7 +26,7 @@ export function podSideContent({ instanceId, pod, config }: PodSideInput): SideP
     }
   };
   return {
-    id: `${instanceId}:${pod.context}/${pod.namespace}/${workloadName(pod.name)}`,
+    id: `${instanceId}:${pod.context}/${pod.namespace}/${pod.name}`,
     title: pod.name,
     subtitle: `${pod.context} / ${pod.namespace}`,
     icon: 'cube',

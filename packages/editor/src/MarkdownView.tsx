@@ -4,6 +4,7 @@ import { type MouseEvent, useLayoutEffect, useMemo, useRef, useState } from 'rea
 import { langOfFile, type Parser, parserOf } from './languages';
 import { renderMarkdown } from './markdown';
 import { MarkdownToc, type TocHeading } from './MarkdownToc';
+import { findAnchor, headingSlugs } from './toc';
 
 /** Replaces a code element's text with `tok-*` spans (classHighlighter); styled by `.markdown .tok-*`. */
 function highlightCode(code: HTMLElement, parser: Parser) {
@@ -60,8 +61,13 @@ export function MarkdownView({ markdown, resolveImage, toc }: { markdown: string
 
   const onClick = async (e: MouseEvent<HTMLDivElement>) => {
     const button = e.target as HTMLElement;
-    if (button.closest('a[href^="#"]')) {
+    const link = button.closest('a[href^="#"]');
+    if (link) {
       e.preventDefault();
+      const els = [...(host.current?.querySelectorAll<HTMLElement>('h1, h2, h3, h4, h5, h6') ?? [])];
+      const slugs = headingSlugs(els.map((el) => el.textContent ?? ''));
+      const hit = findAnchor(els.map((el, i) => ({ el, slug: slugs[i]! })), link.getAttribute('href') ?? '');
+      hit?.el.scrollIntoView({ block: 'start' });
       return;
     }
     if (!button.classList.contains('md-code-copy')) return;

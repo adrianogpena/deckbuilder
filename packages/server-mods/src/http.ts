@@ -10,6 +10,7 @@ import {
   HTTP_METHODS,
   HTTP_TIMEOUT_MAX_MS,
   HTTP_TIMEOUT_MIN_MS,
+  REST_VAR_REFERENCE,
   type HttpMethod,
   type HttpRequestDraft,
   type HttpRequestSpec,
@@ -57,6 +58,8 @@ export interface HttpRoutesOptions {
   secretHeaders?: (ref: string, url: string, resolve: (text: string) => string) => Promise<Array<[string, string]>>;
   /** The variables of environment `id` for `{{name}}` (secrets included); throws for an unknown id. */
   environmentVars?: (id: string) => Promise<Record<string, string>>;
+  /** Names of the secret variables of environment `id`; headers referencing one are dropped when a redirect leaves the origin. */
+  secretVars?: (id: string) => Promise<string[]>;
   /** Called once per send, failures included (status 0 and `error`), with the unresolved request minus Authorization. */
   onSend?: (entry: Omit<RestHistoryEntry, 'id'>) => unknown;
   /** The in-app file dialog's picks: `save` takes a `target` that is in `saveTargets`. Missing: every save is refused. */
@@ -418,7 +421,7 @@ export function suggestedName(url: string, contentType: string): string {
 
 /** `POST /api/http/send` (`HttpSendInput`: `{ request, secretRef?, environment? }`, `{{name}}` resolved before sending) and `POST /api/http/save` (`{ id, target }`, `target` is the path the in-app save dialog returned). */
 export function httpRoutes(executor: HttpExecutor, opts: HttpRoutesOptions = {}): Routes {
-  const { secretHeaders, environmentVars, onSend, picks } = opts;
+  const { secretHeaders, environmentVars, secretVars, onSend, picks } = opts;
 
   async function send(body: Record<string, unknown>, signal: AbortSignal): Promise<HttpResponseInfo> {
     const values = typeof body.environment === 'string' && environmentVars ? await environmentVars(body.environment) : {};
@@ -426,8 +429,14 @@ export function httpRoutes(executor: HttpExecutor, opts: HttpRoutesOptions = {})
     const request = resolveRequest(body.request, vars);
     vars.check();
     const spec: HttpExecSpec = validateRequest(request);
+    // Cookie and headers whose raw value references a secret variable stay on the request's origin.
+    const secretVarNames = new Set(typeof body.environment === 'string' && secretVars ? await secretVars(body.environment) : []);
+    const added: string[] = [];
+    for (const [name, raw] of pairsOf(isRecord(body.request) ? body.request.headers : undefined)) {
+      const refsSecret = [...raw.matchAll(REST_VAR_REFERENCE)].some((m) => secretVarNames.has(m[1]!));
+      if ((name.toLowerCase() === 'cookie' || refsSecret) && !added.includes(name)) added.push(name);
+    }
     if (typeof body.secretRef === 'string' && secretHeaders) {
-      const added: string[] = [];
       const have = new Set(spec.headers.map(([name]) => name.toLowerCase()));
       const loose = variableResolver(values);
       for (const [name, raw] of await secretHeaders(body.secretRef, spec.url, loose.resolve)) {
@@ -439,8 +448,8 @@ export function httpRoutes(executor: HttpExecutor, opts: HttpRoutesOptions = {})
         spec.headers.push([name, value]);
         added.push(name);
       }
-      if (added.length > 0) spec.secretHeaderNames = added;
     }
+    if (added.length > 0) spec.secretHeaderNames = added;
     return executor.send(spec, signal);
   }
 

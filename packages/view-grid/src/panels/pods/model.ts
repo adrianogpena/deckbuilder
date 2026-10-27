@@ -76,6 +76,10 @@ export function parseEntries(text: string): PodEntry[] {
   return out;
 }
 
+/** Whether an entry survives `formatEntries` then `parseEntries`: a DNS-1123 namespace, context and pod without whitespace. */
+export const isEntryValid = (e: PodEntry): boolean =>
+  e.context !== '' && !/\s/.test(e.context) && DNS_1123.test(e.namespace) && e.pod !== '' && !/\s/.test(e.pod);
+
 export const formatEntries = (entries: readonly PodEntry[]): string =>
   entries.map((e) => `${e.context} ${e.namespace} ${e.pod}`).join('\n');
 

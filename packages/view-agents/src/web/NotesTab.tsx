@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Button } from '@kedalion/ui';
+import { Button, errorOf } from '@kedalion/ui';
 import { t } from '../i18n';
 import { getNotes, putNotes } from './api';
 
@@ -18,6 +18,7 @@ export interface NotesTabProps {
 export function NotesTab({ project, canSend, onSend }: NotesTabProps) {
   const [text, setText] = useState('');
   const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<string>();
   const [hasSelection, setHasSelection] = useState(false);
   const area = useRef<HTMLTextAreaElement>(null);
   const pending = useRef<{ project: string; text: string }>();
@@ -32,6 +33,7 @@ export function NotesTab({ project, canSend, onSend }: NotesTabProps) {
 
   useEffect(() => {
     setLoaded(false);
+    setLoadError(undefined);
     setText('');
     if (!project) return;
     let live = true;
@@ -41,7 +43,7 @@ export function NotesTab({ project, canSend, onSend }: NotesTabProps) {
         setText(r.text);
         setLoaded(true);
       },
-      () => undefined,
+      (e) => live && setLoadError(errorOf(e).message),
     );
     return () => {
       live = false;
@@ -69,6 +71,7 @@ export function NotesTab({ project, canSend, onSend }: NotesTabProps) {
   if (!project) return <p className="agents-empty agents-placeholder">{t('agents.panel.notes.empty')}</p>;
   return (
     <div className="agents-notes">
+      {loadError && <p className="agents-empty" role="alert">{loadError}</p>}
       <textarea
         ref={area}
         className="agents-notes-text"

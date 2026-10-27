@@ -268,6 +268,7 @@ export function RestScreen({ settings, onSave }: { settings: RestViewSettings; o
         >
           <div key="request" className="rest-pane">
             <RequestEditor
+              key={tab.id}
               value={draft}
               onChange={setDraft}
               onSend={send}

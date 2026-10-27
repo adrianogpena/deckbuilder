@@ -15,7 +15,7 @@ const stored = (kind: string, title: string, icon: 'check' | 'edit' | 'copy', si
     category: CATEGORY,
     size,
     allowMultiple: false,
-    load: (config) => fetchSource<Daily>(kind, config),
+    load: (config, ctx) => fetchSource<Daily>(kind, config, ctx.signal),
     render: ({ config, data, refresh }) => createElement(view, { config, data, refresh }),
   });
 

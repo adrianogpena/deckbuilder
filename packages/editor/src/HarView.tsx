@@ -16,15 +16,15 @@ export function HarView({ text }: { text: string }) {
     try {
       const entries = (JSON.parse(text) as { log?: { entries?: HarEntry[] } }).log?.entries;
       if (!Array.isArray(entries)) return { error: 'log.entries' };
-      const rows = entries.map((e) => {
-        const size = e.response?.content?.size ?? e.response?.bodySize ?? 0;
+      const rows = entries.map((e: HarEntry | null) => {
+        const size = Number(e?.response?.content?.size ?? e?.response?.bodySize ?? 0) || 0;
         return [
-          e.request?.method ?? '',
-          e.request?.url ?? '',
-          String(e.response?.status ?? ''),
-          (e.response?.content?.mimeType ?? '').split(';')[0]!,
+          String(e?.request?.method ?? ''),
+          String(e?.request?.url ?? ''),
+          String(e?.response?.status ?? ''),
+          String(e?.response?.content?.mimeType ?? '').split(';')[0]!,
           String(Math.max(0, size)),
-          String(Math.round(e.time ?? 0)),
+          String(Math.round(Number(e?.time ?? 0) || 0)),
         ];
       });
       return { rows, bytes: rows.reduce((sum, r) => sum + Number(r[4]), 0) };

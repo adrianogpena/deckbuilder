@@ -36,7 +36,7 @@ test('install keeps other keys and formatting, backs up, and chains the previous
   expect(json.env).toEqual({ A: '1' });
   expect(json.statusLine).toMatchObject({ type: 'command', padding: 2 });
   expect(json.statusLine.command).toContain('statusline.');
-  expect(json.statusLine.command.endsWith(' .claude-work')).toBe(true);
+  expect(json.statusLine.command.endsWith(' ".claude-work"')).toBe(true);
   expect(backups(file)).toHaveLength(1);
   expect(readFileSync(join(file, '..', backups(file)[0]!), 'utf8')).toBe(original);
   const state = JSON.parse(readFileSync(join(agentsDir, 'statusline.json'), 'utf8'));

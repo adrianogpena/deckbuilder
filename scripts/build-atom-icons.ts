@@ -26,7 +26,7 @@ function convert(name: string, rel: string): string {
   const dx = (24 - w * s) / 2 - x * s;
   const dy = (24 - h * s) / 2 - y * s;
   const keep = ['fill', 'fill-rule', 'clip-rule', 'stroke', 'stroke-linejoin', 'stroke-linecap', 'stroke-miterlimit', 'stroke-width', 'opacity'];
-  let groupAttrs = keep.map((a) => new RegExp(`\s${a}="([^"]*)"`).exec(attrs)).map((m, i) => (m ? ` ${keep[i]}="${m[1]}"` : '')).join('');
+  let groupAttrs = keep.map((a) => new RegExp(`\\s${a}="([^"]*)"`).exec(attrs)).map((m, i) => (m ? ` ${keep[i]}="${m[1]}"` : '')).join('');
   const mono = rel.startsWith('ui/') || rel.startsWith('outline/');
   if (mono) {
     const recolour = (t: string) => t.replace(/(fill|stroke)="(?!none|url)[^"]*"/g, '$1="currentColor"');

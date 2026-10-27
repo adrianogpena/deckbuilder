@@ -338,7 +338,8 @@ private: nothing is published to npm. The data folder is `~/.kedalion`.
   `GET /api/db/schema?id=&owner=` lists the tables, views and columns of a schema owner (default:
   the session's current schema) plus the owners to choose from, for a schema browser and SQL
   completion (`CodeEditor` `sqlDialect="plsql"` + `sqlSchema`).
-  `POST /api/db/commit|rollback|disconnect {id}` and `GET /api/db/status?id=` report the status.
+  `POST /api/db/cancel|commit|rollback|disconnect {id}` and `GET /api/db/status?id=` report the status
+  (`cancel` breaks the executing statement and drops an unfetched result; a new `run` drops one too).
   Transactions are explicit: nothing autocommits, DML and PL/SQL blocks set `pending`, DDL
   clears it (Oracle commits it), and disconnecting or 15 minutes without a call rolls back. One
   session per connection, one statement at a time (`dbBusy`); changing a connection's URL, user

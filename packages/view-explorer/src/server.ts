@@ -50,7 +50,9 @@ export function validExplorer(raw: unknown): ExplorerSettings | null {
     if (project.length > MAX_ID_LENGTH || !isStringArray(ids) || ids.length > MAX_EXPANDED_IDS) return null;
     out[project] = ids;
   }
-  if (tabs !== undefined && (typeof tabs !== 'object' || tabs === null || JSON.stringify(tabs).length >= MAX_TABS_LAYOUT_BYTES)) return null;
+  if (tabs !== undefined && (typeof tabs !== 'object' || tabs === null)) return null;
+  // An oversized layout is dropped on its own so the rest of the explorer state still saves.
+  const keepTabs = tabs !== undefined && JSON.stringify(tabs).length < MAX_TABS_LAYOUT_BYTES;
   if (trees !== undefined && (!isStringArray(trees) || trees.length < 1 || trees.length > 2 || trees.some((id) => id.length > MAX_ID_LENGTH))) return null;
   const pair = treeSizes === undefined ? undefined : validPair(treeSizes);
   if (treeSizes !== undefined && !pair) return null;
@@ -68,7 +70,7 @@ export function validExplorer(raw: unknown): ExplorerSettings | null {
     ...(wrapLines !== undefined && { wrapLines }),
     ...(sqlPair && { sqlSizes: sqlPair }),
     ...(conns && { connections: conns }),
-    ...(tabs !== undefined && { tabs }),
+    ...(keepTabs && { tabs }),
   };
 }
 
@@ -123,7 +125,7 @@ export function explorerServerView(opts: ExplorerServerOptions = {}): ExplorerSe
         const { root, path } = await json<{ root?: unknown; path?: unknown }>();
         return (await rooted.resolve(String(root), typeof path === 'string' ? path : '', { mustExist: true })).real;
       };
-      void migrateConnections(ctx.settings);
+      void migrateConnections(ctx.settings).catch((err) => console.error('explorer: connections migration failed', err));
       return {
         ...recordRoutes(stores.projects, '/api/projects'),
         ...rooted.routes,

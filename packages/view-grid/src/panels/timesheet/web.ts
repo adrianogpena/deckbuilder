@@ -13,7 +13,7 @@ const timesheetPanel = definePanel<Record<string, unknown>, TimesheetPanelData>(
   size: { w: 10, h: 12, minW: 6, minH: 6 },
   config: { fields: TIMESHEET_FIELDS },
   allowMultiple: false,
-  load: (config) => fetchSource<TimesheetPanelData>('timesheet', config),
+  load: (config, ctx) => fetchSource<TimesheetPanelData>('timesheet', config, ctx.signal),
   refreshMs: 15 * 60_000,
   render: ({ config, data, refresh }) => createElement(TimesheetPanel, { config, data, refresh }),
 });

@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import type { AgentsSettings } from '../settings-types.ts';
+import { claudeArgsKey, claudeCommandKey } from './hooks.ts';
 
 const PACKAGE = ['@anthropic-ai', 'claude-code'] as const;
 
@@ -43,6 +44,16 @@ export interface ResolvedCommand {
 const isBatch = (p: string) => /\.(cmd|bat)$/i.test(p);
 const viaInterpreter = (p: string): string[] => ['cmd.exe', '/c', p];
 
+/** True when `argv` runs a `.cmd`/`.bat` through `cmd.exe /c`, which re-parses every following argument. */
+export const isViaInterpreter = (argv: readonly string[]): boolean => argv[0] === 'cmd.exe' && argv[1] === '/c';
+
+/**
+ * Whether an argument survives `cmd.exe /c <shim>` unchanged. The spawn quotes arguments with
+ * CreateProcess rules (backslash-escaped `"`), which cmd.exe and the shim's `%*` do not honour, so
+ * cmd-escaping cannot be made reliable; arguments with cmd metacharacters or line breaks are refused instead.
+ */
+export const isInterpreterSafeArg = (arg: string): boolean => !/[\r\n"%!^&|<>()]/.test(arg);
+
 /** The native binary an npm shim's package declares in its `bin` field, when it is an existing `.exe`. */
 function nativeFromShim(shim: string, agent: string, deps: CommandDeps): string | undefined {
   const pkgDir = join(dirname(shim), 'node_modules', ...PACKAGE);
@@ -83,22 +94,39 @@ export interface ClaudeCommand {
   available(): boolean;
   /** Re-reads the `agents` settings and drops the cache. */
   configure(agents: AgentsSettings | undefined): void;
+  /** Sets the approval check (`claudeCommandKey`/`claudeArgsKey`); an unapproved command falls back to detection, unapproved args are dropped. */
+  setApproved(approved: (key: string) => boolean): void;
 }
 
-export function createClaudeCommand(deps: CommandDeps = systemDeps): ClaudeCommand {
+export function createClaudeCommand(deps: CommandDeps = systemDeps, approved: (key: string) => boolean = () => true): ClaudeCommand {
   let agents: AgentsSettings | undefined;
-  let cached: ResolvedCommand | undefined;
-  const get = () => (cached ??= resolveClaudeCommand(agents?.claudeCommand, deps));
+  let cached: { set: string | undefined; r: ResolvedCommand } | undefined;
+  const allowedCommand = () => {
+    const set = agents?.claudeCommand?.trim();
+    return set && approved(claudeCommandKey(set)) ? set : undefined;
+  };
+  const get = () => {
+    const set = allowedCommand();
+    if (!cached || cached.set !== set) cached = { set, r: resolveClaudeCommand(set, deps) };
+    return cached.r;
+  };
   return {
     argv: () => [...get().argv],
-    extraArgs: () => [...(agents?.claudeArgs ?? [])],
+    extraArgs: () => {
+      const args = agents?.claudeArgs ?? [];
+      return args.length > 0 && approved(claudeArgsKey(args)) ? [...args] : [];
+    },
     available: () => get().available,
     configure(next) {
       agents = next;
       cached = undefined;
     },
+    setApproved(next) {
+      approved = next;
+      cached = undefined;
+    },
   };
 }
 
-/** Shared by the pty launcher and the settings hooks of the server view. */
-export const claudeCommand: ClaudeCommand = createClaudeCommand();
+/** Shared by the pty launcher and the settings hooks of the server view; nothing configured is used until the view sets the approval check. */
+export const claudeCommand: ClaudeCommand = createClaudeCommand(systemDeps, () => false);

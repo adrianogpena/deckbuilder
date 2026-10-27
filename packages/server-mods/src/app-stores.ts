@@ -51,6 +51,8 @@ export interface AppStores {
   environmentInput: (raw: unknown, id?: string) => Promise<unknown>;
   /** The enabled variables of an environment, secrets included. */
   environmentVars: (id: string) => Promise<Record<string, string>>;
+  /** Names of the secret variables of an environment. */
+  secretVars: (id: string) => Promise<string[]>;
   /** The saved Authorization value, only for the origin the request was saved with. */
   secretHeaders: (ref: string, url: string, resolve: (text: string) => string) => Promise<Array<[string, string]>>;
 }
@@ -189,6 +191,11 @@ export function appStores(appId: string, opts: AppStoresOptions = {}): AppStores
     return vars;
   };
 
+  const secretVars = async (id: string): Promise<string[]> => {
+    const env = await environments.get(id).catch(() => null);
+    return env ? env.vars.filter((v) => v.secret).map((v) => v.name) : [];
+  };
+
   /**
    * The saved Authorization value, only for the origin the request was saved with. Both URLs are
    * compared resolved (the saved one with the same environment): the check is against the URL sent.
@@ -206,15 +213,16 @@ export function appStores(appId: string, opts: AppStoresOptions = {}): AppStores
   const picks: DialogPicks = { opened: pickedFolders, saveTargets: pickedPaths() };
   const ui = uiBroker();
 
-  return { home, secrets, pickedFolders, picks, ui, projects, projectRoots, requests, restHistory: history, environments, environmentInput, environmentVars, secretHeaders };
+  return { home, secrets, pickedFolders, picks, ui, projects, projectRoots, requests, restHistory: history, environments, environmentInput, environmentVars, secretVars, secretHeaders };
 }
 
 /** `/api/http/*` (send, import, save...): shared by the rest view and the Explorer curl panel, so both declare it as `shared: 'http'`. */
-export const httpSharedRoutes = (stores: Pick<AppStores, 'secretHeaders' | 'environmentVars' | 'restHistory' | 'picks'>): Routes =>
+export const httpSharedRoutes = (stores: Pick<AppStores, 'secretHeaders' | 'environmentVars' | 'secretVars' | 'restHistory' | 'picks'>): Routes =>
   httpRoutes(httpExecutor(), {
     picks: stores.picks,
     secretHeaders: stores.secretHeaders,
     environmentVars: stores.environmentVars,
+    secretVars: stores.secretVars,
     onSend: (entry) => stores.restHistory.append(entry),
   });
 

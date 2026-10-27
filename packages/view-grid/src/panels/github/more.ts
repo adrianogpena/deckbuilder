@@ -91,7 +91,8 @@ export function runsRefreshMs(data: RunsData | undefined): number {
 /** `owner/name` or a trimmed variant; empty when it is not that shape. */
 export function parseRepo(repo: string): string {
   const m = /^\s*([\w.-]+)\/([\w.-]+)\s*$/.exec(repo);
-  return m ? `${m[1]}/${m[2]}` : '';
+  const dots = (s: string) => s === '.' || s === '..';
+  return m && !dots(m[1]) && !dots(m[2]) ?`${m[1]}/${m[2]}` : '';
 }
 
 /** The REST path of the runs of a repo, optionally of one workflow file and branch. */

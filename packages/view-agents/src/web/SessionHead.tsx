@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { Icon, IconButton, type IconName, useShortcutTip } from '@kedalion/ui';
 import type { ChatEvent } from '../chat-protocol.ts';
 import type { AgentSessionView } from '../protocol.ts';
@@ -45,12 +45,22 @@ export function SessionHead({ session: s, git, onRename, onStop, onRestart, onCo
   const [draft, setDraft] = useState('');
   const [events, setEvents] = useState<ChatEvent[]>([]);
   useEffect(() => setEditing(false), [s.id]);
+  const idRef = useRef(s.id);
+  const lastFetch = useRef({ at: 0, updatedAt: s.updatedAt });
+  idRef.current = s.id;
+  const load = (id: string, updatedAt: AgentSessionView['updatedAt']) => {
+    lastFetch.current = { at: Date.now(), updatedAt };
+    void sessionHistory(id).then((r) => idRef.current === id && setEvents(r.events), () => undefined);
+  };
   useEffect(() => {
-    let live = true;
-    void sessionHistory(s.id).then((r) => live && setEvents(r.events), () => undefined);
-    return () => {
-      live = false;
-    };
+    setEvents([]);
+    load(s.id, s.updatedAt);
+  }, [s.id]);
+  // Refresh on transcript changes at most every 10 s (each fetch is a full server-side parse).
+  useEffect(() => {
+    if (lastFetch.current.updatedAt === s.updatedAt) return;
+    const timer = setTimeout(() => load(s.id, s.updatedAt), Math.max(0, lastFetch.current.at + 10_000 - Date.now()));
+    return () => clearTimeout(timer);
   }, [s.id, s.updatedAt]);
   const stats = useMemo(() => toolStats(events), [events]);
 

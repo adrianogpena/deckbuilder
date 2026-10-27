@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button, IconButton, Modal } from '@kedalion/ui';
 import { tKey } from '../../i18n';
-import { formatEntries, parseEntries, type PodEntry } from './model';
+import { formatEntries, isEntryValid, parseEntries, type PodEntry } from './model';
 import type { PodsConfig } from './PodsPanel';
 import { PodEntryFields, usePodChoices } from './PodEntryFields';
 import './pods.css';
@@ -33,7 +33,7 @@ function AddPodDialog({ config, setConfig, onClose }: { config: PodsConfig; setC
   });
   const { contexts, namespaces } = usePodChoices(config, entry.context, entries.map((e) => e.namespace));
   const effective: PodEntry = entry.context || !contexts.current ? entry : { ...entry, context: contexts.current, namespace: entry.namespace || contexts.contexts.find((c) => c.name === contexts.current)?.namespace || '' };
-  const valid = effective.context !== '' && effective.namespace !== '' && effective.pod !== '';
+  const valid = isEntryValid(effective);
   const add = () => {
     if (!valid) return;
     writeLast(effective);

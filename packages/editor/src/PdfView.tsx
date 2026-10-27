@@ -51,6 +51,8 @@ export function PdfView({ data }: { data: Uint8Array }) {
     const task = pdfjs.getDocument({ data: data.slice() });
     let cancelled = false;
     setDoc(undefined);
+    setLayers([]);
+    config.current = undefined;
     setError(undefined);
     setPage(1);
     setPageText('1');
@@ -267,6 +269,8 @@ function PdfPage({ doc, number, width, height, scale, config, configVersion, roo
       render.promise.catch((err) => {
         if (!cancelled && (err as { name?: string })?.name !== 'RenderingCancelledException') setError(errorOf(err));
       });
+    }).catch((err) => {
+      if (!cancelled) setError(errorOf(err));
     });
     return () => {
       cancelled = true;

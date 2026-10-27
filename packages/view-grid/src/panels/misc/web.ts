@@ -47,7 +47,7 @@ const urlHealthPanel = definePanel<{ urls: string; layout: string; timeoutMs: nu
   size: { w: 8, h: 10, minW: 4, minH: 4 },
   config: { fields: fields['url-health']! },
   allowMultiple: true,
-  load: (config) => fetchSource<HealthResult[]>('url-health', config),
+  load: (config, ctx) => fetchSource<HealthResult[]>('url-health', config, ctx.signal),
   refreshMs: minutes,
   render: ({ config, data }) => createElement(UrlHealth, { results: data, layout: config.layout }),
 });
@@ -61,7 +61,7 @@ const jsonMetricPanel = definePanel<{ url: string; path: string; label: string; 
   size: { w: 6, h: 8, minW: 3, minH: 4 },
   config: { fields: fields['json-metric']! },
   allowMultiple: true,
-  load: (config) => fetchSource<JsonMetricData>('json-metric', config),
+  load: (config, ctx) => fetchSource<JsonMetricData>('json-metric', config, ctx.signal),
   refreshMs: minutes,
   render: ({ config, data }) => createElement(JsonMetric, { data, label: config.label, unit: config.unit }),
 });
@@ -75,7 +75,7 @@ const systemPanel = definePanel<{ show: string[]; layout: string }, SystemStats>
   size: { w: 10, h: 8, minW: 4, minH: 4 },
   config: { fields: fields.system! },
   allowMultiple: false,
-  load: (config) => fetchSource<SystemStats>('system', config),
+  load: (config, ctx) => fetchSource<SystemStats>('system', config, ctx.signal),
   refreshMs: 10_000,
   render: ({ config, data }) => createElement(System, { data, config }),
 });

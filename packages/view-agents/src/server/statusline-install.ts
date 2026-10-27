@@ -1,4 +1,4 @@
-import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { AgentAccount, AgentStatuslineError, AgentStatuslineStatus } from '../protocol.ts';
 import { writeStatuslineFiles } from '../statusline/index.ts';
@@ -41,6 +41,18 @@ function serialize(json: Json, raw: string): string {
   return (raw.startsWith('﻿') ? '﻿' : '') + body + (raw === '' || /\n$/.test(raw) ? eol : '');
 }
 
+/** True when `settings.json` is a symlink (shared with another account): writing through it would change that account too. */
+function isSharedLink(file: string): boolean {
+  try {
+    return lstatSync(file).isSymbolicLink();
+  } catch {
+    return false;
+  }
+}
+
+/** Account ids that are safe as a shell argument. */
+const SAFE_ID = /^[A-Za-z0-9._-]+$/;
+
 const statusLineOf = (json: Json): StatusLine | undefined => (isObject(json.statusLine) ? (json.statusLine as StatusLine) : undefined);
 
 export function createStatuslineInstaller(opts: StatuslineInstallerOptions) {
@@ -65,7 +77,7 @@ export function createStatuslineInstaller(opts: StatuslineInstallerOptions) {
   };
 
   /** The statusLine command for an account: forward slashes so it survives both cmd and bash. */
-  const commandFor = (account: AgentAccount, wrapper: string) => `"${wrapper.replace(/\\/g, '/')}" ${account.id}`;
+  const commandFor = (account: AgentAccount, wrapper: string) => `"${wrapper.replace(/\\/g, '/')}" "${account.id}"`;
 
   const status = (account: AgentAccount, state = loadState()): AgentStatuslineStatus => {
     const settings = readSettings(join(account.dir, 'settings.json'));
@@ -78,6 +90,7 @@ export function createStatuslineInstaller(opts: StatuslineInstallerOptions) {
   /** Writes `settings.json` with only `statusLine` changed (`undefined` removes it), after a timestamped backup. */
   const writeStatusLine = (account: AgentAccount, value: StatusLine | undefined): AgentStatuslineError | undefined => {
     const file = join(account.dir, 'settings.json');
+    if (isSharedLink(file)) return 'sharedSettings';
     const settings = readSettings(file);
     if (!settings) return 'invalidSettings';
     try {
@@ -112,6 +125,8 @@ export function createStatuslineInstaller(opts: StatuslineInstallerOptions) {
       }
     },
     install(account: AgentAccount): StatuslineResult {
+      if (!SAFE_ID.test(account.id)) return { ok: false, error: 'unknownAccount' };
+      if (isSharedLink(join(account.dir, 'settings.json'))) return { ok: false, error: 'sharedSettings' };
       const settings = readSettings(join(account.dir, 'settings.json'));
       if (!settings) return { ok: false, error: 'invalidSettings' };
       let command: string;
@@ -124,7 +139,8 @@ export function createStatuslineInstaller(opts: StatuslineInstallerOptions) {
       const current = statusLineOf(settings.json);
       if (current?.command === command && state[account.id]) return { ok: true, status: status(account, state) };
       // A statusLine that is not ours is kept for chaining; one of ours left without state has nothing to chain.
-      const previous = current && current.command !== command ? current : null;
+      const ours = current && (current.command === command || current.command === state[account.id]?.command);
+      const previous = current && !ours ? current : (state[account.id]?.previous ?? null);
       try {
         saveState({ ...state, [account.id]: { previous, command } });
       } catch {

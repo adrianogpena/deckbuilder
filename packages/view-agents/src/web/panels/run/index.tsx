@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@kedalion/ui';
 import { t } from '../../../i18n';
 import type { PanelModule, PanelProps, SectionProps } from '../../workspace/types';
@@ -12,11 +12,13 @@ function RunBody({ project }: { project: string | undefined }) {
   const [runs, setRuns] = useState<Record<string, RunState>>({});
   const [logOf, setLogOf] = useState<string | undefined>();
   const [log, setLog] = useState('');
+  const current = useRef(project);
+  current.current = project;
 
   const refresh = useCallback(async () => {
     if (!project) return;
     const r = await getTargets(project).catch(() => undefined);
-    if (!r) return;
+    if (!r || current.current !== project) return;
     setTargets(r.targets);
     setRuns(Object.fromEntries(r.runs.map((x) => [x.target, x])));
   }, [project]);
@@ -41,8 +43,13 @@ function RunBody({ project }: { project: string | undefined }) {
     };
   }, [project, logOf]);
 
+  const [busy, setBusy] = useState<Record<string, boolean>>({});
   const act = (fn: typeof startRun, target: string) => {
-    if (project) void fn(project, target).then(() => refresh(), () => undefined);
+    if (!project || busy[target]) return;
+    setBusy((b) => ({ ...b, [target]: true }));
+    void fn(project, target)
+      .then(() => refresh(), () => undefined)
+      .finally(() => setBusy((b) => ({ ...b, [target]: false })));
   };
 
   if (!project) return <p className="agents-empty agents-placeholder">{t('panel.run.noProject')}</p>;
@@ -66,11 +73,11 @@ function RunBody({ project }: { project: string | undefined }) {
               <span className="agents-run-actions">
                 {running ? (
                   <>
-                    <Button size="xs" variant="danger" icon="square" onClick={() => act(stopRun, x.id)}>{t('panel.run.stop')}</Button>
-                    <Button size="xs" icon="rotate-ccw" onClick={() => act(startRun, x.id)}>{t('panel.run.restart')}</Button>
+                    <Button size="xs" variant="danger" icon="square" disabled={busy[x.id]} onClick={() => act(stopRun, x.id)}>{t('panel.run.stop')}</Button>
+                    <Button size="xs" icon="rotate-ccw" disabled={busy[x.id]} onClick={() => act(startRun, x.id)}>{t('panel.run.restart')}</Button>
                   </>
                 ) : (
-                  <Button size="xs" variant="primary" icon="play" onClick={() => act(startRun, x.id)}>{t('panel.run.start')}</Button>
+                  <Button size="xs" variant="primary" icon="play" disabled={busy[x.id]} onClick={() => act(startRun, x.id)}>{t('panel.run.start')}</Button>
                 )}
                 <Button size="xs" variant="ghost" icon="log" pressed={logOf === x.id} onClick={() => setLogOf(logOf === x.id ? undefined : x.id)}>
                   {logOf === x.id ? t('panel.run.hideLogs') : t('panel.run.logs')}

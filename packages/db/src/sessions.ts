@@ -148,6 +148,8 @@ export interface DbSessions {
   table(id: string, creds: DbCredentials, owner: string, name: string): Promise<DbTableDetails>;
   /** Streams the rows of a `run` result, then closes its result set. */
   rows(run: string, emit: Emit, signal: AbortSignal): Promise<void>;
+  /** Breaks the statement now executing and closes a result set whose rows are not being streamed. */
+  cancel(id: string): Promise<DbStatus>;
   commit(id: string): Promise<DbStatus>;
   rollback(id: string): Promise<DbStatus>;
   /** Rolls back and closes. */
@@ -228,6 +230,15 @@ export function dbSessions(opts: DbSessionsOptions = {}): DbSessions {
     };
   }
 
+  /** Closes the result set of `s` when its rows are not being streamed. */
+  async function dropResult(s: Session): Promise<void> {
+    const result = s.result;
+    if (!result || result.streaming) return;
+    s.result = undefined;
+    runs.delete(result.run);
+    await result.rs.close().catch(() => {});
+  }
+
   async function closeSession(id: string, s: Session): Promise<void> {
     clearTimeout(s.timer);
     if (sessions.get(id) === s) sessions.delete(id);
@@ -284,6 +295,10 @@ export function dbSessions(opts: DbSessionsOptions = {}): DbSessions {
     const statement = prepareSql(sql);
     if (!statement) throw invalid('badRequest', 'Invalid request.');
     const s = await session(id, creds);
+    while (s.executing) await s.idle;
+    if (s.result?.streaming) throw busyError();
+    // A result nobody fetched (an earlier statement of "Run all", a timed-out query) is dropped.
+    await dropResult(s);
     while (s.executing) await s.idle;
     if (s.result) throw busyError();
     const done = startExecuting(s);
@@ -600,6 +615,17 @@ export function dbSessions(opts: DbSessionsOptions = {}): DbSessions {
     explain,
     table,
     rows,
+    async cancel(id) {
+      const s = sessions.get(id);
+      if (!s) return DISCONNECTED;
+      const conn = await s.conn.catch(() => null);
+      if (conn && s.executing) {
+        await conn.break().catch(() => {});
+        await s.idle;
+      }
+      await dropResult(s);
+      return statusOf(s);
+    },
     commit: (id) => finish(id, 'commit'),
     rollback: (id) => finish(id, 'rollback'),
     async close(id) {

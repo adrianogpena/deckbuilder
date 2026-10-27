@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { ErrorBanner, fileIconOf, Icon, IconButton, Spinner, useStream } from '@kedalion/ui';
+import { ErrorBanner, fileIconOf, Icon, IconButton, Spinner, useFileIconVersion, useStream } from '@kedalion/ui';
 import type { Project, SearchHit } from '../client';
 import { t } from '../i18n';
 
@@ -21,7 +21,8 @@ export function ProjectSearch({ project, exclude, onOpenFile, onClose, focusSign
   const [query, setQuery] = useState('');
   const [content, setContent] = useState(true);
   const [searched, setSearched] = useState(false);
-  const search = useStream<SearchHit>({ maxItems: MAX_HITS });
+  useFileIconVersion();
+  const search =useStream<SearchHit>({ maxItems: MAX_HITS });
 
   useEffect(() => {
     input.current?.focus();

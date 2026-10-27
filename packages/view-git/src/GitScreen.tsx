@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import type { DiffMode, DiffViewHandle } from '@kedalion/editor';
 import type { GitFile, GitRepoInfo, GitStatus } from '@kedalion/server-core/protocol';
-import { type ApiError, copyText, useShortcutTip, Empty, ErrorBanner, errorMessage, errorOf, Explorer, fileIconOf, Icon, IconButton, ProjectPicker, statusOf, useCommand, useDebouncedSave, useRovingList, useToast, useViewLink, useViewRequest } from '@kedalion/ui';
+import { type ApiError, copyText, useShortcutTip, Empty, ErrorBanner, errorMessage, errorOf, Explorer, fileIconOf, Icon, IconButton, ProjectPicker, statusOf, useCommand, useDebouncedSave, useFileIconVersion,useRovingList, useToast, useViewLink, useViewRequest } from '@kedalion/ui';
 import { type GitProject as Project, gitApi as api } from './client';
 import { gitCommands } from './commands';
 import { t } from './i18n';
@@ -82,6 +82,7 @@ export function GitScreen({ settings, onSave }: { settings: GitViewSettings; onS
   const [projects, setProjects] = useState<Project[]>();
   const [info, setInfo] = useState<GitRepoInfo>();
   const [root, setRoot] = useState<string>();
+  useFileIconVersion();
   const [status, setStatus] = useState<GitStatus>();
   const [statusError, setStatusError] = useState<ApiError>();
   const [loadError, setLoadError] = useState<ApiError>();
@@ -222,7 +223,7 @@ export function GitScreen({ settings, onSave }: { settings: GitViewSettings; onS
     [status, view.view],
   );
 
-  const allFolders = () => sections.flatMap((s) => (s.tree ? folderPaths(s.tree).map((p) => `${s.id} ${p}`) : []));
+  const allFolders = () => sections.flatMap((s) => (s.tree ? folderPaths(s.tree).map((p) => `${s.id}\0${p}`) : []));
   const anyOpen = allFolders().some((k) => !closedFolders.has(k));
   const toggleAll = () => setClosedFolders(anyOpen ? new Set(allFolders()) : new Set());
   const toggleSection = (id: GitSection) => update((v) => ({ ...v, closed: v.closed.includes(id) ? v.closed.filter((x) => x !== id) : [...v.closed, id] }));

@@ -206,6 +206,8 @@ export interface ConfirmOptions {
   okLabel?: string;
   /** Red OK button; Cancel gets the focus. */
   danger?: boolean;
+  /** Dismisses the dialog (resolves false) when aborted. */
+  signal?: AbortSignal;
 }
 
 export interface PromptOptions {
@@ -351,7 +353,25 @@ export function useDialogs(): {
     }
   }, []);
 
-  const confirm = useCallback((opts: ConfirmOptions) => new Promise<boolean>((resolve) => push({ id: ++dialogIds, kind: 'confirm', opts, resolve })), [push]);
+  const confirm = useCallback(
+    (opts: ConfirmOptions) =>
+      new Promise<boolean>((resolve) => {
+        if (opts.signal?.aborted) return resolve(false);
+        const req: DialogRequest = { id: ++dialogIds, kind: 'confirm', opts, resolve };
+        push(req);
+        opts.signal?.addEventListener(
+          'abort',
+          () => {
+            if (!pending.current.includes(req)) return;
+            pending.current = pending.current.filter((r) => r !== req);
+            setQueue((q) => q.filter((r) => r !== req));
+            resolve(false);
+          },
+          { once: true },
+        );
+      }),
+    [push],
+  );
   const prompt = useCallback((opts: PromptOptions) => new Promise<string | null>((resolve) => push({ id: ++dialogIds, kind: 'prompt', opts, resolve })), [push]);
 
   const choose = useCallback((opts: ChoiceOptions) => new Promise<string | null>((resolve) => push({ id: ++dialogIds, kind: 'choice', opts, resolve })), [push]);

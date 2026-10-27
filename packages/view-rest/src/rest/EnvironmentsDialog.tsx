@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { RestEnvironment, RestEnvVarInput } from '@kedalion/server-core/protocol';
 import { type ApiError, Button, ErrorBanner, errorOf, IconButton, Modal, useDialogs, useViewToast } from '@kedalion/ui';
 import { restApi as api } from '../client';
@@ -49,7 +49,13 @@ export function EnvironmentsDialog({ environments, onChanged, onDeleted, onClose
   const [busy, setBusy] = useState(false);
   const dirty = JSON.stringify(rows) !== JSON.stringify(toRows(env));
 
+  // An environment just created is not in the list until the reload; the fallback waits for it.
+  const pendingId = useRef<string>();
   useEffect(() => {
+    if (pendingId.current) {
+      if (!environments?.some((e) => e.id === pendingId.current)) return;
+      pendingId.current = undefined;
+    }
     if (!env && environments?.length) setSelected(environments[0]!.id);
   }, [env, environments]);
   useEffect(() => setRows(toRows(env)), [env]);
@@ -83,6 +89,7 @@ export function EnvironmentsDialog({ environments, onChanged, onDeleted, onClose
     if (!name) return;
     await run(async () => {
       const created = await api.createRestEnvironment({ name: name.trim(), vars: [] });
+      pendingId.current = created.id;
       setSelected(created.id);
       onChanged();
     });

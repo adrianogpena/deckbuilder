@@ -28,13 +28,19 @@ function TaskPanel({ project, api, visible }: PanelProps) {
   const reviewed = useRef(new Set<string>());
   const latest = useRef(tasks);
   latest.current = tasks;
+  const skipSave = useRef(true);
+  const loadedFor = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     let alive = true;
+    loadedFor.current = undefined;
+    skipSave.current = true;
+    setSelected(undefined);
     setLoaded(false);
     loadTasks(project).then(
       (list) => {
         if (!alive) return;
+        loadedFor.current = project;
         setTasks(list);
         setSelected(list[0]?.id);
         setLoaded(true);
@@ -50,9 +56,8 @@ function TaskPanel({ project, api, visible }: PanelProps) {
     };
   }, [project]);
 
-  const skipSave = useRef(true);
   useEffect(() => {
-    if (!loaded) return;
+    if (!loaded || loadedFor.current !== project) return;
     if (skipSave.current) {
       skipSave.current = false;
       return;

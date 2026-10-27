@@ -147,13 +147,31 @@ export function gitRoutes(opts: GitRoutesOptions): Routes {
     let result;
     try {
       // A folder's own .git/config must not run programs: no fsmonitor hook (status), external diff,
-      // textconv (diff) or signature check (log, through gpg.program).
+      // textconv (diff) or signature check (log, through gpg.program); filter drivers via filterOverrides.
       result = await run(['git', '--no-optional-locks', '-c', 'core.quotepath=off', '-c', 'core.fsmonitor=false', '-C', root.path, ...args], timeoutMs);
     } catch (e) {
       throw e instanceof AppError ? e : gitMissing();
     }
     if (result.kind === 'timeout') throw gitTimeout();
     return result;
+  }
+
+  /**
+   * `-c` overrides blanking every filter driver the folder's own config defines (local, worktree or included
+   * from them): `status` and a worktree `diff` would run its clean/process command on stat-dirty files.
+   * Global and system drivers (e.g. git-lfs) are the user's own and stay.
+   */
+  async function filterOverrides(root: FsRoot): Promise<string[]> {
+    const r = await git(root, ['config', '--show-scope', '--name-only', '--get-regexp', '^filter\\.']);
+    if (r.code !== 0) return [];
+    const names = new Set<string>();
+    for (const line of r.stdout.split(/\r?\n/)) {
+      const [scope, key] = line.split('\t');
+      if (!key || scope === 'global' || scope === 'system') continue;
+      const m = /^filter\.(.+)\.[^.]+$/i.exec(key);
+      if (m) names.add(m[1]!);
+    }
+    return [...names].flatMap((n) => ['-c', `filter.${n}.clean=`, '-c', `filter.${n}.smudge=`, '-c', `filter.${n}.process=`, '-c', `filter.${n}.required=false`]);
   }
 
   /** Stdout of a call that must succeed. */
@@ -194,7 +212,7 @@ export function gitRoutes(opts: GitRoutesOptions): Routes {
   }
 
   async function status(root: FsRoot, untracked: boolean, ignored = false): Promise<GitStatus> {
-    const args = ['status', '--porcelain=v2', '-z', '--branch', untracked ? '--untracked-files=all' : '--untracked-files=no', ...(ignored ? ['--ignored=matching'] : []), '--', '.'];
+    const args = [...(await filterOverrides(root)), 'status', '--porcelain=v2', '-z', '--branch', untracked ? '--untracked-files=all' : '--untracked-files=no', ...(ignored ? ['--ignored=matching'] : []), '--', '.'];
     const parsed = parsePorcelainV2(await gitOut(root, args, STATUS_TIMEOUT_MS));
     if (!untracked) return { ...parsed, files: [] };
     const prefix = await prefixOf(root);
@@ -270,7 +288,7 @@ export function gitRoutes(opts: GitRoutesOptions): Routes {
       const commit = query.get('commit');
       const args = commit
         ? ['diff-tree', '-p', '--no-commit-id', '--no-color', '--no-ext-diff', '--no-textconv', '--relative', ...(await rangeOf(root, commitOf(query))), '--', path]
-        : ['diff', ...(query.get('staged') === '1' ? ['--cached'] : []), '--no-color', '--no-ext-diff', '--no-textconv', '--', path];
+        : [...(await filterOverrides(root)), 'diff', ...(query.get('staged') === '1' ? ['--cached'] : []), '--no-color', '--no-ext-diff', '--no-textconv', '--', path];
       const text = await gitOut(root, args);
       return (text.length > MAX_DIFF_CHARS ? { text: text.slice(0, MAX_DIFF_CHARS), truncated: true } : { text, truncated: false }) satisfies GitDiff;
     },

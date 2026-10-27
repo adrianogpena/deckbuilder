@@ -67,6 +67,7 @@ export function uiBroker(opts: { connectTimeoutMs?: number } = {}): UiBroker {
       ws.send(JSON.stringify(p.frame));
     } catch {
       p.ws = null;
+      p.timer = setTimeout(() => settle(p.frame.id, false), timeoutMs);
     }
   };
 

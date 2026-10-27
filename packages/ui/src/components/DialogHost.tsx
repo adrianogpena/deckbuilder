@@ -62,6 +62,8 @@ export function DialogHost() {
       const popout = popoutView() !== undefined ? '&popout=1' : '';
       const socket = new WebSocket(`${proto}//${location.host}/api/ui/socket?t=${encodeURIComponent(ticket)}${popout}`);
       ws = socket;
+      // Closes this socket's confirm dialogs when it closes: their answers could no longer be sent.
+      const dismiss = new AbortController();
       socket.onopen = () => {
         delay = 1000;
       };
@@ -75,12 +77,13 @@ export function DialogHost() {
         if (f.type !== 'confirm') return;
         const okLabel = f.okKey ? t(f.okKey as Parameters<typeof t>[0]) : f.ok;
         void dialogs
-          .confirm({ title: f.title, body: <div style={{ whiteSpace: 'pre-wrap' }}>{f.message}</div>, okLabel, danger: f.danger })
+          .confirm({ title: f.title, body: <div style={{ whiteSpace: 'pre-wrap' }}>{f.message}</div>, okLabel, danger: f.danger, signal: dismiss.signal })
           .then((ok) => {
             if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: 'answer', id: f.id, ok }));
           });
       };
       socket.onclose = () => {
+        dismiss.abort();
         if (stopped) return;
         timer = setTimeout(connect, delay);
         delay = Math.min(delay * 2, 30000);

@@ -66,13 +66,13 @@ describe('sqlOutline', () => {
     expect(ranked.reads.find((r: any) => r.name === 'orders_cte').cte).toBe(true);
     expect(ranked.windows).toEqual(['ROW_NUMBER() OVER (PARTITION BY c.id ORDER BY oc.order_date DESC)']);
     expect(ranked.dedupe).toBe(true);
-    expect(ranked.feeds).toEqual(['main']);
+    expect(ranked.feeds).toEqual(['']);
 
     expect(totals.groupBy).toEqual(['customer_id']);
     expect(totals.aggregates).toEqual(['SUM(amount)', 'COUNT(DISTINCT id)']);
     expect(totals.having).toBe('SUM(amount) > 100');
     expect(totals.distinct).toBe(false);
-    expect(totals.feeds).toEqual(['main']);
+    expect(totals.feeds).toEqual(['']);
 
     expect(main.distinct).toBe(true);
     expect(main.setOps).toEqual(['union all']);
@@ -98,7 +98,7 @@ describe('sqlOutline', () => {
     expect(a!.steps[0]!.reads[0]!.name).toBe('hr.emp');
     expect(a!.steps[0]!.filters).toEqual(['e.dept = 10']);
     expect(b!.steps.map((s) => s.name)).toEqual(['a', '']);
-    expect(b!.steps[0]!.feeds).toEqual(['main']);
+    expect(b!.steps[0]!.feeds).toEqual(['']);
   });
 
   test('update, delete, merge and create targets', () => {

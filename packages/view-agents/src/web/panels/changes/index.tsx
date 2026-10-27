@@ -195,7 +195,7 @@ function ChangesView({ project, api, visible, sessionId, sectionMode }: ChangesV
                     {t(`panel.changes.group.${key}`)} ({list.length})
                   </span>
                   {group === 'staged' ? (
-                    <Button size="xs" disabled={busy} onClick={() => void run('unstage', { all: true })}>
+                    <Button size="xs" disabled={busy} onClick={() => void run('unstage', mine ? { paths: list.map((f) => f.path) } : { all: true })}>
                       {t('panel.changes.unstageAll')}
                     </Button>
                   ) : (

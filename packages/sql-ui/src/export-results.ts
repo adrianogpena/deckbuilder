@@ -1,4 +1,5 @@
 import { dialogs, type ExportColumn, toCsv } from '@kedalion/ui';
+import { uniqueLabels } from './copy-format';
 import { t } from './i18n';
 import type { SqlClient } from './types';
 
@@ -7,7 +8,8 @@ export type ExportFormat = 'csv' | 'json';
 export const EXPORT_ROWS = 10_000;
 
 export function toJson<T>(columns: ExportColumn<T>[], rows: T[]): string {
-  const objects = rows.map((row) => Object.fromEntries(columns.map((c) => [c.label, c.value(row) ?? null])));
+  const keys = uniqueLabels(columns.map((c) => c.label));
+  const objects = rows.map((row) => Object.fromEntries(columns.map((c, i) => [keys[i], c.value(row) ?? null])));
   return JSON.stringify(objects, null, 2);
 }
 

@@ -62,8 +62,8 @@ test('status strips the repo prefix and scopes every call', async () => {
   };
   const out = await gitRoutes({ roots, run })['GET /api/git/status']!(q({ root: 'r1' }));
   expect(out).toMatchObject({ branch: 'main', files: [{ path: 'a.txt', group: 'untracked' }] });
-  expect(calls[0]!.slice(0, 9)).toEqual(['git', '--no-optional-locks', '-c', 'core.quotepath=off', '-c', 'core.fsmonitor=false', '-C', 'C:/proj', 'status']);
-  expect(calls[0]!.slice(-2)).toEqual(['--', '.']);
+  expect(calls[1]!.slice(0, 9)).toEqual(['git', '--no-optional-locks', '-c', 'core.quotepath=off', '-c', 'core.fsmonitor=false', '-C', 'C:/proj', 'status']);
+  expect(calls[1]!.slice(-2)).toEqual(['--', '.']);
 });
 
 test('status lists ignored paths on request, without the repo prefix', async () => {
@@ -75,7 +75,7 @@ test('status lists ignored paths on request, without the repo prefix', async () 
   };
   const out = await gitRoutes({ roots, run })['GET /api/git/status']!(q({ root: 'r1', ignored: '1' }));
   expect(out).toMatchObject({ ignored: ['node_modules/', 'a.log'] });
-  expect(calls[0]).toContain('--ignored=matching');
+  expect(calls[1]).toContain('--ignored=matching');
 });
 
 test('repos reports a folder outside a repo', async () => {

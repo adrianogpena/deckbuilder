@@ -62,6 +62,8 @@ const MAX_PROFILES = 50;
 
 type ProfileRowData = TerminalProfile & { available: boolean };
 
+const invalidProfile = (p: TerminalProfile) => !p.name.trim() || (p.shell === 'custom' && !(p.command && ABSOLUTE.test(p.command)));
+
 /** The server's profiles with the draft's overrides and custom entries applied: built-ins first, then custom ones. */
 function mergeProfiles(infos: TerminalProfileInfo[], saved: TerminalProfile[]): ProfileRowData[] {
   const byId = new Map(saved.map((p) => [p.id, p]));
@@ -130,10 +132,22 @@ function ProfilesRow({ settings, onChange }: { settings: Settings; onChange: Cha
   );
 }
 
-function ProfilesField({ value, terminal, onChange }: { value: TerminalProfile[]; terminal: Settings['terminal']; onChange: (profiles: TerminalProfile[]) => void }) {
+function ProfilesField({ value: saved, terminal, onChange: save }: { value: TerminalProfile[]; terminal: Settings['terminal']; onChange: (profiles: TerminalProfile[]) => void }) {
   const infos = useAsync(() => listProfiles(), []);
   const [editing, setEditing] = useState<string>();
   const [picking, setPicking] = useState<string>();
+  // While a profile is invalid the list stays here unsaved: the server would drop the whole terminal group.
+  const [draft, setDraft] = useState<TerminalProfile[] | null>(null);
+  useEffect(() => setDraft(null), [saved]);
+  const value = draft ?? saved;
+  const onChange = (next: TerminalProfile[]) => {
+    if (next.some(invalidProfile)) {
+      setDraft(next);
+      return;
+    }
+    setDraft(null);
+    save(next);
+  };
   const rows = mergeProfiles(infos.data ?? [], value);
   const listed = rows.filter((p) => !isBuiltinId(p.id) || p.available);
 
@@ -227,7 +241,7 @@ function ProfileEditor({ profile: p, terminal, builtin, onChange, onPickIcon, on
 }) {
   const shells = SHELL_IDS.filter((id) => id !== 'auto');
   const defaultName = builtin ? SHELL_NAMES[p.id as keyof typeof SHELL_NAMES] : undefined;
-  const invalid = !p.name.trim() || (p.shell === 'custom' && !(p.command && ABSOLUTE.test(p.command)));
+  const invalid = invalidProfile(p);
   const field = (id: string, modified: boolean, child: ReactNode) => <SettingItem id={`terminal.profiles.${p.id}.${id}`} modified={modified}>{child}</SettingItem>;
   return (
     <div className="profile-editor">

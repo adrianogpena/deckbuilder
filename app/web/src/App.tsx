@@ -121,7 +121,9 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
   /** A save the server rejected as invalid (e.g. a hook command not allowed); shown once, then the stored settings come back. */
   const [saveError, setSaveError] = useState<ApiError | null>(null);
   /** Saves at once; resolves to the error when the server rejected the patch as invalid (the stored settings come back), else null. */
+  const saveSeq = useRef(0);
   const save = useCallback((patch: Partial<Settings>): Promise<ApiError | null> => {
+    const seq = ++saveSeq.current;
     setSettings((s) => ({ ...s, ...patch }));
     return api.saveSettings(patch).then(
       () => null,
@@ -129,11 +131,14 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
         const err = errorOf(e);
         if (err.kind !== 'invalid') return null; // preferences are best-effort
         setSaveError(err);
-        api.settings().then(setSettings, () => {});
+        // A save started after this one wins: its change must not be overwritten by this rollback.
+        api.settings().then((s) => { if (saveSeq.current === seq) setSettings(s); }, () => {});
         return err;
       },
     );
   }, []);
+  /** Takes settings already stored on the server (external edit, backup import) as they are: no merge, no save. */
+  const replace = useCallback((next: Settings) => setSettings(next), []);
 
   const navItems = views.nav.flatMap((s) => s.items);
   // The nav list is a constant, so the hooks run in the same order every render.
@@ -228,7 +233,7 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
         <main className="main">
           <div className="main-view" hidden={!!overlay}>{views.render(screen, { settings, onSave: save, go: go as (id: string) => void })}</div>
           {overlay && (
-            <SettingsModal key={overlay} settings={settings} onChange={save} onQuit={() => setStopped(true)} onClose={() => setOverlay(null)} onlyView={inPopout ? screen : undefined} initialSection={inPopout ? undefined : overlay === 'keys' ? 'keyboard.shortcuts' : overlay.startsWith('settings/') ? overlay.slice('settings/'.length) : undefined} />
+            <SettingsModal key={overlay} settings={settings} onChange={save} onReplace={replace} onQuit={() => setStopped(true)} onClose={() => setOverlay(null)} onlyView={inPopout ? screen : undefined} initialSection={inPopout ? undefined : overlay === 'keys' ? 'keyboard.shortcuts' : overlay.startsWith('settings/') ? overlay.slice('settings/'.length) : undefined} />
           )}
         </main>
         {palette.open && <CommandPalette items={items} initialQuery={palette.initialQuery} onClose={() => palette.setOpen(false)} />}

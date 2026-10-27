@@ -148,9 +148,10 @@ export class PodLogHub {
     }
     const buffered = e.buffer.last(tail);
     if (buffered.length) listener({ lines: buffered });
+    // Start before reporting the status, so a reopen after the stream ended reports the new child, not 'ended'.
+    if (!e.child) this.start(e, buffered.length ? 0 : tail);
     listener({ status: e.status });
     e.listeners.add(listener);
-    if (!e.child) this.start(e, buffered.length ? 0 : tail);
 
     const entry = e;
     return () => {

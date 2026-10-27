@@ -71,20 +71,22 @@ function IconPicker({ status, value, onPick }: { status: AccountStatusKey; value
   );
 }
 
-function AccountPage({ account, prefs, onSave }: { account: AgentAccount; prefs: AccountPrefs; onSave(next: AccountPrefs): void }) {
+function AccountPage({ account, prefs, onSave }: { account: AgentAccount; prefs: AccountPrefs; onSave(update: (old: AccountPrefs) => AccountPrefs): void }) {
   const usage = prefs.usage ?? {};
-  const setUsage = (k: UsageKey, v: boolean | 'top' | 'bottom' | undefined) => {
-    const next: Record<string, unknown> = { ...usage };
-    if (v === undefined) delete next[k];
-    else next[k] = v;
-    onSave({ ...prefs, usage: next as AccountUsagePrefs });
-  };
-  const setIcon = (status: AccountStatusKey, id: string) => {
-    const next = { ...prefs.icons };
-    if (id === defaultStatusIcon(status)) delete next[status];
-    else next[status] = id;
-    onSave({ ...prefs, icons: next });
-  };
+  const setUsage = (k: UsageKey, v: boolean | 'top' | 'bottom' | undefined) =>
+    onSave((old) => {
+      const next: Record<string, unknown> = { ...old.usage };
+      if (v === undefined) delete next[k];
+      else next[k] = v;
+      return { ...old, usage: next as AccountUsagePrefs };
+    });
+  const setIcon = (status: AccountStatusKey, id: string) =>
+    onSave((old) => {
+      const next = { ...old.icons };
+      if (id === defaultStatusIcon(status)) delete next[status];
+      else next[status] = id;
+      return { ...old, icons: next };
+    });
   return (
     <div className="agents-acct-body" data-account={account.id}>
       <div className="field">
@@ -130,10 +132,10 @@ export function AccountsSettings({ activeAccount = '' }: { activeAccount?: strin
 
   const current = accounts?.find((a) => a.id === picked) ?? accounts?.find((a) => (activeAccount ? a.id === activeAccount : a.isDefault)) ?? accounts?.[0];
 
-  const saveFor = async (id: string, next: AccountPrefs) => {
+  const saveFor = async (id: string, update: (old: AccountPrefs) => AccountPrefs) => {
     setError('');
     try {
-      if (!(await save(withAccountPrefs(prefs, id, next)))) setError(t('settings.agents.accounts.saveFailed'));
+      if (!(await save((map) => withAccountPrefs(map, id, update(map[id] ?? {}))))) setError(t('settings.agents.accounts.saveFailed'));
     } catch (e) {
       setError(errorOf(e).message);
     }

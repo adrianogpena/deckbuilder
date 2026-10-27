@@ -15,6 +15,7 @@ export function parseOsc133(data: string): PromptMark | null {
  * leading slash (`/C:/x` → `C:/x`). Null when it is not a file URL.
  */
 export function parseOsc7(data: string): string | null {
+  if (data.length > 4096) return null;
   const m = /^file:\/\/[^/]*(\/.*)$/.exec(data.trim());
   if (!m) return null;
   let path: string;

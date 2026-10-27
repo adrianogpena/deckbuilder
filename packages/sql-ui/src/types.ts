@@ -90,6 +90,7 @@ export interface SqlClient {
   dbExplain: (id: string, sql: string) => Promise<DbPlanRow[]>;
   dbTable: (id: string, owner: string, name: string) => Promise<DbTableDetails>;
   dbSchema: (id: string, owner?: string) => Promise<DbSchema>;
+  dbCancel: (id: string) => Promise<DbStatus>;
   dbCommit: (id: string) => Promise<DbStatus>;
   dbRollback: (id: string) => Promise<DbStatus>;
   dbDisconnect: (id: string) => Promise<DbStatus>;

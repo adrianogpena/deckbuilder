@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { readJsonFile, writeJsonAtomic } from '@kedalion/platform';
-import { invalid } from '@kedalion/server-core';
+import { invalid, notFound } from '@kedalion/server-core';
 import { detectAccounts } from '../accounts.ts';
 import { findSessionFile } from '../chat/normalize.ts';
 import { projectKey } from '../projects.ts';
@@ -131,11 +131,16 @@ const readText = (path: string) => {
 /** Server routes of the task panel: the task list per project and the plan a session has captured. */
 export const routes: PanelRoutes = (ctx: PanelCtx) => {
   const store = createTaskStore(join(ctx.agentsDir, 'tasks'));
+  const rootOf = (project: unknown) => {
+    const root = typeof project === 'string' && project ? ctx.projectRoot(project) : undefined;
+    if (!root) throw notFound('project', 'Unknown project.');
+    return root;
+  };
   return {
-    'GET /api/agents/task/list': async ({ query }) => ({ tasks: await store.read(query.get('project') ?? '') }),
+    'GET /api/agents/task/list': async ({ query }) => ({ tasks: await store.read(rootOf(query.get('project'))) }),
     'PUT /api/agents/task/list': async ({ query, json }) => {
       const b = await json<{ tasks?: unknown }>();
-      if (!(await store.write(query.get('project') ?? '', b.tasks))) throw invalid('tasks', 'Not a task list');
+      if (!(await store.write(rootOf(query.get('project')), b.tasks))) throw invalid('tasks', 'Not a task list');
       return { ok: true };
     },
     // The newest ExitPlanMode plan of a session (read on demand); `plan: null` until Claude finishes planning.

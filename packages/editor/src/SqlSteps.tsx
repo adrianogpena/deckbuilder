@@ -27,7 +27,8 @@ export interface SqlStepsProps {
   onParamValue?(n: number, value: string): void;
 }
 
-const MAIN = 'main';
+/** The main query's name in `SqlStep.feeds` (CTEs always have a name). */
+const MAIN = '';
 const TABS: readonly SqlStepsTab[] = ['steps', 'graph', 'params', 'problems'];
 const DEFAULT_WIDTH = 300;
 const MIN_WIDTH = 260;

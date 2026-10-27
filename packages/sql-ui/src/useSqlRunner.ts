@@ -48,12 +48,15 @@ const isTruncatedMarker = (item: unknown) => typeof item === 'object' && item !=
 
 type Confirm = (opts: { title: string; body?: string; okLabel?: string; danger?: boolean }) => Promise<boolean>;
 
-/** Rejects with a timeout error after `seconds` (never, when 0), leaving `promise` running. */
-function withTimeout<T>(promise: Promise<T>, seconds: number): Promise<T> {
+/** Rejects with a timeout error after `seconds` (never, when 0) and calls `onTimeout`, leaving `promise` running. */
+function withTimeout<T>(promise: Promise<T>, seconds: number, onTimeout?: () => void): Promise<T> {
   if (seconds <= 0) return promise;
   let timer: ReturnType<typeof setTimeout>;
   const limit = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error(t('workbench.log.timeout', { seconds }))), seconds * 1000);
+    timer = setTimeout(() => {
+      reject(new Error(t('workbench.log.timeout', { seconds })));
+      onTimeout?.();
+    }, seconds * 1000);
   });
   return Promise.race([promise, limit]).finally(() => clearTimeout(timer));
 }
@@ -83,6 +86,7 @@ export function useSqlRunner(client: SqlClient, db: string | undefined, settings
   const [explaining, setExplaining] = useState(false);
   const rows = useStream<unknown>({ maxItems: MAX_STREAM_ITEMS });
   const cancelled = useRef(false);
+  const runToken = useRef(0);
   const reported = useRef(0);
   const wasRunning = useRef(false);
   const lastSql = useRef<string>();
@@ -112,6 +116,12 @@ export function useSqlRunner(client: SqlClient, db: string | undefined, settings
     // Deps are deliberately partial.
   }, [db]);
 
+  /** After a timeout: breaks the statement on the server, and refreshes the status once `call` settles there. */
+  const stopTimedOut = (id: string, call: Promise<unknown>) => () => {
+    client.dbCancel(id).catch(() => {});
+    call.then(refreshStatus, refreshStatus);
+  };
+
   const fail = (err: unknown) => {
     const error = errorOf(err);
     log(errorMessage(error), 'err');
@@ -136,13 +146,19 @@ export function useSqlRunner(client: SqlClient, db: string | undefined, settings
   /** Runs the statements in order, each logged; stops at the first error. Only the last result set is shown. */
   const runDb = async (id: string, statements: string[]) => {
     begin();
+    // cancel()/reset() bump the token; a stale loop stops before its next statement or result.
+    const token = ++runToken.current;
+    const stale = () => token !== runToken.current;
     setStarting(true);
     try {
       for (const [i, sql] of statements.entries()) {
+        if (stale()) return;
         log(t('workbench.log.start', { query: sql.trim() }));
         lastSql.current = sql;
         const last = i === statements.length - 1;
-        const result = await withTimeout(client.dbRun(id, sql, maxRows), settings.queryTimeout ?? 0);
+        const call = client.dbRun(id, sql, maxRows);
+        const result = await withTimeout(call, settings.queryTimeout ?? 0, stopTimedOut(id, call));
+        if (stale()) return;
         if (result.kind === 'rows' && last) {
           setShown({ kind: 'db', run: result.run, columns: result.columns });
           rows.start('/api/db/rows', { run: result.run });
@@ -155,6 +171,7 @@ export function useSqlRunner(client: SqlClient, db: string | undefined, settings
       }
       refreshStatus();
     } catch (err) {
+      if (stale()) return;
       fail(err);
       refreshStatus();
     } finally {
@@ -194,7 +211,8 @@ export function useSqlRunner(client: SqlClient, db: string | undefined, settings
     setExplaining(true);
     log(t('workbench.log.explain', { query: text.trim() }));
     try {
-      const steps = await withTimeout(client.dbExplain(db, text), settings.queryTimeout ?? 0);
+      const call = client.dbExplain(db, text);
+      const steps = await withTimeout(call, settings.queryTimeout ?? 0, stopTimedOut(db, call));
       setPlan(steps);
       log(t('workbench.log.explained', { count: steps.length }), 'ok');
     } catch (err) {
@@ -206,6 +224,7 @@ export function useSqlRunner(client: SqlClient, db: string | undefined, settings
 
   const cancel = () => {
     cancelled.current = true;
+    runToken.current++;
     rows.cancel();
   };
 
@@ -257,6 +276,7 @@ export function useSqlRunner(client: SqlClient, db: string | undefined, settings
       text: (r) => String((c.copy ?? c.value)(r) ?? ''),
       raw: (r) => r.cells[i],
       type: shown.kind === 'db' ? shown.columns[i]?.type : undefined,
+      timestamp: shown.kind === 'db' ? shown.columns[i]?.timestamp : undefined,
     }));
     if (await copyText(formatCopy(settings.copyFormat ?? 'tsv', columns, picked, lastSql.current))) log(t('workbench.log.copied', { count: picked.length }), 'ok');
     else log(t('workbench.log.copyFailed'), 'err');

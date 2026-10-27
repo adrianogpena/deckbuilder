@@ -63,6 +63,18 @@ export const routes: PanelRoutes = (ctx: PanelCtx) => {
   };
   const stateOf = (root: string, id: string): RunState => runs.get(keyOf(root, id))?.state ?? { target: id, status: 'stopped', log: '' };
 
+  /** Runs start/stop one at a time per target, so concurrent requests cannot spawn twice and orphan a process. */
+  const locks = new Map<string, Promise<unknown>>();
+  function serial<T>(key: string, fn: () => Promise<T>): Promise<T> {
+    const next = (locks.get(key) ?? Promise.resolve()).then(fn, fn);
+    const tail = next.catch(() => undefined);
+    locks.set(key, tail);
+    void tail.then(() => {
+      if (locks.get(key) === tail) locks.delete(key);
+    });
+    return next;
+  }
+
   async function stop(root: string, id: string): Promise<void> {
     const run = runs.get(keyOf(root, id));
     if (!run || run.state.status !== 'running') return;
@@ -111,14 +123,15 @@ export const routes: PanelRoutes = (ctx: PanelCtx) => {
     'POST /api/agents/run/start': async ({ json }) => {
       const b = await json<{ project?: string; target?: string }>();
       const root = rootOf(b.project ?? null);
-      await start(root, await targetOf(root, b.target));
+      const target = await targetOf(root, b.target);
+      await serial(keyOf(root, target.id), () => start(root, target));
       return { ...stateOf(root, b.target!), log: '' };
     },
     'POST /api/agents/run/stop': async ({ json }) => {
       const b = await json<{ project?: string; target?: string }>();
       const root = rootOf(b.project ?? null);
       await targetOf(root, b.target);
-      await stop(root, b.target!);
+      await serial(keyOf(root, b.target!), () => stop(root, b.target!));
       return { ...stateOf(root, b.target!), log: '' };
     },
     'POST /api/agents/run/open': async ({ json }) => {

@@ -89,8 +89,8 @@ interface Entry {
 
 function spawnProxy(context: string): ProxyChild {
   if (!Bun.which('kubectl')) throw new ProxyUnavailable('kubectl is not installed.');
-  // `--context=` keeps a context name from being read as an option; the address is loopback only.
-  return Bun.spawn(['kubectl', `--context=${context}`, 'proxy', '--port=0', '--address=127.0.0.1'], { stdin: 'ignore', stdout: 'pipe', stderr: 'ignore', windowsHide: true });
+  // `--context=` keeps a context name from being read as an option; the address is loopback only; the proxy is read-only.
+  return Bun.spawn(['kubectl', `--context=${context}`, 'proxy', '--port=0', '--address=127.0.0.1', '--reject-methods=^(POST|PUT|PATCH|DELETE)$'], { stdin: 'ignore', stdout: 'pipe', stderr: 'ignore', windowsHide: true });
 }
 
 async function readPort(stdout: ReadableStream<Uint8Array>, timeoutMs: number): Promise<number> {

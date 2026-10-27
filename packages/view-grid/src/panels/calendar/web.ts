@@ -11,8 +11,8 @@ import type { IcsEvent } from './ics';
 
 const REFRESH_MS = 10 * 60_000;
 
-const loadEvents = (icsUrl: string, from: string, days: number): Promise<IcsEvent[]> =>
-  icsUrl.trim() ? fetchSource<IcsEvent[]>('calendar-ics', { icsUrl, from, days }) : Promise.resolve([]);
+const loadEvents = (icsUrl: string, from: string, days: number, signal?: AbortSignal): Promise<IcsEvent[]> =>
+  icsUrl.trim() ? fetchSource<IcsEvent[]>('calendar-ics', { icsUrl, from, days }, signal) : Promise.resolve([]);
 
 const calendarPanel = definePanel<CalendarConfig, IcsEvent[]>({
   kind: 'calendar',
@@ -22,7 +22,7 @@ const calendarPanel = definePanel<CalendarConfig, IcsEvent[]>({
   category: 'dash.category.calendar',
   size: { w: 6, h: 18, minW: 4, minH: 10 },
   config: { fields: CALENDAR_FIELDS },
-  load: (config) => loadEvents(config.icsUrl, `${dayKey(new Date()).slice(0, 8)}01`, 62),
+  load: (config, ctx) => loadEvents(config.icsUrl, `${dayKey(new Date()).slice(0, 8)}01`, 62, ctx.signal),
   refreshMs: REFRESH_MS,
   render: ({ config, data }) => createElement(CalendarPanel, { config, events: data ?? [] }),
 });
@@ -57,7 +57,7 @@ const agendaPanel = definePanel<AgendaConfig, IcsEvent[]>({
   category: 'dash.category.calendar',
   size: { w: 5, h: 12, minW: 3, minH: 5 },
   config: { fields: AGENDA_FIELDS },
-  load: (config) => loadEvents(config.icsUrl, dayKey(new Date()), config.days),
+  load: (config, ctx) => loadEvents(config.icsUrl, dayKey(new Date()), config.days, ctx.signal),
   refreshMs: REFRESH_MS,
   render: ({ config, data }) => createElement(AgendaPanel, { config, events: data ?? [] }),
 });

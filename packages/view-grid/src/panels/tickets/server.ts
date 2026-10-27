@@ -1,9 +1,9 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { isAbsolute, join, relative, resolve } from 'node:path';
+import { lstat, mkdir, readFile, realpath, writeFile } from 'node:fs/promises';
+import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { invalid } from '@kedalion/server-core';
 import { createJsonStore, type JsonStore } from '../../json-store';
 import { defineSource, type DataSource, type GridPanelSpec, type SourceContext } from '../../server';
-import { fieldIds, search } from '../jira/client';
+import { fieldIds, search, searchKeys } from '../jira/client';
 import { fetchPrExtra, fetchPrItem, fetchPrPool, trackedStore } from '../github/server';
 import type { TrackedPr } from '../github/tracked';
 import { latestPods } from '../pods/server';
@@ -40,7 +40,7 @@ function prRef(payload: unknown): { repo: string; number: number } {
   const p = (payload ?? {}) as { repo?: unknown; number?: unknown };
   const repo = str(p.repo, 200);
   const number = Number(p.number);
-  if (!/^[\w.-]+\/[\w.-]+$/.test(repo) || !Number.isInteger(number) || number <= 0) throw invalid('pr-ref', 'A pull request is required.');
+  if (!/^(?!\.{1,2}\/)[\w.-]+\/(?!\.{1,2}$)[\w.-]+$/.test(repo) ||!Number.isInteger(number) || number <= 0) throw invalid('pr-ref', 'A pull request is required.');
   return { repo, number };
 }
 
@@ -51,13 +51,53 @@ const SAFE_KEY = /^[A-Za-z0-9_-]+$/;
 async function notesFolderOf(config: { notesFolder?: string }, ctx: SourceContext): Promise<string> {
   const folder = (config.notesFolder ?? '').trim();
   if (!folder) return '';
-  const roots = (await ctx.projectRoots?.()) ?? [];
-  const inside = roots.some((r) => {
-    const rel = relative(resolve(r.path), resolve(folder));
-    return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
-  });
-  if (!inside) throw invalid('ticket-notes-folder', 'The notes folder is not inside an Explorer project.', { folder });
+  if (!(await insideRoots(folder, ctx))) throw invalid('ticket-notes-folder', 'The notes folder is not inside an Explorer project.', { folder });
   return folder;
+}
+
+/** The real path of p, or of its nearest existing ancestor with the rest appended. */
+async function realOrNearest(p: string): Promise<string> {
+  let cur = resolve(p);
+  const rest: string[] = [];
+  for (;;) {
+    try {
+      return join(await realpath(cur), ...rest);
+    } catch {
+      const parent = dirname(cur);
+      if (parent === cur) return resolve(p);
+      rest.unshift(basename(cur));
+      cur = parent;
+    }
+  }
+}
+
+/** Whether p, symlinks resolved, lies inside an Explorer project root. */
+async function insideRoots(p: string, ctx: SourceContext): Promise<boolean> {
+  const roots = (await ctx.projectRoots?.()) ?? [];
+  const target = await realOrNearest(p);
+  for (const r of roots) {
+    const rel = relative(await realOrNearest(r.path), target);
+    if (rel === '' || (!rel.startsWith('..') && !isAbsolute(rel))) return true;
+  }
+  return false;
+}
+
+/** Refuses a notes file that is a symlink pointing outside every Explorer project (or dangling). */
+async function assertNotesFile(file: string, ctx: SourceContext): Promise<void> {
+  let link = false;
+  try {
+    link = (await lstat(file)).isSymbolicLink();
+  } catch {
+    return;
+  }
+  if (!link) return;
+  let target = '';
+  try {
+    target = await realpath(file);
+  } catch {
+    /* dangling link */
+  }
+  if (!target || !(await insideRoots(target, ctx))) throw invalid('ticket-notes-link', 'The notes file links outside the Explorer projects.', { file });
 }
 
 /** The notes file of a ticket key in the linked folder, or null for an unsafe key. */
@@ -142,7 +182,7 @@ export const ticketsSource = defineSource<TicketsConfig>({
           const conn = await ctx.connection(config.jiraConnection, 'jira');
           const keys = tickets.map((t) => t.key).filter((k) => /^[A-Za-z][A-Za-z0-9_]*-\d+$/.test(k));
           const pointsId = (await fieldIds(conn, ctx.signal)).points;
-          const raw = keys.length ? await search(conn, `key in (${keys.join(',')})`, infoFields(pointsId), keys.length, ctx.signal) : [];
+          const raw = keys.length ? await searchKeys(conn, keys, infoFields(pointsId), ctx.signal) : [];
           for (const r of raw) jira[String(r.key)] = mapInfo(r, pointsId);
         } catch {
           jiraError = true;
@@ -245,6 +285,7 @@ export const ticketsSource = defineSource<TicketsConfig>({
       const folder = await notesFolderOf(config, ctx);
       const file = folder ? notesFile(folder, ticket.key) : null;
       if (!file) return ticket.notes ?? '';
+      await assertNotesFile(file, ctx);
       try {
         return await readFile(file, 'utf8');
       } catch (err) {
@@ -264,6 +305,7 @@ export const ticketsSource = defineSource<TicketsConfig>({
       }
       const file = notesFile(folder, ticket.key);
       if (!file) throw invalid('ticket-invalid-key', 'Not a ticket key.');
+      await assertNotesFile(file, ctx);
       try {
         await mkdir(folder, { recursive: true });
         await writeFile(file, text, 'utf8');
@@ -271,10 +313,10 @@ export const ticketsSource = defineSource<TicketsConfig>({
         throw invalid('ticket-notes-write', 'The notes file could not be saved.', { file });
       }
     },
-    async 'link-key'(payload, _config, ctx) {
+    async 'link-key'(payload, config, ctx) {
       const p = payloadOf(payload);
       const key = str(p.key, 100).toUpperCase();
-      if (!key) throw invalid('ticket-invalid-key', 'Not a ticket key.');
+      if (!key || (extractKey(key, config.keyPattern) !== key && !/^[A-Za-z][A-Za-z0-9_]*-\d+$/.test(key))) throw invalid('ticket-invalid-key', 'Not a ticket key.');
       return (
         await ticketsStore(ctx.dataDir).update((s) => ({
           ...s,

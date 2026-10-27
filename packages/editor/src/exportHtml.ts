@@ -33,26 +33,48 @@ const attr = (tag: string, name: string) => {
   return m ? unescapeHtml(m[1] ?? m[2] ?? '') : null;
 };
 
+/** The data URI for a local `src` of at most 2 MiB, or null (the image then becomes its alt text). */
+async function dataUriOf(src: string, loadImage: (src: string) => Promise<ExportImage | null>): Promise<string | null> {
+  let image: ExportImage | null = null;
+  if (src && !/^([a-z][a-z0-9+.-]*:|\/\/)/i.test(src)) {
+    try {
+      image = await loadImage(src);
+    } catch {
+      image = null;
+    }
+  }
+  return image && image.bytes.length <= MAX_EMBED_BYTES && /^image\/[\w.+-]+$/i.test(image.mime) ? `data:${image.mime};base64,${toBase64(image.bytes)}` : null;
+}
+
 /** Rewrites every `<img>`: a local image of at most 2 MiB becomes a data URI; anything else becomes its alt text. */
 export async function embedImages(html: string, loadImage: (src: string) => Promise<ExportImage | null>): Promise<string> {
+  // With a DOM, the images are rewritten as elements, so attribute escaping does not matter.
+  if (typeof DOMParser !== 'undefined') {
+    const doc = new DOMParser().parseFromString(`<!doctype html><body>${html}`, 'text/html');
+    const cache = new Map<string, Promise<string | null>>();
+    for (const img of [...doc.body.querySelectorAll('img')]) {
+      const src = (img.getAttribute('src') ?? '').trim();
+      const alt = img.getAttribute('alt') ?? '';
+      if (!cache.has(src)) cache.set(src, dataUriOf(src, loadImage));
+      const uri = await cache.get(src)!;
+      if (uri) {
+        const out = doc.createElement('img');
+        out.setAttribute('src', uri);
+        out.setAttribute('alt', alt);
+        img.replaceWith(out);
+      } else {
+        img.replaceWith(doc.createTextNode(alt));
+      }
+    }
+    return doc.body.innerHTML;
+  }
   const tags = [...new Set(html.match(/<img\b[^>]*>/gi) ?? [])];
   const replacements = new Map<string, string>();
   for (const tag of tags) {
     const src = (attr(tag, 'src') ?? '').trim();
     const alt = attr(tag, 'alt') ?? '';
-    let image: ExportImage | null = null;
-    if (src && !/^([a-z][a-z0-9+.-]*:|\/\/)/i.test(src)) {
-      try {
-        image = await loadImage(src);
-      } catch {
-        image = null;
-      }
-    }
-    if (image && image.bytes.length <= MAX_EMBED_BYTES && /^image\/[\w.+-]+$/i.test(image.mime)) {
-      replacements.set(tag, `<img src="data:${image.mime};base64,${toBase64(image.bytes)}" alt="${escapeHtml(alt)}">`);
-    } else {
-      replacements.set(tag, escapeHtml(alt));
-    }
+    const uri = await dataUriOf(src, loadImage);
+    replacements.set(tag, uri ? `<img src="${uri}" alt="${escapeHtml(alt)}">` : escapeHtml(alt));
   }
   return html.replace(/<img\b[^>]*>/gi, (tag) => replacements.get(tag) ?? '');
 }

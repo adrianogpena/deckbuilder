@@ -35,6 +35,14 @@
 }
 :root[data-layout='islands'] .app.sidebar-right .islands-rail > .sidebar { border: 0; }
 
+@media (max-width: 800px) {
+  :root[data-layout='islands'] .app.islands-frame,
+  :root[data-layout='islands'] .app.islands-frame.nav-collapsed,
+  :root[data-layout='islands'] .app.islands-frame.sidebar-right,
+  :root[data-layout='islands'] .app.islands-frame.sidebar-right.nav-collapsed { grid-template-columns: 1fr; }
+  :root[data-layout='islands'] .app.islands-frame > .islands-rail { display: none; }
+}
+
 /* ---- main: an island by default; tab workspaces put their tab row on the frame instead */
 :root[data-layout='islands'] .main { background: var(--bg); border-radius: var(--island-radius); overflow: hidden; }
 :root[data-layout='islands'] .main:has(.panes) { background: transparent; border-radius: 0; overflow: visible; }

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, type ComponentType, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, type ComponentType, type ReactNode } from 'react';
 import { applyDockSide, applyMainMenu, LAYOUT_MARK_IDS, resolveIconSetId, resolveLayout, supportsDock, type Layout, type LayoutStructure, type MainMenu } from '@kedalion/server-core/layouts';
 import { setFileIconVariants } from './file-icons';
 import { iconSetById } from './icons';
@@ -44,7 +44,7 @@ const Ctx = createContext<Base>({ layout: original, iconSet: resolveIconSetId(or
 export function LayoutProvider({ layout, icons, mainMenu = 'labels', dock, layoutIcon, children }: { layout?: string; icons?: string; mainMenu?: MainMenu; dock?: 'left' | 'right'; layoutIcon?: string; children: ReactNode }) {
   const resolved = resolveLayout(layout);
   const iconSet = resolveIconSetId(resolved, icons);
-  useMemo(() => setFileIconVariants(Object.keys(iconSetById(iconSet).fileVariants ?? {})), [iconSet]);
+  useLayoutEffect(() => setFileIconVariants(Object.keys(iconSetById(iconSet).fileVariants ?? {})), [iconSet]);
   const markId = layoutIcon && LAYOUT_MARK_IDS.includes(layoutIcon) ? layoutIcon : resolved.id;
   const value = useMemo(() => ({ layout: resolved, iconSet, mainMenu, markId, dock }), [resolved, iconSet, mainMenu, markId, dock]);
   const side = supportsDock(resolved.id) ? applyDockSide(resolved.structure, dock).sidebarSide : 'left';

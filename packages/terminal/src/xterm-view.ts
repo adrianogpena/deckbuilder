@@ -292,6 +292,13 @@ export function createXtermView(el: HTMLElement, opts: XtermViewOptions = {}): X
           last.marker.dispose();
           prompts.pop();
         }
+        // Markers scrolled out of the buffer are disposed; drop their prompts.
+        for (let i = prompts.length - 1; i >= 0; i--) {
+          const old = prompts[i]!;
+          if (!old.marker.isDisposed) continue;
+          old.deco?.dispose();
+          prompts.splice(i, 1);
+        }
         current();
       } else if (mark.kind === 'C') {
         const p = current();

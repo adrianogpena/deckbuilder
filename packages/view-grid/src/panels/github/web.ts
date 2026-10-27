@@ -22,7 +22,7 @@ const prsPanel = definePanel<PullRequestsConfig, SearchData<PrItem>>({
   category: 'dash.category.github',
   size: { w: 8, h: 14, minW: 4, minH: 6 },
   config: { fields: PULL_REQUESTS_FIELDS },
-  load: (config) => fetchSource<SearchData<PrItem>>('github-prs', config),
+  load: (config, ctx) => fetchSource<SearchData<PrItem>>('github-prs', config, ctx.signal),
   refreshMs: (_config, data) => searchRefreshMs(data),
   render: ({ id, config, data, side }) => createElement(PullRequestsPanel, { id, config, data, side }),
 });
@@ -35,7 +35,7 @@ const issuesPanel = definePanel<IssuesConfig, SearchData<IssueItem>>({
   category: 'dash.category.github',
   size: { w: 8, h: 14, minW: 4, minH: 6 },
   config: { fields: ISSUES_FIELDS },
-  load: (config) => fetchSource<SearchData<IssueItem>>('github-issues', config),
+  load: (config, ctx) => fetchSource<SearchData<IssueItem>>('github-issues', config, ctx.signal),
   refreshMs: (_config, data) => searchRefreshMs(data),
   render: ({ config, data }) => createElement(IssuesPanel, { config, data }),
 });
@@ -48,7 +48,7 @@ const actionsPanel = definePanel<ActionsConfig, RunsData>({
   category: 'dash.category.github',
   size: { w: 8, h: 12, minW: 4, minH: 5 },
   config: { fields: ACTIONS_FIELDS },
-  load: (config) => fetchSource<RunsData>('github-actions', config),
+  load: (config, ctx) => fetchSource<RunsData>('github-actions', config, ctx.signal),
   refreshMs: (_config, data) => runsRefreshMs(data),
   render: ({ config, data }) => createElement(ActionsRunsPanel, { config, data }),
 });
@@ -61,7 +61,7 @@ const notificationsPanel = definePanel<NotificationsConfig, { items: Notificatio
   category: 'dash.category.github',
   size: { w: 6, h: 12, minW: 4, minH: 5 },
   config: { fields: NOTIFICATIONS_FIELDS },
-  load: (config) => fetchSource<{ items: NotificationItem[] }>('github-notifications', config),
+  load: (config, ctx) => fetchSource<{ items: NotificationItem[] }>('github-notifications', config, ctx.signal),
   refreshMs: 5 * 60_000,
   render: ({ config, data }) => createElement(NotificationsPanel, { config, data }),
 });
@@ -74,7 +74,7 @@ const releasesPanel = definePanel<ReleasesConfig, { items: ReleaseItem[] }>({
   category: 'dash.category.github',
   size: { w: 6, h: 10, minW: 4, minH: 5 },
   config: { fields: RELEASES_FIELDS },
-  load: (config) => fetchSource<{ items: ReleaseItem[] }>('github-releases', config),
+  load: (config, ctx) => fetchSource<{ items: ReleaseItem[] }>('github-releases', config, ctx.signal),
   refreshMs: 30 * 60_000,
   render: ({ data }) => createElement(ReleasesPanel, { data }),
 });
@@ -87,7 +87,7 @@ const overviewPanel = definePanel<OverviewConfig, RepoStats>({
   category: 'dash.category.github',
   size: { w: 8, h: 6, minW: 4, minH: 4 },
   config: { fields: OVERVIEW_FIELDS },
-  load: (config) => fetchSource<RepoStats>('github-overview', config),
+  load: (config, ctx) => fetchSource<RepoStats>('github-overview', config, ctx.signal),
   refreshMs: 10 * 60_000,
   render: ({ config, data }) => createElement(RepoOverviewPanel, { config, data }),
 });
@@ -102,7 +102,7 @@ const trackedPanel = definePanel<TrackedConfig, { items: TrackedPr[] }>({
   allowMultiple: false,
   size: { w: 8, h: 12, minW: 4, minH: 5 },
   config: { fields: TRACKED_FIELDS },
-  load: (config) => fetchSource<{ items: TrackedPr[] }>('github-tracked', config),
+  load: (config, ctx) => fetchSource<{ items: TrackedPr[] }>('github-tracked', config, ctx.signal),
   refreshMs: PR_REFRESH_MS,
   render: ({ config, data, refresh }) => createElement(TrackedPrsPanel, { config, data, refresh }),
 });

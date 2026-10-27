@@ -24,6 +24,8 @@ export function useAsync<T>(fn: () => Promise<T>, deps: unknown[], intervalMs = 
 
   const run = useCallback((background: boolean) => {
     if (background && inFlight.current) return;
+    // A foreground run supersedes any poll still in flight.
+    if (!background) generation.current++;
     const gen = generation.current;
     inFlight.current = true;
     if (!background) setLoading(true);

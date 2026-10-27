@@ -91,24 +91,167 @@ export function sqlParams(text: string): SqlParam[] {
   return [...map.values()].sort((a, b) => a.n - b.n);
 }
 
-function escapeJs(v: string): string {
-  return v.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\r/g, '\\r').replace(/\n/g, '\\n');
+type Value = string | number | boolean;
+type Token = { t: 'str' | 'num' | 'id' | 'op'; v: string | number };
+
+const OPS = ['===', '!==', '==', '!=', '<=', '>=', '&&', '||', '<', '>', '!', '(', ')', '.', '=', ';'];
+
+/** Tokenizes a marker condition; `{n}` inside a string literal or bare becomes the raw value as a string token. */
+function tokenize(src: string, values: Record<number, string>): Token[] {
+  const out: Token[] = [];
+  const param = (n: string) => values[Number(n)] ?? '';
+  let i = 0;
+  while (i < src.length) {
+    const c = src[i]!;
+    if (/\s/.test(c)) {
+      i++;
+      continue;
+    }
+    if (c === "'" || c === '"') {
+      let s = '';
+      i++;
+      while (i < src.length && src[i] !== c) {
+        if (src[i] === '\\' && i + 1 < src.length) {
+          const e = src[i + 1]!;
+          s += e === 'n' ? '\n' : e === 'r' ? '\r' : e === 't' ? '\t' : e;
+          i += 2;
+          continue;
+        }
+        const p = /^\{(\d+)\}/.exec(src.slice(i));
+        if (p) {
+          s += param(p[1]!);
+          i += p[0].length;
+          continue;
+        }
+        s += src[i];
+        i++;
+      }
+      if (i >= src.length) throw new Error('unterminated string');
+      i++;
+      out.push({ t: 'str', v: s });
+      continue;
+    }
+    const rest = src.slice(i);
+    const p = /^\{(\d+)\}/.exec(rest);
+    if (p) {
+      out.push({ t: 'str', v: param(p[1]!) });
+      i += p[0].length;
+      continue;
+    }
+    const num = /^\d+(?:\.\d+)?/.exec(rest);
+    if (num) {
+      out.push({ t: 'num', v: Number(num[0]) });
+      i += num[0].length;
+      continue;
+    }
+    const id = /^[A-Za-z_$][\w$]*/.exec(rest);
+    if (id) {
+      out.push({ t: 'id', v: id[0] });
+      i += id[0].length;
+      continue;
+    }
+    const op = OPS.find((o) => rest.startsWith(o));
+    if (!op) throw new Error(`unexpected '${c}'`);
+    out.push({ t: 'op', v: op });
+    i += op.length;
+  }
+  return out;
 }
 
-const SIMPLE = /^result\s*=\s*\(?\s*'((?:[^'\\]|\\.)*)'\s*(===?|!==?)\s*'((?:[^'\\]|\\.)*)'\s*\)?\s*;?$/;
-const unescapeJs = (s: string) => s.replace(/\\(.)/g, (_, c: string) => (c === 'n' ? '\n' : c === 'r' ? '\r' : c));
-
+/** Evaluates `result = <expr>` with literals, `{n}`, `.length`, comparisons, `!`, `&&`, `||` and parentheses. Throws on anything else. */
 function evalCondition(condition: string, values: Record<number, string>): boolean {
-  const code = condition.replace(/(['"]?)\{(\d+)\}(['"]?)/g, (_, a: string, n: string, b: string) => {
-    const v = escapeJs(values[Number(n)] ?? '');
-    return a ? `${a}${v}${b}` : `'${v}'${b}`;
-  });
-  const simple = SIMPLE.exec(code.trim());
-  if (simple) {
-    const equal = unescapeJs(simple[1]!) === unescapeJs(simple[3]!);
-    return simple[2]!.startsWith('=') ? equal : !equal;
-  }
-  return !!new Function('result', `${code}\n;return result;`)(undefined);
+  const toks = tokenize(condition, values);
+  let pos = 0;
+  const peek = () => toks[pos];
+  const isOp = (v: string) => peek()?.t === 'op' && peek()!.v === v;
+  const expect = (v: string) => {
+    if (!isOp(v)) throw new Error(`expected '${v}'`);
+    pos++;
+  };
+  const or = (): Value => {
+    let l = and();
+    while (isOp('||')) {
+      pos++;
+      const r = and();
+      l = l || r;
+    }
+    return l;
+  };
+  const and = (): Value => {
+    let l = equality();
+    while (isOp('&&')) {
+      pos++;
+      const r = equality();
+      l = l && r;
+    }
+    return l;
+  };
+  const equality = (): Value => {
+    let l = relational();
+    for (;;) {
+      const t = peek();
+      if (t?.t !== 'op' || !['==', '===', '!=', '!=='].includes(t.v as string)) return l;
+      pos++;
+      const r = relational();
+      const eq = t.v === '==' || t.v === '!=' ? l == r : l === r;
+      l = (t.v as string).startsWith('=') ? eq : !eq;
+    }
+  };
+  const relational = (): Value => {
+    let l = unary();
+    for (;;) {
+      const t = peek();
+      if (t?.t !== 'op' || !['<', '<=', '>', '>='].includes(t.v as string)) return l;
+      pos++;
+      const r = unary();
+      const a = l as number;
+      const b = r as number;
+      l = t.v === '<' ? a < b : t.v === '<=' ? a <= b : t.v === '>' ? a > b : a >= b;
+    }
+  };
+  const unary = (): Value => {
+    if (isOp('!')) {
+      pos++;
+      return !unary();
+    }
+    let v = primary();
+    while (isOp('.')) {
+      pos++;
+      const t = peek();
+      if (t?.t !== 'id' || t.v !== 'length') throw new Error('only .length is supported');
+      if (typeof v !== 'string') throw new Error('.length needs a string');
+      pos++;
+      v = v.length;
+    }
+    return v;
+  };
+  const primary = (): Value => {
+    const t = peek();
+    if (!t) throw new Error('unexpected end');
+    if (t.t === 'str' || t.t === 'num') {
+      pos++;
+      return t.v;
+    }
+    if (t.t === 'id' && (t.v === 'true' || t.v === 'false')) {
+      pos++;
+      return t.v === 'true';
+    }
+    if (isOp('(')) {
+      pos++;
+      const v = or();
+      expect(')');
+      return v;
+    }
+    throw new Error(`unexpected '${t.v}'`);
+  };
+  const first = peek();
+  if (first?.t !== 'id' || first.v !== 'result') throw new Error("expected 'result = <expression>'");
+  pos++;
+  expect('=');
+  const result = or();
+  if (isOp(';')) pos++;
+  if (pos < toks.length) throw new Error(`unexpected '${toks[pos]!.v}'`);
+  return !!result;
 }
 
 /** Applies the `{n}` values: evaluates each marker, drops its comment (and its fragment when false), then substitutes the remaining `{n}` raw. Keeps the line count. */

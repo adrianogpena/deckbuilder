@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { errorMessage, errorOf } from '../api-core';
-import { fileIconOf, folderIconOf } from '../file-icons';
+import { fileIconOf, folderIconOf, useFileIconVersion } from '../file-icons';
 import { t } from '../i18n';
 import { Icon } from './ui';
 
@@ -51,6 +51,7 @@ export function Breadcrumbs({ root, path, icon, list, onPick, focusSignal, title
   const [focusIdx, setFocusIdx] = useState(0);
   const [open, setOpen] = useState<number>();
   const roving = Math.min(focusIdx, segments.length - 1);
+  useFileIconVersion();
 
   const buttons = () => Array.from(bar.current?.querySelectorAll<HTMLButtonElement>('.breadcrumbs-seg') ?? []);
 
@@ -146,6 +147,7 @@ function Picker({ anchor, bar, start, current, list, onPick, onClose }: {
   const menu = useRef<HTMLDivElement>(null);
   const [dir, setDir] = useState(start);
   const [listing, setListing] = useState<Listing>({ status: 'loading' });
+  useFileIconVersion();
   const [pos, setPos] = useState(() => {
     const r = anchor.getBoundingClientRect();
     return { x: r.left, y: r.bottom + 2 };

@@ -1,3 +1,4 @@
+import { win32 } from 'node:path';
 import { PlatformError } from './errors.ts';
 import { runWithTimeout } from './run.ts';
 
@@ -53,9 +54,18 @@ const FOF_ALLOWUNDO = 0x40;
 const FOF_NOERRORUI = 0x400;
 const FOF_WANTNUKEWARNING = 0x4000;
 
+let shell32Lib: ReturnType<typeof openShell32> | null = null;
+
+function openShell32() {
+  const { dlopen, FFIType } = require('bun:ffi') as typeof import('bun:ffi');
+  return dlopen('shell32.dll', { SHFileOperationW: { args: [FFIType.ptr], returns: FFIType.i32 } });
+}
+
 function shellTrash(path: string): Promise<void> {
-  const { dlopen, FFIType, ptr } = require('bun:ffi') as typeof import('bun:ffi');
-  const { symbols } = dlopen('shell32.dll', { SHFileOperationW: { args: [FFIType.ptr], returns: FFIType.i32 } });
+  // SHFileOperation expands wildcards and resolves relative paths against the process cwd.
+  if (!win32.isAbsolute(path) || /[*?]/.test(path)) return Promise.reject(failed(`Not an absolute path: ${path}`));
+  const { ptr } = require('bun:ffi') as typeof import('bun:ffi');
+  const { symbols } = (shell32Lib ??= openShell32());
   const from = Buffer.from(`${path}\0\0`, 'utf16le');
   // SHFILEOPSTRUCTW (x64): hwnd@0, wFunc@8, pFrom@16, pTo@24, fFlags@32, fAnyOperationsAborted@36, hNameMappings@40, lpszProgressTitle@48.
   const op = Buffer.alloc(56);

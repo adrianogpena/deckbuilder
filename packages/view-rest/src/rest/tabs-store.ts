@@ -32,6 +32,10 @@ interface Snapshot {
   runtime: Record<string, TabRuntime>;
   /** The last open attempt found every tab with unsaved work at the cap. */
   full?: boolean;
+  /** Reading the stored tabs failed; nothing is saved until a later load succeeds. */
+  loadError?: ApiError;
+  /** The last save of the tabs failed. */
+  saveError?: ApiError;
 }
 
 /** Saved requests as the REST screen last loaded them; until known, a tab with a saved id counts as dirty. */
@@ -83,16 +87,23 @@ function fileOf(): RestTabsFile {
 function scheduleSave() {
   if (!loaded) return;
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => void api.saveRestTabs(fileOf()).catch(() => {}), SAVE_DELAY_MS);
+  saveTimer = setTimeout(
+    () =>
+      void api.saveRestTabs(fileOf()).then(
+        () => snap.saveError && set({ saveError: undefined }, false),
+        (err) => set({ saveError: errorOf(err) }, false),
+      ),
+    SAVE_DELAY_MS,
+  );
 }
 
 function ensureLoaded() {
   loading ??= api
     .restTabs()
-    .catch(() => undefined)
     .then((file) => {
       const stored = file?.tabs ?? [];
       loaded = true;
+      if (snap.loadError) set({ loadError: undefined }, false);
       if (!stored.length) {
         if (touched) scheduleSave();
         return;
@@ -111,6 +122,11 @@ function ensureLoaded() {
         merged.splice(clean < 0 ? 0 : clean, 1);
       }
       set({ tabs: merged });
+    })
+    .catch((err) => {
+      // A failed read must not look empty: saving stays off (loaded false) so stored tabs are not overwritten; the next use retries.
+      loading = undefined;
+      set({ loadError: errorOf(err) }, false);
     });
   return loading;
 }

@@ -131,7 +131,7 @@ let lastSection: string | undefined;
  * Every change saves at once (text on blur or Enter, Escape reverts); a rejected save leaves the old value and shows
  * the error on its row.
  */
-export function SettingsModal({ settings, onChange, onQuit, onClose, initialSection, onlyView }: Props & { onClose: () => void; initialSection?: string; onlyView?: string }) {
+export function SettingsModal({ settings, onChange, onReplace, onQuit, onClose, initialSection, onlyView }: Props & { onReplace: (next: Settings) => void; onClose: () => void; initialSection?: string; onlyView?: string }) {
   const flat = useMemo(() => {
     const tree = settingsRegistry.sectionTree();
     return flatten(onlyView ? tree.filter((n) => sectionKey(n.path) === viewSettingsSection(onlyView)) : tree);
@@ -188,10 +188,10 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
   // Picks up edits made to settings.json outside the app.
   useEffect(() => {
     const timer = setInterval(() => {
-      api.externalSettings().then((r) => { if (r.changed) onChange(r.settings); }, () => {});
+      api.externalSettings().then((r) => { if (r.changed) onReplace(r.settings); }, () => {});
     }, 2000);
     return () => clearInterval(timer);
-  }, [onChange]);
+  }, [onReplace]);
   const deepCount = (key: string) => [...hits].reduce((n, [k, h]) => (isUnder(k, key) ? n + h.ids.length : n), 0);
   const total = [...hits.values()].reduce((n, h) => n + h.ids.length, 0);
 
@@ -246,9 +246,7 @@ export function SettingsModal({ settings, onChange, onQuit, onClose, initialSect
       case 'system.updates': return <UpdatesCard />;
       case 'system.backup': return (
         <BackupCard
-          onSettings={(next) => {
-            onChange(next);
-          }}
+          onSettings={onReplace}
         />
       );
       default: {

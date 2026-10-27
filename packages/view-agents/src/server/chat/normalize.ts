@@ -152,6 +152,31 @@ export function findSessionFile(accountDir: string, sessionId: string): string |
   return undefined;
 }
 
+/** Every `<accountDir>/projects/<folder>/<sessionId>.jsonl` by session id, from one readdir per folder (first folder wins, as in findSessionFile). */
+export function sessionFilesOf(accountDir: string): Map<string, string> {
+  const out = new Map<string, string>();
+  let folders: string[];
+  try {
+    folders = readdirSync(join(accountDir, 'projects'));
+  } catch {
+    return out;
+  }
+  for (const f of folders) {
+    let names: string[];
+    try {
+      names = readdirSync(join(accountDir, 'projects', f));
+    } catch {
+      continue;
+    }
+    for (const n of names) {
+      if (!n.endsWith('.jsonl')) continue;
+      const id = n.slice(0, -'.jsonl'.length);
+      if (!out.has(id)) out.set(id, join(accountDir, 'projects', f, n));
+    }
+  }
+  return out;
+}
+
 export function loadHistory(file: string): ChatEvent[] {
   try {
     return parseHistory(readFileSync(file, 'utf8'));

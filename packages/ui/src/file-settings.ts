@@ -88,7 +88,7 @@ export function validFileSettings(raw: unknown): FileSettings | null {
   if (typeof raw.markdownToc === 'boolean') out.markdownToc = raw.markdownToc;
   if (isRecord(raw.nestingPatterns)) {
     const entries = Object.entries(raw.nestingPatterns);
-    if (entries.length <= MAX_EXCLUDES && entries.every(([k, v]) => k.trim() !== '' && k.length <= 200 && typeof v === 'string' && v.length <= 500)) {
+    if (entries.length <= MAX_EXCLUDES && entries.every(([k, v]) => k.trim() !== '' && k.length <= 200 && typeof v === 'string' && v.length <= 500 && v.split(',').every((c) => c.split('*').length <= 2))) {
       out.nestingPatterns = Object.fromEntries(entries.map(([k, v]) => [k.trim(), v as string]));
     }
   }

@@ -15,7 +15,7 @@ export const shareList = (raw: unknown): AgentShareEntry[] => (Array.isArray(raw
 export function normalizeName(raw: string): string | undefined {
   let n = raw.trim().replace(/^\.+/, '');
   if (n.toLowerCase().startsWith('claude-')) n = n.slice('claude-'.length);
-  if (!n || /[/\\:]/.test(n) || n.includes('..')) return undefined;
+  if (!n || !/^[A-Za-z0-9._-]+$/.test(n) || n.includes('..')) return undefined;
   return `.claude-${n}`;
 }
 

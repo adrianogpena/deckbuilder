@@ -86,18 +86,25 @@ function parseStamp(prop: Prop): Stamp | null {
   return { allDay: false, key, secs, zone: tz && zoneOk(tz) ? tz : undefined };
 }
 
+const zoneFormats = new Map<string, Intl.DateTimeFormat>();
+
 /** Offset in ms of `zone` from UTC at the instant `ms`. */
 function zoneOffset(ms: number, zone: string): number {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: zone,
-    hourCycle: 'h23',
-    year: 'numeric',
-    month: 'numeric',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: 'numeric',
-    second: 'numeric',
-  }).formatToParts(new Date(ms));
+  let fmt = zoneFormats.get(zone);
+  if (!fmt) {
+    fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: zone,
+      hourCycle: 'h23',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      second: 'numeric',
+    });
+    zoneFormats.set(zone, fmt);
+  }
+  const parts = fmt.formatToParts(new Date(ms));
   const get = (type: string): number => Number(parts.find((p) => p.type === type)?.value);
   const asUtc = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour') % 24, get('minute'), get('second'));
   return asUtc - Math.floor(ms / 1000) * 1000;
@@ -144,16 +151,22 @@ function parseRule(value: string, params: Record<string, string>): Rule | null {
   return { freq, interval, count, until, byDay: [...new Set(byDay)].sort((a, b) => a - b) };
 }
 
-/** Wall dates of the occurrences of a rule from the start day, in order, without COUNT/UNTIL applied. */
-function* occurrenceDays(startKey: string, rule: Rule, lastKey: string): Generator<string> {
+/**
+ * Wall dates of the occurrences of a rule from the start day, in order, without COUNT/UNTIL applied.
+ * With `skipTo` (only valid without COUNT), DAILY and WEEKLY start at the last step at or before that day.
+ */
+function* occurrenceDays(startKey: string, rule: Rule, lastKey: string, skipTo?: string): Generator<string> {
   let guard = 0;
+  const skip = skipTo && skipTo > startKey ? daysBetween(startKey, skipTo) : 0;
   if (rule.freq === 'DAILY') {
-    for (let k = startKey; k <= lastKey && guard++ < MAX_ITERATIONS; k = addDays(k, rule.interval)) yield k;
+    const first = addDays(startKey, Math.floor(skip / rule.interval) * rule.interval);
+    for (let k = first; k <= lastKey && guard++ < MAX_ITERATIONS; k = addDays(k, rule.interval)) yield k;
   } else if (rule.freq === 'WEEKLY') {
     const days = rule.byDay.length > 0 ? rule.byDay : [weekdayOf(startKey)];
     const mondayOffset = (weekdayOf(startKey) + 6) % 7;
     const weekStart = addDays(startKey, -mondayOffset);
-    for (let w = 0; guard++ < MAX_ITERATIONS; w += rule.interval) {
+    const firstWeek = Math.floor(Math.floor((skip + mondayOffset) / 7) / rule.interval) * rule.interval;
+    for (let w = firstWeek; guard++ < MAX_ITERATIONS; w += rule.interval) {
       const base = addDays(weekStart, w * 7);
       if (base > lastKey) return;
       for (const wd of days) {
@@ -253,8 +266,7 @@ export function expandIcs(text: string, fromKey: string, toKey: string): IcsEven
       spanMs = Math.max(0, endMs - startMs);
     }
 
-    const emit = (key: string): boolean => {
-      const occStart = instantOf(key, start.secs, zone);
+    const emit = (key: string, occStart = instantOf(key, start.secs, zone)): boolean => {
       if (ev.exclude.has(occStart)) return true;
       if (start.allDay) {
         const endKey = addDays(key, spanDays);
@@ -280,12 +292,17 @@ export function expandIcs(text: string, fromKey: string, toKey: string): IcsEven
     } else {
       const { rule } = ev;
       const untilMs = rule.until ? (rule.until.allDay ? instantOf(addDays(rule.until.key, 1), 0, undefined) - 1 : instantOf(rule.until.key, rule.until.secs, rule.until.zone ?? zone)) : Infinity;
+      // Without COUNT the occurrences before the window need not be counted: start a few days before it,
+      // early enough for one that spans into the window (two spare days cover zone shifts).
+      const reachDays = start.allDay ? spanDays : Math.ceil(spanMs / 86_400_000);
+      const skipTo = rule.count === Infinity ? addDays(fromKey, -(reachDays + 2)) : undefined;
       let n = 0;
-      for (const key of occurrenceDays(start.key, rule, addDays(toKey, 1))) {
+      for (const key of occurrenceDays(start.key, rule, addDays(toKey, 1), skipTo)) {
         if (n >= rule.count) break;
-        if (instantOf(key, start.secs, zone) > untilMs) break;
+        const occStart = instantOf(key, start.secs, zone);
+        if (untilMs !== Infinity && occStart > untilMs) break;
         n++;
-        emit(key);
+        emit(key, occStart);
       }
     }
     if (out.length >= MAX_EVENTS) break;

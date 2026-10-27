@@ -96,13 +96,15 @@ export function parseCheck(body: unknown, source: string): SpellResult | undefin
   return { language: code, issues };
 }
 
-/** Replaces the span of `issue` with `fix` (default: its best fix) and moves the offsets of the remaining issues. */
+/** Replaces the span of `issue` with `fix` (default: its best fix), drops issues overlapping it and moves the offsets of the rest. */
 export function applyIssue(text: string, issues: Issue[], issue: Issue, fix = issue.fix): { text: string; issues: Issue[] } {
   if (!fix) return { text, issues };
   const delta = fix.length - issue.text.length;
+  const end = issue.offset + issue.text.length;
+  const overlaps = (i: Issue) => i.offset < end && i.offset + i.text.length > issue.offset;
   return {
-    text: text.slice(0, issue.offset) + fix + text.slice(issue.offset + issue.text.length),
-    issues: issues.filter((i) => i !== issue).map((i) => (i.offset > issue.offset ? { ...i, offset: i.offset + delta } : i)),
+    text: text.slice(0, issue.offset) + fix + text.slice(end),
+    issues: issues.filter((i) => i !== issue && !overlaps(i)).map((i) => (i.offset > issue.offset ? { ...i, offset: i.offset + delta } : i)),
   };
 }
 

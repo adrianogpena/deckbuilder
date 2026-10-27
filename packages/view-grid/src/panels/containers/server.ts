@@ -30,7 +30,7 @@ async function list(config: ContainersConfig, signal?: AbortSignal): Promise<Con
   return { machineDown: false, containers: sortPinned(all, parsePinned(config.pinned ?? '')) };
 }
 
-async function control(verb: 'start' | 'stop', payload: unknown, config: ContainersConfig, signal: AbortSignal): Promise<null> {
+async function control(verb: 'start', payload: unknown, config: ContainersConfig, signal: AbortSignal): Promise<null> {
   const name = (payload as { name?: unknown } | null)?.name;
   if (typeof name !== 'string' || !name) throw SourceError('upstream', 'Invalid container name.');
   const current = await list(config, signal);
@@ -58,7 +58,6 @@ export const containersSource = defineSource<ContainersConfig>({
   },
   actions: {
     start: (payload, config, ctx) => control('start', payload, config, ctx.signal),
-    stop: (payload, config, ctx) => control('stop', payload, config, ctx.signal),
     async 'machine-start'(_payload, config, ctx) {
       if (engineOf(config) !== 'podman') throw SourceError('upstream', 'Only Podman has a machine.');
       const r = await runCli(['podman', 'machine', 'start'], { timeoutMs: 120_000, signal: ctx.signal });

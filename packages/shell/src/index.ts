@@ -180,8 +180,10 @@ export async function runApp(opts: RunOptions): Promise<void> {
     idle?.stop();
     idle = null;
   };
-  /** The single exit path. */
-  const quit = async (): Promise<void> => {
+  /** The single exit path; a second call while quitting gets the first call's promise. */
+  let quitting: Promise<void> | null = null;
+  const quit = (): Promise<void> => (quitting ??= doQuit());
+  const doQuit = async (): Promise<void> => {
     disableIdleExit();
     try {
       await opts.onQuit?.();

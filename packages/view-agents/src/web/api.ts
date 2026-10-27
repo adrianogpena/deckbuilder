@@ -97,7 +97,7 @@ export async function terminalOf(sessionId: string): Promise<string | undefined>
 
 export const listAgentSessions = () => request<AgentSessionView[]>('GET', '/api/agents/sessions');
 
-/** Marks a session as seen (clears its `done` state). */
+/** The trace (steps) of a session. */
 export const getTrace = (sessionId: string) => request<AgentTraceResponse>('GET', '/api/agents/trace', { sessionId });
 export const listSkills = () => request<AgentSkillsResponse>('GET', '/api/agents/skills');
 export const lastResponse =(sessionId: string) => request<{ text: string | null }>('GET', '/api/agents/last-response', { sessionId });
@@ -107,8 +107,18 @@ export const sessionHistory = (sessionId: string) => request<{ events: ChatEvent
 export const markUnread = (sessionId: string) => request<{ ok: boolean }>('POST', '/api/agents/unread', {}, { sessionId });
 /** Ends the Claude process that runs the session in another terminal; true once it is gone. */
 export const takeOverSession = (sessionId: string) => request<{ ok: boolean }>('POST', '/api/agents/session/takeover', {}, { sessionId });
+/** Marks a session as seen (clears its `done` state). */
 export const markSeen = (sessionId: string) => request<{ ok: boolean }>('POST', '/api/agents/seen', {}, { sessionId });
-export const reportShown = (sessionId: string | null) => request<{ ok: boolean }>('POST', '/api/agents/shown', {}, { sessionId });
+/** Runs the posts of one endpoint one after another, so a cleanup's null never lands after the next id. */
+function inOrder<A extends unknown[], T>(fn: (...args: A) => Promise<T>): (...args: A) => Promise<T> {
+  let tail: Promise<unknown> = Promise.resolve();
+  return (...args) => {
+    const run = tail.then(() => fn(...args), () => fn(...args));
+    tail = run.catch(() => undefined);
+    return run;
+  };
+}
+export const reportShown = inOrder((sessionId: string | null) => request<{ ok: boolean }>('POST', '/api/agents/shown', {}, { sessionId }));
 
 export type TailEvent = import('../chat-protocol.ts').ChatEvent;
 const tailListeners = new Set<(sessionId: string, events: TailEvent[]) => void>();
@@ -118,13 +128,14 @@ export function onTail(fn: (sessionId: string, events: TailEvent[]) => void): ()
   return () => void tailListeners.delete(fn);
 }
 /** Tells the server which external session's transcript is previewed (null: none). */
-export const reportPreview = (sessionId: string | null) => request<{ ok: boolean }>('POST', '/api/agents/preview', {}, { sessionId });
+export const reportPreview = inOrder((sessionId: string | null) => request<{ ok: boolean }>('POST', '/api/agents/preview', {}, { sessionId }));
 
-/** Opens the live socket; `onFrame` gets `{type:'sessions'|'status'|'usage'}` frames. Returns a close function. */
-export async function openAgentsSocket(onFrame: (f: { type: string; [k: string]: any }) => void): Promise<() => void> {
+/** Opens the live socket; `onFrame` gets `{type:'sessions'|'status'|'usage'}` frames, `onClose` runs when the socket closes or fails. Returns a close function. */
+export async function openAgentsSocket(onFrame: (f: { type: string; [k: string]: any }) => void, onClose?: () => void): Promise<() => void> {
   const { ticket } = await request<{ ticket: string }>('POST', '/api/agents/socket-ticket');
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const ws = new WebSocket(`${proto}//${location.host}/api/agents/socket?t=${encodeURIComponent(ticket)}`);
+  if (onClose) ws.onclose = () => onClose();
   ws.onmessage = (e) => {
     try {
       const f = JSON.parse(String(e.data));

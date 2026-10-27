@@ -56,7 +56,7 @@ export function PanelGrid({ items, defs, render, actions, itemMenu, onChange }: 
   };
 
   const patch = (id: string, change: Partial<GridItem>) =>
-    onChange(items.map((i) => (i.id === id ? { ...i, ...change } : i)));
+    onChange(latest.current.map((i) => (i.id === id ? { ...i, ...change } : i)));
 
   const rename = async (item: GridItem, def: PanelDef) => {    const value = await dialogs.prompt({
       title: t('panel.rename'),
@@ -102,7 +102,7 @@ export function PanelGrid({ items, defs, render, actions, itemMenu, onChange }: 
                 ]}
                 collapsed={!!item.collapsed}
                 onCollapsedChange={(collapsed) => patch(item.id, { collapsed })}
-                onRemove={() => onChange(items.filter((i) => i.id !== item.id))}
+                onRemove={() => onChange(latest.current.filter((i) => i.id !== item.id))}
               >
                 {render(item)}
               </PanelFrame>

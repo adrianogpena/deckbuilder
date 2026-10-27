@@ -21,14 +21,14 @@ const clusterKey = (c: { context: string; namespace: string }) => `${c.context}\
 /** One request per cluster, so a slow or dead cluster does not hold back the others. */
 async function loadPods(config: PodsConfig, ctx: { signal: AbortSignal; auto: boolean; onPartial(data: PodsPanelData): void }): Promise<PodsPanelData> {
   const clusters = [...new Map(parseEntries(config.clusters).map((e) => [clusterKey(e), { context: e.context, namespace: e.namespace }])).values()];
-  if (clusters.length === 0) return fetchSource<PodsPanelData>('pods', config);
+  if (clusters.length === 0) return fetchSource<PodsPanelData>('pods', config, ctx.signal);
   const merged = (): PodsPanelData => {
     const have = clusters.flatMap((c) => lastByCluster.get(clusterKey(c)) ?? []);
     return { clusters: have.map((h) => h.entry), pods: have.flatMap((h) => h.pods) };
   };
   await Promise.all(
     clusters.map(async (c) => {
-      const data = await runAction<PodsPanelData>('pods', 'cluster', config, c);
+      const data = await runAction<PodsPanelData>('pods', 'cluster', config, c, ctx.signal);
       if (ctx.signal.aborted) return;
       lastByCluster.set(clusterKey(c), {
         entry: data.clusters.find((x) => clusterKey(x) === clusterKey(c)) ?? { ...c },

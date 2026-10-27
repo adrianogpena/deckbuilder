@@ -85,7 +85,11 @@ export function resolveBrowser(spec: string | undefined, opts: FindBrowserOption
   const platform = opts.platform ?? process.platform;
   const exists = opts.exists ?? existsSync;
   const name = value.toLowerCase() as NamedBrowser;
-  if (!NAMED_BROWSERS.includes(name)) return exists(value) ? value : null;
+  if (!NAMED_BROWSERS.includes(name)) {
+    // .cmd/.bat would run through cmd.exe, which interprets & % ^ in the URL.
+    if (platform === 'win32' && !(win32.isAbsolute(value) && /\.exe$/i.test(value))) return null;
+    return exists(value) ? value : null;
+  }
   if (platform === 'win32') {
     const env = opts.env ?? process.env;
     const { roots, rels } = NAMED_WINDOWS[name];

@@ -12,7 +12,7 @@ const meetingPanel = definePanel<MeetingConfig, Meeting>({
   icon: 'check',
   category: 'dash.category.meeting',
   size: { w: 6, h: 10, minW: 3, minH: 4 },
-  load: (config) => fetchSource<Meeting>('meeting', config),
+  load: (config, ctx) => fetchSource<Meeting>('meeting', config, ctx.signal),
   refreshMs: 60_000,
   allowMultiple: false,
   headerActions: MeetingActions,

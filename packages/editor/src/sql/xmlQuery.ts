@@ -16,7 +16,7 @@ export interface XmlQueryStatement {
   to: number;
   /** True when the statement holds a CDATA section. */
   cdata: boolean;
-  /** Non-blank text before the first CDATA section (already part of `sql`); '' otherwise. */
+  /** Non-blank text before the first CDATA section, unescaped (already part of `sql`); '' otherwise. */
   prefix: string;
 }
 
@@ -77,17 +77,18 @@ export function parseXmlQueries(text: string): XmlQueries | null {
       continue;
     }
     const lastEnd = inner.lastIndexOf(']]>') + 3;
-    const lead = inner.slice(0, first);
+    // Text outside the CDATA sections is XML text, so its entities are unescaped like a plain statement's.
+    const lead = unescapeXml(inner.slice(0, first));
     const keepLead = lead.trim() === '';
     const start = keepLead ? first : 0;
     let sql = keepLead ? '' : lead;
     const cd = /<!\[CDATA\[([\s\S]*?)\]\]>/g;
     let pos = first;
     for (let c = cd.exec(inner); c; c = cd.exec(inner)) {
-      sql += inner.slice(pos, c.index) + c[1];
+      sql += unescapeXml(inner.slice(pos, c.index)) + c[1];
       pos = c.index + c[0].length;
     }
-    sql += inner.slice(pos, lastEnd);
+    sql += unescapeXml(inner.slice(pos, lastEnd));
     statements.push({ index, name, setName, label, sql, from: innerFrom + start, to: innerFrom + lastEnd, cdata: true, prefix: keepLead ? '' : lead });
   }
   return statements.length > 0 ? { statements } : null;
@@ -100,7 +101,8 @@ export function spliceXmlStatement(text: string, st: XmlQueryStatement, sql: str
   if (sql === st.sql) return text;
   let body: string;
   if (!st.cdata) body = escapeXml(sql);
-  else if (st.prefix && sql.startsWith(st.prefix)) body = st.prefix + cdataOf(sql.slice(st.prefix.length));
+  // Several sections (and the text between them) become one CDATA of the unescaped SQL; the prefix stays XML text.
+  else if (st.prefix && sql.startsWith(st.prefix)) body = escapeXml(st.prefix) + cdataOf(sql.slice(st.prefix.length));
   else body = cdataOf(sql);
   return text.slice(0, st.from) + body + text.slice(st.to);
 }

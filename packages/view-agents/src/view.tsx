@@ -20,7 +20,6 @@ export function agentsView({ group, order }: AgentsViewOptions) {
     nav: { group, icon: 'home', label: 'nav.agents', order },
     render: ({ settings, onSave }) => (
       <AgentsScreen
-        resumeOnSelect={settings.agents?.resumeOnSelect === true}
         usageSettings={usageSettingsOf(settings.agents)}
         rightSidebarOpen={settings.agents?.rightSidebarOpen === true}
         taskSkill={settings.agents?.taskSkill ?? ''}

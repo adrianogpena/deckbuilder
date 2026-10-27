@@ -23,11 +23,15 @@ export function createJsonStore<T>({ dataDir, name, parse, empty }: JsonStoreOpt
   let queue: Promise<unknown> = Promise.resolve();
 
   const read = async (): Promise<T> => {
+    let text: string;
     try {
-      return parse(JSON.parse(await readFile(file, 'utf8')));
-    } catch {
-      return empty();
+      text = await readFile(file, 'utf8');
+    } catch (err) {
+      // Only a missing file means "no data"; any other error must stop update() from overwriting the file.
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return empty();
+      throw err;
     }
+    return parse(JSON.parse(text));
   };
   const write = async (value: T) => {
     await mkdir(dir, { recursive: true });

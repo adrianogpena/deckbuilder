@@ -9,6 +9,7 @@ export const sqlClient: SqlClient = {
   dbExplain: (id, sql) => request<{ rows: DbPlanRow[] }>('POST', '/api/db/explain', {}, { id, sql }).then((r) => r.rows),
   dbTable: (id, owner, name) => request<DbTableDetails>('GET', '/api/db/table', { id, owner, name }),
   dbSchema: (id, owner) => request<DbSchema>('GET', '/api/db/schema', { id, owner }),
+  dbCancel: (id) => request<DbStatus>('POST', '/api/db/cancel', {}, { id }),
   dbCommit: (id) => request<DbStatus>('POST', '/api/db/commit', {}, { id }),
   dbRollback: (id) => request<DbStatus>('POST', '/api/db/rollback', {}, { id }),
   dbDisconnect: (id) => request<DbStatus>('POST', '/api/db/disconnect', {}, { id }),

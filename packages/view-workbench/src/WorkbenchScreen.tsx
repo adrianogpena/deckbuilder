@@ -69,6 +69,7 @@ export function WorkbenchScreen({ settings, onSave, client }: { settings: Workbe
   const loaded = useRef(false);
   const saveTimer = useRef<number>();
   const queue = useRef<Promise<void>>(Promise.resolve());
+  const toast = useViewToast('play');
   const flushDoc = () => {
     window.clearTimeout(saveTimer.current);
     const text = pendingText.current;
@@ -99,8 +100,11 @@ export function WorkbenchScreen({ settings, onSave, client }: { settings: Workbe
       setQuery(text);
     };
     const failed = (err: unknown) => {
+      // The final flush lands after the switch: its error goes to a toast, as the panel shows another document.
       if (live) setDocError(errorOf(err));
+      else toast({ message: errorMessage(errorOf(err)), kind: 'error', icon: 'alert' });
     };
+    window.addEventListener('pagehide', flushDoc);
     if (doc.kind === 'file') {
       const { project, path } = doc;
       client.readFile(project, path).then((read) => {
@@ -122,8 +126,9 @@ export function WorkbenchScreen({ settings, onSave, client }: { settings: Workbe
       client.script(db).then((text) => ready(text, (next) => client.saveScript(db, next).then(() => undefined, failed)), failed);
     }
     return () => {
-      live = false;
+      window.removeEventListener('pagehide', flushDoc);
       flushDoc();
+      live = false;
       docWrite.current = undefined;
     };
     // Deps are deliberately partial.
@@ -159,7 +164,6 @@ export function WorkbenchScreen({ settings, onSave, client }: { settings: Workbe
   const { cols, tableRows, selection, log, setActionError, shown, status } = runner;
   const exportCols = () => cols.map((c) => ({ label: c.label, value: c.value }));
 
-  const toast = useViewToast('play');
   const [exportMenu, setExportMenu] = useState<{ x: number; y: number }>();
   const exportAs = async (format: ExportFormat) => {
     setActionError(undefined);

@@ -1,4 +1,4 @@
-import { sourceFetch } from '../../connections/errors';
+import { readLimited, sourceFetch } from '../../connections/errors';
 import { notifyChanges, notifyScope } from '../../notify-changes';
 import { defineSource,type DataSource, type GridPanelSpec } from '../../server';
 import { fields, FX_FIELDS, RSS_SOURCE_FIELDS, WEATHER_SOURCE_FIELDS } from './fields';
@@ -42,8 +42,8 @@ export const weatherSource = defineSource<{ location: string; units: WeatherUnit
 
 async function loadFeed(url: string, signal: AbortSignal): Promise<Feed> {
   const res = await sourceFetch(url, { headers: { ...headers, accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*' } }, { signal });
-  const text = await res.text();
-  return parseFeed(text.length > MAX_FEED_BYTES ? text.slice(0, MAX_FEED_BYTES) : text, new URL(url).hostname);
+  const { text } = await readLimited(res, MAX_FEED_BYTES);
+  return parseFeed(text, new URL(url).hostname);
 }
 
 export const rssSource = defineSource<{ urls: string; max: number; notify: boolean }>({

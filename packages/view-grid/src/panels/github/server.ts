@@ -305,38 +305,60 @@ type PoolNode = { number: number; repository?: { nameWithOwner: string } };
 
 const KEY_CHUNK = 10;
 const KEY_PRS = 10;
+const KEY_CACHE_MS = 5 * 60_000;
+const KEY_CACHE_MAX = 500;
+const keyCache = new Map<string, { refs: PrRef[]; expires: number }>();
 
-/** Refs of PRs (any state, any author) whose title or branch mentions one of `keys`, found by one light search per key. */
+/** Refs of PRs (any state, any author) whose title or branch mentions one of `keys`, found by one light search per key; results are cached per key for `KEY_CACHE_MS`. */
 async function findKeyPrRefs(conn: ResolvedConnection, keys: readonly string[], signal?: AbortSignal): Promise<PrRef[]> {
-  const starts = Array.from({ length: Math.ceil(keys.length / KEY_CHUNK) }, (_, c) => c * KEY_CHUNK);
+  const now = Date.now();
+  for (const [k, v] of keyCache) if (v.expires <= now) keyCache.delete(k);
+  const prefix = `${conn.baseUrl}|${conn.user ?? ''}|${Bun.hash(conn.token).toString(36)}|`;
+  const cached: PrRef[] = [];
+  const missing: string[] = [];
+  for (const key of keys) {
+    const hit = keyCache.get(prefix + key.toUpperCase());
+    if (hit) cached.push(...hit.refs);
+    else missing.push(key);
+  }
+  const starts = Array.from({ length: Math.ceil(missing.length / KEY_CHUNK) }, (_, c) => c * KEY_CHUNK);
   const parts = await mapLimit(starts, CONCURRENCY, async (i) => {
     const out: PrRef[] = [];
-    const chunk = keys.slice(i, i + KEY_CHUNK);
+    const chunk = missing.slice(i, i + KEY_CHUNK);
     const query = `query(${chunk.map((_, k) => `$q${k}: String!`).join(', ')}) {
 ${chunk.map((_, k) => `  k${k}: search(query: $q${k}, type: ISSUE, first: ${KEY_PRS}) { nodes { ... on PullRequest { number title headRefName repository { nameWithOwner } } } }`).join('\n')}
 }`;
     const vars: Record<string, unknown> = {};
-    chunk.forEach((key, k) => Object.assign(vars, { [`q${k}`]: `is:pr in:title,body "${key}" sort:updated-desc` }));
+    chunk.forEach((key, k) => Object.assign(vars, { [`q${k}`]: `is:pr in:title,body "${key.replace(/"/g, '')}" sort:updated-desc` }));
     const res = await graphql<Record<string, { nodes: ({ number: number; title: string; headRefName?: string; repository?: { nameWithOwner: string } } | null)[] }>>(conn, query, vars, signal);
     chunk.forEach((key, k) => {
       const whole = new RegExp(`(?<![A-Za-z0-9])${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?!\\d)`, 'i');
+      const found: PrRef[] = [];
       for (const node of res[`k${k}`]?.nodes ?? []) {
         const [owner, repo] = node?.repository?.nameWithOwner.split('/') ?? [];
-        if (node && owner && repo && (whole.test(node.title) || whole.test(node.headRefName ?? ''))) out.push({ owner, repo, number: node.number });
+        if (node && owner && repo && (whole.test(node.title) || whole.test(node.headRefName ?? ''))) found.push({ owner, repo, number: node.number });
       }
+      while (keyCache.size >= KEY_CACHE_MAX) {
+        const oldest = keyCache.keys().next().value;
+        if (oldest === undefined) break;
+        keyCache.delete(oldest);
+      }
+      keyCache.set(prefix + key.toUpperCase(), { refs: found, expires: Date.now() + KEY_CACHE_MS });
+      out.push(...found);
     });
     return out;
   });
-  return parts.flat();
+  return [...cached, ...parts.flat()];
 }
 
 /** Open PRs of the user (`mine`), those awaiting their review (`review`), the tracked ones and, when `keys` is given, any PR titled with one of them; each but the last tagged with its `scope`. */
 export async function fetchPrPool(conn: ResolvedConnection, { tracked, keys = [], signal, ...opts }: { tracked: readonly PrRef[]; keys?: readonly string[]; signal?: AbortSignal } & Partial<TrackedOptions>): Promise<TrackedPr[]> {
   const labels = { ...DEFAULT_LABELS, ...opts };
+  const uniqueKeys = [...new Map(keys.filter(Boolean).map((k) => [k.toUpperCase(), k])).values()];
   const [res, trackedPrs, keyRefs] = await Promise.all([
     graphql<Record<'mine' | 'review', { nodes: (PoolNode | null)[] }>>(conn, POOL_QUERY, { mine: 'is:pr is:open author:@me', review: 'is:pr is:open review-requested:@me' }, signal),
     fetchPrs(conn, tracked, signal, labels),
-    keys.length ? findKeyPrRefs(conn, keys, signal).catch((): PrRef[] | null => null) : Promise.resolve<PrRef[] | null>([]),
+    uniqueKeys.length ? findKeyPrRefs(conn, uniqueKeys, signal).catch((): PrRef[] | null => null) : Promise.resolve<PrRef[] | null>([]),
   ]);
   const refKey = (r: PrRef) => `${r.owner}/${r.repo}#${r.number}`;
   const scoped = (['mine', 'review'] as const).flatMap((scope) =>

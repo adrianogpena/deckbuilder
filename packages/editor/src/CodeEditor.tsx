@@ -3,7 +3,7 @@ import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirro
 import { indentOnInput } from '@codemirror/language';
 import { type Diagnostic, lintGutter, linter } from '@codemirror/lint';
 import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
-import { Annotation, Compartment, EditorState, type Extension, Prec } from '@codemirror/state';
+import { Annotation, Compartment, EditorState, type Extension, Prec, Transaction } from '@codemirror/state';
 import { EditorView, keymap, placeholder as placeholderExt } from '@codemirror/view';
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { type EditorOptions, editorOptionsExtension, useEditorOptions } from './editorOptions';
@@ -244,7 +244,7 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(function
   useEffect(() => {
     const v = view.current;
     if (!v || v.state.doc.toString() === value) return;
-    v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: value }, annotations: external.of(true) });
+    v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: value }, annotations: [external.of(true), Transaction.addToHistory.of(false)] });
   }, [value]);
 
   return <div ref={host} className="code-editor" style={height === undefined ? undefined : { height }} />;

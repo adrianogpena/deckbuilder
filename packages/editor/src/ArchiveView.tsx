@@ -1,4 +1,4 @@
-import { fileIconOf, formatBytes, Icon, PanelBanner, t } from '@kedalion/ui';
+import { fileIconOf, formatBytes, Icon, PanelBanner, t, useFileIconVersion } from '@kedalion/ui';
 import { useMemo, useState } from 'react';
 
 /** What `/api/fs/archive` returns. */
@@ -57,7 +57,8 @@ export function ArchiveView({ archive }: { archive: ArchiveContent }) {
   const total = useMemo(() => files.reduce((sum, e) => sum + e.size, 0), [files]);
   const [open, setOpen] = useState<Set<string>>(() => new Set(tree.children.length === 1 && tree.children[0]!.dir ? [tree.children[0]!.path] : []));
   const [filter, setFilter] = useState('');
-  const q = filter.trim().toLowerCase();
+  useFileIconVersion();
+  const q =filter.trim().toLowerCase();
 
   const rows: { node: Node; depth: number }[] = [];
   const walk = (n: Node, depth: number) => {

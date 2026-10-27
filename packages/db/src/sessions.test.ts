@@ -264,7 +264,7 @@ describe('dbSessions', () => {
     expect(conns[0]!.log.slice(1).sort()).toEqual(['commit', 'execute update t set a = 1']);
     await sessions.run('a', CREDS, 'select 1 from dual');
     expect(sessions.status('a').busy).toBe(true);
-    expect(await codeOf(sessions.run('a', CREDS, 'select 2 from dual'))).toBe('dbBusy');
+    expect((await sessions.run('a', CREDS, 'select 2 from dual')).kind).toBe('rows');
   });
 
   test('schema waits for a statement still executing', async () => {

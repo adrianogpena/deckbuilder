@@ -3,6 +3,7 @@ import { Plugin, PluginKey } from '@milkdown/prose/state';
 import type { Node } from '@milkdown/prose/model';
 import { Decoration, DecorationSet, type EditorView } from '@milkdown/prose/view';
 import { $prose } from '@milkdown/utils';
+import { copyText } from '@kedalion/ui';
 import { tryT } from '@kedalion/ui/i18n';
 import { scanHeadings } from '../toc';
 import type { RichFeature } from './commands';
@@ -42,15 +43,17 @@ function linkButton(view: EditorView, slug: string): HTMLElement {
     e.preventDefault();
     e.stopPropagation();
     const path = navApis.get(view)?.host.filePath ?? '';
-    void navigator.clipboard?.writeText(`${path}#${slug}`);
-    btn.replaceChildren(icon(CHECK_PATH));
-    btn.classList.add('md-heading-link-done');
-    btn.title = tryT('explorer.md.headingLinkCopied') ?? 'Copied';
-    setTimeout(() => {
-      btn.replaceChildren(icon(LINK_PATH));
-      btn.classList.remove('md-heading-link-done');
-      btn.title = label;
-    }, 1200);
+    void copyText(`${path}#${slug}`).then((ok) => {
+      if (!ok) return;
+      btn.replaceChildren(icon(CHECK_PATH));
+      btn.classList.add('md-heading-link-done');
+      btn.title = tryT('explorer.md.headingLinkCopied') ?? 'Copied';
+      setTimeout(() => {
+        btn.replaceChildren(icon(LINK_PATH));
+        btn.classList.remove('md-heading-link-done');
+        btn.title = label;
+      }, 1200);
+    });
   });
   return btn;
 }

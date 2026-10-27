@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import type { GitCommit, GitCommitFile } from '@kedalion/server-core/protocol';
-import { type ApiError, ErrorBanner, errorOf, fileIconOf, Icon, useRovingList } from '@kedalion/ui';
+import { type ApiError, ErrorBanner, errorOf, fileIconOf, Icon, useFileIconVersion, useRovingList } from '@kedalion/ui';
 import { gitApi as api } from '../client';
 import { t } from '../i18n';
 import { commitStatusOf } from './sides';
@@ -53,11 +53,15 @@ export function HistoryPanel({ root, tick, open, size, onToggle, onResize, selec
   const [more, setMore] = useState(false);
   const [error, setError] = useState<ApiError>();
   const [loading, setLoading] = useState(false);
+  useFileIconVersion();
   const [logRoot, setLogRoot] = useState<string>();
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [files, setFiles] = useState<Map<string, Files>>(() => new Map());
   const count = useRef(0);
   const seq = useRef(0);
+  /** The current root, so a commit's files read for an older root are dropped. */
+  const rootNow = useRef(root);
+  rootNow.current = root;
   const panel = useRef<HTMLDivElement>(null);
   const list = useRef<HTMLDivElement>(null);
   useRovingList(list, '.git-row');
@@ -123,10 +127,11 @@ export function HistoryPanel({ root, tick, open, size, onToggle, onResize, selec
     api
       .gitCommit(root, commit.hash)
       .then((list) => {
+        if (rootNow.current !== root) return;
         setFiles((was) => new Map(was).set(commit.hash, list));
         if (list[0]) onSelect(commit, list[0]);
       })
-      .catch((e) => setFiles((was) => new Map(was).set(commit.hash, errorOf(e))));
+      .catch((e) => rootNow.current === root && setFiles((was) => new Map(was).set(commit.hash, errorOf(e))));
   }, [reveal, root, open, loading, logRoot, commits, more]);
 
   const toggle = (hash: string) => {
@@ -136,8 +141,8 @@ export function HistoryPanel({ root, tick, open, size, onToggle, onResize, selec
       if (root && !(files.get(hash) instanceof Array)) {
         api
           .gitCommit(root, hash)
-          .then((list) => setFiles((was) => new Map(was).set(hash, list)))
-          .catch((e) => setFiles((was) => new Map(was).set(hash, errorOf(e))));
+          .then((list) => rootNow.current === root && setFiles((was) => new Map(was).set(hash, list)))
+          .catch((e) => rootNow.current === root && setFiles((was) => new Map(was).set(hash, errorOf(e))));
       }
     }
     setExpanded(next);

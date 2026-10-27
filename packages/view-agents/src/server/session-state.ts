@@ -1,8 +1,12 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import type { AgentPin, AgentSessionState, AgentTagCount } from '../protocol.ts';
 
 export const SETTLE_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** A Claude session id (a UUID); anything else is refused as a session-state key. */
+export const isUuid = (x: unknown): x is string => typeof x === 'string' && UUID.test(x);
 
 export interface SessionStateStore {
   get(id: string): AgentSessionState | undefined;
@@ -55,30 +59,57 @@ export function tagCounts(sessions: Array<{ tags?: string[] }>): AgentTagCount[]
 /** Next pin in the cycle none > top > bottom > none. */
 export const nextPin = (pin: AgentPin | undefined): AgentPin | undefined => (pin === undefined ? 'top' : pin === 'top' ? 'bottom' : undefined);
 
+/** Moves an unreadable JSON file aside (`<file>.corrupt-<epoch ms>`) so the next save does not destroy it. */
+export function quarantine(file: string): void {
+  const aside = `${file}.corrupt-${Date.now()}`;
+  console.error(`Unreadable JSON file moved aside: ${file} -> ${aside}`);
+  try {
+    renameSync(file, aside);
+  } catch {
+    /* best effort */
+  }
+}
+
+/** Writes JSON through a temp file and a rename, so a crash never leaves a truncated file; best effort. */
+export function writeJsonSync(file: string, value: unknown): void {
+  const tmp = `${file}.${process.pid}.tmp`;
+  try {
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(tmp, JSON.stringify(value));
+    renameSync(tmp, file);
+  } catch {
+    try {
+      rmSync(tmp, { force: true });
+    } catch {
+      /* best effort */
+    }
+  }
+}
+
 /** Per-session pin / rename / archive state kept in `file` (`{[sessionId]: {pin?, name?, archived?}}`). */
 export function createSessionStateStore(file: string): SessionStateStore {
   let items: Record<string, AgentSessionState> | undefined;
   const load = () => {
     if (items) return items;
-    items = {};
+    items = Object.create(null) as Record<string, AgentSessionState>;
+    let text: string;
     try {
-      const raw = JSON.parse(readFileSync(file, 'utf8')) as unknown;
-      if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
-        for (const [id, v] of Object.entries(raw)) if (v && typeof v === 'object') items[id] = normalizeState(v as Record<string, unknown>);
-      }
+      text = readFileSync(file, 'utf8');
     } catch {
-      /* no state yet */
+      return items; // no state yet
     }
+    let raw: unknown;
+    try {
+      raw = JSON.parse(text);
+    } catch {
+      raw = undefined;
+    }
+    if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+      for (const [id, v] of Object.entries(raw)) if (v && typeof v === 'object') items[id] = normalizeState(v as Record<string, unknown>);
+    } else quarantine(file);
     return items;
   };
-  const save = () => {
-    try {
-      mkdirSync(dirname(file), { recursive: true });
-      writeFileSync(file, JSON.stringify(items ?? {}));
-    } catch {
-      /* best effort */
-    }
-  };
+  const save = () => writeJsonSync(file, items ?? {});
   return {
     get: (id) => load()[id],
     set(id, patch) {

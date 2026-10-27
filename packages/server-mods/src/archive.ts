@@ -34,12 +34,15 @@ export interface SevenZipJob {
   /** Emscripten mount point -> host folder, mounted through NODEFS. */
   mounts: Record<string, string>;
   cwd?: string;
+  /** Passed to `run`: caps the kept `Path = ` lines. */
+  maxPaths?: number;
 }
 
 export interface SevenZipResult {
   out: string[];
   err: string[];
   code: number;
+  capped?: boolean;
 }
 
 /**
@@ -114,7 +117,11 @@ export function parseListing(lines: string[]): ArchiveEntry[] {
 }
 
 async function list(abs: string, extra: string[] = [], max = MAX_ENTRIES): Promise<{ entries: ArchiveEntry[]; truncated: boolean }> {
-  const { out, err, code, capped } = await run(['l', '-slt', '-ba', '-bd', ...extra, `/host/${basename(abs)}`], { '/host': dirname(abs) }, undefined, Number.isFinite(max) ? max : undefined);
+  const { out, err, code, capped } = await runInWorker({
+    args: ['l', '-slt', '-ba', '-bd', ...extra, `/host/${basename(abs)}`],
+    mounts: { '/host': dirname(abs) },
+    maxPaths: Number.isFinite(max) ? max : undefined,
+  });
   const entries = parseListing(out);
   if (entries.length === 0 && (code !== 0 || err.length > 0)) {
     throw invalid('badArchive', err.find((l) => l.trim()) ?? 'This file is not a supported archive.');
@@ -130,7 +137,7 @@ export async function listArchive(abs: string): Promise<ArchiveListing> {
   if (only && !only.dir && /\.tar$/i.test(only.path) && only.size <= MAX_NESTED_TAR_BYTES) {
     const dir = await mkdtemp(join(tmpdir(), 'kedalion-arc-'));
     try {
-      const { code } = await run(['e', '-y', '-bd', `-o/out`, `/host/${basename(abs)}`], { '/host': dirname(abs), '/out': dir });
+      const { code } = await runInWorker({ args: ['e', '-y', '-bd', `-o/out`, `/host/${basename(abs)}`], mounts: { '/host': dirname(abs), '/out': dir } });
       if (code === 0 && (await stat(join(dir, basename(only.path))).catch(() => null))) listing = await list(join(dir, basename(only.path)));
     } finally {
       await rm(dir, { recursive: true, force: true });
@@ -140,8 +147,8 @@ export async function listArchive(abs: string): Promise<ArchiveListing> {
 }
 
 /**
- * `callMain` is synchronous and blocks its thread for the whole run, so extract and compress run
- * 7z in a Worker; the server keeps answering meanwhile.
+ * `callMain` is synchronous and blocks its thread for the whole run, so every 7z run (list,
+ * extract, compress) goes through a Worker; the server keeps answering meanwhile.
  */
 function runInWorker(job: SevenZipJob): Promise<SevenZipResult> {
   // In the exe this resolves next to the bundled entry, where `kedalion build` must put the worker entrypoint.

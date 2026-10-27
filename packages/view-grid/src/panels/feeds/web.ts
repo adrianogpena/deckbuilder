@@ -19,8 +19,8 @@ const weatherPanel = definePanel<WeatherConfig, WeatherData | undefined>({
   category: 'dash.category.feeds',
   size: { w: 5, h: 12, minW: 3, minH: 5 },
   config: { fields: WEATHER_FIELDS },
-  load: async (config) =>
-    config.location.trim() ? fetchSource<WeatherData>('feeds-weather', { location: config.location, units: config.units, days: config.days }) : undefined,
+  load: async (config, ctx) =>
+    config.location.trim() ? fetchSource<WeatherData>('feeds-weather', { location: config.location, units: config.units, days: config.days }, ctx.signal) : undefined,
   refreshMs: 30 * MIN,
   render: ({ config, data, configure }) => createElement(WeatherPanel, { config, data, configure }),
 });
@@ -33,7 +33,7 @@ const rssPanel = definePanel<RssConfig, FeedItem[] | undefined>({
   category: 'dash.category.feeds',
   size: { w: 6, h: 14, minW: 3, minH: 5 },
   config: { fields: RSS_FIELDS },
-  load: async (config) => (config.urls.trim() ? fetchSource<FeedItem[]>('feeds-rss', { urls: config.urls, max: config.max }) : undefined),
+  load: async (config, ctx) => (config.urls.trim() ? fetchSource<FeedItem[]>('feeds-rss', { urls: config.urls, max: config.max }, ctx.signal) : undefined),
   refreshMs: 15 * MIN,
   render: ({ config, data, configure }) => createElement(RssPanel, { config, items: data, configure }),
 });
@@ -46,7 +46,7 @@ const exchangeRatePanel = definePanel<FxConfig, FxData>({
   category: 'dash.category.feeds',
   size: { w: 4, h: 8, minW: 3, minH: 5 },
   config: { fields: FX_FIELDS },
-  load: (config) => fetchSource<FxData>('feeds-fx', { base: config.base, quote: config.quote, days: config.days, apiKey: config.apiKey }),
+  load: (config, ctx) => fetchSource<FxData>('feeds-fx', { base: config.base, quote: config.quote, days: config.days, apiKey: config.apiKey }, ctx.signal),
   refreshMs: (config) => (config.apiKey?.trim() ? 5 * MIN : 60 * MIN),
   render: ({ config, data }) => createElement(ExchangeRatePanel, { config, data }),
 });

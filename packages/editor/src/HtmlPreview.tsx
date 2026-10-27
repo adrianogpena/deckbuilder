@@ -6,18 +6,24 @@ import { useEffect, useState } from 'react';
  */
 export function HtmlPreview({ name, text, viewHtml }: { name: string; text: string; viewHtml?(): Promise<string> }) {
   const [url, setUrl] = useState<string>();
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     setUrl(undefined);
+    setFailed(false);
     if (!viewHtml) return;
     let live = true;
-    viewHtml().then((u) => live && setUrl(u), () => {});
+    viewHtml().then(
+      (u) => live && setUrl(u),
+      () => live && setFailed(true),
+    );
     return () => {
       live = false;
     };
   }, [viewHtml, text]);
 
+  // Without a server page (or when it fails), the frame shows the text with scripts blocked.
   return url
     ? <iframe className="file-preview-html" title={name} sandbox="allow-scripts" src={url} />
-    : <iframe className="file-preview-html" title={name} sandbox="" srcDoc={viewHtml ? '' : text} />;
+    : <iframe className="file-preview-html" title={name} sandbox="" srcDoc={viewHtml && !failed ? '' : text} />;
 }

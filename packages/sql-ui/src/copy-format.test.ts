@@ -27,7 +27,7 @@ describe('formatCopy', () => {
   });
   test('insert quotes, doubles quotes, NULL and numbers', () => {
     expect(formatCopy('insert', cols, rows, 'select * from HR.EMP where x = 1')).toBe(
-      "INSERT INTO HR.EMP (id, name) VALUES (1, 'O''Neil | a\nb');\nINSERT INTO HR.EMP (id, name) VALUES (2, NULL);",
+      "INSERT INTO HR.EMP (\"id\", \"name\") VALUES (1, 'O''Neil | a\nb');\nINSERT INTO HR.EMP (\"id\", \"name\") VALUES (2, NULL);",
     );
   });
 });

@@ -23,13 +23,14 @@ export function TicketNotes({ ticketId, config }: Props) {
   const flush = async () => {
     clearTimeout(timer.current);
     const value = latest.current;
-    if (saved.current === null || value === saved.current) return;
+    const prev = saved.current;
+    if (prev === null || value === prev) return;
     saved.current = value;
     try {
       await runAction('tickets', 'notes-set', configRef.current, { id: ticketId, text: value });
       setError('');
     } catch (err) {
-      saved.current = null;
+      if (saved.current === value) saved.current = prev;
       setError(String((err as Error)?.message ?? err));
     }
   };

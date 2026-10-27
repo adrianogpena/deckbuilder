@@ -13,7 +13,7 @@ const spotifyPanel = definePanel<SpotifyConfig, SpotifyData>({
   category: 'dash.category.spotify',
   size: { w: 6, h: 18, minW: 4, minH: 8 },
   config: { fields: SPOTIFY_FIELDS },
-  load: (config) => fetchSource<SpotifyData>('spotify', { clientId: config.clientId }),
+  load: (config, ctx) => fetchSource<SpotifyData>('spotify', { clientId: config.clientId }, ctx.signal),
   refreshMs: (_config, data) => (data && !data.connected ? 3_000 : 4_000),
   pauseOffscreen: true,
   allowMultiple: false,

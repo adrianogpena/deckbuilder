@@ -20,7 +20,7 @@ const ticketsPanel = definePanel<TicketsConfig, TicketsData>({
   size: { w: 16, h: 12, minW: 6, minH: 5 },
   config: { fields: TICKETS_FIELDS },
   load: async (config, ctx) => {
-    const data = await fetchSource<TicketsData>('tickets', config);
+    const data = await fetchSource<TicketsData>('tickets', config, ctx.signal);
     const sig = JSON.stringify(data);
     unchanged = nextUnchanged(unchanged, lastSig === sig, ctx.auto);
     lastSig = sig;

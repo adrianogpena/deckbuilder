@@ -42,7 +42,7 @@ export interface SqlStep {
   orderBy: string[];
   limit?: string;
   subqueries: number;
-  /** Names of later steps ('main' for the main query) that read this CTE. */
+  /** Names of later steps ('' for the main query) that read this CTE. */
   feeds: string[];
   /** Sorted parameter numbers guarded by `/*%JS=...%*\/` markers inside this step. */
   optional: number[];
@@ -565,7 +565,8 @@ function outlineStatement(ctx: Ctx, from: number, to: number, plsql: boolean): S
     const key = nameKey(s.name);
     for (const o of steps) {
       if (o === s || !o.reads.some((r) => r.cte && nameKey(r.name) === key)) continue;
-      const label = o.kind === 'main' ? 'main' : o.name;
+      // The main step is '' (like SqlProblem.step), so a CTE named "main" cannot collide with it.
+      const label = o.kind === 'main' ? '' : o.name;
       if (!s.feeds.includes(label)) s.feeds.push(label);
     }
   }

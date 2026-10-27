@@ -16,7 +16,10 @@ export function CountPanel({ config, data }: { config: CountConfig; data: CountD
   const max = Math.max(1, ...data.slices.map((s) => s.count));
   return (
     <div className="jira">
-      <div className="jira-head">{label}: {total}</div>
+      <div className="jira-head">
+        {label}: {total}
+        {data.sampled !== undefined && <span className="muted"> {tKey('dash.jira.sampled', { n: data.sampled })}</span>}
+      </div>
       <ul className="jira-bars">
         {data.slices.map((s) => (
           <li key={s.label || '-'} className="jira-bar">

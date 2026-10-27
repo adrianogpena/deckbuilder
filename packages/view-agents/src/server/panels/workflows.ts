@@ -113,6 +113,27 @@ interface Built {
   stamp: string;
 }
 
+/** Stat-only stamp of a workflows dir (run names, journal sizes and mtimes); changes when any journal does. */
+export function workflowsStamp(dir: string | undefined): string {
+  if (!dir) return '';
+  let names: string[];
+  try {
+    names = readdirSync(dir);
+  } catch {
+    return '';
+  }
+  let stamp = '';
+  for (const name of names) {
+    try {
+      const st = statSync(join(dir, name, 'journal.jsonl'));
+      stamp += `${name}:${st.size}:${st.mtimeMs}|`;
+    } catch {
+      continue;
+    }
+  }
+  return stamp;
+}
+
 export function buildWorkflows(dir: string | undefined, now = Date.now()): Built {
   if (!dir) return { payload: { runs: [] }, stamp: '' };
   const runs: WorkflowRun[] = [];
@@ -163,9 +184,10 @@ export const routes: PanelRoutes = (ctx) => {
         while (!signal.aborted) {
           const now = Date.now();
           const dir = workflowsDir(o.accountDirs, o.root, o.sessionId);
-          const built = buildWorkflows(dir, now);
-          if (built.stamp !== sig || now - last >= REFRESH_MS) {
-            sig = built.stamp;
+          const stamp = `${dir ?? ''}>${workflowsStamp(dir)}`;
+          if (stamp !== sig || now - last >= REFRESH_MS) {
+            const built = buildWorkflows(dir, now);
+            sig = stamp;
             last = now;
             const json = JSON.stringify(built.payload);
             if (json !== sent) {

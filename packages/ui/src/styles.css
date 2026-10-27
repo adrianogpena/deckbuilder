@@ -733,7 +733,7 @@ html[data-status-bar="false"] .status-bar { display: none; }
 .explorer-rail .btn { width: var(--control-h); padding: 0; justify-content: center; }
 
 @media (max-width: 800px) {
-  .app { grid-template-columns: 1fr; }
+  .app, .app.nav-collapsed, .app.sidebar-right, .app.sidebar-right.nav-collapsed { grid-template-columns: 1fr; }
   .sidebar { display: none; }
 }
 
@@ -825,7 +825,7 @@ html[data-status-bar="false"] .status-bar { display: none; }
 .markdown pre code { padding: 0; background: none; line-height: 1.55; }
 .md-code { position: relative; margin: 0 0 var(--space-12); }
 .md-code pre { margin: 0; }
-.md-code-copy { position: absolute; top: 6px; right: 6px; padding: var(--space-2) var(--space-8); font-size: var(--fs-xs); color: var(--ink-muted, inherit); background: var(--bg-raised, var(--bg-sunken)); border: 1px solid var(--border-soft); border-radius: var(--radius-md); cursor: pointer; opacity: 0; transition: opacity 0.1s; }
+.md-code-copy { position: absolute; top: 6px; right: 6px; padding: var(--space-2) var(--space-8); font-size: var(--fs-xs); color: var(--text-3); background: var(--panel-2); border: 1px solid var(--border-soft); border-radius: var(--radius-md); cursor: pointer; opacity: 0; transition: opacity 0.1s; }
 .md-code:hover .md-code-copy, .md-code-copy:focus-visible { opacity: 1; }
 .markdown blockquote { padding: var(--space-2) var(--space-12); border-left: 3px solid var(--border); color: var(--text-2); }
 .markdown table { border-collapse: collapse; display: block; max-width: 100%; overflow: auto; }
@@ -1179,7 +1179,7 @@ html[data-status-bar="false"] .status-bar { display: none; }
 }
 
 .pdf-bar { justify-content: flex-start; align-items: center; }
-.pdf-page { font-size: var(--fs-sm); color: var(--text-muted, inherit); padding: 0 var(--space-6) 0 var(--space-2); white-space: nowrap; }
+.pdf-page { font-size: var(--fs-sm); color: var(--text-3); padding: 0 var(--space-6) 0 var(--space-2); white-space: nowrap; }
 .pdf-page-input { width: 52px; text-align: center; font-size: var(--fs-sm); padding: var(--space-2) var(--space-4); }
 .pdf-prev { display: inline-flex; transform: rotate(180deg); }
 .pdf-main { display: flex; flex: 1; min-height: 0; gap: var(--space-8); }
@@ -1203,7 +1203,7 @@ html[data-status-bar="false"] .status-bar { display: none; }
 .archive-summary { font-size: var(--fs-sm); opacity: 0.8; }
 .archive-filter { width: 220px; }
 .archive-row { display: grid; grid-template-columns: 1fr 80px 160px; gap: var(--space-12); align-items: center; padding: 3px var(--space-8); font-size: var(--fs-md); border-radius: var(--radius-xs); }
-.archive-row:hover { background: var(--bg-hover, rgba(128, 128, 128, 0.12)); }
+.archive-row:hover { background: var(--hover); }
 .archive-dir { cursor: pointer; }
 .archive-name { display: flex; align-items: center; gap: var(--space-6); min-width: 0; }
 .archive-name > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1255,6 +1255,11 @@ html[data-status-bar="false"] .status-bar { display: none; }
 :root[data-reduce-motion='true'] *, :root[data-reduce-motion='true'] *::before, :root[data-reduce-motion='true'] *::after {
   animation-duration: 0s !important; animation-iteration-count: 1 !important; transition-duration: 0s !important; scroll-behavior: auto !important;
 }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0s !important; animation-iteration-count: 1 !important; transition-duration: 0s !important; scroll-behavior: auto !important;
+  }
+}
 
 /* ---- screen edges: a thin frame on the right and bottom of a full-window screen (Terminal, REST, Git) so the
    window size reads clearly. The 1px inner line is an overlay, so child backgrounds can't hide it. */
@@ -1276,20 +1281,20 @@ html[data-status-bar="false"] .status-bar { display: none; }
 .sqlsteps.is-bottom { flex: 1; width: auto; border-left: 0; }
 .sqlsteps.is-bottom .sqlsteps-group { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); align-items: start; }
 .sqlsteps.is-bottom .sqlsteps-group-head { grid-column: 1 / -1; }
-.sqlsteps-group-head { padding: var(--space-2) var(--space-4); border: 0; border-radius: var(--radius-md); background: transparent; color: var(--muted); font: inherit; font-size: var(--fs-xs); font-weight: 600; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.sqlsteps-group-head { padding: var(--space-2) var(--space-4); border: 0; border-radius: var(--radius-md); background: transparent; color: var(--text-3); font: inherit; font-size: var(--fs-xs); font-weight: 600; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
 .sqlsteps-group-head:hover { background: var(--hover); color: var(--text); }
 .sqlsteps-card { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-6) var(--space-8); border: 1px solid var(--border-soft); border-radius: var(--radius-md); font-size: var(--fs-xs); cursor: pointer; }
 .sqlsteps-card:hover { background: var(--hover); }
 .sqlsteps-card.is-active { border-color: var(--accent); background: var(--hover); }
 .sqlsteps-name { font-size: var(--fs-sm); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sqlsteps-row { display: flex; gap: var(--space-6); align-items: baseline; }
-.sqlsteps-label { flex: none; width: 56px; color: var(--muted); }
+.sqlsteps-label { flex: none; width: 56px; color: var(--text-3); }
 .sqlsteps-value { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
 .sqlsteps-code { max-width: 100%; font-family: var(--font-mono, monospace); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sqlsteps-code.is-cte { color: var(--accent); font-style: italic; }
 .sqlsteps-joins { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; width: 100%; }
 .sqlsteps-join { display: flex; align-items: center; gap: var(--space-4); min-width: 0; }
-.sqlsteps-on { flex: 1; min-width: 0; font-family: var(--font-mono, monospace); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sqlsteps-on { flex: 1; min-width: 0; font-family: var(--font-mono, monospace); color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sqlsteps-badges { display: flex; flex-wrap: wrap; gap: var(--space-4); }
 .sqlsteps-feed { padding: 0; border: 0; background: transparent; color: var(--accent); font: inherit; cursor: pointer; }
 .sqlsteps-feed:hover { text-decoration: underline; }
@@ -1379,7 +1384,7 @@ html[data-status-bar="false"] .status-bar { display: none; }
 .view-with-side { position: relative; display: flex; flex: 1; min-width: 0; min-height: 0; height: 100%; }
 .view-with-side-main { flex: 1; min-width: 0; min-height: 0; overflow: auto; }
 .view-side-scrim { position: absolute; inset: 0; z-index: 9; background: rgb(0 0 0 / .45); animation: view-side-in .16s ease-out; }
-.view-side { position: absolute; top: 0; right: 0; bottom: 0; z-index: 10; box-shadow: -8px 0 24px rgb(0 0 0 / .3); display: flex; flex-direction: column; width: var(--view-side-w, min(980px, 64vw)); min-width: 560px; max-width: min(980px, 100%); min-height: 0; background: var(--panel); border-left: 1px solid var(--border); animation: view-side-in .16s ease-out; }
+.view-side { position: absolute; top: 0; right: 0; bottom: 0; z-index: 10; box-shadow: -8px 0 24px rgb(0 0 0 / .3); display: flex; flex-direction: column; width: var(--view-side-w, min(980px, 64vw)); min-width: min(560px, 100%); max-width: min(980px, 100%); min-height: 0; background: var(--panel); border-left: 1px solid var(--border); animation: view-side-in .16s ease-out; }
 /* A panel under another one: shifted left so a strip stays visible; a click on it comes back to it. */
 .view-side-under { cursor: pointer; box-shadow: -4px 0 12px rgb(0 0 0 / .2); }
 .view-side-under > * { pointer-events: none; }

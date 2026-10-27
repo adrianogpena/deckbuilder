@@ -17,6 +17,7 @@ import {
   relPath,
   type SortState,
   useDialogs,
+  useFileIconVersion,
   useToast,
   type ApiError,
 } from '@kedalion/ui';
@@ -76,7 +77,8 @@ export function DetailsTab({ project, path, exclude, showHidden = false, sort, o
   const { confirm, element } = useDialogs();
   const toast = useToast();
   const copyPath = useCopyPath();
-  const reload = () => setTick((n) => n + 1);
+  const iconVersion = useFileIconVersion();
+  const reload =() => setTick((n) => n + 1);
 
   useEffect(() => {
     let live = true;
@@ -134,7 +136,7 @@ export function DetailsTab({ project, path, exclude, showHidden = false, sort, o
       { id: 'mtime', label: t('explorer.details.modified'), width: 180, value: (r) => r.mtime, render: (r) => new Date(r.mtime).toLocaleString(), copy: (r) => new Date(r.mtime).toLocaleString() },
       { id: 'type', label: t('explorer.details.type'), width: 140, value: typeOf },
     ],
-    [],
+    [iconVersion],
   );
 
   const open = (row: Row) => (row.dir ? (!row.outside && onNavigate(row.path)) : onOpenFile(row.path));
@@ -241,6 +243,8 @@ export function DetailsTab({ project, path, exclude, showHidden = false, sort, o
       onKeyDown={(e) => {
         if (e.key === 'Delete' && picked.length && !menu) {
           e.preventDefault();
+          // Same rule as the menu: entries outside the project are not deleted.
+          if (picked.some((r) => r.outside)) return;
           void remove(picked);
         }
       }}

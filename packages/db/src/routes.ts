@@ -26,8 +26,11 @@ const MAX_PENDING = 200;
 
 const badRequest = () => invalid('badRequest', 'Invalid request.');
 
+/** `sql` with the password of each `IDENTIFIED BY <password>` (bare or quoted) replaced by `***`, for the history. */
+const maskPasswords = (sql: string) => sql.replace(/(\bidentified\s+by\s+)(?:"(?:[^"]|"")*"|'(?:[^']|'')*'|[^\s;]+)/gi, '$1***');
+
 /**
- * The Workbench's database API: `POST /api/db/test|connect|run|explain|commit|rollback|disconnect`,
+ * The Workbench's database API: `POST /api/db/test|connect|run|explain|cancel|commit|rollback|disconnect`,
  * `GET /api/db/rows?run=` (NDJSON of row arrays), `GET /api/db/schema?id=&owner=`, `GET /api/db/table?id=&owner=&name=` and `GET /api/db/status?id=`;
  * with `history`, `GET /api/db/history?q=&connection=` and `POST /api/db/history/delete|clear`.
  */
@@ -83,7 +86,7 @@ export function dbRoutes({ sessions, credentials, scripts, history }: DbRoutesOp
       const at = Date.now();
       const start = performance.now();
       const record = (extra: { rows?: number; error?: string }) =>
-        history?.append({ connectionId: id, sql: b.sql as string, at, ms: Math.round(performance.now() - start), ...extra }).catch(() => null) ?? Promise.resolve(null);
+        history?.append({ connectionId: id, sql: maskPasswords(b.sql as string), at, ms: Math.round(performance.now() - start), ...extra }).catch(() => null) ?? Promise.resolve(null);
       let result;
       try {
         result = await sessions.run(id, creds, b.sql, { maxRows: maxRows as number | undefined });
@@ -159,6 +162,8 @@ export function dbRoutes({ sessions, credentials, scripts, history }: DbRoutesOp
       await lookup(id);
       return sessions.rollback(id);
     },
+    // Stops a statement the client gave up on (timeout); no lookup, like disconnect.
+    'POST /api/db/cancel': async ({ json }) => sessions.cancel(idOf((await body(json)).id)),
     // Works for a deleted record too, so its open session can still be closed.
     'POST /api/db/disconnect': async ({ json }) => sessions.close(idOf((await body(json)).id)),
     'GET /api/db/schema': async ({ query }) => {

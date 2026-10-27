@@ -17,7 +17,16 @@ export interface TimesheetResult extends TimesheetData {
   today: string;
 }
 
-const storeOf = (dataDir: string) => createJsonStore<TimesheetData>({ dataDir, name: 'timesheet', parse: parseData, empty: emptyData });
+const stores = new Map<string, ReturnType<typeof createJsonStore<TimesheetData>>>();
+
+const storeOf = (dataDir: string) => {
+  let s = stores.get(dataDir);
+  if (!s) {
+    s = createJsonStore<TimesheetData>({ dataDir, name: 'timesheet', parse: parseData, empty: emptyData });
+    stores.set(dataDir, s);
+  }
+  return s;
+};
 
 async function compute(config: TimesheetConfig, dataDir: string, signal: AbortSignal): Promise<TimesheetResult> {
   const now = new Date();

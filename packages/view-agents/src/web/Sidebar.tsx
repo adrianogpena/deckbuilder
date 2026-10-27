@@ -30,6 +30,13 @@ import { hideSection, loadSections, moveWithin, restoreAll, restoreSection, save
 import { panelOf } from './workspace/registry';
 import type { PanelKind, WorkspaceApi } from './workspace/types';
 
+/** The agents command with this id (throws when there is none, so a renamed id fails loudly). */
+const cmd = (id: string): ReturnType<typeof agentsCommands>[number] => {
+  const c = agentsCommands().find((x) => x.id === id);
+  if (!c) throw new Error(`Unknown agents command: ${id}`);
+  return c;
+};
+
 const CORE_TITLE = {
   sessions: 'agents.section.sessions', changes: 'agents.section.changes', tags: 'agents.section.tags', archived: 'agents.section.archived', usage: 'agents.section.usage',
 } as const;
@@ -194,7 +201,7 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
     saveSections(next);
     return next;
   });
-  useCommand(agentsCommands()[51]!, () => setSections(restoreAll));
+  useCommand(cmd('agents.reopenSections'), () => setSections(restoreAll));
   useEffect(() => {
     const reload = () => setSectionsState(loadSections());
     window.addEventListener(SECTIONS_EVENT, reload);
@@ -205,7 +212,7 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
     };
   }, []);
   const focusChanges = useRef(false);
-  useCommand(agentsCommands().find((c) => c.id === 'agents.focusChanges')!, () => {
+  useCommand(cmd('agents.focusChanges'), () => {
     setSections((s) => restoreSection({ ...s, collapsed: s.collapsed.filter((x) => x !== 'changes') }, 'changes'));
     focusChanges.current = true;
   });
@@ -224,7 +231,7 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
   const [accountsOpen, setAccountsOpen] = useState(false);
   /** The project row last clicked: of a split project, only that node shows as current. */
   const [selectedNode, setSelectedNode] = useState<string>();
-  useCommand(agentsCommands()[21]!, () => setAccountsOpen(true));
+  useCommand(cmd('agents.switchAccount'), () => setAccountsOpen(true));
   const [manageOpen, setManageOpen] = useState<ManageAccountsMode>();
   /** A new account: with a project selected it becomes active and a new session starts there for `/login`. */
   const accountAdded = async ({ folder, account, linked }: AddedAccount) => {
@@ -245,7 +252,7 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
   const filtered = isFiltering(filters);
   const searching = q !== '' || qStatus !== undefined || filtered;
   const tagFilter = filters.tag;
-  useCommand(agentsCommands()[6]!, () => setFilters(clearFilters()));
+  useCommand(cmd('agents.clearFilters'), () => setFilters(clearFilters()));
 
   useEffect(() => {
     setHits(new Map());
@@ -350,7 +357,7 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
     remembered.current = trackPrevious(remembered.current, selectedId || undefined);
     if (selectedId) focusMemory.sessionId = selectedId;
   }, [selectedId]);
-  useCommand(agentsCommands()[8]!, () => {
+  useCommand(cmd('agents.previousSession'), () => {
     const p = remembered.current.previous;
     if (p && sessions.some((s) => s.id === p)) onSelect(p);
     else toast({ message: t('agents.nav.noPrevious') });
@@ -364,15 +371,15 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
       setTimeout(() => ref.current?.querySelector<HTMLElement>('.agents-tree .agents-session[aria-current]')?.focus(), 0);
     } else toast({ message: t('agents.nav.noStarted') });
   };
-  useCommand(agentsCommands()[9]!, () => jumpStarted(-1));
-  useCommand(agentsCommands()[10]!, () => jumpStarted(1));
+  useCommand(cmd('agents.prevStarted'), () => jumpStarted(-1));
+  useCommand(cmd('agents.nextStarted'), () => jumpStarted(1));
   const cycleSort = () => {
     if (!tree) return;
     const next = SORTS[(SORTS.indexOf(tree.sort) + 1) % SORTS.length]!;
     void send({ sort: next });
     if (next !== 'manual') toast({ message: t(next === 'actionable' ? 'agents.sort.toast.actionable' : 'agents.sort.toast.recent') });
   };
-  useCommand(agentsCommands()[7]!, cycleSort);
+  useCommand(cmd('agents.cycleSort'), cycleSort);
 
   /** The reply's tree when the patch applied, else undefined (refusals toasted, `noop` silent). */
   const sendTree = async (p: AgentTreePatch): Promise<TreePatchResult['tree'] | undefined> => {
@@ -458,19 +465,11 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
     const list = batchSessions();
     clearBatch();
     const tally = { stopped: 0, notRunning: 0 };
-    let failed = false;
-    for (const s of list) {
-      if (s.external || !(s.live || s.lifecycle !== undefined) || !s.id) {
-        tally.notRunning++;
-        continue;
-      }
-      try {
-        await stopSession(s.id);
-        tally.stopped++;
-      } catch {
-        failed = true;
-      }
-    }
+    const running = list.filter((s) => !(s.external || !(s.live || s.lifecycle !== undefined) || !s.id));
+    tally.notRunning = list.length - running.length;
+    const results = await Promise.allSettled(running.map((s) => stopSession(s.id)));
+    tally.stopped = results.filter((r) => r.status === 'fulfilled').length;
+    const failed = tally.stopped < results.length;
     const o = stopOutcome(tally);
     toast({ message: o === 'none' ? t('agents.batch.noneRunning') : o === 'all' ? t('agents.batch.stopped', { n: String(tally.stopped) }) : t('agents.batch.stoppedSome', { n: String(tally.stopped), k: String(tally.notRunning) }) });
     if (failed) toast({ message: t('agents.stateFailed'), kind: 'error' });
@@ -503,17 +502,12 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
     clearBatch();
     const un = archivedView;
     const { ok, working } = partitionArchive(list, un);
-    let failed = false;
-    let done = 0;
-    for (const { s, stop } of ok) {
-      try {
-        if (stop) await stopSession(s.id);
-        await patchSessionState(s.id, { archived: !un });
-        done++;
-      } catch {
-        failed = true;
-      }
-    }
+    const results = await Promise.allSettled(ok.map(async ({ s, stop }) => {
+      if (stop) await stopSession(s.id);
+      await patchSessionState(s.id, { archived: !un });
+    }));
+    const done = results.filter((r) => r.status === 'fulfilled').length;
+    const failed = done < results.length;
     const o = archiveOutcome(done, working);
     const p = un ? 'unarchive' : 'archive';
     const key = o === 'empty' ? `agents.batch.${p}Empty` : o === 'all' ? `agents.batch.${un ? 'unarchived' : 'archived'}` : o === 'some' ? `agents.batch.${un ? 'unarchived' : 'archived'}Some` : `agents.batch.${un ? 'unarchived' : 'archived'}None`;
@@ -526,8 +520,8 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
     setArchivedView(next);
     toast({ message: t(next ? 'agents.view.archived' : 'agents.view.active') });
   };
-  useCommand(agentsCommands()[16]!, toggleArchivedView);
-  useCommand(agentsCommands()[15]!, () => {
+  useCommand(cmd('agents.toggleArchived'), toggleArchivedView);
+  useCommand(cmd('agents.archive'), () => {
     const s = currentSession();
     if (s) void archiveOne(s);
   });
@@ -574,12 +568,12 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
       toast({ message: t('agents.stateFailed'), kind: 'error' });
     }
   };
-  useCommand(agentsCommands()[17]!, () => {
+  useCommand(cmd('agents.delete'), () => {
     const s = currentSession();
     if (s) void deleteOne(s);
   });
-  useCommand(agentsCommands()[18]!, () => void undo());
-  useCommand(agentsCommands()[19]!, () => setTrashOpen(true));
+  useCommand(cmd('agents.undoDelete'), () => void undo());
+  useCommand(cmd('agents.openTrash'), () => setTrashOpen(true));
 
   // Batch actions in bar order.
   const batchActions: BatchAction[] = [
@@ -590,10 +584,10 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
     { id: 'delete', label: t('agents.delete'), run: () => void batchDelete(), danger: true },
   ];
   const ifBatch = (run: () => void) => () => (checked.size ? run() : undefined);
-  useCommand(agentsCommands()[11]!, ifBatch(() => void batchStop()));
-  useCommand(agentsCommands()[12]!, ifBatch(() => void batchTags()));
-  useCommand(agentsCommands()[13]!, ifBatch(batchMove));
-  useCommand(agentsCommands()[14]!, ifBatch(() => clearBatch(true)));
+  useCommand(cmd('agents.batchStop'), ifBatch(() => void batchStop()));
+  useCommand(cmd('agents.batchTags'), ifBatch(() => void batchTags()));
+  useCommand(cmd('agents.batchMove'), ifBatch(batchMove));
+  useCommand(cmd('agents.batchClear'), ifBatch(() => clearBatch(true)));
 
   /** Space on a session row: toggle its check, then focus the next selectable row. */
   const spaceCheck = (el: HTMLElement, id: string) => {
@@ -765,42 +759,42 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
     const s = currentSession();
     if (s) fn(s);
   };
-  useCommand(agentsCommands()[25]!, () => {
+  useCommand(cmd('agents.newSession'), () => {
     const r = currentRow();
     const id = r?.kind === 'project' ? r.project.id : r?.kind === 'session' ? r.session.project : undefined;
     if (id) onQuickNew(id);
   });
-  useCommand(agentsCommands()[28]!, () => {
+  useCommand(cmd('agents.rename'), () => {
     const r = currentRow();
     if (r?.kind === 'folder') void renameFolder(r.id, r.name);
     else if (r?.kind === 'session') setTimeout(() => startRename(r.session.id), 0);
   });
-  useCommand(agentsCommands()[33]!, onSession((s) => toggleCheck(s.id)));
-  useCommand(agentsCommands()[34]!, onSession((s) => void markUnread(s.id).catch(() => undefined)));
-  useCommand(agentsCommands()[35]!, onSession((s) => void markSeen(s.id).catch(() => undefined)));
-  useCommand(agentsCommands()[36]!, onSession((s) => cyclePin(s)));
-  useCommand(agentsCommands()[37]!, () => void newFolder());
-  useCommand(agentsCommands()[38]!, () => openMove(currentRow()));
-  useCommand(agentsCommands()[39]!, onSession((s) => void editTags(s)));
-  useCommand(agentsCommands()[40]!, () => reorder(-1));
-  useCommand(agentsCommands()[41]!, () => reorder(1));
-  useCommand(agentsCommands()[42]!, () => {
+  useCommand(cmd('agents.multiSelect'), onSession((s) => toggleCheck(s.id)));
+  useCommand(cmd('agents.markUnread'), onSession((s) => void markUnread(s.id).catch(() => undefined)));
+  useCommand(cmd('agents.markRead'), onSession((s) => void markSeen(s.id).catch(() => undefined)));
+  useCommand(cmd('agents.pin'), onSession((s) => cyclePin(s)));
+  useCommand(cmd('agents.newFolder'), () => void newFolder());
+  useCommand(cmd('agents.moveToFolder'), () => openMove(currentRow()));
+  useCommand(cmd('agents.tags'), onSession((s) => void editTags(s)));
+  useCommand(cmd('agents.reorderUp'), () => reorder(-1));
+  useCommand(cmd('agents.reorderDown'), () => reorder(1));
+  useCommand(cmd('agents.viewMode'), () => {
     if (!tree) return;
     const next = tree.view === 'active' ? 'normal' : 'active';
     void send({ view: next });
     toast({ message: t(next === 'active' ? 'agents.view.toast.active' : 'agents.view.toast.normal') });
   });
-  useCommand(agentsCommands()[43]!, () => moveFocus(-1));
-  useCommand(agentsCommands()[44]!, () => moveFocus(1));
-  useCommand(agentsCommands()[45]!, () => arrow('left'));
-  useCommand(agentsCommands()[46]!, () => arrow('right'));
-  useCommand(agentsCommands()[50]!, () => {
+  useCommand(cmd('agents.moveUp'), () => moveFocus(-1));
+  useCommand(cmd('agents.moveDown'), () => moveFocus(1));
+  useCommand(cmd('agents.collapse'), () => arrow('left'));
+  useCommand(cmd('agents.expand'), () => arrow('right'));
+  useCommand(cmd('agents.focusList'), () => {
     const root = ref.current;
     if (!root) return;
     const item = root.querySelector<HTMLElement>('.agents-tree .agents-session[aria-current], .agents-tree .agents-node[aria-current]') ?? root.querySelector<HTMLElement>(`${ITEMS}[aria-current], ${ITEMS}[tabindex="0"]`) ?? root.querySelector<HTMLElement>(ITEMS);
     (item ?? root).focus();
   });
-  useCommand(agentsCommands()[47]!, () => setTimeout(() => ref.current?.querySelector<HTMLInputElement>('.agents-search input')?.focus(), 0));
+  useCommand(cmd('agents.search'), () => setTimeout(() => ref.current?.querySelector<HTMLInputElement>('.agents-search input')?.focus(), 0));
 
   const pill = (key: string, active: boolean, label: ReactNode, aria: string, onClick: () => void, status?: AgentStatus) => (
     <button key={key} type="button" className={`agents-pill${status ? ` ${status}` : ''}`} aria-pressed={active} title={aria} aria-label={aria} onClick={onClick}>
@@ -1054,12 +1048,26 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
     setSections((st) => hideSection(st, id));
     getWorkspace?.()?.api.moveToSide(kind as PanelKind);
   };
+  /** Whether `renderSection` draws the card (hidden, empty tags / archived, missing tool panels and no usage are not drawn). */
+  const rendered = (id: SectionId) => {
+    if (sections.hidden.includes(id)) return false;
+    const kind = toolKind(id);
+    if (kind !== undefined) return !!panelOf(kind);
+    if (id === 'tags') return tags.length > 0;
+    if (id === 'archived') return archived.length > 0;
+    if (id === 'changes' || id === 'sessions') return true;
+    return !!usageBlock;
+  };
   const sectionMenu = (id: SectionId) => (e: MouseEvent) => {
-    const group = groupOf(id);
-    const at = group.indexOf(id);
+    // Up / down step over the drawn cards only; the target index is in the full group without `id` (as moveWithin takes it).
+    const rest = groupOf(id).filter((x) => x !== id);
+    const shown = groupOf(id).filter((x) => x === id || rendered(x));
+    const at = shown.indexOf(id);
+    const before = shown[at - 1];
+    const after = shown[at + 1];
     setMenu({ at: { x: e.clientX, y: e.clientY }, items: [
-      { id: 'moveUp', label: t('agents.tree.moveUp'), disabled: at <= 0, run: () => moveSectionTo(id, at - 1) },
-      { id: 'moveDown', label: t('agents.tree.moveDown'), disabled: at >= group.length - 1, run: () => moveSectionTo(id, at + 1) },
+      { id: 'moveUp', label: t('agents.tree.moveUp'), disabled: !before, run: () => before && moveSectionTo(id, rest.indexOf(before)) },
+      { id: 'moveDown', label: t('agents.tree.moveDown'), disabled: !after, run: () => after && moveSectionTo(id, rest.indexOf(after) + 1) },
       'sep',
       ...(toolKind(id) !== undefined || id === 'changes' ? [{ id: 'toWorkspace', label: t('agents.section.toWorkspace'), icon: 'panel-right' as const, disabled: !getWorkspace?.(), run: () => toWorkspace(id) }] : []),
       { id: 'hide', label: t('agents.section.hide'), run: () => setSections((st) => hideSection(st, id)) },
@@ -1185,7 +1193,7 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
     if (!ws) return <p className="agents-empty">{t('agents.section.noProject')}</p>;
     if (mod.Section) return <mod.Section project={ws.project} api={ws.api} sessionId={ws.sessionId} />;
     if (!compact) return <p className="agents-empty">{t('agents.section.pending')}</p>;
-    return <mod.Panel project={ws.project} params={{ compact: true }} api={ws.api} tabId={`sidebar:${kind}`} visible focused={false} update={() => undefined} sessionId={ws.sessionId} />;
+    return <mod.Panel key={ws.project} project={ws.project} params={{ compact: true }} api={ws.api} tabId={`sidebar:${kind}`} visible focused={false} update={() => undefined} sessionId={ws.sessionId} />;
   };
   const renderSection = (id: SectionId) => {
     if (sections.hidden.includes(id)) return null;

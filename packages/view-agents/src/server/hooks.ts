@@ -31,6 +31,11 @@ export function createHookApprovals(file: () => string | undefined) {
     async isApproved(command: string): Promise<boolean> {
       return (await load()).has(hookHash(command));
     },
+    /** Sync check against the loaded hashes; false until `isApproved` or `approve` loaded the file. */
+    isApprovedSync(command: string): boolean {
+      const f = file();
+      return !!f && cache?.file === f && cache.hashes.has(hookHash(command));
+    },
     async approve(command: string): Promise<void> {
       const f = file();
       if (!f) throw new Error('Hook approvals are not ready.');
@@ -72,7 +77,23 @@ ${command}`,
     if (!ok) throw invalid('hookNotApproved', 'The hook command was not approved; settings not saved.');
     await deps.approvals.approve(command);
   }
+  const rec = next as Record<string, unknown>;
+  const cmd = typeof rec.claudeCommand === 'string' ? rec.claudeCommand.trim() : '';
+  const args = Array.isArray(rec.claudeArgs) && rec.claudeArgs.length > 0 ? (rec.claudeArgs as string[]) : undefined;
+  const launch: Array<[string, string]> = [];
+  if (cmd) launch.push([claudeCommandKey(cmd), `Allow Kedalion to start Claude sessions with this program?\n\n${cmd}`]);
+  if (args) launch.push([claudeArgsKey(args), `Allow Kedalion to start Claude sessions with these extra arguments?\n\n${args.join(' ')}`]);
+  for (const [key, message] of launch) {
+    if (await deps.approvals.isApproved(key)) continue;
+    const ok = await deps.confirm({ title: 'Kedalion: allow Claude command?', message, ok: 'Allow', okKey: 'confirm.allow' });
+    if (!ok) throw invalid('hookNotApproved', 'The Claude command was not approved; settings not saved.');
+    await deps.approvals.approve(key);
+  }
 }
+
+/** Approval keys of `agents.claudeCommand` and `agents.claudeArgs` (prefixed so a hook approval can't stand in for them). */
+export const claudeCommandKey = (command: string) => `claudeCommand:${command.trim()}`;
+export const claudeArgsKey = (args: readonly string[]) => `claudeArgs:${JSON.stringify(args)}`;
 
 export type HookSpawn = (command: string, opts: { cwd?: string; env: Record<string, string> }) => Promise<void>;
 

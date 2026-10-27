@@ -21,6 +21,9 @@ export function PodLogsTab({ target }: { target: PodTarget }) {
 
   useEffect(() => {
     const abort = new AbortController();
+    setLines([]);
+    setStatus('running');
+    setError(null);
     streamSource(
       'pods',
       'logs',

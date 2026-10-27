@@ -1,4 +1,5 @@
 import { invalid } from '@kedalion/server-core';
+import { declaredTooLarge, readLimited, sourceFetch } from '../../connections/errors';
 import { defineSource, type DataSource, type GridPanelSpec } from '../../server';
 import { addDays, dayKey } from './dates';
 import { fields, ICS_SOURCE_FIELDS } from './fields';
@@ -20,11 +21,16 @@ async function icsText(rawUrl: string, signal: AbortSignal): Promise<string> {
     throw invalid('calendar.badUrl', 'The calendar URL is not valid');
   }
   if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') throw invalid('calendar.badUrl', 'The calendar URL is not valid');
-  const res = await fetch(parsed, { signal, headers: { accept: 'text/calendar, text/plain, */*' } });
-  if (!res.ok) throw invalid('calendar.fetchFailed', `The calendar returned HTTP ${res.status}`, { status: res.status });
-  const text = await res.text();
-  if (text.length > MAX_BYTES) throw invalid('calendar.tooLarge', 'The calendar file is too large');
-  cache.set(url, { at: Date.now(), text });
+  const res = await sourceFetch(parsed.href, { headers: { accept: 'text/calendar, text/plain, */*' } }, { signal });
+  if (declaredTooLarge(res, MAX_BYTES)) {
+    await res.body?.cancel().catch(() => {});
+    throw invalid('calendar.tooLarge', 'The calendar file is too large');
+  }
+  const { text, truncated } = await readLimited(res, MAX_BYTES);
+  if (truncated) throw invalid('calendar.tooLarge', 'The calendar file is too large');
+  const now = Date.now();
+  for (const [k, v] of cache) if (now - v.at >= CACHE_MS) cache.delete(k);
+  cache.set(url, { at: now, text });
   return text;
 }
 

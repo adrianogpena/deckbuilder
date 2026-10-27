@@ -38,13 +38,18 @@ function ProjectFolderDialog({ onPick, onClose }: { onPick(path: string): void; 
   useEffect(() => {
     if (!project) return;
     let live = true;
+    setDirs([]);
     request<{ entries: Entry[] }>('GET', '/api/fs/list', { root: project.id, path: rel }).then(
       (r) => {
         if (!live) return;
         setDirs(r.entries.filter(isDir).map((e) => e.name));
         setError('');
       },
-      (err) => live && setError(String((err as Error)?.message ?? err)),
+      (err) => {
+        if (!live) return;
+        setDirs([]);
+        setError(String((err as Error)?.message ?? err));
+      },
     );
     return () => {
       live = false;
