@@ -22,6 +22,8 @@ export interface SourceContext {
   connection(id: string, type: ConnectionType): Promise<ResolvedConnection>;
   /** An OS toast (absent when the app wires no notifications). */
   notify?(n: { title?: string; body: string }): Promise<void>;
+  /** The origin the request reached the server at, e.g. `http://127.0.0.1:4123` (for OAuth redirect URIs). */
+  origin?: string;
 }
 
 /** The part of the platform `Notifications` the grid needs (structural, so view-grid does not depend on platform). */
@@ -39,6 +41,8 @@ export interface DataSource<C extends PanelConfig = PanelConfig> {
   actions?: Record<string, (payload: unknown, config: C, ctx: SourceContext) => unknown | Promise<unknown>>;
   /** NDJSON streams behind `GET /api/grid/stream/<id>/<name>`; build the body with server-core `ndjson(req, produce)`. */
   streams?: Record<string, (query: URLSearchParams, ctx: SourceContext & { req: Request }) => Response>;
+  /** Browser redirects behind `GET /api/grid/callback/<id>/<name>`, outside the session token check (an OAuth redirect cannot send it): the handler must verify its own `state`. */
+  callbacks?: Record<string, (query: URLSearchParams, ctx: SourceContext) => Response | Promise<Response>>;
 }
 
 /** Identity; types `config` of `fetch`. */
@@ -67,6 +71,9 @@ export const actionRoute = (id: string, name: string): string => `POST /api/grid
 /** The route of stream `name` of data source `id`. */
 export const streamRoute = (id: string, name: string): string => `GET /api/grid/stream/${id}/${name}`;
 
+/** The route of callback `name` of data source `id`. */
+export const callbackRoute = (id: string, name: string): string => `GET /api/grid/callback/${id}/${name}`;
+
 const NAME_RE = /^[a-z0-9-]+$/;
 
 /** Throws when a source id, or one of its action or stream names, is invalid or duplicated. */
@@ -75,7 +82,7 @@ export function checkSources(sources: readonly DataSource<any>[], label: string)
   for (const s of sources) {
     if (ids.has(s.id) || !NAME_RE.test(s.id)) throw new Error(`Invalid or duplicate ${label} source id: ${s.id}`);
     ids.add(s.id);
-    for (const name of [...Object.keys(s.actions ?? {}), ...Object.keys(s.streams ?? {})]) {
+    for (const name of [...Object.keys(s.actions ?? {}), ...Object.keys(s.streams ?? {}), ...Object.keys(s.callbacks ?? {})]) {
       if (!NAME_RE.test(name)) throw new Error(`Invalid ${label} action or stream name: ${s.id}/${name}`);
     }
   }
@@ -90,16 +97,28 @@ export function sourceRoutes(sources: readonly DataSource<any>[], dataDir = '', 
   for (const source of sources) {
     routes[sourceRoute(source.id)] = async ({ json, req }: RouteContext) => {
       const body = await json<{ config?: unknown }>();
-      return source.fetch(validConfig(source.fields, body.config), { dataDir, signal: req.signal, connection, notify });
+      return source.fetch(validConfig(source.fields, body.config), { dataDir, signal: req.signal, connection, notify, origin: new URL(req.url).origin });
     };
     for (const [name, action] of Object.entries(source.actions ?? {})) {
       routes[actionRoute(source.id, name)] = async ({ json, req }: RouteContext) => {
         const body = await json<{ config?: unknown; payload?: unknown }>();
-        return (await action(body.payload, validConfig(source.fields, body.config), { dataDir, signal: req.signal, connection, notify })) ?? null;
+        return (await action(body.payload, validConfig(source.fields, body.config), { dataDir, signal: req.signal, connection, notify, origin: new URL(req.url).origin })) ?? null;
       };
     }
     for (const [name, stream] of Object.entries(source.streams ?? {})) {
       routes[streamRoute(source.id, name)] = ({ query, req }: RouteContext) => stream(query, { dataDir, signal: req.signal, connection, notify, req });
+    }
+  }
+  return routes;
+}
+
+/** The unauthenticated routes of the callbacks of `sources` (see `DataSource.callbacks`). */
+export function callbackRoutes(sources: readonly DataSource<any>[], dataDir = ''): Routes {
+  const connection = connectionResolverOf(dataDir);
+  const routes: Routes = {};
+  for (const source of sources) {
+    for (const [name, callback] of Object.entries(source.callbacks ?? {})) {
+      routes[callbackRoute(source.id, name)] = ({ query, req }: RouteContext) => callback(query, { dataDir, signal: req.signal, connection, origin: new URL(req.url).origin });
     }
   }
   return routes;

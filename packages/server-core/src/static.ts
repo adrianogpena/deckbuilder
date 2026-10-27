@@ -23,9 +23,9 @@ const MIME: Record<string, string> = {
 };
 
 // Inline styles are allowed (React style props, themeHead's <style>, CodeMirror); inline and
-// remote scripts are not, and images only come from the app or data:/blob: URLs.
+// remote scripts are not, and images only come from the app, data:/blob: URLs or Spotify's cover CDN (i.scdn.co).
 export const CSP =
-  "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; " +
+  "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://i.scdn.co; media-src 'self' blob:; " +
   "font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'; frame-src 'self'";
 
 const COMMON_HEADERS = { 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' };
