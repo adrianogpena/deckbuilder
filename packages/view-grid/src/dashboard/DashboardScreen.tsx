@@ -174,7 +174,7 @@ export function DashboardScreen({ settings, onSave, panels }: DashboardScreenPro
   const setItemConfig = (id: string, config: PanelConfig) => change(itemsRef.current.map((i) => (i.id === id ? { ...i, config } : i)));
   const sideContentId = side.content?.id;
   useEffect(() => {
-    if (sideContentId && !items.some((i) => sideContentId.startsWith(`${i.id}:`))) side.close();
+    if (sideContentId && !items.some((i) => sideContentId.startsWith(`${i.id}:`))) side.closeAll();
   }, [items, sideContentId]);
   useCommand(dashboardCommands()[0]!, side.toggle);
   const target = configuring ? items.find((i) => i.id === configuring) : undefined;

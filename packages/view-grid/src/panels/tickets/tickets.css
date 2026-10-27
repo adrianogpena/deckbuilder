@@ -83,10 +83,6 @@ a.tickets-key:hover { text-decoration: underline; }
 .tickets-pr-warn { border-left-color: var(--warn); }
 .tickets-pr-danger { border-left-color: var(--err); }
 .tickets-pr-chips { display: flex; flex-wrap: wrap; gap: var(--space-4); margin-top: var(--space-4); }
-.tickets-pr-full { margin-top: var(--space-6); padding-top: var(--space-6); border-top: 1px solid var(--border-soft); font-size: var(--fs-sm); }
-.tickets-pr-full dl { display: grid; grid-template-columns: auto 1fr; gap: var(--space-4) var(--space-8); margin: 0 0 var(--space-6); }
-.tickets-pr-full dt { color: var(--text-dim); }
-.tickets-pr-full dd { margin: 0; overflow-wrap: anywhere; }
 .tickets-ov-projects { display: flex; flex-wrap: wrap; gap: var(--space-6); }
 .tickets-notes { display: flex; flex-direction: column; height: 100%; min-height: 0; }
 .tickets-notes > .cm-editor, .tickets-notes > div:last-child { flex: 1; min-height: 0; }

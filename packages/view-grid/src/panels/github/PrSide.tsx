@@ -7,7 +7,7 @@ import { latestRc, RC_STEPS, type RcBuild, type RcInfo, type RcStepState } from 
 import type { BotEntry } from './bot';
 import type { PrItem } from './map';
 import type { PullRequestsConfig } from './PullRequests';
-import type { CheckDetail, CheckState } from './tracked';
+import type { CheckDetail, CheckState, TrackedPr } from './tracked';
 import './github.css';
 
 export const REVIEW_TONE: Record<string, Tone> = { approved: 'ok', changes: 'danger', required: 'warn' };
@@ -230,9 +230,16 @@ function RcCard({ state }: { state: { data: PrExtra | undefined; error?: { messa
   );
 }
 
-function PrOverview({ pr, config }: { pr: PrItem; config: PullRequestsConfig }) {
+interface ExtraSource {
+  source: string;
+  action: string;
+}
+
+const PRS_EXTRA: ExtraSource = { source: 'github-prs', action: 'rc' };
+
+function PrOverview({ pr, config, extraSource = PRS_EXTRA }: { pr: PrItem; config: Record<string, unknown>; extraSource?: ExtraSource }) {
   const c = pr.checks;
-  const extra = useAsync(() => runAction<PrExtra>('github-prs', 'rc', config, { repo: pr.repo, number: pr.number }), [pr.id]);
+  const extra = useAsync(() => runAction<PrExtra>(extraSource.source, extraSource.action, config, { repo: pr.repo, number: pr.number }), [pr.id]);
   return (
     <div className="gh-pr">
       <Card title={tKey('dash.github.pr.status')}>
@@ -297,6 +304,35 @@ function PrOverview({ pr, config }: { pr: PrItem; config: PullRequestsConfig }) 
       {extra.data && extra.data.bot.length > 0 && <BotCard entries={extra.data.bot} />}
     </div>
   );
+}
+
+function FetchedPr({ pr, config }: { pr: TrackedPr; config: Record<string, unknown> }) {
+  const repo = `${pr.owner}/${pr.repo}`;
+  const item = useAsync(() => runAction<PrItem>('tickets', 'pr', config, { repo, number: pr.number }), [pr.url]);
+  if (item.data) return <PrOverview pr={item.data} config={config} extraSource={{ source: 'tickets', action: 'pr-extra' }} />;
+  return (
+    <div className="gh-pr">
+      {item.error ? <span className="gh-error">{item.error.message}</span> : <span className="muted">{tKey('dash.github.rc.loading')}</span>}
+    </div>
+  );
+}
+
+/** The PR side panel for a PR a ticket links to: the details load when it opens. */
+export function trackedPrSideContent({ instanceId, pr, config }: { instanceId: string; pr: TrackedPr; config: Record<string, unknown> }): SidePanelContent {
+  return {
+    id: `${instanceId}:${pr.url}`,
+    title: `#${pr.number} ${pr.title}`,
+    subtitle: `${pr.owner}/${pr.repo}`,
+    icon: 'link',
+    tabs: [{ id: 'overview', label: tKey('dash.github.pr.tab.overview'), render: () => <FetchedPr pr={pr} config={config} /> }],
+    actions: (
+      <>
+        <IconButton icon="link" label={tKey('dash.github.pr.open')} onClick={() => window.open(pr.url, '_blank', 'noreferrer')} />
+        <IconButton icon="copy" label={tKey('dash.github.pr.copyLink')} onClick={() => void copyText(pr.url)} />
+        <IconButton icon="copy" label={tKey('dash.github.pr.copyBranch')} onClick={() => void copyText(pr.branch)} />
+      </>
+    ),
+  };
 }
 
 /** What the Pull Requests panel opens in the Dashboard side panel for one PR. */

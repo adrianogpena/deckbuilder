@@ -118,7 +118,7 @@ export function nextRefreshMs(rate: RateLimit | null | undefined, base: number, 
   return Math.min(MAX_BACKOFF_MS, Math.max(base, prev ?? base) * 2);
 }
 
-interface Node {
+export interface Node {
   number?: number;
   title?: string;
   url?: string;

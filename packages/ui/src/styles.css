@@ -1380,6 +1380,10 @@ html[data-status-bar="false"] .status-bar { display: none; }
 .view-with-side-main { flex: 1; min-width: 0; min-height: 0; overflow: auto; }
 .view-side-scrim { position: absolute; inset: 0; z-index: 9; background: rgb(0 0 0 / .45); animation: view-side-in .16s ease-out; }
 .view-side { position: absolute; top: 0; right: 0; bottom: 0; z-index: 10; box-shadow: -8px 0 24px rgb(0 0 0 / .3); display: flex; flex-direction: column; width: var(--view-side-w, min(980px, 64vw)); min-width: 560px; max-width: min(980px, 100%); min-height: 0; background: var(--panel); border-left: 1px solid var(--border); animation: view-side-in .16s ease-out; }
+/* A panel under another one: shifted left so a strip stays visible; a click on it comes back to it. */
+.view-side-under { cursor: pointer; box-shadow: -4px 0 12px rgb(0 0 0 / .2); }
+.view-side-under > * { pointer-events: none; }
+.view-side-under::after { content: ""; position: absolute; inset: 0; z-index: 3; background: rgb(0 0 0 / .45); }
 @keyframes view-side-in { from { opacity: 0; } to { opacity: 1; } }
 .view-side-handle { position: absolute; left: -3px; top: 0; bottom: 0; width: 6px; cursor: col-resize; z-index: 2; }
 .view-side-handle:hover, .view-side-handle:focus-visible, .view-side-handle:active { background: var(--accent); opacity: .5; outline: none; }

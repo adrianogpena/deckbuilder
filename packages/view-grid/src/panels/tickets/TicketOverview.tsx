@@ -4,9 +4,7 @@ import { tKey } from '../../i18n';
 import { Chip } from '../../kit';
 import { runAction } from '../../source';
 import type { TrackedPr } from '../github/tracked';
-import { DescribeDialog } from '../pods/DescribeDialog';
 import type { Pod } from '../pods/model';
-import { PodLogsDialog } from '../pods/PodLogsDialog';
 import { AdfView } from './AdfView';
 import { formatDuration, isOverdue, type JiraInfo } from './jira-info';
 import { normPodId, parsePcr, podId, workloadName, type Ticket } from './model';
@@ -26,9 +24,6 @@ export function prLine(pr: TrackedPr): string {
   return `${pr.repo}#${pr.number} · ${checks} · ${review}`;
 }
 
-const podsConfig = (p: Pod) => ({ clusters: `${p.context} ${p.namespace} *` });
-const target = (p: Pod) => ({ context: p.context, namespace: p.namespace, pod: p.name });
-
 const stateLabel = (pr: TrackedPr) =>
   pr.draft ? tKey('dash.tickets.detail.draft') : tKey(`dash.tickets.pipeline.${pr.state}` as 'dash.tickets.pipeline.merged');
 
@@ -47,13 +42,12 @@ function attention(pr: TrackedPr): Tone {
   return checksTone(pr) === 'ok' && reviewTone(pr) === 'ok' ? 'ok' : 'neutral';
 }
 
-/** One PR as a card: a status stripe, state/checks/review chips, and the full information (branch, labels, every check) on click. */
-function PrCard({ pr }: { pr: TrackedPr }) {
-  const [open, setOpen] = useState(false);
+/** One PR as a card: a status stripe and state/checks/review chips; a click opens the PR side panel over this one. */
+function PrCard({ pr, onOpen }: { pr: TrackedPr; onOpen(pr: TrackedPr): void }) {
   const review = pr.reviewDecision ? tKey(REVIEW[pr.reviewDecision] as 'dash.tickets.pipeline.approved') : tKey('dash.tickets.pipeline.noReview');
   return (
     <div className={`tickets-card tickets-pr-card tickets-pr-${attention(pr)}`}>
-      <button type="button" className="tickets-card-edit" aria-expanded={open} onClick={() => setOpen(!open)}>
+      <button type="button" className="tickets-card-edit" onClick={() => onOpen(pr)}>
         <strong>
           {pr.repo}#{pr.number}
         </strong>{' '}
@@ -64,46 +58,6 @@ function PrCard({ pr }: { pr: TrackedPr }) {
           <Chip tone={reviewTone(pr)}>{review}</Chip>
         </span>
       </button>
-      {open && (
-        <div className="tickets-pr-full">
-          <dl>
-            <dt>{tKey('dash.tickets.detail.branch')}</dt>
-            <dd>{pr.branch}</dd>
-            <dt>{tKey('dash.tickets.detail.state')}</dt>
-            <dd>{stateLabel(pr)}</dd>
-            <dt>{tKey('dash.tickets.detail.review')}</dt>
-            <dd>{review}</dd>
-            {pr.labels.length > 0 && (
-              <>
-                <dt>{tKey('dash.tickets.detail.labels')}</dt>
-                <dd>{pr.labels.join(', ')}</dd>
-              </>
-            )}
-          </dl>
-          <h4>{tKey('dash.tickets.detail.checks')}</h4>
-          {pr.checks.details.length > 0 ? (
-            <ul className="tickets-detail-checks" aria-label={tKey('dash.tickets.detail.checks')}>
-              {pr.checks.details.map((c) => (
-                <li key={`${c.name}-${c.url}`} className={`tickets-detail-check tickets-detail-check-${c.state}`}>
-                  {c.url ? (
-                    <a href={c.url} target="_blank" rel="noreferrer">
-                      {c.name}
-                    </a>
-                  ) : (
-                    c.name
-                  )}{' '}
-                  · {c.state}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="tickets-detail-none">{tKey('dash.tickets.detail.noChecks')}</p>
-          )}
-          <a href={pr.url} target="_blank" rel="noreferrer">
-            {tKey('dash.tickets.detail.openPr')}
-          </a>
-        </div>
-      )}
     </div>
   );
 }
@@ -115,15 +69,15 @@ interface Props {
   allPods: Pod[];
   config: Record<string, unknown>;
   onChanged(): void;
+  onOpenPr(pr: TrackedPr): void;
+  onOpenPod(pod: Pod): void;
 }
 
 /** The ticket in the Dashboard side panel: description, linked PRs and pods (link or unlink pods by hand). */
-export function TicketOverview({ ticket, link, jira, allPods, config, onChanged }: Props) {
+export function TicketOverview({ ticket, link, jira, allPods, config, onChanged, onOpenPr, onOpenPod }: Props) {
   const [description, setDescription] = useState(ticket.description);
   const [manual, setManual] = useState<string[]>(link?.manualPods ?? ticket.podLinks ?? []);
   const [choice, setChoice] = useState('');
-  const [logs, setLogs] = useState<Pod | null>(null);
-  const [describe, setDescribe] = useState<{ pod: Pod; text?: string } | null>(null);
   const [editing, setEditing] = useState(false);
   const [pcr, setPcr] = useState(ticket.pcr ?? '');
   const [editingPcr, setEditingPcr] = useState(false);
@@ -194,37 +148,10 @@ export function TicketOverview({ ticket, link, jira, allPods, config, onChanged 
     onChanged();
   };
 
-  const showDescribe = async (pod: Pod) => {
-    setDescribe({ pod });
-    try {
-      const text = await runAction<string>('pods', 'describe', podsConfig(pod), target(pod));
-      setDescribe({ pod, text });
-    } catch (err) {
-      setDescribe({ pod, text: String((err as Error)?.message ?? err) });
-    }
-  };
-
-  const restart = async (pod: Pod) => {
-    try {
-      await runAction('pods', 'restart', podsConfig(pod), target(pod));
-    } catch {
-      // the pods panel reports restart failures; here the pod list simply stays as is
-    }
-  };
-
   const podRow = (p: Pod, byHand: boolean) => (
     <div key={podId(p)} className="tickets-detail-pod tickets-ov-pod">
-      <span className="tickets-detail-podname">
+      <Button className="tickets-detail-podname" onClick={() => onOpenPod(p)}>
         {workloadName(p.name)} · {p.status} · {tKey('dash.tickets.pipeline.restarts', { n: p.restarts })}
-      </span>
-      <Button onClick={() => setLogs(p)}>
-        <Icon name="log" size={12} /> {tKey('dash.tickets.detail.logs')}
-      </Button>
-      <Button onClick={() => void showDescribe(p)}>
-        <Icon name="file-text" size={12} /> {tKey('dash.tickets.detail.describe')}
-      </Button>
-      <Button onClick={() => void restart(p)}>
-        <Icon name="rotate-ccw" size={12} /> {tKey('dash.tickets.detail.restart')}
       </Button>
       {byHand && (
         <Button onClick={() => void setLinked(podId(p), false)}>
@@ -387,7 +314,7 @@ export function TicketOverview({ ticket, link, jira, allPods, config, onChanged 
             })}
           </p>
         )}
-        {link?.prs.length ? link.prs.map((pr) => <PrCard key={pr.url} pr={pr} />) : none}
+        {link?.prs.length ? link.prs.map((pr) => <PrCard key={pr.url} pr={pr} onOpen={onOpenPr} />) : none}
       </section>
       <section>
         <h4>{tKey('dash.tickets.detail.pods')}</h4>
@@ -416,8 +343,6 @@ export function TicketOverview({ ticket, link, jira, allPods, config, onChanged 
           </div>
         )}
       </section>
-      {logs && <PodLogsDialog pod={logs} onClose={() => setLogs(null)} />}
-      {describe && <DescribeDialog title={workloadName(describe.pod.name)} text={describe.text} onClose={() => setDescribe(null)} />}
     </div>
   );
 }

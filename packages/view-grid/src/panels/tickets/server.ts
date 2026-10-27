@@ -4,7 +4,7 @@ import { invalid } from '@kedalion/server-core';
 import { createJsonStore, type JsonStore } from '../../json-store';
 import { defineSource, type DataSource, type GridPanelSpec, type SourceContext } from '../../server';
 import { fieldIds, search } from '../jira/client';
-import { fetchPrPool, trackedStore } from '../github/server';
+import { fetchPrExtra, fetchPrItem, fetchPrPool, trackedStore } from '../github/server';
 import type { TrackedPr } from '../github/tracked';
 import { latestPods } from '../pods/server';
 import { TICKETS_FIELDS } from './fields';
@@ -35,6 +35,14 @@ interface TicketStore {
 }
 
 const str = (v: unknown, max = 5000) => (typeof v === 'string' ? v.slice(0, max) : '');
+
+function prRef(payload: unknown): { repo: string; number: number } {
+  const p = (payload ?? {}) as { repo?: unknown; number?: unknown };
+  const repo = str(p.repo, 200);
+  const number = Number(p.number);
+  if (!/^[\w.-]+\/[\w.-]+$/.test(repo) || !Number.isInteger(number) || number <= 0) throw invalid('pr-ref', 'A pull request is required.');
+  return { repo, number };
+}
 
 const MAX_NOTES = 200_000;
 const SAFE_KEY = /^[A-Za-z0-9_-]+$/;
@@ -185,6 +193,16 @@ export const ticketsSource = defineSource<TicketsConfig>({
     return { statuses, tickets, links, unlinked, pods, jira, ...(prError ? { prError } : {}) };
   },
   actions: {
+    async pr(payload, config, ctx) {
+      const { repo, number } = prRef(payload);
+      const item = await fetchPrItem(await ctx.connection(config.connection, 'github'), repo, number, config.keyPattern, ctx.signal);
+      if (!item) throw invalid('pr-not-found', 'The pull request was not found.');
+      return item;
+    },
+    async 'pr-extra'(payload, config, ctx) {
+      const { repo, number } = prRef(payload);
+      return fetchPrExtra(await ctx.connection(config.connection, 'github'), repo, number, ctx.signal);
+    },
     async add(payload, config, ctx) {
       const p = payloadOf(payload);
       const key = extractKey(str(p.key, 200), config.keyPattern);

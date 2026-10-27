@@ -7,19 +7,14 @@ import { parseTrackedPrRef, toTrackedPr, type PrNode, type PrRef, type TrackedPr
 import { ACTIONS_SOURCE_FIELDS, TRACKED_SOURCE_FIELDS, fields,ISSUE_SOURCE_FIELDS, NOTIFICATIONS_SOURCE_FIELDS, OVERVIEW_SOURCE_FIELDS, PR_SOURCE_FIELDS, RELEASES_FIELDS } from './fields';
 import { notifyChanges, notifyScope } from '../../notify-changes';
 import { latestSettledRuns, mapNotifications, mapReleases, mapRepoStats, mapRuns, parseRepo, runsPath, type RepoResponse } from './more';
-import { buildQuery, mapIssues, mapPullRequests, nextRefreshMs, PR_REFRESH_MS, type SearchResponse } from './map';
+import { buildQuery, mapIssues, mapPullRequests, nextRefreshMs, PR_REFRESH_MS, type Node as PrNodeFull, type PrItem, type SearchResponse } from './map';
 
 import { BOT_LOGIN, parseBotComments, type BotComment } from './bot';
 import { isRcComment, parseRcComment } from './rc';
 
 const RATE ='rateLimit { remaining limit resetAt }';
 
-const PR_QUERY = `query($q: String!, $n: Int!) {
-  search(query: $q, type: ISSUE, first: $n) {
-    issueCount
-    nodes {
-      ... on PullRequest {
-        number title url isDraft state headRefName baseRefName updatedAt createdAt reviewDecision
+const PR_ITEM_FIELDS = `number title url isDraft state headRefName baseRefName updatedAt createdAt reviewDecision
         additions deletions changedFiles mergeable
         autoMergeRequest { enabledAt }
         comments { totalCount }
@@ -27,12 +22,48 @@ const PR_QUERY = `query($q: String!, $n: Int!) {
         author { login }
         repository { nameWithOwner }
         labels(first: 10) { nodes { name } }
-        commits(last: 1) { nodes { commit { statusCheckRollup { state contexts(first: 50) { nodes { __typename ... on CheckRun { name status conclusion startedAt completedAt detailsUrl title summary checkSuite { workflowRun { workflow { name } } } } ... on StatusContext { context state targetUrl description } } } } } } }
+        commits(last: 1) { nodes { commit { statusCheckRollup { state contexts(first: 50) { nodes { __typename ... on CheckRun { name status conclusion startedAt completedAt detailsUrl title summary checkSuite { workflowRun { workflow { name } } } } ... on StatusContext { context state targetUrl description } } } } } } }`;
+
+const PR_QUERY = `query($q: String!, $n: Int!) {
+  search(query: $q, type: ISSUE, first: $n) {
+    issueCount
+    nodes {
+      ... on PullRequest {
+        ${PR_ITEM_FIELDS}
       }
     }
   }
   ${RATE}
 }`;
+
+const ONE_PR_QUERY = `query($o: String!, $n: String!, $p: Int!) {
+  repository(owner: $o, name: $n) { pullRequest(number: $p) { ${PR_ITEM_FIELDS} } }
+}`;
+
+/** One PR with everything the PR side panel shows; null when it no longer resolves. */
+export async function fetchPrItem(conn: ResolvedConnection, repo: string, number: number, ticketPattern: string, signal?: AbortSignal): Promise<PrItem | null> {
+  const [owner, name] = repo.split('/');
+  const res = await graphql<{ repository?: { pullRequest?: PrNodeFull | null } | null }>(conn, ONE_PR_QUERY, { o: owner, n: name, p: number }, signal);
+  const node = res.repository?.pullRequest;
+  return node ? (mapPullRequests({ search: { nodes: [node] } }, ticketPattern).items[0] ?? null) : null;
+}
+
+/** The RC build comment and the bot comments of one PR. */
+export async function fetchPrExtra(conn: ResolvedConnection, repo: string, number: number, signal?: AbortSignal) {
+  let found: string | null = null;
+  const botComments: BotComment[] = [];
+  for (let page = 1; page <= 5; page++) {
+    const list = await rest<{ body?: string | null; user?: { login?: string } | null; updated_at?: string; html_url?: string }[]>(conn, `/repos/${repo}/issues/${number}/comments?per_page=100&page=${page}`, signal);
+    for (const c of list) {
+      if (!c.body || c.user?.login !== BOT_LOGIN) continue;
+      const rc = isRcComment(c.body);
+      if (rc) found = c.body;
+      botComments.push({ body: c.body, updatedAt: c.updated_at ?? '', url: c.html_url ?? '', rc });
+    }
+    if (list.length < 100) break;
+  }
+  return { rc: found ? parseRcComment(found) : null, bot: parseBotComments(botComments) };
+}
 
 const ISSUE_QUERY = `query($q: String!, $n: Int!) {
   search(query: $q, type: ISSUE, first: $n) {
@@ -106,19 +137,7 @@ export const githubPrsSource = defineSource<SearchConfig>({
       const number = Number(p?.number);
       if (!ref || !Number.isInteger(number) || number <= 0) throw invalid('rc-pr-ref', 'A pull request is required.');
       const conn = await ctx.connection(config.connection, 'github');
-      let found: string | null = null;
-      const botComments: BotComment[] = [];
-      for (let page = 1; page <= 5; page++) {
-        const list = await rest<{ body?: string | null; user?: { login?: string } | null; updated_at?: string; html_url?: string }[]>(conn, `/repos/${ref}/issues/${number}/comments?per_page=100&page=${page}`, ctx.signal);
-        for (const c of list) {
-          if (!c.body || c.user?.login !== BOT_LOGIN) continue;
-          const rc = isRcComment(c.body);
-          if (rc) found = c.body;
-          botComments.push({ body: c.body, updatedAt: c.updated_at ?? '', url: c.html_url ?? '', rc });
-        }
-        if (list.length < 100) break;
-      }
-      return { rc: found ? parseRcComment(found) : null, bot: parseBotComments(botComments) };
+      return fetchPrExtra(conn, ref, number, ctx.signal);
     },
   },
 });

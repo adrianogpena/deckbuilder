@@ -31,6 +31,8 @@ export interface PanelRenderProps<C, D> {
 
 export interface PanelSide {
   open(content: SidePanelContent, tab?: string): void;
+  /** Opens `content` over the current one, which stays underneath; closing it shows the one below again. */
+  push(content: SidePanelContent, tab?: string): void;
   close(): void;
   isOpen(id: string): boolean;
 }
