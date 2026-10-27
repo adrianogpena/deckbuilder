@@ -1,0 +1,12 @@
+.spell { display: flex; flex-direction: column; gap: var(--space-8); height: 100%; min-height: 0; }
+.spell-input { flex: 0 0 40%; min-height: 4rem; width: 100%; resize: none; font-family: inherit; box-sizing: border-box; }
+.spell-head { display: flex; align-items: center; gap: var(--space-8); font-size: var(--fs-xs); color: var(--text-dim); }
+.spell-note { margin: 0; font-size: var(--fs-xs); color: var(--text-dim); }
+.spell-note.err { color: var(--err, currentColor); }
+.spell-list { list-style: none; margin: 0; padding: 0; flex: 1; overflow: auto; display: flex; flex-direction: column; gap: var(--space-8); }
+.spell-issue { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4) var(--space-8); }
+.spell-kind { font-size: var(--fs-xs); text-transform: uppercase; color: var(--text-dim); }
+.spell-kind.spelling, .spell-kind.grammar { color: var(--err, currentColor); }
+.spell-fix { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.spell-alts { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: var(--space-4); }
+.spell-reason { flex-basis: 100%; font-size: var(--fs-xs); color: var(--text-dim); }

@@ -10,11 +10,12 @@ import { panels as meeting } from './meeting/web';
 import { panels as misc } from './misc/web';
 import { panels as pods } from './pods/web';
 import { panels as tickets } from './tickets/web';
+import { panels as spellcheck } from './spellcheck/web';
 import { panels as spotify } from './spotify/web';
 import { panels as timesheet } from './timesheet/web';
 
 /** Every panel kind of the Dashboard view. */
 export const dashboardPanels: readonly AnyPanelKind[] = [
   clockPanel, ...github, ...jira, ...calendar, ...feeds, ...misc,
-  ...tickets, ...pods, ...containers, ...timesheet, ...meeting, ...daily, ...spotify,
+  ...tickets, ...pods, ...containers, ...timesheet, ...meeting, ...daily, ...spotify, ...spellcheck,
 ];
