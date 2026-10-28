@@ -95,6 +95,23 @@ interface SearchConfig {
 
 const backoff = new Map<string, number>();
 
+const TRACKED_CI = { failed: 'fail', passed: 'pass', pending: 'pending', none: 'none' } as const;
+
+function prStatus(state: string, ci: 'pass' | 'fail' | 'pending' | 'none'): string {
+  if (state === 'merged') return 'Merged';
+  if (state === 'closed') return 'Closed';
+  switch (ci) {
+    case 'pass':
+      return 'Passed';
+    case 'fail':
+      return 'Failed';
+    case 'pending':
+      return 'Running';
+    default:
+      return 'No checks';
+  }
+}
+
 async function search(kind: 'pr' | 'issue', config: SearchConfig, ctx: Parameters<DataSource['fetch']>[1]): Promise<{ res: SearchResponse; nextRefreshMs?: number }> {
   const q = buildQuery(kind, config.mode, config.repo, config.query);
   if (!q) throw SourceError('not-configured', kind === 'pr' ? 'The pull request search is not set up.' : 'The issue search is not set up.');
@@ -123,9 +140,9 @@ export const githubPrsSource = defineSource<SearchConfig>({
     if (config.notify !== false) {
       notifyChanges(ctx, notifyScope('github-prs', config), items, {
         key: (pr) => pr.id,
-        sig: (pr) => [pr.state, pr.review, `${pr.checks.passed}/${pr.checks.total}`].join('|'),
+        sig: (pr) => [pr.state, pr.review, pr.ci, `${pr.checks.passed}/${pr.checks.total}`].join('|'),
         title: 'Pull requests',
-        line: (pr) => `${pr.repo}#${pr.number} ${pr.title} (${pr.state}, ${pr.checks.passed}/${pr.checks.total} checks, review ${pr.review})`,
+        line: (pr) => `${prStatus(pr.state, pr.ci)} - ${pr.title}`,
       });
     }
     return { ...data, items, ...(nextRefreshMs ? { nextRefreshMs } : {}) };
@@ -430,9 +447,9 @@ export const githubTrackedSource = defineSource<TrackedConfig>({
     if (config.notify !== false) {
       notifyChanges(ctx, notifyScope('github-tracked', config), items, {
         key: (p) => `${p.owner}/${p.repo}#${p.number}`,
-        sig: (p) => [p.state, p.reviewDecision ?? '', p.changesRequested, `${p.checks.passed}/${p.checks.total}`].join('|'),
+        sig: (p) => [p.state, p.reviewDecision ?? '', p.changesRequested, p.checks.state, `${p.checks.passed}/${p.checks.total}`].join('|'),
         title: 'Tracked pull requests',
-        line: (p) => `${p.owner}/${p.repo}#${p.number} ${p.title} (${p.state}, ${p.checks.passed}/${p.checks.total} checks)`,
+        line: (p) => `${prStatus(p.state, TRACKED_CI[p.checks.state])} - ${p.title}`,
       });
     }
     return { items };

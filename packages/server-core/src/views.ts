@@ -67,11 +67,6 @@ export function defineServerView<S = any>(def: ServerViewDef<S>): ServerViewDef<
   return def;
 }
 
-/** View id -> icon name lookup over `defs`, for the notifications `viewIcons` option. */
-export function viewIcons(defs: readonly ServerViewDef[]): (id: string) => string | undefined {
-  return (id) => defs.find((d) => d.id === id)?.icon;
-}
-
 /**
  * For the settings store `apply`: copies each group of `patch` that a view validates into `next`;
  * groups unknown to every view or failing validation are skipped.

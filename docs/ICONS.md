@@ -25,7 +25,7 @@ A violet eye whose iris is a gold rising sun. Orion, blinded, carried Kedalion o
 
 ## View icons
 
-24 px line icons in `packages/ui/src/assets/views/`, one per view codename. They are stored for future use; no view shows them yet. Strokes use `currentColor`, so they follow the text colour in both themes. The gold accent uses `var(--icon-accent, #e8a33a)`, so a page can retheme it.
+24 px line icons in `packages/ui/src/assets/views/`, one per view codename. Notifications show them, rendered to a PNG badge (`packages/ui/src/view-icons.ts` maps view id to file); no other screen uses them yet. Strokes use `currentColor`, so they follow the text colour in both themes. The gold accent uses `var(--icon-accent, #e8a33a)`, so a page can retheme it.
 
 | File | Codename | View | Story |
 |---|---|---|---|

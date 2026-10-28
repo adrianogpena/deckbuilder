@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createNotifications } from '../notifications.ts';
 import type { Toast } from './toast.ts';
-import { iconBadgeSvg, iconPng } from './icon-png.ts';
+import { iconBadgeSvg, iconPng, svgBody } from './icon-png.ts';
 
 const dir = mkdtempSync(join(tmpdir(), 'icon-png-'));
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
@@ -37,16 +37,20 @@ test('notifications resolve the view icon, the click link and do not disturb', a
     appName: 'App',
     link: () => (path) => `app://open/${path}`,
     dnd: () => muted,
-    viewIcons: (id) => (id === 'v' ? 'folder' : undefined),
     iconDir: dir,
     sink: (t) => toasts.push(t),
   });
-  await n.for('v')({ body: 'b', path: 'x/y' });
-  await n.for('other')({ title: 'T', body: 'c' });
+  await n.for('dashboard')({ body: 'b', path: 'x/y' });
+  await n.for({ icon: 'folder' })({ title: 'T', body: 'c' });
   muted = true;
-  await n.for('v')({ body: 'd' });
-  expect(toasts).toEqual([
-    { title: 'App', body: 'b', launch: 'app://open/x/y', icon: join(dir, 'folder-4f6bed-96.png') },
-    { title: 'T', body: 'c', launch: '' },
-  ]);
+  await n.for('dashboard')({ body: 'd' });
+  expect(toasts).toHaveLength(2);
+  expect(toasts[0]).toMatchObject({ title: 'App', body: 'b', launch: 'app://open/x/y' });
+  expect(toasts[0]!.icon).toStartWith(join(dir, 'dashboard-'));
+  expect(toasts[1]).toEqual({ title: 'T', body: 'c', launch: '', icon: join(dir, 'folder-4f6bed-96.png') });
+});
+
+test('a view icon file is recoloured for the badge', () => {
+  const body = svgBody('<svg viewBox="0 0 24 24"><path stroke="currentColor" style="fill:var(--icon-accent,#e8a33a)"/></svg>');
+  expect(body).toBe('<path stroke="#fff" style="fill:#e8a33a"/>');
 });

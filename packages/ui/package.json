@@ -14,6 +14,7 @@
     "./i18n": "./src/i18n.ts",
     "./keybindings": "./src/keybindings.ts",
     "./log": "./src/log.ts",
+    "./view-icons": "./src/view-icons.ts",
     "./rel-path": "./src/rel-path.ts",
     "./settings-schema": "./src/settings-schema.ts",
     "./table": "./src/table.ts",

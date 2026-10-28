@@ -1,7 +1,7 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { appHome, createNotifications } from '@kedalion/platform';
-import { type ServerViewDef, viewIcons } from '@kedalion/server-core';
+import type { ServerViewDef } from '@kedalion/server-core';
 import { dashboardServerView, dashboardSources, dashboardSpecs } from '@kedalion/view-grid/server';
 import { explorerServerView } from '@kedalion/view-explorer/server';
 import { gitServerView } from '@kedalion/view-git/server';
@@ -26,7 +26,7 @@ export const setAppLink = (link: (path: string) => string) => {
 };
 
 /** The app's one notifier (OS toasts); each view sends through `notifications.for(viewId)` and gets its icon. */
-export const notifications = createNotifications({ appName: APP.name, link: () => appLink, viewIcons: (id) => viewIcons(serverViews)(id) });
+export const notifications = createNotifications({ appName: APP.name, link: () => appLink });
 
 export const serverViews: ServerViewDef[] = [
   explorer,

@@ -1,5 +1,6 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { VIEW_ICON_SVGS } from '@kedalion/ui/view-icons';
 import { DEFAULT_ICON_COLOR, iconPng } from './win/icon-png.ts';
 import { createToaster, type Toast, type Toaster } from './win/toast.ts';
 
@@ -10,8 +11,6 @@ export interface NotificationsOptions {
   link: () => ((path: string) => string) | undefined;
   /** True while notifications are muted (do not disturb). */
   dnd?: () => boolean | Promise<boolean>;
-  /** Icon name for a view id, e.g. `viewIcons(serverViews)` from server-core. */
-  viewIcons?: (viewId: string) => string | undefined;
   /** Badge colour of the icons, `#rrggbb`. */
   color?: string;
   /** Where rendered icons are cached; default `~/.kedalion/toast-icons`. */
@@ -35,7 +34,7 @@ export interface Notifier {
 }
 
 export interface Notifications {
-  /** A `notify` that shows the icon of a view (by id) or the given icon name. */
+  /** A `notify` that shows the icon file of a view (by id, `VIEW_ICON_SVGS`) or the given icon name. */
   for(view: string | { icon: string }): Notifier;
   /** Ends the Windows toast host. */
   close(): Promise<number | null>;
@@ -48,12 +47,13 @@ export function createNotifications(opts: NotificationsOptions): Notifications {
   const send = opts.sink ?? ((toast: Toast) => toaster?.show(toast));
   return {
     for(view) {
-      const name = typeof view === 'string' ? opts.viewIcons?.(view) : view.icon;
+      const svg = typeof view === 'string' ? VIEW_ICON_SVGS[view] : undefined;
+      const name = typeof view === 'string' ? view : view.icon;
       return async (n) => {
         if (await opts.dnd?.()) return;
         const link = opts.link();
         const launch = n.launch ?? (n.path !== undefined && link ? link(n.path) : '');
-        const icon = name ? await iconPng({ name, color: opts.color ?? DEFAULT_ICON_COLOR, dir }) : undefined;
+        const icon = name ? await iconPng({ name, ...(svg ? { svg } : {}), color: opts.color ?? DEFAULT_ICON_COLOR, dir }) : undefined;
         send({ title: n.title ?? opts.appName, body: n.body, launch, ...(icon ? { icon } : {}) });
       };
     },
