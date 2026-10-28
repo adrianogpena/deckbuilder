@@ -192,7 +192,6 @@ export function SettingsModal({ settings, onChange, onReplace, onQuit, onClose, 
     }, 2000);
     return () => clearInterval(timer);
   }, [onReplace]);
-  const deepCount = (key: string) => [...hits].reduce((n, [k, h]) => (isUnder(k, key) ? n + h.ids.length : n), 0);
   const total = [...hits.values()].reduce((n, h) => n + h.ids.length, 0);
 
   /** Pages with an explicit `render` branch; keep in step with the switch below. */
@@ -259,8 +258,11 @@ export function SettingsModal({ settings, onChange, onReplace, onQuit, onClose, 
     }
   };
 
+  // While searching, a nav click shows that whole section with the search kept; the matching rows are highlighted.
+  const [picked, setPicked] = useState(false);
+  const pickedPage = searching && picked;
   const open = (key: string) => {
-    setQuery('');
+    if (searching) setPicked(true);
     setSection(key);
     body.current?.scrollTo({ top: 0 });
   };
@@ -275,6 +277,12 @@ export function SettingsModal({ settings, onChange, onReplace, onQuit, onClose, 
       ? [...hits.keys()].some((k) => isUnder(k, f.key))
       : f.node.path.slice(0, -1).every((_, i) => expanded.has(sectionKey(f.node.path.slice(0, i + 1))));
   const selected = flat.find((f) => f.key === section) ?? flat[0];
+  const markIds = pickedPage && selected && !hits.get(selected.key)?.whole ? hits.get(selected.key)?.ids : undefined;
+  useEffect(() => {
+    for (const row of body.current?.querySelectorAll<HTMLElement>('[data-setting]') ?? []) {
+      row.classList.toggle('search-hit', !!markIds?.includes(row.dataset.setting ?? ''));
+    }
+  });
   // A node is marked when a setting in it (or under it) differs from its default.
   // `#setting.id#` links in descriptions: open the target's section (unless search already shows it), then its row.
   const reveal = useRevealSetting(body);
@@ -308,7 +316,7 @@ export function SettingsModal({ settings, onChange, onReplace, onQuit, onClose, 
             value={query}
             placeholder={t('settings.search')}
             aria-label={t('settings.search')}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => { setQuery(e.target.value); setPicked(false); }}
             onKeyDown={(e) => {
               if (e.key === 'Escape' && query) {
                 e.stopPropagation();
@@ -358,7 +366,7 @@ export function SettingsModal({ settings, onChange, onReplace, onQuit, onClose, 
           {flat.filter(visible).map((f) => {
             const parent = f.node.children.length > 0;
             const isOpen = searching || expanded.has(f.key);
-            const active = !searching && section === f.key;
+            const active = (!searching || pickedPage) && section === f.key;
             return (
               <button title={t('settings.row.modified')}
                 key={f.key}
@@ -382,13 +390,13 @@ export function SettingsModal({ settings, onChange, onReplace, onQuit, onClose, 
                   ▶
                 </span>
                 {sectionLabel(f.node)}
-                {searching && <span className="settings-nav-count">{deepCount(f.key)}</span>}
+                {searching && !!hits.get(f.key)?.ids.length && <span className="settings-nav-count">{hits.get(f.key)!.ids.length}</span>}
               </button>
             );
           })}
         </nav>
         <div className="scroll" ref={body}>
-          {searching
+          {searching && !pickedPage
             ? flat.filter((f) => hits.has(f.key)).map((f) => {
                 const hit = hits.get(f.key)!;
                 return (

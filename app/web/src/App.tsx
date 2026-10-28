@@ -143,7 +143,13 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
   const navItems = views.nav.flatMap((s) => s.items);
   // The nav list is a constant, so the hooks run in the same order every render.
   const firstFree = (skip?: string) => navItems.find((i) => i.id !== skip && !popped.has(i.id))?.id;
-  const goView = (id: ScreenId) => { if (popped.has(id)) void popOut(id, views.label(id)); else go(id); };
+  const goView = (id: ScreenId) => {
+    if (popped.has(id)) void popOut(id, views.label(id));
+    else {
+      setOverlay(null);
+      go(id);
+    }
+  };
   const popOutShown = () => {
     void popOut(screen, views.label(screen)).then((ok) => {
       const free = ok ? firstFree(screen) : undefined;

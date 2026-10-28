@@ -1097,6 +1097,7 @@ html[data-status-bar="false"] .status-bar { display: none; }
 /* One schema row: the modified bar at the left edge (VS Code's .setting-item-modified-indicator). */
 .setting-item { position: relative; }
 .setting-item:focus { outline: none; }
+.setting-item.search-hit { background: color-mix(in srgb, var(--accent) 16%, transparent); }
 .setting-item:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
 .setting-modified { position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--accent); z-index: 1; }
 .setting-link {
