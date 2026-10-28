@@ -6,6 +6,15 @@
 .daily-row .daily-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; text-align: left; }
 .daily-row.done .daily-text { color: var(--text-dim); text-decoration: line-through; }
 .daily-row input[type='text'] { flex: 1; min-width: 0; }
+.daily-meta { display: flex; align-items: center; gap: var(--space-4); flex-shrink: 0; max-width: 50%; overflow: hidden; font-size: var(--fs-xs); }
+.daily-due, .daily-tag { white-space: nowrap; color: var(--text-dim); }
+.daily-tag { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.daily-due.overdue { color: var(--err, currentColor); }
+.daily-row input[type='checkbox'].daily-p4 { accent-color: var(--err, #d1453b); outline: 1px solid var(--err, #d1453b); }
+.daily-row input[type='checkbox'].daily-p3 { accent-color: #eb8909; outline: 1px solid #eb8909; }
+.daily-row input[type='checkbox'].daily-p2 { accent-color: #246fe0; outline: 1px solid #246fe0; }
+.daily-undo { display: flex; align-items: center; justify-content: space-between; gap: var(--space-8); font-size: var(--fs-xs); color: var(--text-dim); }
+.daily-undo .daily-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .daily-empty { color: var(--text-dim); font-size: var(--fs-xs); margin: 0; }
 .daily-add { display: flex; gap: var(--space-8); }
 .daily-add input { flex: 1; min-width: 0; }

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { addSnippet, addTodo, clearDone, clockText, editTodo, emptyDaily, parseDaily, removeTodo, setScratch, toggleTodo } from './model';
+import { addSnippet, addTodo, clearDone, clockText, dueInfo, editTodo, emptyDaily, parseDaily, removeTodo, setScratch, toggleTodo } from './model';
 
 describe('daily model', () => {
   test('parseDaily cleans input', () => {
@@ -35,5 +35,24 @@ describe('daily model', () => {
     expect(clockText(25 * 60_000)).toBe('25:00');
     expect(clockText(61_001)).toBe('01:02');
     expect(clockText(-5)).toBe('00:00');
+  });
+});
+
+describe('dueInfo', () => {
+  const now = new Date(2026, 9, 28, 12, 0, 0);
+
+  test('classifies all-day dates', () => {
+    expect(dueInfo('2026-10-28', now)).toMatchObject({ day: 'today', overdue: false });
+    expect(dueInfo('2026-10-29', now)).toMatchObject({ day: 'tomorrow', overdue: false });
+    expect(dueInfo('2026-10-27', now)).toMatchObject({ day: 'other', overdue: true });
+  });
+
+  test('a time makes it overdue once passed', () => {
+    expect(dueInfo('2026-10-28T09:00:00', now)).toMatchObject({ day: 'today', overdue: true });
+    expect(dueInfo('2026-10-28T17:00:00', now)).toMatchObject({ day: 'today', overdue: false });
+  });
+
+  test('rejects unreadable values', () => {
+    expect(dueInfo('soon', now)).toBeUndefined();
   });
 });

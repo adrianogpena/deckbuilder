@@ -1,6 +1,6 @@
 import { defineSource, type DataSource, type GridPanelSpec, type SourceContext } from '../../server';
 import { TODO_FIELDS } from './fields';
-import { addTask, closeTask, deleteTask, listTasks, renameTask } from './todoist';
+import { addTask, closeTask, deleteTask, listTasks, reopenTask, renameTask } from './todoist';
 import { createJsonStore } from '../../json-store';
 import { addSnippet, addTodo, clearDone, editTodo, emptyDaily, parseDaily, removeSnippet, removeTodo, setScratch, toggleTodo, type Daily } from './model';
 
@@ -52,6 +52,10 @@ export const todoSource = defineSource<TodoConfig>({
       const conn = await remoteOf(c, ctx);
       if (!conn) return edit(ctx.dataDir, (d) => toggleTodo(d, field(p, 'id')));
       await closeTask(conn, field(p, 'id'));
+    },
+    reopen: async (p, c, ctx) => {
+      const conn = await remoteOf(c, ctx);
+      if (conn) await reopenTask(conn, field(p, 'id'));
     },
     edit: async (p, c, ctx) => {
       const conn = await remoteOf(c, ctx);

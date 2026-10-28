@@ -2,6 +2,12 @@ export interface Todo {
   id: string;
   text: string;
   done: boolean;
+  /** Todoist only: `YYYY-MM-DD`, or a date-time (`YYYY-MM-DDTHH:MM:SS`, with `Z` when in UTC) when the task has a time. */
+  due?: string;
+  /** Todoist only: 4 is urgent (p1) down to 1 (no priority). */
+  priority?: 1 | 2 | 3 | 4;
+  project?: string;
+  labels?: string[];
 }
 
 export interface Snippet {
@@ -79,6 +85,26 @@ export function addSnippet(d: Daily, id: string, label: string, text: string): D
 }
 
 export const removeSnippet = (d: Daily, id: string): Daily => ({ ...d, snippets: d.snippets.filter((s) => s.id !== id) });
+
+export interface DueInfo {
+  day: 'today' | 'tomorrow' | 'other';
+  date: Date;
+  /** The time of day, or undefined for an all-day task. */
+  time?: Date;
+  overdue: boolean;
+}
+
+/** Where a Todoist due value falls relative to `now`; undefined when it cannot be read. */
+export function dueInfo(due: string, now: Date): DueInfo | undefined {
+  const m = /^(\d{4})-(\d{2})-(\d{2})(T.*)?$/.exec(due);
+  if (!m) return undefined;
+  const time = m[4] ? new Date(due) : undefined;
+  if (time && Number.isNaN(time.getTime())) return undefined;
+  const date = time ? new Date(time.getFullYear(), time.getMonth(), time.getDate()) : new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const days = Math.round((date.getTime() - today.getTime()) / 86_400_000);
+  return { day: days === 0 ? 'today' : days === 1 ? 'tomorrow' : 'other', date, time, overdue: time ? time.getTime() < now.getTime() : days < 0 };
+}
 
 /** `mm:ss` for a remaining time in milliseconds. */
 export function clockText(ms: number): string {

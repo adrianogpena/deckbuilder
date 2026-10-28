@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Button, ContextMenu, IconButton } from '@kedalion/ui';
 import { tKey } from '../../i18n';
 import { runAction } from '../../source';
-import { clockText, MAX_LABEL, MAX_SNIPPET, MAX_SCRATCH, MAX_TODO, type Daily } from './model';
+import { clockText, dueInfo, MAX_LABEL, MAX_SNIPPET, MAX_SCRATCH, MAX_TODO, type Daily } from './model';
 import './daily.css';
 
 interface Props {
@@ -19,12 +19,41 @@ const useAct = (source: string, config: Record<string, unknown>, refresh: () => 
   }
 };
 
+const UNDO_MS = 5000;
+
+function DueChip({ due, now }: { due: string; now: Date }) {
+  const info = dueInfo(due, now);
+  if (!info) return null;
+  const day = info.day === 'other' ? info.date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : tKey(info.day === 'today' ? 'dash.daily.todo.today' : 'dash.daily.todo.tomorrow');
+  const time = info.time?.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  return <span className={`daily-due${info.overdue ? ' overdue' : ''}`}>{time ? `${day} ${time}` : day}</span>;
+}
+
 export function TodoPanel({ config, data, refresh }: Props) {
   const [draft, setDraft] = useState('');
   const [editing, setEditing] = useState<{ id: string; value: string } | null>(null);
   const [menu, setMenu] = useState<{ at: { x: number; y: number }; id: string; text: string } | null>(null);
+  const [undo, setUndo] = useState<{ id: string; text: string } | null>(null);
+  const undoTimer = useRef<number>();
   const act = useAct('todo', config, refresh);
+  useEffect(() => () => window.clearTimeout(undoTimer.current), []);
   if (!data) return null;
+
+  const complete = (id: string, text: string) => {
+    void act('toggle', { id });
+    if (!data.remote) return;
+    window.clearTimeout(undoTimer.current);
+    setUndo({ id, text });
+    undoTimer.current = window.setTimeout(() => setUndo(null), UNDO_MS);
+  };
+  const reopen = () => {
+    if (!undo) return;
+    window.clearTimeout(undoTimer.current);
+    void act('reopen', { id: undo.id });
+    setUndo(null);
+  };
+  const now = new Date();
+  const multiProject = new Set(data.todos.map((t) => t.project).filter(Boolean)).size > 1;
 
   const submit = () => {
     const text = draft.trim();
@@ -61,7 +90,13 @@ export function TodoPanel({ config, data, refresh }: Props) {
               setMenu({ at: { x: e.clientX, y: e.clientY }, id: t.id, text: t.text });
             }}
           >
-            <input type="checkbox" checked={t.done} aria-label={tKey('dash.daily.todo.check', { text: t.text })} onChange={() => void act('toggle', { id: t.id })} />
+            <input
+              type="checkbox"
+              className={t.priority ? `daily-p${t.priority}` : undefined}
+              checked={t.done}
+              aria-label={tKey('dash.daily.todo.check', { text: t.text })}
+              onChange={() => complete(t.id, t.text)}
+            />
             {editing?.id === t.id ? (
               <input
                 type="text"
@@ -76,15 +111,28 @@ export function TodoPanel({ config, data, refresh }: Props) {
             ) : (
               <span className="daily-text" title={t.text} onDoubleClick={() => setEditing({ id: t.id, value: t.text })}>{t.text}</span>
             )}
+            {(t.due || (multiProject && t.project) || t.labels) && (
+              <span className="daily-meta">
+                {t.due && <DueChip due={t.due} now={now} />}
+                {multiProject && t.project && <span className="daily-tag" title={t.project}>{t.project}</span>}
+                {t.labels?.map((l) => <span key={l} className="daily-tag">@{l}</span>)}
+              </span>
+            )}
             <IconButton icon="trash" label={tKey('dash.daily.todo.remove', { text: t.text })} onClick={() => void act('remove', { id: t.id })} />
           </li>
         ))}
       </ul>
+      {undo && (
+        <div className="daily-undo" role="status">
+          <span className="daily-text" title={undo.text}>{tKey('dash.daily.todo.completed', { text: undo.text })}</span>
+          <Button size="sm" onClick={reopen}>{tKey('dash.daily.todo.undo')}</Button>
+        </div>
+      )}
       <div className="daily-add">
         <input
           type="text"
           maxLength={MAX_TODO}
-          placeholder={tKey('dash.daily.todo.add')}
+          placeholder={tKey(data.remote ? 'dash.daily.todo.add.remote' : 'dash.daily.todo.add')}
           aria-label={tKey('dash.daily.todo.add')}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
