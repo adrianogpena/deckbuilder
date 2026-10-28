@@ -93,17 +93,19 @@ function AccountPage({ account, prefs, onSave }: { account: AgentAccount; prefs:
         <span className="mono-label">{t('settings.agents.accounts.icons')}</span>
         <span className="muted">{t('settings.agents.accounts.icons.hint')}</span>
       </div>
-      {ACCOUNT_STATUS_KEYS.map((status) => {
-        const current = statusIconFor({ [account.id]: prefs }, account.id, status);
-        return (
-          <SettingItem key={status} id={`agents.accounts.${account.id}.icon.${status}`} modified={prefs.icons?.[status] !== undefined}>
-            <div className="field agents-acct-icon-row">
-              <span className="mono-label">{msg(`settings.agents.accounts.icon.${status}`)}</span>
-              <IconPicker status={status} value={current} onPick={(id) => setIcon(status, id)} />
-            </div>
-          </SettingItem>
-        );
-      })}
+      <div className="agents-acct-icons">
+        {ACCOUNT_STATUS_KEYS.map((status) => {
+          const current = statusIconFor({ [account.id]: prefs }, account.id, status);
+          return (
+            <SettingItem key={status} id={`agents.accounts.${account.id}.icon.${status}`} modified={prefs.icons?.[status] !== undefined}>
+              <div className="field agents-acct-icon-row">
+                <span className="mono-label">{msg(`settings.agents.accounts.icon.${status}`)}</span>
+                <IconPicker status={status} value={current} onPick={(id) => setIcon(status, id)} />
+              </div>
+            </SettingItem>
+          );
+        })}
+      </div>
       <div className="field">
         <span className="mono-label">{t('settings.agents.accounts.usage')}</span>
         <span className="muted">{t('settings.agents.accounts.usage.hint')}</span>

@@ -251,7 +251,9 @@
 .agents-acct-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-12); padding: var(--space-6) 0; }
 .agents-acct-toggle { display: flex; align-items: center; gap: var(--space-8); min-width: 0; padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; text-align: left; }
 .agents-acct-body { padding-bottom: var(--space-8); }
-.agents-acct-icon-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-12); }
+.agents-acct-icons { display: flex; flex-wrap: wrap; gap: var(--space-12); }
+.agents-acct-icons > * { flex: 1 1 0; min-width: 0; }
+.agents-acct-icon-row { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-4, 4px); }
 .agents-icon-picker { position: relative; display: inline-flex; }
 .agents-icon-pop { position: absolute; right: 0; top: calc(100% + 4px); z-index: 20; display: flex; flex-wrap: wrap; gap: var(--space-4); width: max-content; max-width: 220px; padding: var(--space-6); border: 1px solid var(--border); border-radius: 6px; background: var(--bg-elevated, var(--bg)); box-shadow: 0 4px 16px rgb(0 0 0 / 0.3); }
 .agents-icon-opt { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 1px solid transparent; border-radius: 4px; background: none; cursor: pointer; }
