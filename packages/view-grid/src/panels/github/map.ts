@@ -49,7 +49,10 @@ export function mapCheckList(rollup: Rollup | null | undefined): CheckDetail[] {
 
 const FAIL_CONCLUSIONS = new Set(['FAILURE', 'TIMED_OUT', 'CANCELLED', 'STARTUP_FAILURE', 'ACTION_REQUIRED']);
 
-/** statusCheckRollup -> pass/fail/pending plus the names of the failing checks. */
+/** policy-bot stays pending until a reviewer approves, so it never counts as a running check. */
+const POLICY_BOT = /policy-bot/i;
+
+/** statusCheckRollup -> pass/fail/pending plus the names of the failing checks; a failure shows as pending while another check still runs. */
 export function reduceChecks(rollup: Rollup | null | undefined): { state: CiState; failing: string[] } {
   if (!rollup?.state) return { state: 'none', failing: [] };
   const failing: string[] = [];
@@ -60,15 +63,16 @@ export function reduceChecks(rollup: Rollup | null | undefined): { state: CiStat
     } else if (n.state === 'FAILURE' || n.state === 'ERROR') failing.push(n.context ?? '');
   }
   const names = failing.filter(Boolean);
+  const running = mapCheckList(rollup).some((d) => d.state === 'pending' && !POLICY_BOT.test(d.name));
   switch (rollup.state) {
     case 'SUCCESS':
       return { state: 'pass', failing: [] };
     case 'FAILURE':
     case 'ERROR':
-      return { state: 'fail', failing: names };
+      return { state: running ? 'pending' : 'fail', failing: names };
     case 'PENDING':
     case 'EXPECTED':
-      return { state: names.length ? 'fail' : 'pending', failing: names };
+      return { state: names.length && !running ? 'fail' : 'pending', failing: names };
     default:
       return { state: 'none', failing: [] };
   }

@@ -29,9 +29,16 @@ describe('reduceChecks', () => {
   test('failing names', () => {
     const r = reduceChecks({
       state: 'FAILURE',
-      contexts: { nodes: [{ __typename: 'CheckRun', name: 'build', conclusion: 'FAILURE' }, { __typename: 'CheckRun', name: 'lint', conclusion: 'SUCCESS' }, { __typename: 'StatusContext', context: 'ci/x', state: 'ERROR' }] },
+      contexts: { nodes: [{ __typename: 'CheckRun', name: 'build', status: 'COMPLETED', conclusion: 'FAILURE' }, { __typename: 'CheckRun', name: 'lint', status: 'COMPLETED', conclusion: 'SUCCESS' }, { __typename: 'StatusContext', context: 'ci/x', state: 'ERROR' }] },
     });
     expect(r).toEqual({ state: 'fail', failing: ['build', 'ci/x'] });
+  });
+  test('a failure is pending while a check runs, ignoring policy-bot', () => {
+    const failed = { __typename: 'CheckRun', name: 'build', status: 'COMPLETED', conclusion: 'FAILURE' } as const;
+    const policy = { __typename: 'StatusContext', context: 'policy-bot: master', state: 'PENDING' } as const;
+    const running = { __typename: 'CheckRun', name: 'test', status: 'IN_PROGRESS' } as const;
+    expect(reduceChecks({ state: 'FAILURE', contexts: { nodes: [failed, running, policy] } }).state).toBe('pending');
+    expect(reduceChecks({ state: 'FAILURE', contexts: { nodes: [failed, policy] } }).state).toBe('fail');
   });
 });
 
