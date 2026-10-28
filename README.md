@@ -79,7 +79,6 @@ Eleven layouts change how the app looks and where navigation sits. Details and m
 Under Settings > Appearance:
 
 - **Dock position**: where the navigation sits.
-- **Layout icon**: the icon shown for the layout.
 - **Icons**: icon pack (original, material or atom).
 
 ## Known limitations

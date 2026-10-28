@@ -218,7 +218,7 @@ function Main({ settings, setSettings, screen, go, overlay, setOverlay }: MainPr
   const popoutTools = viewSettingsSection(screen) ? gear : undefined;
 
   return (
-    <LayoutProvider layout={settings.layout} icons={settings.icons} mainMenu={settings.mainMenu} dock={settings.dock} layoutIcon={settings.layoutIcon}>
+    <LayoutProvider layout={settings.layout} icons={settings.icons} mainMenu={settings.mainMenu} dock={settings.dock}>
     <ToastProvider defaultTimeout={general.toastDuration}>
       <DialogHost />
       <SaveErrorToast error={saveError} onShown={() => setSaveError(null)} />

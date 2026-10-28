@@ -10,6 +10,7 @@ Colours: violet `#9b8cff` on the dark tile `#120d2b` is the brand. Gold stands f
 |---|---|
 | `app/web/public/favicon.svg` | Main icon: favicon and, rendered to `.ico` by the build, the exe and window icon |
 | `docs/logo/kedalion-anvil.svg` | Main icon, 64 px source |
+| `packages/ui/src/components/ui.tsx` `BrandMark` | Main icon without the tile, in the header and sidebar: anvil in the accent colour, spark in `--brand-spark` |
 | `docs/logo/kedalion-eye.svg` | Alternative icon |
 | `docs/logo/logo-wordmark-dark.svg`, `logo-wordmark-light.svg` | Icon with the name, for dark and light backgrounds |
 | `docs/logo/logo-readme.svg` | README header |

@@ -2,8 +2,6 @@ import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type 
 import { errorMessage, type ApiError } from '../api';
 import { copyText } from '../hooks';
 import { t } from '../i18n';
-import { useLayout } from '../layout';
-import { LayoutMark } from '../layout-marks';
 import { Button, IconButton } from './Button';
 import { Icon } from './Icon';
 
@@ -387,10 +385,18 @@ export function useDialogs(): {
 
 export type { IconName } from '../icons';
 
-/** The active layout's mark (the stack for unknown layouts), coloured by `.brand-mark` (accent). */
+/** The app mark (Anvil spark, docs/ICONS.md): anvil in `.brand-mark` colour (accent), spark in `--brand-spark`. */
 export function BrandMark({ size = 30 }: { size?: number }) {
-  const { markId } = useLayout();
-  return <LayoutMark className="brand-mark" layoutId={markId} size={size} />;
+  return (
+    <svg className="brand-mark" width={size} height={size} viewBox="8 9 48 48" aria-hidden="true">
+      <g fill="var(--brand-spark)">
+        <path d="M32 10l2.2 6.3 6.3 2.2-6.3 2.2L32 27l-2.2-6.3-6.3-2.2 6.3-2.2z" />
+        <circle cx="44" cy="14" r="1.6" />
+        <circle cx="21" cy="23" r="1.3" />
+      </g>
+      <path d="M10 31h44v6h-8c-2 0-3 2-3 4v6h5v6H22v-6h5v-6c0-2-1-4-3-4-6 0-11-2-14-6z" fill="currentColor" />
+    </svg>
+  );
 }
 
 export { Icon };

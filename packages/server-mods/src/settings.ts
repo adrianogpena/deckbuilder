@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import { EDITOR_NAMES, type EditorId, findEditor, openInEditor, readJsonFile, revealInFolder, writeJsonAtomic } from '@kedalion/platform';
 import { isRecord, type Routes } from '@kedalion/server-core';
-import { ICON_SET_IDS, LAYOUT_MARK_IDS, layoutById } from '@kedalion/server-core/layouts';
+import { ICON_SET_IDS, layoutById } from '@kedalion/server-core/layouts';
 import { PALETTES, ZOOM_LEVELS, type ThemeKind, type ThemeSettings } from '@kedalion/server-core/palettes';
 
 /** Settings every app gets; apps extend this with their own fields. */
@@ -59,8 +59,6 @@ export function settingsStore<T extends BaseSettings>(opts: SettingsOptions<T>):
     else if (patch.mainMenu === 'labels' || patch.mainMenu === 'icons') next.mainMenu = patch.mainMenu;
     if (patch.dock === '') delete next.dock;
     else if (patch.dock === 'left' || patch.dock === 'right') next.dock = patch.dock;
-    if (patch.layoutIcon === '') delete next.layoutIcon;
-    else if (typeof patch.layoutIcon === 'string' && LAYOUT_MARK_IDS.includes(patch.layoutIcon)) next.layoutIcon = patch.layoutIcon;
     if (typeof patch.language === 'string' && /^[a-z]{2}(-[A-Z]{2})?$/.test(patch.language)) next.language = patch.language;
     opts.apply?.(patch, next);
     cache = next;

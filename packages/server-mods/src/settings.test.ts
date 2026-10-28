@@ -81,11 +81,11 @@ test('layout is saved when known, ignored when unknown, cleared by an empty stri
   expect(await s.save({ layout: '' })).toEqual({ theme: 'dark' });
 });
 
-test('dock and layoutIcon are saved when valid, ignored otherwise, cleared by an empty string', async () => {
+test('dock is saved when valid, ignored otherwise, cleared by an empty string', async () => {
   const { store: s } = await store();
-  expect(await s.save({ dock: 'right', layoutIcon: 'calm' })).toEqual({ theme: 'dark', dock: 'right', layoutIcon: 'calm' });
-  expect(await s.save({ dock: 'up', layoutIcon: 'nope' })).toEqual({ theme: 'dark', dock: 'right', layoutIcon: 'calm' });
-  expect(await s.save({ dock: '', layoutIcon: '' })).toEqual({ theme: 'dark' });
+  expect(await s.save({ dock: 'right' })).toEqual({ theme: 'dark', dock: 'right' });
+  expect(await s.save({ dock: 'up' })).toEqual({ theme: 'dark', dock: 'right' });
+  expect(await s.save({ dock: '' })).toEqual({ theme: 'dark' });
 });
 
 test('reload picks up an edit made outside the app', async () => {

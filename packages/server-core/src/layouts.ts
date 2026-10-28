@@ -41,11 +41,6 @@ export function applyDockSide(s: LayoutStructure, side?: 'left' | 'right'): Layo
   return side && side !== s.sidebarSide ? { ...s, sidebarSide: side } : s;
 }
 
-/** Ids of the brand marks (one per designed layout), selectable as the layout icon. */
-export const LAYOUT_MARK_IDS: readonly string[] = [
-  'original', 'dense', 'calm', 'dock-right', 'material', 'labeled', 'blueprint', 'islands', 'transit', 'modeline', 'ribbon', 'ledger', 'atlas',
-];
-
 export interface Layout {
   id: string;
   label: string;

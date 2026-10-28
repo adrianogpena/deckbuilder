@@ -1,8 +1,7 @@
 import { effectiveKind, familySibling, PALETTES, resolvePalette, type ThemeKind, type ThemePreference, type ThemeSettings, ZOOM_LEVELS } from '@kedalion/server-core/palettes';
-import { DEFAULT_LAYOUT, hasLabelledMenu, ICON_SET_IDS, LAYOUT_MARK_IDS, LAYOUTS, resolveLayout, supportsDock } from '@kedalion/server-core/layouts';
+import { DEFAULT_LAYOUT, hasLabelledMenu, ICON_SET_IDS, LAYOUTS, resolveLayout, supportsDock } from '@kedalion/server-core/layouts';
 import { isDesktop } from '../api';
 import { t, tryT } from '../i18n';
-import { LayoutMark } from '../layout-marks';
 import { SettingItem } from './SettingFields';
 import { useSystemKind } from '../theme';
 
@@ -129,30 +128,6 @@ export function DockField({ value, onChange }: Props) {
         </select>
         <span className="muted">{t(supported ? 'settings.appearance.dockDesc' : 'settings.appearance.dockUnsupported')}</span>
       </label>
-    </SettingItem>
-  );
-}
-
-/** The brand-mark picker; '' follows the active layout. Each option shows its mark. */
-export function LayoutIconField({ value, onChange }: Props) {
-  const own = resolveLayout(value.layout);
-  const name = (id: string) => tryT(`layout.${id}`) ?? LAYOUTS.find((l) => l.id === id)?.label ?? id;
-  return (
-    <SettingItem id="theme.layoutIcon" modified={!!value.layoutIcon}>
-      <div className="field">
-        <span className="mono-label">{t('settings.appearance.layoutIcon')}</span>
-        <div className="chips">
-          <button title={t('settings.appearance.layoutIconFollow', { name: name(own.id) })} className={`chip${!value.layoutIcon ? ' chip-on' : ''}`} onClick={() => onChange({ layoutIcon: '' })}>
-            {t('settings.appearance.layoutIconFollow', { name: name(own.id) })}
-          </button>
-          {LAYOUT_MARK_IDS.map((id) => (
-            <button key={id} className={`chip${value.layoutIcon === id ? ' chip-on' : ''}`} title={name(id)} aria-label={name(id)} onClick={() => onChange({ layoutIcon: id })}>
-              <LayoutMark layoutId={id} size={18} />
-            </button>
-          ))}
-        </div>
-        <span className="muted">{t('settings.appearance.layoutIconDesc')}</span>
-      </div>
     </SettingItem>
   );
 }
