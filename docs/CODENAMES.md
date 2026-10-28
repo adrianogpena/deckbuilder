@@ -4,6 +4,8 @@ Kedalion is the smith's guide of Greek myth: a helper of Hephaestus who rode on 
 
 Internal codenames for the app, its views and its packages, taken from Greek mythology. They appear in docs and code comments only. Menu labels, package ids (`view-explorer`, `@kedalion/ui`) and persisted identifiers stay as they are.
 
+The app icon and the view icons draw on these names; their stories are in [ICONS.md](ICONS.md).
+
 The scheme follows three groups:
 
 - **Olympian** is the foundation: the app, the shared base, the server core, Agents and Settings.

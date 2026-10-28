@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M8.5 7.5v9a3.5 1.5 0 0 0 7 0v-9"/>
+  <ellipse cx="12" cy="7.5" rx="3.5" ry="1.5"/>
+  <g stroke-width="1.4" style="stroke:var(--icon-accent,#e8a33a)">
+    <path d="M7 21.5C2.5 18 2 11 5 5.5M17 21.5c4.5-3.5 5-10.5 2-16"/>
+    <path d="M3.4 16.5l-1.9.4M3.2 12.5l-1.9-.6M4.2 8.6l-1.7-1.2M20.6 16.5l1.9.4M20.8 12.5l1.9-.6M19.8 8.6l1.7-1.2"/>
+  </g>
+</svg>
