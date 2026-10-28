@@ -62,6 +62,8 @@ interface DragNode {
 export interface SidebarProps {
   projects: AgentProject[];
   sessions: AgentSessionView[];
+  /** Most sessions the tree lists per project (live, selected and checked ones excepted). */
+  perProject?: number;
   /** Plan usage per account; accounts without known rate limits are absent. */
   usage?: AgentAccountUsage[];
   /** `agents.usage.*` settings: the usage section and the context % of live rows show only when `show`. */
@@ -153,7 +155,7 @@ interface RowMatch {
 }
 
 /** Projects with their Claude sessions, a status dot and label per session; search, filter pills, pin, rename and archive. */
-export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenUsage, getWorkspace, selectedId, onSelect, selectedProjectId, onSelectProject, selectedFolderId, onSelectFolder, onVisibleChange, onNewSession, onQuickNew, onRemoveProject, onStop, onRestart, onStartBackground, expandCollapsedOnActiveJump = false, addedProject }: SidebarProps) {
+export function Sidebar({ projects, sessions, perProject = 10, usage = [], usageSettings, onOpenUsage, getWorkspace, selectedId, onSelect, selectedProjectId, onSelectProject, selectedFolderId, onSelectFolder, onVisibleChange, onNewSession, onQuickNew, onRemoveProject, onStop, onRestart, onStartBackground, expandCollapsedOnActiveJump = false, addedProject }: SidebarProps) {
   const ref = useRef<HTMLDivElement>(null);
   const { prefs: accountPrefs } = useAccountPrefs();
   const [accountCount, setAccountCount] = useState<number>();
@@ -304,9 +306,23 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
     return tagCounts(sessions.filter((s) => !!s.project && known.has(s.project)));
   }, [projects, sessions]);
 
+  // The tree lists at most `perProject` sessions per project, newest first; live, selected and checked ones always stay.
+  const treeSessions = useMemo(() => {
+    const cap = perProject >= 1 ? Math.floor(perProject) : 10;
+    const count = new Map<string, number>();
+    const keep = new Set<string>();
+    for (const s of [...live].sort((a, b) => b.updatedAt - a.updatedAt)) {
+      const p = s.project ?? '';
+      const n = count.get(p) ?? 0;
+      count.set(p, n + 1);
+      if (n < cap || s.live || (s.status !== undefined && s.status !== 'stopped') || s.id === selectedId || checked.has(s.id)) keep.add(s.id);
+    }
+    return live.filter((s) => keep.has(s.id));
+  }, [live, perProject, selectedId, checked]);
+
   const rows = useMemo(
-    () => buildRows({ tree: tree ?? { folders: [], topOrder: [], sessionOrder: {}, collapsed: [], sort: 'manual', view: 'normal' }, projects, sessions: live, filtering: searching }),
-    [tree, projects, live, searching],
+    () => buildRows({ tree: tree ?? { folders: [], topOrder: [], sessionOrder: {}, collapsed: [], sort: 'manual', view: 'normal' }, projects, sessions: treeSessions, filtering: searching }),
+    [tree, projects, treeSessions, searching],
   );
 
   useEffect(() => {
@@ -364,7 +380,7 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
   });
 
   const jumpStarted = (dir: 1 | -1) => {
-    const list = expandCollapsedOnActiveJump && tree ? buildRows({ tree: { ...tree, collapsed: [] }, projects, sessions: live, filtering: searching }) : rows;
+    const list = expandCollapsedOnActiveJump && tree ? buildRows({ tree: { ...tree, collapsed: [] }, projects, sessions: treeSessions, filtering: searching }) : rows;
     const id = stepStarted(startedCandidates(list), selectedId, dir);
     if (id) {
       onSelect(id);
@@ -986,7 +1002,10 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
           title={title}
           aria-expanded={!r.collapsed}
           aria-current={current ? 'true' : undefined}
-          onClick={select ?? toggle}
+          onClick={() => {
+            select?.();
+            if (r.collapsed) setCollapsed(nodeKey, false);
+          }}
           onKeyDown={(e) => {
             if (e.key !== 'Enter') return;
             e.preventDefault();
@@ -1200,7 +1219,7 @@ export function Sidebar({ projects, sessions, usage = [], usageSettings, onOpenU
     const kind = toolKind(id);
     if (kind !== undefined) return panelOf(kind) && section(id, cardBody(kind, true), { className: 'agents-section-tool' });
     if (id === 'changes') return section(id, cardBody(id, false), { className: 'agents-section-tool' });
-    if (id === 'sessions') return section(id, sessionsBody, { count: live.length, note: note && <span className="agents-panel-note">{note}</span>, actions: sessionsActions, className: 'agents-section-sessions' });
+    if (id === 'sessions') return section(id, sessionsBody, { count: treeSessions.length, note: note && <span className="agents-panel-note">{note}</span>, actions: sessionsActions, className: 'agents-section-sessions' });
     if (id === 'tags') return tags.length > 0 && section(id, <div className="agents-tags">{tagsBody}</div>, { count: tags.length });
     if (id === 'archived') return archived.length > 0 && section(id, archived.map((x) => row(x)), { count: archived.length, forceOpen: searching, className: 'agents-archived' });
     return usageBlock && section(id, usageBlock, { actions: <SectionButton icon="maximize" label={t('agents.section.openDashboard')} onClick={() => onOpenUsage?.()} /> });

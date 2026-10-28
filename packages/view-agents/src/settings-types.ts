@@ -16,6 +16,8 @@ export interface AgentsSettings {
   resumeOnSelect?: boolean;
   /** Sessions kept per project (live ones always count first); 10 when omitted. */
   maxSessionsPerProject?: number;
+  /** Sessions the project summary lists; omitted = follows `maxSessionsPerProject`. */
+  maxSessionsOnSummary?: number;
   /** Days a deleted session stays in the trash before startup removes it; 30 when omitted. */
   trashRetentionDays?: number;
   /** Archive stopped sessions idle for 7+ days automatically; on when omitted. */

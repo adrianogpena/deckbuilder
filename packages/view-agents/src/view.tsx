@@ -2,7 +2,7 @@ import { lazy } from 'react';
 import { defineView } from '@kedalion/ui';
 import { agentsCommands } from './commands';
 import { en, ptBR } from './i18n';
-import { agentsSettingDefs, type AgentsViewSettings } from './settings';
+import { agentsSettingDefs, summaryLimitOf, type AgentsViewSettings } from './settings';
 import { AgentsAccountsCard, AgentsSettingsCard, AgentsUsageCard } from './web/StatuslineCard';
 import { usageSettingsOf } from './web/UsageView';
 
@@ -24,6 +24,8 @@ export function agentsView({ group, order }: AgentsViewOptions) {
         rightSidebarOpen={settings.agents?.rightSidebarOpen === true}
         taskSkill={settings.agents?.taskSkill ?? ''}
         rightSidebarPerProject={settings.agents?.rightSidebarPerProject === true}
+        summaryLimit={summaryLimitOf(settings.agents)}
+        perProject={settings.agents?.maxSessionsPerProject}
         dnd={settings.agents?.doNotDisturb === true}
         onDnd={(on) => onSave({ agents: { ...settings.agents, doNotDisturb: on } })}
       />

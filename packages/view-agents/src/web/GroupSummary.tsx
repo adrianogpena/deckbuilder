@@ -6,6 +6,7 @@ import { displayName, statusCounts } from './attention';
 import { statusLabel } from './Sidebar';
 import { shortCwd } from './StoppedCard';
 import { SessionDot } from './StatusIcon';
+import { severity } from './usage-format';
 import './main.css';
 
 export interface GroupSummaryProps {
@@ -17,13 +18,15 @@ export interface GroupSummaryProps {
   sessions: AgentSessionView[];
   /** Projects in a folder; shown instead of the path. */
   projectCount?: number;
+  /** Most sessions listed (newest first); the header count stays the total. */
+  limit?: number;
   onSelect(sessionId: string): void;
   /** Enter on the summary; absent for folders. */
   onNewSession?(): void;
 }
 
 /** Summary of a project or folder row: kind and name, counts, a hint and one line per session, newest first. */
-export function GroupSummary({ kind, name, path, sessions, projectCount, onSelect, onNewSession }: GroupSummaryProps) {
+export function GroupSummary({ kind, name, path, sessions, projectCount, limit, onSelect, onNewSession }: GroupSummaryProps) {
   const c = statusCounts(sessions);
   const meta = [
     t(sessions.length === 1 ? 'agents.summary.session' : 'agents.summary.sessions', { n: sessions.length }),
@@ -33,7 +36,7 @@ export function GroupSummary({ kind, name, path, sessions, projectCount, onSelec
       ? t(projectCount === 1 ? 'agents.summary.project' : 'agents.summary.projects', { n: projectCount ?? 0 })
       : path && shortCwd(path),
   ].filter(Boolean);
-  const list = [...sessions].sort((a, b) => b.updatedAt - a.updatedAt);
+  const list = [...sessions].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, limit);
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.key !== 'Enter' || e.target !== e.currentTarget || !onNewSession) return;
@@ -61,6 +64,9 @@ export function GroupSummary({ kind, name, path, sessions, projectCount, onSelec
                 <SessionDot status={s.status} account={s.account} title={label} />
                 <span className="agents-summary-title" title={title}>{title}</span>
                 <span className="agents-summary-time">{since(s.updatedAt)}</span>
+                {s.contextPercent !== undefined && (
+                  <span className={`agents-summary-ctx sev-${severity('context', s.contextPercent)}`} title={`${t('agents.context')}: ${s.contextPercent}%`}>{s.contextPercent}%</span>
+                )}
               </button>
             </li>
           );

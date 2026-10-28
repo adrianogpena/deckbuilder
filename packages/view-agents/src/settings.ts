@@ -32,11 +32,25 @@ const claudeArgsDef: SettingDef<AgentsViewSettings> = {
   set: (s, v) => ({ agents: { ...s.agents, claudeArgs: parseArgs(v) } }),
 };
 
+/** Unset (absent) follows `maxSessionsPerProject`; a stored number, 0 included, is its own value. */
+export const summaryLimitOf = (a: AgentsSettings | undefined): number => a?.maxSessionsOnSummary ?? a?.maxSessionsPerProject ?? 10;
+
+const maxSessionsOnSummaryDef: SettingDef<AgentsViewSettings> = {
+  ...groupField<AgentsViewSettings, 'agents'>('agents', 'maxSessionsOnSummary', 17.5, num(10, 0, 10000)),
+  get: (s) => summaryLimitOf(s.agents),
+  modified: (s) => s.agents?.maxSessionsOnSummary !== undefined,
+  reset: (s) => {
+    const { maxSessionsOnSummary: _drop, ...rest } = s.agents ?? {};
+    return { agents: rest };
+  },
+} as SettingDef<AgentsViewSettings>;
+
 export const agentsSettingDefs: SettingDef<AgentsViewSettings>[] = [
   groupField<AgentsViewSettings, 'agents'>('agents', 'restoreSessions', 12, oneOf('ask', RESTORE_MODES)),
   groupField<AgentsViewSettings, 'agents'>('agents', 'softCap', 20, num(12, 1, 100)),
   groupField<AgentsViewSettings, 'agents'>('agents', 'resumeOnSelect', 15, bool(false)),
   groupField<AgentsViewSettings, 'agents'>('agents', 'maxSessionsPerProject', 17, num(10, 1, 10000)),
+  maxSessionsOnSummaryDef,
   groupField<AgentsViewSettings, 'agents'>('agents', 'trashRetentionDays', 18, num(30, 1, 3650)),
   groupField<AgentsViewSettings, 'agents'>('agents', 'autoSettle', 25, bool(true)),
   groupField<AgentsViewSettings, 'agents'>('agents', 'gitStatus', 27, bool(true)),

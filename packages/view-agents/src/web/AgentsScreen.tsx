@@ -80,7 +80,7 @@ function Sash({ edge, width, onWidth, onDone, onReset }: { edge: 'start' | 'end'
 }
 
 /** Agents screen: the sessions sidebar and the dock workspace of the selected project (the selected session, or a tool opened over it). */
-export function AgentsScreen({ usageSettings, rightSidebarOpen = false, rightSidebarPerProject = false, taskSkill = '', dnd = false, onDnd }: { usageSettings?: UsageSettings; taskSkill?: string; rightSidebarOpen?: boolean; rightSidebarPerProject?: boolean; dnd?: boolean; onDnd?: (on: boolean) => void }) {
+export function AgentsScreen({ usageSettings, rightSidebarOpen = false, rightSidebarPerProject = false, taskSkill = '', summaryLimit, perProject, dnd = false, onDnd }: { usageSettings?: UsageSettings; summaryLimit?: number; perProject?: number;taskSkill?: string; rightSidebarOpen?: boolean; rightSidebarPerProject?: boolean; dnd?: boolean; onDnd?: (on: boolean) => void }) {
   const { sessions, usage, git } = useAgentsFeed();
   const toast = useViewToast('home');
   const dialogs = useDialogs();
@@ -237,6 +237,7 @@ export function AgentsScreen({ usageSettings, rightSidebarOpen = false, rightSid
       if (!path) return;
       setNewFor(undefined);
       setFolderFor(undefined);
+      setSummaryFor(undefined);
       const project = activate(path);
       withWorkspace(project, (h) => void h.api.open(kind, params));
     },
@@ -589,7 +590,8 @@ export function AgentsScreen({ usageSettings, rightSidebarOpen = false, rightSid
     focusSoon: () => void focusSoon(),
   };
 
-  const showWorkspaces = newFor === undefined && folderFor === undefined;
+  const summaryProject = summaryFor === undefined ? undefined : projects.find((p) => p.id === summaryFor);
+  const showWorkspaces = newFor === undefined && folderFor === undefined && summaryProject === undefined;
 
   return (
     <AgentsHostProvider value={host}>
@@ -600,6 +602,7 @@ export function AgentsScreen({ usageSettings, rightSidebarOpen = false, rightSid
               projects={projects}
               addedProject={addedProject}
               sessions={sessions}
+              perProject={perProject !== undefined && perProject >= 1 ? Math.floor(perProject) : 10}
               usage={usage}
               usageSettings={usageSettings}
               onOpenUsage={() => openTool('usage')}
@@ -662,6 +665,21 @@ export function AgentsScreen({ usageSettings, rightSidebarOpen = false, rightSid
               ))}
               {activeProject === undefined && <EmptyState newKey={newKey} onNewSession={projects[0] ? () => setNewFor(projects[0]!.id) : () => setAdding(true)} />}
             </div>
+            {summaryProject && newFor === undefined && (
+              <div className="agents-panes">
+                <div className="agents-pane">
+                  <GroupSummary
+                    kind="project"
+                    limit={summaryLimit}
+                    name={summaryProject.name}
+                    path={summaryProject.path}
+                    sessions={(hidden || !visible ? sessions.filter((s) => !s.archived) : visible).filter((s) => s.project === summaryProject.id)}
+                    onSelect={select}
+                    onNewSession={() => setNewFor(summaryProject.id)}
+                  />
+                </div>
+              </div>
+            )}
             {folderFor && newFor === undefined && (
               <div className="agents-panes">
                 <div className="agents-pane">

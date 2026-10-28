@@ -33,6 +33,10 @@ interface ValueSettingBase<S, V> extends SettingBase {
   get(settings: S): V;
   /** Returns the patch to apply to the settings object. */
   set(settings: S, value: V): Partial<S>;
+  /** Overrides the default comparison for the modified mark (e.g. a setting that follows another until set). */
+  modified?(settings: S): boolean;
+  /** Overrides the reset patch (default: `set(settings, default)`). */
+  reset?(settings: S): Partial<S>;
 }
 
 export interface BooleanSetting<S> extends ValueSettingBase<S, boolean> {
@@ -195,12 +199,14 @@ export function settingsFromOptionMeta<S, O extends Record<string, unknown>>(opt
 /** Whether a setting differs from its default (always false for `custom`, which has no getter). */
 export function isModified<S>(setting: SettingDef<S>, settings: S): boolean {
   if (setting.kind === 'custom') return false;
+  if (setting.modified) return setting.modified(settings);
   return setting.get(settings) !== setting.default;
 }
 
 /** The patch that resets a setting, or undefined for `custom` settings (no single set path). */
 export function resetPatch<S>(setting: SettingDef<S>, settings: S): Partial<S> | undefined {
   if (setting.kind === 'custom') return undefined;
+  if (setting.reset) return setting.reset(settings);
   return (setting.set as (s: S, v: unknown) => Partial<S>)(settings, setting.default);
 }
 

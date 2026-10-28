@@ -8,6 +8,7 @@ import { defineServerView, invalid, ndjson, socketTickets, validGroup, type Sock
 import type { ServerWebSocket } from 'bun';
 import type { AgentLocal, AgentSkill, AgentActiveAccountResult, AgentActiveAccountSet, AgentLaunch, AgentRunning, AgentSessionView, AgentsCapWarn, AgentsFrame, AgentStopResult } from './protocol.ts';
 import type { AgentsSettings, AgentsUsagePosition } from './settings-types.ts';
+import { summaryLimitOf } from './settings.ts';
 import { type AgentAccount, accountByDir, createAccountRegistry, detectAccounts, resolveActiveAccount } from './server/accounts.ts';
 import { createAlerts } from './server/alerts.ts';
 import { createLayoutStore } from './server/layouts.ts';
@@ -55,7 +56,7 @@ export interface AgentsServerSettings {
 /** A copy of `raw` when it is a well-formed Agents settings group, else null. */
 const USAGE_POSITIONS: AgentsUsagePosition[] = ['top', 'bottom'];
 
-const AGENTS_SPEC = { restoreSessions: ['ask', 'always', 'never'] as const, softCap: [1, 100], notifyNeedsYou: 'boolean', taskSkill: 'string', notifyDone: 'boolean', notifyError: 'boolean', doNotDisturb: 'boolean', autoSettle: 'boolean', gitStatus: 'boolean', rightSidebarOpen: 'boolean', rightSidebarPerProject: 'boolean', ctl: 'boolean', resumeOnSelect: 'boolean', 'accounts.activeAccount': 'string', 'accounts.showAllSessions': 'boolean', 'accounts.shareProjects': 'boolean', 'accounts.showOwner': 'boolean', 'usage.show': 'boolean', 'usage.position': USAGE_POSITIONS, 'usage.compact': 'boolean', 'usage.use24HourClock': 'boolean', 'usage.showAccount': 'boolean', 'usage.showModel': 'boolean', 'usage.showCache': 'boolean', 'usage.showContext': 'boolean', 'usage.showFiveHour': 'boolean', 'usage.showSevenDay': 'boolean', 'usage.showCost': 'boolean', 'usage.context.warnAt': [0, 100], 'usage.context.critAt': [0, 100], 'usage.fiveHour.warnAt': [0, 100], 'usage.fiveHour.critAt': [0, 100], 'usage.sevenDay.warnAt': [0, 100], 'usage.sevenDay.critAt': [0, 100],maxSessionsPerProject: [1, 10000], trashRetentionDays: [1, 3650], claudeCommand: 'string', 'hooks.onRunning': 'string', 'hooks.onWaiting': 'string', 'hooks.onDone': 'string', 'hooks.onError': 'string' } as const;
+const AGENTS_SPEC = { restoreSessions: ['ask', 'always', 'never'] as const, softCap: [1, 100], notifyNeedsYou: 'boolean', taskSkill: 'string', notifyDone: 'boolean', notifyError: 'boolean', doNotDisturb: 'boolean', autoSettle: 'boolean', gitStatus: 'boolean', rightSidebarOpen: 'boolean', rightSidebarPerProject: 'boolean', ctl: 'boolean', resumeOnSelect: 'boolean', 'accounts.activeAccount': 'string', 'accounts.showAllSessions': 'boolean', 'accounts.shareProjects': 'boolean', 'accounts.showOwner': 'boolean', 'usage.show': 'boolean', 'usage.position': USAGE_POSITIONS, 'usage.compact': 'boolean', 'usage.use24HourClock': 'boolean', 'usage.showAccount': 'boolean', 'usage.showModel': 'boolean', 'usage.showCache': 'boolean', 'usage.showContext': 'boolean', 'usage.showFiveHour': 'boolean', 'usage.showSevenDay': 'boolean', 'usage.showCost': 'boolean', 'usage.context.warnAt': [0, 100], 'usage.context.critAt': [0, 100], 'usage.fiveHour.warnAt': [0, 100], 'usage.fiveHour.critAt': [0, 100], 'usage.sevenDay.warnAt': [0, 100], 'usage.sevenDay.critAt': [0, 100],maxSessionsPerProject: [1, 10000], maxSessionsOnSummary: [0, 10000],trashRetentionDays: [1, 3650], claudeCommand: 'string', 'hooks.onRunning': 'string', 'hooks.onWaiting': 'string', 'hooks.onDone': 'string', 'hooks.onError': 'string' } as const;
 
 /** Told on every valid Agents config edit (the running view's git poller). */
 let agentsConfigListener: ((group: AgentsSettings) => void) | undefined;
@@ -64,7 +65,7 @@ let agentsConfigListener: ((group: AgentsSettings) => void) | undefined;
 export const validAgents = (raw: unknown): AgentsSettings | null => {
   const { claudeArgs, ...all } = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>;
   // Keys no longer in the spec (e.g. the removed `mode`) are dropped, not a reason to reject the whole group.
-  const rest = Object.fromEntries(Object.entries(all).filter(([k]) => Object.hasOwn(AGENTS_SPEC, k)));
+  const rest = Object.fromEntries(Object.entries(all).filter(([k, v]) => Object.hasOwn(AGENTS_SPEC, k) && !(k === 'maxSessionsOnSummary' && v === null)));
   const args = claudeArgs === undefined ? undefined : Array.isArray(claudeArgs) && claudeArgs.length <= 50 && claudeArgs.every((a) => typeof a === 'string' && a.length <= 300) ? (claudeArgs as string[]) : null;
   const group = typeof raw === 'object' && raw !== null && !Array.isArray(raw) && args !== null ? (validGroup(rest, AGENTS_SPEC) as AgentsSettings | null) : null;
   if (!group) return null;
@@ -157,7 +158,7 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
   /** Session the web reports as on screen (Agents view open and focused); no toast for it. */
   let shownId: string | undefined;
   const notifications = opts.notifications ?? createNotifications({ appName: 'Agents', link: () => opts.link?.(), sink: opts.toast });
-  const agentsNotify = notifications.for({ icon: AGENTS_ICON });
+  const agentsNotify = notifications.for('agents');
   const show = (x: { title: string; body: string; launch: string }) => void agentsNotify(x);
   let approvalsFile: string | undefined;
   const approvals = createHookApprovals(() => approvalsFile);
@@ -296,6 +297,7 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
     const refs = projects?.list() ?? [];
     const capSetting = agentsSettings?.maxSessionsPerProject;
     const sessionCap = typeof capSetting === 'number' && capSetting >= 1 ? Math.floor(capSetting) : 10;
+    const feedCap = Math.max(sessionCap, Math.floor(summaryLimitOf(agentsSettings)) || 0);
     const screenErrors = new Map<string, string>();
     for (const [id, lines] of opts.terminalScreens?.() ?? []) {
       const err = detectScreenError(lines);
@@ -313,7 +315,7 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
     const usage = usageReader.read(accs, ownerView.active?.id);
     sevenDayHistory.observe(usage.accounts);
     const views: AgentSessionView[] = applyAccountView(scanner
-      .scan(accs.map((a) => ({ id: a.id, dir: a.dir })), quick, { projectPaths: refs.map((r) => r.path), perFolder: sessionCap, keep: new Set([...statuses.keys(), ...claudeTerms().map((t) => t.sessionId)]) }, (m) => usage.windows.get(m))
+      .scan(accs.map((a) => ({ id: a.id, dir: a.dir })), quick, { projectPaths: refs.map((r) => r.path), perFolder: feedCap, keep: new Set([...statuses.keys(), ...claudeTerms().map((t) => t.sessionId)]) }, (m) => usage.windows.get(m))
       .map((x) => ({ ...x, lifecycle: lc.exited.has(x.id) ? ('exited' as const) : lc.starting.has(x.id) ? ('starting' as const) : undefined, exitCode: lc.exited.get(x.id), contextPercent: usageContextPercent(usage.bySession.get(x.id)) ?? x.contextPercent, startupContextPercent: usage.bySession.get(x.id)?.startupContextPercent, modelName: usage.bySession.get(x.id)?.model?.display_name, effort: usage.bySession.get(x.id)?.effort, claudeVersion: usage.bySession.get(x.id)?.version, status: statusOf(x.id), live: statuses.has(x.id) || undefined, external: external.has(x.id) || hanging.has(x.id) || undefined, hanging: hanging.has(x.id) || undefined, project: matchProject(x.cwd, refs)?.id, seenAt: s[x.id] }))
       .filter((x) => x.project !== undefined)
       .sort((a, b) => b.updatedAt - a.updatedAt), accs, allView);
@@ -341,7 +343,7 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
     if (!quick) tracker.prune(everyOwner.map((x) => x.id));
     // The per-project cap counts only listed sessions (the account-filtered feed); new ptys without a transcript are never capped.
     const listed = ownerView.showAllSessions ? everyOwner : applyAccountView(everyOwner, accs, ownerView);
-    const sessions = capPerProject(listed, sessionCap, (x) => (scannedIds.has(x.id) ? (x.node ?? x.project) : undefined));
+    const sessions = capPerProject(listed, feedCap, (x) => (scannedIds.has(x.id) ? (x.node ?? x.project) : undefined));
     const status: Record<string, AgentStatus> = {};
     for (const x of sessions) status[x.id] = x.status;
     void hooks.observe(sessions);

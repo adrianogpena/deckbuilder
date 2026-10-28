@@ -233,6 +233,10 @@
 .agents-summary-row:hover, .agents-summary-row:focus-visible { background: var(--bg-hover); outline: none; }
 .agents-summary-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .agents-summary-time { font-size: var(--fs-xs); color: var(--ink-muted); }
+.agents-summary-ctx { flex: none; min-width: 4ch; text-align: right; font-family: var(--font-mono); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; color: var(--text-3); }
+.agents-summary-ctx.sev-ok { color: var(--ok); }
+.agents-summary-ctx.sev-warn { color: var(--warn); }
+.agents-summary-ctx.sev-err { color: var(--err); }
 .agents-project-name { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-transform: inherit; cursor: pointer; }
 .agents-project-name:hover, .agents-project-name[aria-current='true'] { color: var(--accent); }
 .agents-external-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 12px; font-size: var(--fs-xs); color: var(--ink-muted); }
