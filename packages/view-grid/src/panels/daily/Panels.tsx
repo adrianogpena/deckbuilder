@@ -43,8 +43,12 @@ export function TodoPanel({ config, data, refresh }: Props) {
   return (
     <div className="daily">
       <div className="daily-head">
-        <span>{tKey('dash.daily.todo.count', { done, total: data.todos.length })}</span>
-        <Button onClick={() => void act('clear-done')} disabled={done === 0}>{tKey('dash.daily.todo.clear')}</Button>
+        <span>{data.remote ? tKey('dash.daily.todo.open', { total: data.todos.length }) : tKey('dash.daily.todo.count', { done, total: data.todos.length })}</span>
+        {data.remote ? (
+          <IconButton icon="refresh" label={tKey('dash.daily.todo.refresh')} onClick={refresh} />
+        ) : (
+          <Button onClick={() => void act('clear-done')} disabled={done === 0}>{tKey('dash.daily.todo.clear')}</Button>
+        )}
       </div>
       {data.todos.length === 0 && <p className="daily-empty">{tKey('dash.daily.todo.empty')}</p>}
       <ul className="daily-list">

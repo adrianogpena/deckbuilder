@@ -113,9 +113,10 @@ export function ConnectionDialog({ connection, type, onSaved, onClose }: {
           <select value={draft.type} disabled={locked} onChange={(e) => set({ type: e.target.value as ConnectionType })}>
             <option value="github">{tKey('conn.type.github')}</option>
             <option value="jira">{tKey('conn.type.jira')}</option>
+            <option value="todoist">{tKey('conn.type.todoist')}</option>
           </select>
         </label>
-        <label className="field">
+        {draft.type !== 'todoist' && <label className="field">
           <span className="mono-label">{tKey('conn.baseUrl')}</span>
           <input
             value={draft.baseUrl}
@@ -124,7 +125,7 @@ export function ConnectionDialog({ connection, type, onSaved, onClose }: {
             onChange={(e) => set({ baseUrl: e.target.value })}
           />
           <span className="muted">{tKey(draft.type === 'github' ? 'conn.baseUrl.github' : 'conn.baseUrl.jira')}</span>
-        </label>
+        </label>}
         {draft.type === 'jira' && (
           <label className="field">
             <span className="mono-label">{tKey('conn.user')}</span>
@@ -143,6 +144,7 @@ export function ConnectionDialog({ connection, type, onSaved, onClose }: {
             onChange={(e) => set({ token: e.target.value })}
           />
           {draft.type === 'github' && <span className="muted">{tKey('conn.token.github')}</span>}
+          {draft.type === 'todoist' && <span className="muted">{tKey('conn.token.todoist')}</span>}
         </label>
         <span className="muted">{tKey('conn.test.saved')}</span>
         {message && <p className={message.tone === 'err' ? 'err' : 'muted'} role="status">{message.text}</p>}

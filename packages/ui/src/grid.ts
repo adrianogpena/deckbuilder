@@ -25,7 +25,7 @@ export type PanelField =
   /** An absolute folder inside an Explorer project, chosen with a dialog that lists only the projects. */
   | (PanelFieldBase & { kind: 'folder'; default: '' })
   /** A connection id (see the Dashboard's Connections); the form shows a select of the connections of `connectionType`. */
-  | (PanelFieldBase & { kind: 'connection'; connectionType: 'jira' | 'github'; default: '' });
+  | (PanelFieldBase & { kind: 'connection'; connectionType: 'jira' | 'github' | 'todoist'; default: '' });
 
 export const MAX_FIELD_TEXT = 200;
 export const MAX_TEXT_FIELD = 4000;

@@ -2,7 +2,7 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { invalid, notFound } from '@kedalion/server-core';
 
-export type ConnectionType = 'jira' | 'github';
+export type ConnectionType = 'jira' | 'github' | 'todoist';
 
 export interface Connection {
   id: string;
@@ -35,19 +35,20 @@ export interface ConnectionInput {
 }
 
 export const GITHUB_API = 'https://api.github.com';
+export const TODOIST_API = 'https://api.todoist.com/api/v1';
 export const MAX_CONNECTIONS = 50;
 const MAX_TEXT = 200;
 const MAX_TOKEN = 4096;
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 
-export const isConnectionType = (v: unknown): v is ConnectionType => v === 'jira' || v === 'github';
+export const isConnectionType = (v: unknown): v is ConnectionType => v === 'jira' || v === 'github' || v === 'todoist';
 
 export const publicOf = ({ token, ...rest }: Connection): PublicConnection => ({ ...rest, hasToken: !!token });
 
 const str = (v: unknown, max: number): string => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 
 function cleanUrl(raw: string, type: ConnectionType): string {
-  const value = raw || (type === 'github' ? GITHUB_API : '');
+  const value = raw || (type === 'github' ? GITHUB_API : type === 'todoist' ? TODOIST_API : '');
   let url: URL;
   try {
     url = new URL(value);
@@ -102,7 +103,7 @@ export function createConnectionStore(dataDir: string) {
         const prev = input.id === undefined ? undefined : all.find((c) => c.id === input.id);
         if (input.id !== undefined && !prev) throw notFound('connection-missing', 'This connection no longer exists.');
         const type = prev?.type ?? input.type;
-        if (!isConnectionType(type)) throw invalid('connection-type', 'Choose Jira or GitHub.');
+        if (!isConnectionType(type)) throw invalid('connection-type', 'Choose Jira, GitHub or Todoist.');
         const name = str(input.name, MAX_TEXT);
         if (!name) throw invalid('connection-name', 'Enter a name.');
         const baseUrl = cleanUrl(str(input.baseUrl, 2000), type);

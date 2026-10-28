@@ -1,4 +1,6 @@
-import { defineSource, type DataSource, type GridPanelSpec } from '../../server';
+import { defineSource, type DataSource, type GridPanelSpec, type SourceContext } from '../../server';
+import { TODO_FIELDS } from './fields';
+import { addTask, closeTask, deleteTask, listTasks, renameTask } from './todoist';
 import { createJsonStore } from '../../json-store';
 import { addSnippet, addTodo, clearDone, editTodo, emptyDaily, parseDaily, removeSnippet, removeTodo, setScratch, toggleTodo, type Daily } from './model';
 
@@ -23,12 +25,46 @@ const edit = (dataDir: string, fn: (d: Daily) => Daily) => storeOf(dataDir).upda
 const dailySource = (id: string, actions: DataSource['actions']): DataSource =>
   defineSource({ id, fields: [], fetch: (_config, ctx) => storeOf(ctx.dataDir).read(), actions });
 
-export const todoSource = dailySource('todo', {
-  add: (p, _c, ctx) => edit(ctx.dataDir, (d) => addTodo(d, crypto.randomUUID(), field(p, 'text'))),
-  toggle: (p, _c, ctx) => edit(ctx.dataDir, (d) => toggleTodo(d, field(p, 'id'))),
-  edit: (p, _c, ctx) => edit(ctx.dataDir, (d) => editTodo(d, field(p, 'id'), field(p, 'text'))),
-  remove: (p, _c, ctx) => edit(ctx.dataDir, (d) => removeTodo(d, field(p, 'id'))),
-  'clear-done': (_p, _c, ctx) => edit(ctx.dataDir, clearDone),
+type TodoConfig = {
+  connection: string;
+  filter: string;
+};
+
+/** The Todoist credentials when the panel has a connection; undefined means the local list. */
+const remoteOf = (config: TodoConfig, ctx: SourceContext) => (config.connection ? ctx.connection(config.connection, 'todoist') : undefined);
+
+export const todoSource = defineSource<TodoConfig>({
+  id: 'todo',
+  fields: TODO_FIELDS,
+  async fetch(config, ctx) {
+    const conn = await remoteOf(config, ctx);
+    if (!conn) return storeOf(ctx.dataDir).read();
+    return { ...emptyDaily(), todos: await listTasks(conn, config.filter.trim(), ctx.signal), remote: true };
+  },
+  actions: {
+    add: async (p, c, ctx) => {
+      const conn = await remoteOf(c, ctx);
+      const text = field(p, 'text');
+      if (!conn) return edit(ctx.dataDir, (d) => addTodo(d, crypto.randomUUID(), text));
+      if (text.trim()) await addTask(conn, text, c.filter);
+    },
+    toggle: async (p, c, ctx) => {
+      const conn = await remoteOf(c, ctx);
+      if (!conn) return edit(ctx.dataDir, (d) => toggleTodo(d, field(p, 'id')));
+      await closeTask(conn, field(p, 'id'));
+    },
+    edit: async (p, c, ctx) => {
+      const conn = await remoteOf(c, ctx);
+      if (!conn) return edit(ctx.dataDir, (d) => editTodo(d, field(p, 'id'), field(p, 'text')));
+      if (field(p, 'text').trim()) await renameTask(conn, field(p, 'id'), field(p, 'text'));
+    },
+    remove: async (p, c, ctx) => {
+      const conn = await remoteOf(c, ctx);
+      if (!conn) return edit(ctx.dataDir, (d) => removeTodo(d, field(p, 'id')));
+      await deleteTask(conn, field(p, 'id'));
+    },
+    'clear-done': (_p, c, ctx) => (c.connection ? undefined : edit(ctx.dataDir, clearDone)),
+  },
 });
 
 export const scratchpadSource = dailySource('scratchpad', {
@@ -41,7 +77,7 @@ export const snippetsSource = dailySource('snippets', {
 });
 
 export const specs: GridPanelSpec[] = [
-  { kind: 'todo', fields: [], allowMultiple: false },
+  { kind: 'todo', fields: TODO_FIELDS, allowMultiple: false },
   { kind: 'scratchpad', fields: [], allowMultiple: false },
   { kind: 'snippets', fields: [], allowMultiple: false },
   { kind: 'focus-timer', fields: [], allowMultiple: false },

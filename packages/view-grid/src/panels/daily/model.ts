@@ -14,6 +14,8 @@ export interface Daily {
   todos: Todo[];
   scratch: string;
   snippets: Snippet[];
+  /** Set when the to-do list comes from Todoist instead of the local file. */
+  remote?: boolean;
 }
 
 export const MAX_TODOS = 200;
