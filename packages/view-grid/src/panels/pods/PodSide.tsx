@@ -1,4 +1,4 @@
-import { copyText, IconButton, type SidePanelContent } from '@kedalion/ui';
+import { copyNotify, IconButton, type SidePanelContent } from '@kedalion/ui';
 import { tKey } from '../../i18n';
 import { requestRefresh } from '../../panel';
 import { runAction } from '../../source';
@@ -38,7 +38,7 @@ export function podSideContent({ instanceId, pod, config }: PodSideInput): SideP
     actions: (
       <>
         <IconButton icon="rotate-ccw" label={tKey('dash.pods.restart')} onClick={() => void restart()} />
-        <IconButton icon="copy" label={tKey('dash.pods.copyName')} onClick={() => void copyText(pod.name)} />
+        <IconButton icon="copy" label={tKey('dash.pods.copyName')} onClick={() => void copyNotify(pod.name)} />
         {pod.urls.map((url) => (
           <IconButton
             key={url}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, JsonTree } from '@kedalion/ui';
+import { Button, copyNotify, JsonTree } from '@kedalion/ui';
 import { t } from '../../../i18n';
 import type { PanelModule } from '../../workspace/types';
 import { format, minify, validate } from './json-tools';
@@ -37,7 +37,7 @@ function JsonPanel() {
         >
           {t('panel.json.validate')}
         </Button>
-        <Button size="sm" icon="copy" onClick={() => void navigator.clipboard.writeText(text)}>
+        <Button size="sm" icon="copy" onClick={() => void copyNotify(text)}>
           {t('panel.json.copy')}
         </Button>
         <span className={`agents-json-status${status.kind === 'error' ? ' error' : ''}`} role="status">

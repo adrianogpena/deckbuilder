@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
-import { copyText } from '../hooks';
+import { copyNotify } from './Toast';
 import { t } from '../i18n';
 import {
   addBookmark,
@@ -206,7 +206,7 @@ export function LogView({
       { id: 'highlight', label: t('log.highlightWord', { word: shown }), icon: 'highlight', disabled: !word || highlights.length >= MAX_HIGHLIGHTS, run: () => addTerm(word) },
       { id: 'search', label: t('log.searchWord', { word: shown }), icon: 'search', disabled: !word, run: () => findSimilar(line, word) },
       'sep',
-      { id: 'copy', label: t('log.copyLine'), icon: 'copy', run: () => void copyText(line.text) },
+      { id: 'copy', label: t('log.copyLine'), icon: 'copy', run: () => void copyNotify(line.text) },
     ];
     if (marks) items.push({ id: 'bookmark', label: t('log.bookmarkLine'), icon: 'bookmark', run: () => bookmarkLine(line) });
     return items;

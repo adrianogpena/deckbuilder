@@ -1,4 +1,4 @@
-import { copyText, IconButton, type SidePanelContent } from '@kedalion/ui';
+import { copyNotify, IconButton, type SidePanelContent } from '@kedalion/ui';
 import { tKey } from '../../i18n';
 import type { JiraInfo } from './jira-info';
 import type { TrackedPr } from '../github/tracked';
@@ -39,7 +39,7 @@ export function ticketSideContent({ instanceId, ticket, link, jira, allPods, con
     ],
     actions: (
       <>
-        <IconButton icon="copy" label={tKey('dash.tickets.copyKey')} onClick={() => void copyText(ticket.key)} />
+        <IconButton icon="copy" label={tKey('dash.tickets.copyKey')} onClick={() => void copyNotify(ticket.key)} />
         {url && <IconButton icon="link" label={tKey('dash.tickets.openJira')} onClick={() => window.open(url, '_blank', 'noreferrer')} />}
       </>
     ),

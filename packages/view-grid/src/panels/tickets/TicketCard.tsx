@@ -1,5 +1,5 @@
 import { useState, type DragEvent, type MouseEvent } from 'react';
-import { ContextMenu, Icon } from '@kedalion/ui';
+import { ContextMenu, copyNotify, Icon } from '@kedalion/ui';
 import { tKey } from '../../i18n';
 import { AUTO_BADGE_MS } from './auto-move';
 import type { Ticket } from './model';
@@ -74,7 +74,7 @@ export function TicketCard({ ticket, selected, jiraBaseUrl, onDelete, onAutoMove
             { id: 'am-on', label: tKey('dash.tickets.autoMove.on'), radio: true, checked: ticket.autoMove === true, run: () => onAutoMove(true) },
             { id: 'am-off', label: tKey('dash.tickets.autoMove.off'), radio: true, checked: ticket.autoMove === false, run: () => onAutoMove(false) },
             'sep',
-            { id: 'copy', label: tKey('dash.tickets.copyKey'), icon: 'copy', run: () => void navigator.clipboard.writeText(ticket.key) },
+            { id: 'copy', label: tKey('dash.tickets.copyKey'), icon: 'copy', run: () => void copyNotify(ticket.key) },
             { id: 'open', label: tKey('dash.tickets.openJira'), icon: 'link', disabled: !url, run: () => window.open(url, '_blank', 'noreferrer') },
             'sep',
             { id: 'delete', label: tKey('dash.tickets.delete'), icon: 'trash', danger: true, run: onDelete },

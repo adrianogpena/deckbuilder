@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { copyText, IconButton, useAsync, type SidePanelContent } from '@kedalion/ui';
+import { copyNotify, IconButton, useAsync, type SidePanelContent } from '@kedalion/ui';
 import { tKey } from '../../i18n';
 import { Chip, relTime, type Tone } from '../../kit';
 import { runAction } from '../../source';
@@ -217,7 +217,7 @@ function RcCard({ state }: { state: { data: PrExtra | undefined; error?: { messa
             ) : (
               <>
                 <code>{latest.version}</code>
-                <IconButton icon="copy" label={tKey('dash.github.rc.copy')} onClick={() => void copyText(latest.version ?? '')} />
+                <IconButton icon="copy" label={tKey('dash.github.rc.copy')} onClick={() => void copyNotify(latest.version ?? '')} />
               </>
             )}
             <BuildDate date={latest.date} />
@@ -344,8 +344,8 @@ export function trackedPrSideContent({ instanceId, pr, config }: { instanceId: s
     actions: (
       <>
         <IconButton icon="link" label={tKey('dash.github.pr.open')} onClick={() => window.open(pr.url, '_blank', 'noreferrer')} />
-        <IconButton icon="copy" label={tKey('dash.github.pr.copyLink')} onClick={() => void copyText(pr.url)} />
-        <IconButton icon="copy" label={tKey('dash.github.pr.copyBranch')} onClick={() => void copyText(pr.branch)} />
+        <IconButton icon="copy" label={tKey('dash.github.pr.copyLink')} onClick={() => void copyNotify(pr.url)} />
+        <IconButton icon="copy" label={tKey('dash.github.pr.copyBranch')} onClick={() => void copyNotify(pr.branch)} />
       </>
     ),
   };
@@ -362,8 +362,8 @@ export function prSideContent({ instanceId, pr, config }: PrSideInput): SidePane
     actions: (
       <>
         <IconButton icon="link" label={tKey('dash.github.pr.open')} onClick={() => window.open(pr.url, '_blank', 'noreferrer')} />
-        <IconButton icon="copy" label={tKey('dash.github.pr.copyLink')} onClick={() => void copyText(pr.url)} />
-        <IconButton icon="copy" label={tKey('dash.github.pr.copyBranch')} onClick={() => void copyText(pr.branch)} />
+        <IconButton icon="copy" label={tKey('dash.github.pr.copyLink')} onClick={() => void copyNotify(pr.url)} />
+        <IconButton icon="copy" label={tKey('dash.github.pr.copyBranch')} onClick={() => void copyNotify(pr.branch)} />
       </>
     ),
   };

@@ -1,5 +1,6 @@
 import { createContext, Fragment, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { copyText } from '../hooks';
+import { copyNotify } from './Toast';
 import { t } from '../i18n';
 import { pathOf } from '../json-path';
 import { Button, IconButton } from './Button';
@@ -202,7 +203,7 @@ function JsonNode({ label, value, path, depth, initialDepth, onCopyPath }: NodeP
             size="xs"
             icon="copy"
             label={t('json.copyValue')}
-            onClick={() => copyText(typeof value === 'string' ? value : JSON.stringify(value, null, 2) ?? String(value))}
+            onClick={() => copyNotify(typeof value === 'string' ? value : JSON.stringify(value, null, 2) ?? String(value))}
           />
           <Button
             variant="ghost"

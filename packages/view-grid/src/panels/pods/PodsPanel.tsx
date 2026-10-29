@@ -1,5 +1,5 @@
 import { useState, type DragEvent, type KeyboardEvent, type MouseEvent } from 'react';
-import { ContextMenu, Icon, IconButton } from '@kedalion/ui';
+import { ContextMenu, copyNotify, Icon, IconButton } from '@kedalion/ui';
 import { tKey } from '../../i18n';
 import { Chip, relTime } from '../../kit';
 import { requestRefresh, type PanelSide } from '../../panel';
@@ -85,7 +85,7 @@ export function PodsPanel({ id, config, data, side, setConfig }: Props) {
           { id: 'logs', label: tKey('dash.pods.logs'), icon: 'log' as const, run: () => side.open(content(pod), 'logs') },
         ]
       : []),
-    { id: 'copy', label: tKey('dash.pods.copyName'), icon: 'copy' as const, run: () => void navigator.clipboard.writeText(pod.name) },
+    { id: 'copy', label: tKey('dash.pods.copyName'), icon: 'copy' as const, run: () => void copyNotify(pod.name) },
   ];
 
   const endDrag = () => {

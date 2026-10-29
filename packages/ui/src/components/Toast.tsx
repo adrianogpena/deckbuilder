@@ -1,5 +1,6 @@
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import type { IconName } from '../icons';
+import { copyText } from '../hooks';
 import { t } from '../i18n';
 import { Button, IconButton } from './Button';
 import { Icon } from './ui';
@@ -29,6 +30,15 @@ type Show = (opts: ToastOptions) => void;
 const ToastContext = createContext<Show>(() => {});
 
 let toastIds = 0;
+/** The mounted provider's `show`, for code outside React (menu items, side-panel content). */
+let showGlobal: Show = () => {};
+
+/** Copies `text` and confirms with a toast ("Copied" by default), or an error toast when the clipboard refuses. */
+export async function copyNotify(text: string, message: string = t('common.copied')): Promise<boolean> {
+  const ok = await copyText(text);
+  showGlobal(ok ? { message, timeout: 1500 } : { message: t('common.copyFailed'), kind: 'error' });
+  return ok;
+}
 
 /** Holds the toast stack (bottom right) of everything below it; `useToast` reaches it. */
 export function ToastProvider({ children, defaultTimeout = 4000 }: { children: ReactNode; defaultTimeout?: number }) {
@@ -45,6 +55,10 @@ export function ToastProvider({ children, defaultTimeout = 4000 }: { children: R
       }),
     [],
   );
+  useEffect(() => {
+    showGlobal = show;
+    return () => { if (showGlobal === show) showGlobal = () => {}; };
+  }, [show]);
   const close = useCallback((id: number) => setToasts((list) => list.filter((e) => e.id !== id)), []);
 
   // Escape closes the newest toast, unless something else (a dialog, the editor) used the key.

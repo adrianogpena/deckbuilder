@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { copyText, IconButton, useAsync } from '@kedalion/ui';
+import { copyNotify, IconButton, useAsync } from '@kedalion/ui';
 import { tKey } from '../../i18n';
 import { Chip, relTime, type Tone as ChipTone } from '../../kit';
 import { runAction } from '../../source';
@@ -75,7 +75,7 @@ function Body({ ov, target, ready, urls }: { ov: Overview; target: PodTarget; re
             {urls.map((u) => (
               <div key={u} className="pod-url">
                 <span>{u}</span>
-                <IconButton icon="copy" label={tKey('dash.pods.ov.copyUrl')} onClick={() => void copyText(u)} />
+                <IconButton icon="copy" label={tKey('dash.pods.ov.copyUrl')} onClick={() => void copyNotify(u)} />
               </div>
             ))}
           </Fact>
