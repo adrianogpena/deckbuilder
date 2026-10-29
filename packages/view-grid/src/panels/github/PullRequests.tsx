@@ -36,6 +36,11 @@ export function prRows(config: PullRequestsConfig, items: readonly PrItem[], act
             {pr.checks.total > 0 && ` ${pr.checks.passed}/${pr.checks.total}`}
           </Chip>
         )}
+        {has('threads') && pr.threads > 0 && (
+          <Chip tone="warn" title={tKey('dash.github.pr.threadsHint')}>
+            {tKey('dash.github.threads', { n: pr.threads })}
+          </Chip>
+        )}
       </span>
     );
     const meta = [
@@ -43,7 +48,6 @@ export function prRows(config: PullRequestsConfig, items: readonly PrItem[], act
       has('author') ? pr.author : '',
       has('branch') ? pr.branch : '',
       has('size') ? `+${pr.additions} −${pr.deletions}` : '',
-      has('threads') && pr.threads > 0 ? tKey('dash.github.threads', { n: pr.threads }) : '',
       has('labels') ? pr.labels.join(', ') : '',
     ].filter(Boolean);
     const age = has('created') ? relTime(pr.createdAt) : has('updated') ? relTime(pr.updatedAt) : undefined;

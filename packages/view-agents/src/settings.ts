@@ -1,4 +1,4 @@
-import { bool, groupField, num, oneOf, str, type SettingDef } from '@kedalion/ui';
+import { bool, groupField, num, oneOf, str, type SettingDef } from '@kedalion/ui/settings-schema';
 import type { AgentsRestore, AgentsSettings, AgentsUsagePosition } from './settings-types';
 
 export type { AgentsRestore, AgentsSettings, AgentsUsagePosition };
