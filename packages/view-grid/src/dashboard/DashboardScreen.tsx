@@ -4,6 +4,7 @@ import { ConfigDialog } from '../ConfigForm';
 import { ConnectionsDialog } from '../connections/ConnectionsDialog';
 import { tKey } from '../i18n';
 import { dashboardCommands } from './commands';
+import { setDashboardItems } from './items';
 import { fieldsOf, kindSpecs, panelDef, type AnyPanelKind } from '../panel';
 import { addableKinds, PanelCreator } from '../PanelCreator';
 import { PanelHost } from '../PanelHost';
@@ -47,6 +48,7 @@ export function DashboardScreen({ settings, onSave, panels }: DashboardScreenPro
   const side = useViewSidePanel('dashboard');
 
   const current = activeLayout(state);
+  setDashboardItems(state.layouts.flatMap((l) => (l.id === current.id ? items : l.items)));
   const dirty = !sameItems(items, current.items);
 
   const change = (next: GridItem[]) => {

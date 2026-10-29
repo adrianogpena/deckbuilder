@@ -7,7 +7,11 @@ import type { Ticket } from './model';
 import { jiraUrl } from './TicketCard';
 import { TicketNotes } from './TicketNotes';
 import { TicketOverview } from './TicketOverview';
-import type { TicketLink } from './types';
+import type { TicketLink, TicketsData } from './types';
+import type { PanelSide } from '../../panel';
+import { trackedPrSideContent } from '../github/PrSide';
+import type { PodsConfig } from '../pods/PodsPanel';
+import { podSideContent } from '../pods/PodSide';
 
 export interface TicketSideInput {
   instanceId: string;
@@ -19,6 +23,25 @@ export interface TicketSideInput {
   onChanged(): void;
   onOpenPr(pr: TrackedPr): void;
   onOpenPod(pod: Pod): void;
+}
+
+/**
+ * The side content of a board ticket with its PR and pod drill-downs, for the Tickets panel and for panels that
+ * open a board ticket (Timesheet). `instanceId` is the opening panel's id: the dashboard closes side content of
+ * panels that are not on the shown layout.
+ */
+export function boardTicketSide({ instanceId, ticket, data, config, side, onChanged }: {
+  instanceId: string;
+  ticket: Ticket;
+  data: TicketsData;
+  config: TicketSideInput['config'];
+  side?: PanelSide;
+  onChanged(): void;
+}): SidePanelContent {
+  return ticketSideContent({ instanceId, ticket, link: data.links?.[ticket.key], jira: data.jira?.[ticket.key], allPods: data.pods ?? [], config, onChanged,
+    onOpenPr: (pr) => side?.push(trackedPrSideContent({ instanceId, pr, config })),
+    onOpenPod: (pod) => side?.push(podSideContent({ instanceId, pod, config: { clusters: `${pod.context} ${pod.namespace} *` } as PodsConfig })),
+  });
 }
 
 /** What the Tickets panel opens in the Dashboard side panel for one ticket. */

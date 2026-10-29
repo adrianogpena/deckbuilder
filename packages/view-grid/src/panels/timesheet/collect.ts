@@ -5,8 +5,8 @@ import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { runCli } from '../../cli';
 import {
-  buildDays, collapseCopilotWorktree, copilotRecords, createClaudeScan, encodeRoot, isTracked, makeTicketFinder,
-  parseDay, parseSimpleYaml, weekBounds, type Commit, type DayTable, type Rec,
+  buildDays, collapseCopilotWorktree, copilotRecords, createClaudeScan, encodeRoot, IDLE_MINUTES, isTracked, knownPrefixes,
+  makeTicketFinder, parseDay, parseSimpleYaml, resolveSession, weekBounds, type ClaudeSession, type Commit, type DayTable, type Rec,
 } from './analysis';
 
 export interface CollectOptions {
@@ -14,6 +14,10 @@ export interface CollectOptions {
   ticketPattern: string;
   includeCopilot: boolean;
   includeGit: boolean;
+  /** Commit author emails, comma or space separated; empty uses each repo's `user.email`. */
+  gitEmail?: string;
+  /** Longest gap between two records that still counts as work. */
+  idleMinutes?: number;
   claudeDir?: string;
   copilotDir?: string;
   now?: Date;
@@ -43,6 +47,15 @@ async function git(args: string[], signal?: AbortSignal): Promise<string | null>
   }
 }
 
+/** `--author` takes a regular expression. */
+const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** Author filters for one repo: the configured emails, or the repo's own `user.email`; none when neither is set. */
+async function authorArgs(repo: string, emails: string[], signal?: AbortSignal): Promise<string[]> {
+  const list = emails.length ? emails : [(await git(['-C', repo, 'config', 'user.email'], signal))?.trim() ?? ''].filter(Boolean);
+  return list.map((e) => `--author=${escapeRe(e)}`);
+}
+
 /** The week's hours and commits per day and ticket, read from the session folders and git; nothing is written. */
 export async function collectWeek(opts: CollectOptions): Promise<DayTable> {
   const bounds = weekBounds(opts.now ?? new Date());
@@ -52,9 +65,11 @@ export async function collectWeek(opts: CollectOptions): Promise<DayTable> {
   const inWeek = (day: string) => day >= monday && day <= friday;
   const roots = opts.roots;
   const findTicket = makeTicketFinder(opts.ticketPattern);
+  const idleMs = (opts.idleMinutes ?? IDLE_MINUTES) * 60_000;
   const records: Rec[] = [];
+  const sessions: ClaudeSession[] = [];
   const repoCwds = new Set<string>();
-  if (roots.length === 0) return buildDays([], [], bounds.days);
+  if (roots.length === 0) return buildDays([], [], bounds.days, idleMs);
 
   const claudeDir = opts.claudeDir ?? CLAUDE_DIR;
   const prefixes = roots.map(encodeRoot);
@@ -68,10 +83,14 @@ export async function collectWeek(opts: CollectOptions): Promise<DayTable> {
         if ((await stat(full)).mtimeMs < mondayMs) continue;
         const scan = createClaudeScan(roots, findTicket, inWeek);
         for await (const line of linesOf(full)) scan.feed(line);
-        const { records: found, cwd } = scan.result();
-        if (found.length && cwd) {
-          records.push(...found);
-          repoCwds.add(cwd);
+        const subagents = join(dir, file.slice(0, -'.jsonl'.length), 'subagents');
+        for (const sub of await safeDir(subagents)) {
+          if (sub.endsWith('.jsonl')) for await (const line of linesOf(join(subagents, sub))) scan.feed(line);
+        }
+        const session = scan.result();
+        if (session.records.length && session.cwd) {
+          sessions.push(session);
+          repoCwds.add(session.cwd);
         }
       } catch {}
     }
@@ -98,7 +117,8 @@ export async function collectWeek(opts: CollectOptions): Promise<DayTable> {
   }
 
   const commits: Commit[] = [];
-  if (opts.includeGit && records.length) {
+  if (opts.includeGit && (records.length || sessions.length)) {
+    const emails = (opts.gitEmail ?? '').split(/[\s,]+/).filter(Boolean);
     const tops = new Set<string>();
     for (const cwd of repoCwds) {
       const top = (await git(['-C', cwd, 'rev-parse', '--show-toplevel'], opts.signal))?.trim();
@@ -106,7 +126,7 @@ export async function collectWeek(opts: CollectOptions): Promise<DayTable> {
     }
     for (const repo of tops) {
       const out = await git(
-        ['-C', repo, 'log', '--all', `--since=${monday} 00:00`, `--until=${friday} 23:59`, '--pretty=format:%ad|%s', '--date=format-local:%Y-%m-%d'],
+        ['-C', repo, 'log', '--all', ...(await authorArgs(repo, emails, opts.signal)), `--since=${monday} 00:00`, `--until=${friday} 23:59`, '--pretty=format:%ad|%s', '--date=format-local:%Y-%m-%d'],
         opts.signal,
       );
       if (!out) continue;
@@ -116,6 +136,8 @@ export async function collectWeek(opts: CollectOptions): Promise<DayTable> {
       }
     }
   }
-  return buildDays(records, commits, bounds.days);
+  const known = knownPrefixes(sessions, commits);
+  for (const s of sessions) records.push(...resolveSession(s, known));
+  return buildDays(records, commits, bounds.days, idleMs);
 }
 

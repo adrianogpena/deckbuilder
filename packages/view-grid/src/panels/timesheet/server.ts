@@ -1,6 +1,5 @@
-import { createJsonStore } from '../../json-store';
 import { defineSource, type DataSource, type GridPanelSpec } from '../../server';
-import { applyLocks, emptyData, parseData, toggleLock, weekBounds,localDay, splitRoots, type TimesheetData } from './analysis';
+import { IDLE_MINUTES, localDay, splitRoots, type DayTable } from './analysis';
 import { collectWeek } from './collect';
 import { TIMESHEET_FIELDS } from './fields';
 
@@ -9,56 +8,37 @@ export interface TimesheetConfig {
   ticketPattern: string;
   includeCopilot: boolean;
   includeGit: boolean;
+  gitEmail: string;
+  idleMinutes: number;
   [key: string]: unknown;
 }
 
-export interface TimesheetResult extends TimesheetData {
+export interface TimesheetResult {
+  days: DayTable;
   /** Today, `YYYY-MM-DD`, local time. */
   today: string;
 }
 
-const stores = new Map<string, ReturnType<typeof createJsonStore<TimesheetData>>>();
-
-const storeOf = (dataDir: string) => {
-  let s = stores.get(dataDir);
-  if (!s) {
-    s = createJsonStore<TimesheetData>({ dataDir, name: 'timesheet', parse: parseData, empty: emptyData });
-    stores.set(dataDir, s);
-  }
-  return s;
-};
-
-async function compute(config: TimesheetConfig, dataDir: string, signal: AbortSignal): Promise<TimesheetResult> {
+/** The week is recomputed from the sources on every load; nothing is stored. */
+async function compute(config: TimesheetConfig, signal: AbortSignal): Promise<TimesheetResult> {
   const now = new Date();
-  const bounds = weekBounds(now);
-  const today = localDay(now);
-  const fresh = await collectWeek({
+  const days = await collectWeek({
     roots: splitRoots(config.roots),
     ticketPattern: config.ticketPattern,
     includeCopilot: config.includeCopilot,
     includeGit: config.includeGit,
+    gitEmail: typeof config.gitEmail === 'string' ? config.gitEmail : '',
+    idleMinutes: Number(config.idleMinutes) > 0 ? Number(config.idleMinutes) : IDLE_MINUTES,
     now,
     signal,
   });
-  const data = await storeOf(dataDir).update((stored) => applyLocks(stored, fresh, bounds, today));
-  return { ...data, today };
+  return { days, today: localDay(now) };
 }
 
 const timesheet = defineSource<TimesheetConfig>({
   id: 'timesheet',
   fields: TIMESHEET_FIELDS,
-  fetch: (config, ctx) => compute(config, ctx.dataDir, ctx.signal),
-  actions: {
-    refresh: (_payload, config, ctx) => compute(config, ctx.dataDir, ctx.signal),
-    'toggle-lock': async (payload, _config, ctx) => {
-      const date = typeof payload === 'object' && payload !== null ? (payload as { date?: unknown }).date : undefined;
-      if (typeof date !== 'string') throw new Error('date required');
-      const now = new Date();
-      const today = localDay(now);
-      const data = await storeOf(ctx.dataDir).update((stored) => toggleLock(stored, date, weekBounds(now), today));
-      return { ...data, today };
-    },
-  },
+  fetch: (config, ctx) => compute(config, ctx.signal),
 });
 
 export const specs: GridPanelSpec[] = [{ kind: 'timesheet', fields: TIMESHEET_FIELDS, allowMultiple: false }];

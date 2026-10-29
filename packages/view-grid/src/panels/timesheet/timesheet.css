@@ -1,11 +1,31 @@
 .ts { display: flex; flex-direction: column; height: 100%; min-height: 0; }
-.ts-head { flex: none; display: flex; justify-content: flex-end; padding: var(--space-4) var(--space-8); }
+.ts-head { flex: none; display: flex; align-items: center; gap: var(--space-8); padding: var(--space-4) var(--space-8); border-bottom: 1px solid var(--border-soft); }
+.ts-range { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-2); font-size: var(--fs-sm); }
+.ts-week { font-family: var(--font-mono); font-size: var(--fs-sm); color: var(--text-3); white-space: nowrap; }
+.ts-week strong { color: var(--text); font-weight: 600; }
 .ts-scroll { flex: 1; min-height: 0; overflow: auto; }
-.ts-empty { padding: var(--space-8); font-size: var(--fs-xs); }
-.ts-table { width: 100%; border-collapse: collapse; font-size: var(--fs-xs); }
-.ts-table th, .ts-table td { padding: var(--space-4) var(--space-8); text-align: left; white-space: nowrap; }
-.ts-table .ts-num { text-align: right; font-variant-numeric: tabular-nums; }
-.ts-table th.ts-num > span { margin-right: var(--space-4); }
-.ts-table tfoot td { border-top: 1px solid currentColor; font-weight: 600; }
-.ts-strong { font-weight: 600; }
-.ts-commits { margin-left: var(--space-6); opacity: 0.7; display: inline-flex; align-items: center; gap: var(--space-2); }
+
+.ts-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: var(--fs-sm); }
+.ts-table th, .ts-table td { padding: var(--space-4) var(--space-8); white-space: nowrap; border-bottom: 1px solid var(--row-border); }
+.ts-table thead th { position: sticky; top: 0; z-index: 1; background: var(--panel); color: var(--text-3); font-weight: 500; text-align: right; }
+.ts-table thead th:first-child { text-align: left; z-index: 2; }
+.ts-table th:first-child, .ts-table td:first-child { position: sticky; left: 0; background: var(--panel); }
+.ts-table tbody tr:hover td { background: var(--hover); }
+
+.ts-table th.ts-today { color: var(--accent); box-shadow: inset 0 -2px 0 var(--accent); }
+.ts-table td.ts-today { background: color-mix(in srgb, var(--accent) 5%, transparent); }
+
+.ts-ticket { display: flex; align-items: center; gap: var(--space-6); font-family: var(--font-mono); color: var(--text); }
+.ts-ticket .ts-key { height: auto; padding: 0; font-family: inherit; font-size: inherit; color: var(--accent-2); }
+.ts-ticket .ts-key:hover:not(:disabled) { background: transparent; color: var(--accent-2); text-decoration: underline; }
+.ts-ticket--none { font-family: inherit; font-style: italic; color: var(--text-3); }
+.ts-ticket .kit-chip { gap: var(--space-2); color: var(--text-3); }
+
+.ts-num { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.ts-h, .ts-zero, .ts-total { display: inline-block; padding: 0 var(--space-4); }
+.ts-h { min-width: 4ch; border-radius: var(--radius-sm); color: var(--text); background: color-mix(in srgb, var(--accent) calc(var(--fill) * 28%), transparent); }
+.ts-zero { color: var(--text-3); opacity: 0.6; }
+.ts-total { color: var(--text); font-weight: 600; }
+
+.ts-table tfoot td { position: sticky; bottom: 0; background: var(--panel); border-top: 1px solid var(--border); border-bottom: 0; color: var(--text-2); font-weight: 600; }
+.ts-table tfoot td:first-child { z-index: 2; }

@@ -2,12 +2,9 @@ import { useEffect, useState, type DragEvent } from 'react';
 import { tKey } from '../../i18n';
 import { type PanelSide } from '../../panel';
 import { runAction } from '../../source';
-import { trackedPrSideContent } from '../github/PrSide';
-import type { PodsConfig } from '../pods/PodsPanel';
-import { podSideContent } from '../pods/PodSide';
 import { columns, type Ticket } from './model';
 import { TicketCard } from './TicketCard';
-import { ticketSideContent } from './TicketSide';
+import { boardTicketSide } from './TicketSide';
 import { UnlinkedList } from './UnlinkedList';
 import type { TicketsData } from './types';
 import './tickets.css';
@@ -68,11 +65,7 @@ export function TicketsPanel({ id, side, config, data, refresh }: Props) {
 
   const tickets = local ?? data.tickets;
   const cols = columns(tickets, data.statuses);
-  const content = (t: Ticket) =>
-    ticketSideContent({ instanceId: id, ticket: t, link: data.links?.[t.key], jira: data.jira?.[t.key], allPods: data.pods ?? [], config, onChanged: refresh,
-      onOpenPr: (pr) => side?.push(trackedPrSideContent({ instanceId: id, pr, config })),
-      onOpenPod: (pod) => side?.push(podSideContent({ instanceId: id, pod, config: { clusters: `${pod.context} ${pod.namespace} *` } as PodsConfig })),
-    });
+  const content = (t: Ticket) => boardTicketSide({ instanceId: id, ticket: t, data, config, side, onChanged: refresh });
   const toggle = (t: Ticket) => {
     if (!side) return;
     const c = content(t);

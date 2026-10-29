@@ -34,7 +34,13 @@ function cached(kind: AnyPanelKind, key: string): unknown {
   return readStored(key);
 }
 
-const intervalOf = (kind: AnyPanelKind, config: Record<string, unknown>, data: unknown): number => {
+/** Last data another panel instance loaded (memory, then localStorage), for panels that show it elsewhere. */
+export function lastPanelData<D>(id: string, kind: string, config: Record<string, unknown>): D | undefined {
+  const key = `${id}:${kind}:${JSON.stringify(config)}`;
+  return (cache.get(key) ?? readStored(key)) as D | undefined;
+}
+
+const intervalOf =(kind: AnyPanelKind, config: Record<string, unknown>, data: unknown): number => {
   const ms = typeof kind.refreshMs === 'function' ? kind.refreshMs(config, data) : kind.refreshMs;
   return ms && ms > 0 ? ms : 0;
 };
