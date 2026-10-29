@@ -50,7 +50,36 @@ export function mapCheckList(rollup: Rollup | null | undefined): CheckDetail[] {
 const FAIL_CONCLUSIONS = new Set(['FAILURE', 'TIMED_OUT', 'CANCELLED', 'STARTUP_FAILURE', 'ACTION_REQUIRED']);
 
 /** policy-bot stays pending until a reviewer approves, so it never counts as a running check. */
-const POLICY_BOT = /policy-bot/i;
+export const POLICY_BOT = /policy-bot/i;
+
+/** Repos whose policy keeps approvals across new commits, so none is ever outdated. */
+const PERSISTENT_APPROVALS = new Set(['miles-core', 'miles-ria', 'miles-mmc']);
+
+export interface Approvals {
+  /** Approved on the head commit. */
+  current: string[];
+  /** Approved on an older commit; policy-bot drops these where approvals do not survive a push. */
+  outdated: string[];
+}
+
+interface ReviewNode {
+  state?: string;
+  author?: { login?: string } | null;
+  commit?: { oid?: string } | null;
+}
+
+/** The approving reviewers (latest review each) split by whether they approved the head commit. */
+export function mapApprovals(reviews: readonly (ReviewNode | null)[] | undefined, headOid: string | undefined, repo: string): Approvals {
+  const persistent = PERSISTENT_APPROVALS.has(repo.split('/')[1] ?? '');
+  const out: Approvals = { current: [], outdated: [] };
+  for (const r of reviews ?? []) {
+    const login = r?.author?.login;
+    if (r?.state !== 'APPROVED' || !login) continue;
+    const stale = !persistent && !!headOid && !!r.commit?.oid && r.commit.oid !== headOid;
+    (stale ? out.outdated : out.current).push(login);
+  }
+  return out;
+}
 
 /** statusCheckRollup -> pass/fail/pending plus the names of the failing checks; a failure shows as pending while another check still runs. */
 export function reduceChecks(rollup: Rollup | null | undefined): { state: CiState; failing: string[] } {
@@ -136,6 +165,8 @@ export interface Node {
   isDraft?: boolean;
   headRefName?: string;
   reviewDecision?: string | null;
+  headRefOid?: string;
+  latestOpinionatedReviews?: { nodes?: (ReviewNode | null)[] } | null;
   commits?: { nodes?: ({ commit?: { statusCheckRollup?: Rollup | null } } | null)[] } | null;
   assignees?: { nodes?: ({ login?: string } | null)[] } | null;
   comments?: { totalCount?: number } | null;
@@ -186,6 +217,7 @@ export interface PrItem {
   autoMerge: boolean;
   checks: CheckCounts;
   checkList: CheckDetail[];
+  approvals: Approvals;
 }
 
 export interface IssueItem {
@@ -215,11 +247,26 @@ const names = (list: { nodes?: ({ name?: string; login?: string } | null)[] } | 
 
 const REVIEW: Record<string, Review> = { APPROVED: 'approved', CHANGES_REQUESTED: 'changes', REVIEW_REQUIRED: 'required' };
 
-export function mapPullRequests(res: SearchResponse, ticketPattern: string): SearchData<PrItem> {
+/** Required status contexts of a base branch, keyed `owner/name@branch`; GitHub leaves one out of the rollup until it is first reported. */
+export type RequiredChecks = ReadonlyMap<string, readonly string[]>;
+
+/** The rollup plus an EXPECTED status for each required context it lacks, as the PR page shows them. */
+export function withExpected(rollup: Rollup | null | undefined, required: readonly string[] | undefined): Rollup | null | undefined {
+  if (!rollup || !required?.length) return rollup;
+  const nodes = (rollup.contexts?.nodes ?? []).filter((n): n is ContextNode => !!n);
+  const have = new Set(nodes.map((n) => n.context ?? n.name ?? ''));
+  const missing = required.filter((c) => !have.has(c));
+  if (!missing.length) return rollup;
+  const expected = missing.map((context): ContextNode => ({ __typename: 'StatusContext', context, state: 'EXPECTED', description: 'Waiting for status to be reported' }));
+  return { ...rollup, contexts: { nodes: [...nodes, ...expected] } };
+}
+
+export function mapPullRequests(res: SearchResponse, ticketPattern: string, required?: RequiredChecks): SearchData<PrItem> {
   const items: PrItem[] = [];
   for (const n of res.search?.nodes ?? []) {
     if (!n?.number || !n.url) continue;
-    const checks = reduceChecks(n.commits?.nodes?.[0]?.commit?.statusCheckRollup);
+    const rollup = withExpected(n.commits?.nodes?.[0]?.commit?.statusCheckRollup, required?.get(`${n.repository?.nameWithOwner}@${n.baseRefName}`));
+    const checks = reduceChecks(rollup);
     const title = n.title ?? '';
     const branch = n.headRefName ?? '';
     items.push({
@@ -248,8 +295,9 @@ export function mapPullRequests(res: SearchResponse, ticketPattern: string): Sea
       comments: n.comments?.totalCount ?? 0,
       base: n.baseRefName ?? '',
       autoMerge: !!n.autoMergeRequest?.enabledAt,
-      checks: countChecks(n.commits?.nodes?.[0]?.commit?.statusCheckRollup),
-      checkList: mapCheckList(n.commits?.nodes?.[0]?.commit?.statusCheckRollup),
+      checks: countChecks(rollup),
+      checkList: mapCheckList(rollup),
+      approvals: mapApprovals(n.latestOpinionatedReviews?.nodes, n.headRefOid, n.repository?.nameWithOwner ?? ''),
     });
   }
   return { total: res.search?.issueCount ?? items.length, items };

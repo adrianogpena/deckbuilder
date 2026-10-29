@@ -33,6 +33,7 @@
 .gh-check-row .chip { justify-self: start; }
 .gh-check-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .gh-check-num { text-align: right; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; }
+.gh-check-approvals { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: var(--fs-xs); }
 .gh-check-note { font-size: var(--fs-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gh-pr-add { color: var(--ok, #3a3); }
 .gh-pr-del { color: var(--danger, #d33); }

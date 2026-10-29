@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { buildQuery, countChecks, mapCheckList, mapIssues, mapPullRequests, nextRefreshMs, reduceChecks, searchRefreshMs, ticketKey } from './map';
+import { buildQuery, countChecks, mapApprovals, mapCheckList, mapIssues, mapPullRequests, nextRefreshMs, reduceChecks, searchRefreshMs, ticketKey, withExpected } from './map';
 
 describe('buildQuery', () => {
   test('fixed modes', () => {
@@ -88,6 +88,33 @@ describe('mapCheckList', () => {
     expect(list[0]).toMatchObject({ workflow: 'CI', url: 'u2', startedAt: '2026-01-01T01:00:00Z', completedAt: '2026-01-01T01:02:00Z', note: 'Tests failed' });
     expect(list[2]).toMatchObject({ url: 'u3', note: 'ok' });
     expect(mapCheckList(null)).toEqual([]);
+  });
+});
+
+describe('mapApprovals', () => {
+  const reviews = [
+    { state: 'APPROVED', author: { login: 'levi' }, commit: { oid: 'old' } },
+    { state: 'APPROVED', author: { login: 'ann' }, commit: { oid: 'head' } },
+    { state: 'CHANGES_REQUESTED', author: { login: 'bob' }, commit: { oid: 'head' } },
+  ];
+
+  test('splits approvals by the head commit', () => {
+    expect(mapApprovals(reviews, 'head', 'sofico-codebase/miles-vwde-ubc')).toEqual({ current: ['ann'], outdated: ['levi'] });
+  });
+
+  test('approvals never go outdated in miles-core, miles-ria and miles-mmc', () => {
+    for (const repo of ['miles-core', 'miles-ria', 'miles-mmc']) {
+      expect(mapApprovals(reviews, 'head', `sofico-codebase/${repo}`)).toEqual({ current: ['levi', 'ann'], outdated: [] });
+    }
+  });
+});
+
+describe('withExpected', () => {
+  test('adds a required context the rollup lacks as policy pending', () => {
+    const rollup = { state: 'PENDING', contexts: { nodes: [{ __typename: 'CheckRun', name: 'build', status: 'COMPLETED', conclusion: 'SUCCESS' }] } };
+    const list = mapCheckList(withExpected(rollup, ['build', 'policy-bot: master']));
+    expect(list.map((d) => `${d.name}:${d.state}`).sort()).toEqual(['build:success', 'policy-bot: master:pending']);
+    expect(reduceChecks(withExpected(rollup, ['build', 'policy-bot: master'])).state).toBe('policy');
   });
 });
 

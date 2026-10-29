@@ -7,14 +7,15 @@ import { parseTrackedPrRef, toTrackedPr, type PrNode, type PrRef, type TrackedPr
 import { ACTIONS_SOURCE_FIELDS, TRACKED_SOURCE_FIELDS, fields,ISSUE_SOURCE_FIELDS, NOTIFICATIONS_SOURCE_FIELDS, OVERVIEW_SOURCE_FIELDS, PR_SOURCE_FIELDS, RELEASES_FIELDS } from './fields';
 import { notifyChanges, notifyScope } from '../../notify-changes';
 import { latestSettledRuns, mapNotifications, mapReleases, mapRepoStats, mapRuns, parseRepo, runsPath, type RepoResponse } from './more';
-import { buildQuery, mapIssues, mapPullRequests, nextRefreshMs, PR_REFRESH_MS, type Node as PrNodeFull, type PrItem, type SearchResponse } from './map';
+import { buildQuery, mapIssues, mapPullRequests, nextRefreshMs, PR_REFRESH_MS, type Node as PrNodeFull, type PrItem, type RequiredChecks, type SearchResponse } from './map';
 
 import { BOT_LOGIN, parseBotComments, type BotComment } from './bot';
 import { isRcComment, parseRcComment } from './rc';
 
 const RATE ='rateLimit { remaining limit resetAt }';
 
-const PR_ITEM_FIELDS = `number title url isDraft state headRefName baseRefName updatedAt createdAt reviewDecision
+const PR_ITEM_FIELDS = `number title url isDraft state headRefName headRefOid baseRefName updatedAt createdAt reviewDecision
+        latestOpinionatedReviews(first: 20) { nodes { state author { login } commit { oid } } }
         additions deletions changedFiles mergeable
         autoMergeRequest { enabledAt }
         comments { totalCount }
@@ -40,12 +41,38 @@ const ONE_PR_QUERY = `query($o: String!, $n: String!, $p: Int!) {
   repository(owner: $o, name: $n) { pullRequest(number: $p) { ${PR_ITEM_FIELDS} } }
 }`;
 
+const REQUIRED_TTL_MS = 10 * 60_000;
+const requiredCache = new Map<string, { at: number; contexts: string[] }>();
+
+/** Required status contexts per `repo@base` of the given PRs, from the branch rules (cached; empty when unreadable). */
+async function requiredChecks(conn: ResolvedConnection, nodes: readonly (PrNodeFull | null | undefined)[], signal?: AbortSignal): Promise<RequiredChecks> {
+  const keys = new Set<string>();
+  for (const n of nodes) if (n?.repository?.nameWithOwner && n.baseRefName) keys.add(`${n.repository.nameWithOwner}@${n.baseRefName}`);
+  const out = new Map<string, string[]>();
+  await mapLimit([...keys], 4, async (key) => {
+    const cacheKey = `${conn.baseUrl}|${key}`;
+    const hit = requiredCache.get(cacheKey);
+    if (hit && Date.now() - hit.at < REQUIRED_TTL_MS) return void out.set(key, hit.contexts);
+    const [repo, base] = key.split('@') as [string, string];
+    let contexts: string[] = [];
+    try {
+      const rules = await rest<{ type?: string; parameters?: { required_status_checks?: { context?: string }[] } }[]>(conn, `/repos/${repo}/rules/branches/${encodeURIComponent(base)}`, signal);
+      contexts = rules.filter((r) => r.type === 'required_status_checks').flatMap((r) => (r.parameters?.required_status_checks ?? []).map((c) => c.context ?? '')).filter(Boolean);
+    } catch {
+      contexts = [];
+    }
+    requiredCache.set(cacheKey, { at: Date.now(), contexts });
+    out.set(key, contexts);
+  });
+  return out;
+}
+
 /** One PR with everything the PR side panel shows; null when it no longer resolves. */
 export async function fetchPrItem(conn: ResolvedConnection, repo: string, number: number, ticketPattern: string, signal?: AbortSignal): Promise<PrItem | null> {
   const [owner, name] = repo.split('/');
   const res = await graphql<{ repository?: { pullRequest?: PrNodeFull | null } | null }>(conn, ONE_PR_QUERY, { o: owner, n: name, p: number }, signal);
   const node = res.repository?.pullRequest;
-  return node ? (mapPullRequests({ search: { nodes: [node] } }, ticketPattern).items[0] ?? null) : null;
+  return node ? (mapPullRequests({ search: { nodes: [node] } }, ticketPattern, await requiredChecks(conn, [node], signal)).items[0] ?? null) : null;
 }
 
 /** The RC build comment and the bot comments of one PR. */
@@ -130,7 +157,8 @@ export const githubPrsSource = defineSource<SearchConfig>({
   fields: PR_SOURCE_FIELDS,
   async fetch(config, ctx) {
     const { res, nextRefreshMs } = await search('pr', config, ctx);
-    const data = mapPullRequests(res, config.ticketPattern ?? '');
+    const conn = await ctx.connection(config.connection, 'github');
+    const data = mapPullRequests(res, config.ticketPattern ?? '', await requiredChecks(conn, res.search?.nodes ?? [], ctx.signal));
     let board: Set<string> | null = null;
     try {
       const { ticketsStore } = await import('../tickets/server');

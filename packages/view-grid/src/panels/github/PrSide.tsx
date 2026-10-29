@@ -5,7 +5,7 @@ import { Chip, relTime, type Tone } from '../../kit';
 import { runAction } from '../../source';
 import { latestRc, RC_STEPS, type RcBuild, type RcInfo, type RcStepState } from './rc';
 import type { BotEntry } from './bot';
-import type { PrItem } from './map';
+import { POLICY_BOT, type Approvals, type PrItem } from './map';
 import type { PullRequestsConfig } from './PullRequests';
 import type { CheckDetail, CheckState, TrackedPr } from './tracked';
 import './github.css';
@@ -52,7 +52,21 @@ const duration = (ms: number) => {
   return m < 60 ? `${m}m ${s % 60}s` : `${Math.floor(m / 60)}h ${m % 60}m`;
 };
 
-function CheckRow({ check }: { check: CheckDetail }) {
+function PolicyApprovals({ approvals }: { approvals: Approvals }) {
+  const { current, outdated } = approvals;
+  return (
+    <div className="gh-check-approvals">
+      <span title={current.join(', ')}>{tKey('dash.github.pr.policy.current', { n: current.length })}{current.length > 0 && `: ${current.join(', ')}`}</span>
+      {outdated.length > 0 && (
+        <span className="muted" title={tKey('dash.github.pr.policy.outdatedHint')}>
+          {tKey('dash.github.pr.policy.outdated', { n: outdated.length })}: {outdated.join(', ')}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function CheckRow({ check, approvals }: { check: CheckDetail; approvals?: Approvals }) {
   const start = check.startedAt ? Date.parse(check.startedAt) : NaN;
   const end = check.completedAt ? Date.parse(check.completedAt) : NaN;
   let took = '';
@@ -62,6 +76,7 @@ function CheckRow({ check }: { check: CheckDetail }) {
   const endMs = check.completedAt ? Date.parse(check.completedAt) : NaN;
   const finished = Number.isNaN(endMs) ? '' : relTime(endMs);
   const finishedAbs = check.completedAt ? when(check.completedAt) : '';
+  const policy = POLICY_BOT.test(check.name);
   const note = check.state === 'failure' ? (check.note ?? '').split('\n')[0]!.trim() : '';
   const cut = check.name.lastIndexOf(' / ');
   const group = cut > 0 ? check.name.slice(0, cut) : check.workflow && !check.name.includes(check.workflow) ? check.workflow : '';
@@ -83,18 +98,19 @@ function CheckRow({ check }: { check: CheckDetail }) {
           {note.length > NOTE_MAX ? `${note.slice(0, NOTE_MAX - 1)}…` : note}
         </div>
       )}
+      {policy && approvals && <PolicyApprovals approvals={approvals} />}
     </div>
   );
 }
 
 const checkKey = (c: CheckDetail) => `${c.workflow ?? ''}/${c.name}`;
 
-function CheckGroups({ list }: { list: readonly CheckDetail[] }) {
+function CheckGroups({ list, approvals }: { list: readonly CheckDetail[]; approvals: Approvals }) {
   const by = (s: CheckState) => list.filter((c) => c.state === s);
   const sub = (s: CheckState, items: CheckDetail[]) => (
     <div className="gh-check-sub">{tKey(`dash.github.pr.checks.group.${s}`, { n: items.length })}</div>
   );
-  const rows = (items: CheckDetail[]) => items.map((c) => <CheckRow key={checkKey(c)} check={c} />);
+  const rows = (items: CheckDetail[]) => items.map((c) => <CheckRow key={checkKey(c)} check={c} approvals={approvals} />);
   const failed = by('failure');
   const running = by('pending');
   const passed = by('success');
@@ -269,7 +285,7 @@ function PrOverview({ pr, config, extraSource = PRS_EXTRA }: { pr: PrItem; confi
             <span>{tKey('dash.github.pr.checkCounts', { passed: c.passed, failed: c.failed, pending: c.pending })}</span>
           </div>
         )}
-        <CheckGroups list={pr.checkList} />
+        <CheckGroups list={pr.checkList} approvals={pr.approvals} />
       </Card>
       {hasRcLabel(pr.labels, config.rcLabel) && <RcCard state={extra} />}
       <Card title={tKey('dash.github.pr.branch')}>
