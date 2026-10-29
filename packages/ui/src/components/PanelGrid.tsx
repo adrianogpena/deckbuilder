@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
-import { ResponsiveGridLayout, useContainerWidth, verticalCompactor, type Layout } from 'react-grid-layout';
+import { ResponsiveGridLayout, useContainerWidth, verticalCompactor, type Compactor, type Layout } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import {
   BREAKPOINTS,
@@ -7,6 +7,7 @@ import {
   ROW_HEIGHT,
   breakpointOf,
   fromGridLayout,
+  pushSideways,
   sameGeometry,
   toGridLayout,
   MAX_TITLE,
@@ -47,11 +48,25 @@ export function PanelGrid({ items, defs, render, actions, itemMenu, onChange }: 
   const [picking, setPicking] = useState<string | null>(null);
   const latest = useRef(items);
   latest.current = items;
+  const resizing = useRef<string | null>(null);
+  const compactor = useMemo<Compactor>(() => ({
+    ...verticalCompactor,
+    compact: (next, cols) => {
+      const id = resizing.current;
+      if (!id) return verticalCompactor.compact(next, cols);
+      const pushed = pushSideways(latest.current, fromGridLayout(next, latest.current), id);
+      return verticalCompactor.compact(next.map((l) => {
+        const p = pushed.find((i) => i.id === l.i);
+        return p ? { ...l, x: p.x, y: p.y } : l;
+      }), cols);
+    },
+  }), []);
 
-  const commitLayout = (next: Layout) => {
+  const commitLayout = (next: Layout, resizedId?: string) => {
     if (!editable) return;
     const current = latest.current;
-    const merged = fromGridLayout(next, current);
+    let merged = fromGridLayout(next, current);
+    if (resizedId) merged = pushSideways(current, merged, resizedId);
     if (!sameGeometry(merged, current)) onChange(merged);
   };
 
@@ -80,11 +95,15 @@ export function PanelGrid({ items, defs, render, actions, itemMenu, onChange }: 
         layouts={{ lg: layout, md: layout, sm: layout }}
         rowHeight={ROW_HEIGHT}
         margin={MARGIN}
-        compactor={verticalCompactor}
+        compactor={compactor}
         dragConfig={{ enabled: editable, handle: `.${PANEL_HANDLE}`, cancel: `.${PANEL_NO_DRAG}` }}
         resizeConfig={{ enabled: editable, handles: ['se', 'sw'] }}
-        onDragStop={commitLayout}
-        onResizeStop={commitLayout}
+        onDragStop={(next) => commitLayout(next)}
+        onResizeStart={(_l, _o, resized) => { resizing.current = resized?.i ?? null; }}
+        onResizeStop={(next, _old, resized) => {
+          resizing.current = null;
+          commitLayout(next, resized?.i);
+        }}
       >
         {known.map((item) => {
           const def = defs.find((d) => d.id === item.kind)!;

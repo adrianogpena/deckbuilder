@@ -223,7 +223,60 @@ export function fromGridLayout(layout: readonly GridLayoutItem[], items: readonl
   });
 }
 
-export const sameGeometry = (a: readonly GridItem[], b: readonly GridItem[]): boolean =>
+/**
+ * After panel `id` was resized sideways (`after` holds its new x and w). Panels beside the moved
+ * edge follow it, back at their `before` row: when they touched the edge, also while it shrinks;
+ * otherwise when it reaches them. A panel that moves pushes the ones beside it in turn. Nothing
+ * ever moves down: when a follower has no room (the columns end or another panel is in the way),
+ * the growth of `id` is cut back; a shrink just leaves such followers where they were.
+ */
+export function pushSideways(before: readonly GridItem[], after: readonly GridItem[], id: string, cols = COLS.lg): GridItem[] {
+  const r0 = before.find((i) => i.id === id);
+  const r1 = after.find((i) => i.id === id);
+  if (!r0 || !r1) return after.map((i) => ({ ...i }));
+  const edge = (b: Box, dir: 1 | -1) => (dir > 0 ? b.x + b.w : b.x);
+  const sharesRows = (a: Box, b: Box) => a.y < b.y + b.h && b.y < a.y + a.h;
+  const follow = (r: Box, dir: 1 | -1): { moved: Map<string, number>; ok: boolean } => {
+    const moved = new Map<string, number>();
+    const queue = [{ box: r0 as Box, from: edge(r0, dir), to: edge(r, dir) }];
+    while (queue.length > 0) {
+      const { box, from, to } = queue.shift()!;
+      if (from === to) continue;
+      for (const o of before) {
+        if (o.id === id || moved.has(o.id)) continue;
+        if (!(dir > 0 ? o.x >= from : o.x + o.w <= from)) continue;
+        if (!sharesRows(o, box) && !sharesRows(o, r)) continue;
+        let x: number;
+        if (edge(o, -dir as 1 | -1) === from) x = o.x + (to - from);
+        else if (dir > 0 ? o.x < to : o.x + o.w > to) x = dir > 0 ? to : to - o.w;
+        else continue;
+        moved.set(o.id, x);
+        queue.push({ box: o, from: edge(o, dir), to: edge({ ...o, x }, dir) });
+      }
+    }
+    for (const [mid, x] of moved) {
+      const m = { ...before.find((i) => i.id === mid)!, x };
+      const blocked = x < 0 || x + m.w > cols || before.some((o) => o.id !== id && !moved.has(o.id) && overlaps(m, o));
+      if (blocked) return { moved: new Map(), ok: dir * (edge(r, dir) - edge(r0, dir)) <= 0 };
+    }
+    return { moved, ok: true };
+  };
+  let r: Box = { x: r1.x, y: r1.y, w: r1.w, h: r1.h };
+  let right = follow(r, 1);
+  let left = follow(r, -1);
+  while (!right.ok || !left.ok) {
+    r = right.ok ? { ...r, x: r.x + 1, w: r.w - 1 } : { ...r, w: r.w - 1 };
+    right = follow(r, 1);
+    left = follow(r, -1);
+  }
+  return before.map((i) => {
+    if (i.id === id) return { ...r1, x: r.x, w: r.w };
+    const x = right.moved.get(i.id) ?? left.moved.get(i.id);
+    return x === undefined ? { ...i } : { ...i, x };
+  });
+}
+
+export const sameGeometry =(a: readonly GridItem[], b: readonly GridItem[]): boolean =>
   a.length === b.length && a.every((x, i) => {
     const y = b[i];
     return !!y && x.id === y.id && x.x === y.x && x.y === y.y && x.w === y.w && x.h === y.h;
