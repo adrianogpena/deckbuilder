@@ -11,7 +11,7 @@ import type { CheckDetail, CheckState, TrackedPr } from './tracked';
 import './github.css';
 
 export const REVIEW_TONE: Record<string, Tone> = { approved: 'ok', changes: 'danger', required: 'warn' };
-export const CI_TONE: Record<string, Tone> = { pass: 'ok', fail: 'danger', pending: 'warn' };
+export const CI_TONE: Record<string, Tone> = { pass: 'ok', fail: 'danger', pending: 'warn', policy: 'info' };
 
 export interface PrSideInput {
   instanceId: string;

@@ -97,7 +97,7 @@ const backoff = new Map<string, number>();
 
 const TRACKED_CI = { failed: 'fail', passed: 'pass', pending: 'pending', none: 'none' } as const;
 
-function prStatus(state: string, ci: 'pass' | 'fail' | 'pending' | 'none'): string {
+function prStatus(state: string, ci: 'pass' | 'fail' | 'pending' | 'policy' | 'none'): string {
   if (state === 'merged') return 'Merged';
   if (state === 'closed') return 'Closed';
   switch (ci) {
@@ -107,6 +107,8 @@ function prStatus(state: string, ci: 'pass' | 'fail' | 'pending' | 'none'): stri
       return 'Failed';
     case 'pending':
       return 'Running';
+    case 'policy':
+      return 'Policy-bot pending';
     default:
       return 'No checks';
   }

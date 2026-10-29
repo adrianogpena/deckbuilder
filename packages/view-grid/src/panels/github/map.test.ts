@@ -40,6 +40,13 @@ describe('reduceChecks', () => {
     expect(reduceChecks({ state: 'FAILURE', contexts: { nodes: [failed, running, policy] } }).state).toBe('pending');
     expect(reduceChecks({ state: 'FAILURE', contexts: { nodes: [failed, policy] } }).state).toBe('fail');
   });
+  test('only policy-bot pending gives the policy state', () => {
+    const policy = { __typename: 'StatusContext', context: 'policy-bot: master', state: 'PENDING' } as const;
+    const ok = { __typename: 'CheckRun', name: 'build', status: 'COMPLETED', conclusion: 'SUCCESS' } as const;
+    const running = { __typename: 'CheckRun', name: 'test', status: 'IN_PROGRESS' } as const;
+    expect(reduceChecks({ state: 'PENDING', contexts: { nodes: [ok, policy] } }).state).toBe('policy');
+    expect(reduceChecks({ state: 'PENDING', contexts: { nodes: [ok, policy, running] } }).state).toBe('pending');
+  });
 });
 
 describe('countChecks', () => {

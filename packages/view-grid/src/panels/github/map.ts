@@ -6,7 +6,7 @@ export const PR_REFRESH_MS = 5 * 60_000;
 export const MAX_BACKOFF_MS = 15 * 60_000;
 
 export type SearchKind = 'pr' | 'issue';
-export type CiState = 'pass' | 'fail' | 'pending' | 'none';
+export type CiState = 'pass' | 'fail' | 'pending' | 'policy' | 'none';
 
 export const PR_MODES = ['mine', 'review', 'assigned', 'involves', 'closed', 'repo', 'custom'] as const;
 export const ISSUE_MODES = ['assigned', 'created', 'mentioned', 'repo', 'custom'] as const;
@@ -63,7 +63,9 @@ export function reduceChecks(rollup: Rollup | null | undefined): { state: CiStat
     } else if (n.state === 'FAILURE' || n.state === 'ERROR') failing.push(n.context ?? '');
   }
   const names = failing.filter(Boolean);
-  const running = mapCheckList(rollup).some((d) => d.state === 'pending' && !POLICY_BOT.test(d.name));
+  const list = mapCheckList(rollup);
+  const running = list.some((d) => d.state === 'pending' && !POLICY_BOT.test(d.name));
+  const policyOnly = !running && list.some((d) => d.state === 'pending');
   switch (rollup.state) {
     case 'SUCCESS':
       return { state: 'pass', failing: [] };
@@ -72,7 +74,7 @@ export function reduceChecks(rollup: Rollup | null | undefined): { state: CiStat
       return { state: running ? 'pending' : 'fail', failing: names };
     case 'PENDING':
     case 'EXPECTED':
-      return { state: names.length && !running ? 'fail' : 'pending', failing: names };
+      return { state: names.length && !running ? 'fail' : policyOnly && !names.length ? 'policy' : 'pending', failing: names };
     default:
       return { state: 'none', failing: [] };
   }
