@@ -1,6 +1,6 @@
 import { type UsageSettings } from './UsageView';
 import { type CSSProperties, type PointerEvent as ReactPointerEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { effectiveKeys, errorOf, setTitleBadge, useDialogs, setViewTitle, useCommand, useKeybindings, useRunCommand, useViewToast } from '@kedalion/ui';
+import { effectiveKeys, errorOf, setTitleBadge, useDialogs, setViewTitle, useCommand, useKeybindings, useRunCommand, useViewSidePanel, useViewToast, ViewSidePanel } from '@kedalion/ui';
 import { terminalAppKeys } from '@kedalion/terminal';
 import { closeSession, listSessions } from '@kedalion/terminal/session';
 import { agentsCommands } from '../commands';
@@ -17,6 +17,7 @@ import { activeDirOf } from './AccountPicker';
 import { GroupSummary } from './GroupSummary';
 import { EmptyState } from './EmptyState';
 import { Sidebar } from './Sidebar';
+import { skillsSideContent } from './SkillsPanel';
 import { useAgentsFeed } from './useAgentSessions';
 import { type AgentsHost, AgentsHostProvider, type TerminalInput } from './workspace/host';
 import { projectPathOf, sameFolder } from './workspace/project-path';
@@ -278,7 +279,10 @@ export function AgentsScreen({ usageSettings, rightSidebarOpen = false, rightSid
   useCommand(agentsCommands().find((c) => c.id === 'agents.toggleDnd')!, toggleDnd);
   useCommand(agentsCommands()[3]!, () => setAlertsOpen(true));
   useCommand(agentsCommands()[20]!, () => openTool('usage'));
-  useCommand(agentsCommands()[23]!, () => openTool('skills'));
+  const side = useViewSidePanel('agents');
+  /** Folder whose skills and agents the side panel lists: the project in focus; none for a group such as Personal. */
+  const skillsFolder = useRef<string | undefined>(undefined);
+  useCommand(agentsCommands()[23]!, () => side.open(skillsSideContent(() => skillsFolder.current)));
 
   /** The project folder a running session record belongs to. */
   const pathOfRecord = useCallback(
@@ -591,6 +595,7 @@ export function AgentsScreen({ usageSettings, rightSidebarOpen = false, rightSid
   };
 
   const summaryProject = summaryFor === undefined ? undefined : projects.find((p) => p.id === summaryFor);
+  skillsFolder.current = folderFor ? undefined : summaryProject?.path ?? activeFolder;
   const showWorkspaces = newFor === undefined && folderFor === undefined && summaryProject === undefined;
 
   return (
@@ -640,6 +645,7 @@ export function AgentsScreen({ usageSettings, rightSidebarOpen = false, rightSid
           )}
           {alertsOpen && <AlertsPanel projects={projects} onClose={() => setAlertsOpen(false)} />}
           {adding && <AddProject added={projects} onAdded={(p) => { setProjects((l) => [...l, p]); setAddedProject(p); }} onClose={() => setAdding(false)} />}
+          <ViewSidePanel side={side}>
           <section className={`agents-main${region === 'main' ? ' focused' : ''}`}>
             {error && <div role="alert" className="agents-error">{error}</div>}
             {notice && <div role="status" className="agents-notice">{notice}</div>}
@@ -694,6 +700,7 @@ export function AgentsScreen({ usageSettings, rightSidebarOpen = false, rightSid
               </div>
             )}
           </section>
+          </ViewSidePanel>
         </div>
         <StatusStrip sessions={sessions} dnd={dnd} onJumpWaiting={jumpWaiting} onToggleDnd={toggleDnd} />
         {dialogs.element}

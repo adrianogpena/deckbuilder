@@ -99,7 +99,8 @@ export const listAgentSessions = () => request<AgentSessionView[]>('GET', '/api/
 
 /** The trace (steps) of a session. */
 export const getTrace = (sessionId: string) => request<AgentTraceResponse>('GET', '/api/agents/trace', { sessionId });
-export const listSkills = () => request<AgentSkillsResponse>('GET', '/api/agents/skills');
+/** Skills and agents of the active account; with `folder`, also the project's own. */
+export const listSkills = (folder?: string) => request<AgentSkillsResponse>('GET', '/api/agents/skills', folder ? { folder } : undefined);
 export const lastResponse =(sessionId: string) => request<{ text: string | null }>('GET', '/api/agents/last-response', { sessionId });
 export const sessionHistory = (sessionId: string) => request<{ events: ChatEvent[] }>('GET', '/api/agents/history', { sessionId });
 

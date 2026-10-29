@@ -24,7 +24,7 @@ import { findSessionFile, loadHistory, sessionFilesOf } from './server/chat/norm
 import { createTailer, type Tailer } from './server/tail.ts';
 import { lastResponse } from './server/last-response.ts';
 import { readTrace } from './server/trace.ts';
-import { listAgents, listSkills } from './server/skills.ts';
+import { listScoped } from './server/skills.ts';
 import { capPerProject, createSessionScanner, matchProject } from './server/discovery.ts';
 import { createLifecycle, cwdProblem, planRestart, stopOutcome, type TermInfo } from './server/lifecycle.ts';
 import { detectScreenError } from './server/screen-errors.ts';
@@ -705,11 +705,11 @@ export function agentsServerView(opts: AgentsServerViewOptions = {}) {
           }
           return { text: null };
         },
-        'GET /api/agents/skills': async () => {
+        'GET /api/agents/skills': async ({ url }) => {
           const accs = accounts();
           const active = activeOf(accs, (await loadSettings().catch(() => ({}) as AgentsServerSettings)).agents);
           const dir = active?.dir;
-          return { account: active?.id ?? '', skills: dir ? listSkills(dir) : [], agents: dir ? listAgents(dir) : [] } satisfies { account: string; skills: AgentSkill[]; agents: AgentLocal[] };
+          return { account: active?.id ?? '', ...(dir ? listScoped(dir, url?.searchParams.get('folder') || undefined) : { skills: [], agents: [] }) } satisfies { account: string; skills: AgentSkill[]; agents: AgentLocal[] };
         },
         'GET /api/agents/trace': ({ url }) => {
           const id = url?.searchParams.get('sessionId') ?? '';

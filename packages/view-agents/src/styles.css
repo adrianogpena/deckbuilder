@@ -77,6 +77,7 @@
 .agents-dot:not([class*='agents-dot--']):not(.agents-icon).starting { background: var(--ok); opacity: 0.5; }
 .agents-dot:not([class*='agents-dot--']):not(.agents-icon).exited { background: var(--err); opacity: 0.6; }
 .agents-dot:not([class*='agents-dot--']):not(.agents-icon).idle { background: var(--text-3); opacity: 0.8; }
+.agents-body > .view-with-side > .view-with-side-main { display: flex; overflow: hidden; }
 .agents-main { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
 .agents-main-head { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-bottom: 1px solid var(--border-soft); }
 .agents-git-line { display: inline-flex; gap: var(--space-6); min-width: 0; flex: 0 1 auto; overflow: hidden; white-space: nowrap; font-family: var(--font-mono); font-size: var(--fs-sm); color: var(--text-2); }
@@ -369,14 +370,18 @@
 .agents-usage-tab .sev-err { color: var(--err); }
 .agents-usage-tab .stale .agents-usage-cells > span.on, .agents-usage-tab .stale .agents-usage-pct { color: var(--text-3); }
 
-.agents-skills-page { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; }
-.agents-skills-bar { display: flex; flex: none; align-items: center; justify-content: space-between; height: var(--header-h); padding: 0 var(--space-6) 0 14px; border-bottom: 1px solid var(--border); }
-.agents-skills-bar h3 { margin: 0; font-size: var(--fs-sm); font-weight: 600; }
 .agents-skills { display: flex; flex: 1; flex-direction: column; gap: var(--space-8); min-width: 0; min-height: 0; overflow-y: auto; padding: var(--space-8) 14px; }
 .agents-skills-loading { display: flex; align-items: center; justify-content: center; }
 .agents-skills-head { display: flex; gap: var(--space-6); margin-top: var(--space-6); }
 .agents-skills-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .agents-skills-row { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-4) var(--space-6); border-radius: var(--radius-md); min-width: 0; }
+.agents-skills-row { cursor: pointer; }
+.agents-skills-row:hover { background: var(--bg-hover); }
+.agents-skills-row.open .agents-skills-desc { white-space: normal; }
+.agents-skills-details { margin: var(--space-4) 0 0; display: flex; flex-direction: column; gap: var(--space-2); font-size: var(--fs-xs); }
+.agents-skills-details > div { display: flex; gap: var(--space-8); min-width: 0; }
+.agents-skills-details dt { flex: none; width: 110px; color: var(--text-3); }
+.agents-skills-details dd { margin: 0; min-width: 0; color: var(--text-2); overflow-wrap: anywhere; }
 .agents-skills-row:focus-visible { outline: 1px solid var(--accent); }
 .agents-skills-name { color: var(--text); }
 .agents-skills-desc { color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

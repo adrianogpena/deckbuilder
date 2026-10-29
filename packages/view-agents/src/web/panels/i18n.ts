@@ -10,7 +10,6 @@ import * as json from './json/i18n';
 import * as task from './task/i18n';
 import * as notes from './notes/i18n';
 import * as trajectory from './trajectory/i18n';
-import * as skills from './skills/i18n';
 import * as output from './output/i18n';
 import * as workflows from './workflows/i18n';
 
@@ -28,7 +27,6 @@ export const panelsEn = {
   ...task.en,
   ...notes.en,
   ...trajectory.en,
-  ...skills.en,
   ...output.en,
   ...workflows.en,
 };
@@ -46,7 +44,6 @@ export const panelsPtBR = {
   ...task.ptBR,
   ...notes.ptBR,
   ...trajectory.ptBR,
-  ...skills.ptBR,
   ...output.ptBR,
   ...workflows.ptBR,
 };

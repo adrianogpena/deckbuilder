@@ -342,15 +342,29 @@ export interface AgentTraceStep {
 
 export type AgentSkillState = 'on' | 'name-only' | 'user-invocable-only' | 'off';
 
+/** Where a skill or agent file is and what its frontmatter says about running it. */
+export interface AgentDetails {
+  file: string;
+  /** Last change of the file, ms since epoch (0 when unknown). */
+  modified: number;
+  /** Frontmatter keys worth showing: `argument-hint`, `allowed-tools`, `tools`, `model`. */
+  fields: Record<string, string>;
+}
+
 export interface AgentSkill {
   name: string;
   description: string;
   state: AgentSkillState;
+  /** `project` when it comes from the project's own `.claude`; absent for the account's. */
+  source?: 'project';
+  details?: AgentDetails;
 }
 
 export interface AgentLocal {
   name: string;
   description: string;
+  source?: 'project';
+  details?: AgentDetails;
 }
 
 export interface AgentSkillsResponse {
