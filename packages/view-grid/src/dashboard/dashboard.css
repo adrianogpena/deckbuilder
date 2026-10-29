@@ -1,3 +1,5 @@
+.dash-scroll, .view-with-side-main:has(> .dash-scroll) { scrollbar-width: none; }
+.dash-scroll::-webkit-scrollbar, .view-with-side-main:has(> .dash-scroll)::-webkit-scrollbar { display: none; }
 .dash-layout-tabs { display: flex; align-items: center; gap: var(--space-8); max-width: 60%; overflow-x: auto; scrollbar-width: thin; }
 .dash-layout-tab {
   flex: none; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;

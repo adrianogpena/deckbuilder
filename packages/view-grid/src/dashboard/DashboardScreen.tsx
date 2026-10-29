@@ -213,7 +213,7 @@ export function DashboardScreen({ settings, onSave, panels }: DashboardScreenPro
         <Button size="sm" icon="rotate-ccw" title={tKey('grid.reset')} onClick={() => change(current.items)} disabled={!dirty}>{tKey('grid.reset')}</Button>
       </PageHead>
       <ViewSidePanel side={side}>
-      <div className="scroll">
+      <div className="scroll dash-scroll">
         {items.length === 0 ? (
           <Empty title={tKey('dash.empty.title')}>
             <p>{tKey('dash.empty.body')}</p>
