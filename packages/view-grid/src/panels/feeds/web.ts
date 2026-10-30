@@ -6,6 +6,8 @@ import { RssPanel, type RssConfig } from './RssPanel';
 import { WeatherPanel, type WeatherConfig } from './WeatherPanel';
 import { FX_FIELDS, RSS_FIELDS, WEATHER_FIELDS } from './fields';
 import type { FxData } from './fx';
+import { FxActions } from './FxActions';
+import { recordFx } from './fx-history';
 import type { FeedItem } from './rss';
 import type { WeatherData } from './weather';
 
@@ -46,8 +48,13 @@ const exchangeRatePanel = definePanel<FxConfig, FxData>({
   category: 'dash.category.feeds',
   size: { w: 4, h: 8, minW: 3, minH: 5 },
   config: { fields: FX_FIELDS },
-  load: (config, ctx) => fetchSource<FxData>('feeds-fx', { base: config.base, quote: config.quote, days: config.days, apiKey: config.apiKey }, ctx.signal),
+  load: async (config, ctx) => {
+    const data = await fetchSource<FxData>('feeds-fx', { base: config.base, quote: config.quote, days: config.days, apiKey: config.apiKey }, ctx.signal);
+    recordFx(data, config.days);
+    return data;
+  },
   refreshMs: (config) => (config.apiKey?.trim() ? 5 * MIN : 60 * MIN),
+  headerActions: FxActions,
   render: ({ config, data }) => createElement(ExchangeRatePanel, { config, data }),
 });
 
