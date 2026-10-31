@@ -62,3 +62,7 @@ export * from './tree';
 export * from './rel-path';
 export * from './roving-list';
 export * from './views';
+export * from './design';
+export * from './design-shell';
+export * from './components/Inspector';
+export * from './design-picks';

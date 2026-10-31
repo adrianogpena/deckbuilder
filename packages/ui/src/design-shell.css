@@ -1,0 +1,33 @@
+/* Design preview: shell variants A (command bar + strip), B (preset row), C (inspector). */
+.design-cmdbar { display: flex; align-items: center; gap: var(--space-12); height: var(--nav-header-h); padding: 0 var(--space-12) 0 var(--space-16); background: var(--bg-elev); border-bottom: 1px solid var(--border-soft); user-select: none; min-width: 0; }
+.design-cmdbar-brand { display: flex; align-items: center; gap: var(--space-8); font-weight: 700; flex-shrink: 0; }
+.design-cmdbar-field { flex: 0 1 420px; min-width: 160px; justify-content: flex-start; gap: var(--space-8); color: var(--text-3); }
+.design-cmdbar-hint { flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.design-cmdbar-kbd { font-family: var(--font-mono); font-size: var(--fs-3xs); color: var(--text-3); border: 1px solid var(--border); border-radius: 4px; padding: 0 var(--space-4); }
+.design-cmdbar-chips { display: flex; align-items: center; gap: var(--space-2); flex: 1; min-width: 0; overflow: hidden; }
+.design-cmdbar-tools { display: flex; align-items: center; gap: var(--space-4); flex-shrink: 0; }
+.design-a-body { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.design-a-body > .main { flex: 1; }
+.design-a-body .status-bar { display: none; }
+.design-strip { display: flex; align-items: center; gap: var(--space-8); height: 24px; padding: 0 var(--space-12); background: var(--bg-sunken); border-top: 1px solid var(--border-soft); color: var(--text-2); font-size: var(--fs-3xs); font-family: var(--font-mono); }
+.design-strip-spacer { flex: 1; }
+.app.zen > .design-cmdbar, .app.zen .design-strip, .app.zen > .design-b-head { display: none; }
+
+.design-b-head { display: flex; flex-direction: column; min-width: 0; }
+.design-presets { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-4) var(--space-12); background: var(--bg-elev); border-bottom: 1px solid var(--border-soft); }
+.design-presets-sep { width: 1px; align-self: stretch; margin: var(--space-4) var(--space-4); background: var(--border-soft); }
+.design-presets-spacer { flex: 1; }
+
+.design-c-body { display: flex; min-width: 0; min-height: 0; }
+.design-c-body > .main { flex: 1; }
+
+.inspector { display: flex; flex-direction: column; width: 280px; flex-shrink: 0; min-height: 0; background: var(--bg-elev); border-left: 1px solid var(--border-soft); }
+.inspector-head { display: flex; align-items: flex-start; gap: var(--space-8); padding: var(--space-12); border-bottom: 1px solid var(--border-soft); }
+.inspector-titles { flex: 1; min-width: 0; }
+.inspector-title { font-size: var(--fs-lg); font-weight: 600; color: var(--text); }
+.inspector-subtitle { font-size: var(--fs-3xs); color: var(--text-3); }
+.inspector-body { flex: 1; min-height: 0; overflow: auto; padding: var(--space-8) var(--space-12); }
+.inspector-row { display: flex; justify-content: space-between; gap: var(--space-12); padding: var(--space-6) 0; border-bottom: 1px solid var(--border-soft); font-size: var(--fs-sm-plus); }
+.inspector-label { color: var(--text-3); }
+.inspector-value { color: var(--text); text-align: right; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.inspector-actions { display: flex; gap: var(--space-6); padding: var(--space-12); border-top: 1px solid var(--border-soft); }

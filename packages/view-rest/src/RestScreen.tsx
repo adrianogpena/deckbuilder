@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { RestDesign } from './design/RestDesign';
 import { draftToSpec, hasAuthHeader, type HttpRequestDraft, type ImportedRequest, RequestEditor, ResponseView, toCurl } from '@kedalion/editor';
 import type { HttpResponseInfo, RestEnvVar } from '@kedalion/server-core/protocol';
-import { type ApiError, Button, dialogs, ErrorBanner, errorOf, IconButton, PageHead, SplitView, useAsync, useCommand, useDebouncedSave, useDialogs, useShortcutTip, useViewRequest } from '@kedalion/ui';
+import { type ApiError, Button, dialogs, ErrorBanner, errorOf, IconButton, PageHead, SplitView, useAsync, useCommand, useDebouncedSave, useDesign, useDialogs, useShortcutTip, useViewRequest } from '@kedalion/ui';
 import { restCommands } from './commands';
 import { restApi as api } from './client';
 import type { RestSettings, RestViewSettings, SavedRequest } from './settings';
@@ -31,6 +32,7 @@ function uniqueName(name: string, taken: Set<string>): string {
 const DEFAULT_MAIN: [number, number] = [0.5, 0.5];
 
 export function RestScreen({ settings, onSave }: { settings: RestViewSettings; onSave: (patch: Partial<RestViewSettings>) => void }) {
+  const design = useDesign('rest');
   const saved = useAsync(() => api.requests(), []);
   const { confirm, prompt, element } = useDialogs();
   const [state, setState] = useState<RestSettings>(settings.rest ?? {});
@@ -192,19 +194,21 @@ export function RestScreen({ settings, onSave }: { settings: RestViewSettings; o
     }
   };
 
-  return (
-    <div className="content screen-edges">
-      <PageHead title={t('nav.rest')}>
+  const actions = (
         <div className="row">
           <Button size="sm" icon="download" onClick={() => setImporting(true)} title={t('rest.import')}>{t('rest.import')}</Button>
           <Button size="sm" variant="ghost" icon="code" onClick={() => void showCurl()} title={t('rest.code')}>{t('rest.code')}</Button>
           <Button size="sm" variant="primary" icon="check" onClick={() => save(false)} title={tip(t('rest.save'), 'rest.save')}>{t('rest.save')}</Button>
           <Button size="sm" onClick={() => save(true)} title={t('rest.saveAs')}>{t('rest.saveAs')}</Button>
         </div>
-      </PageHead>
+  );
+  const banners = (
+    <>
       {actionError && <ErrorBanner error={actionError} compact />}
       {full && <p className="muted" role="status">{t('rest.tab.full')}</p>}
-      <div className="rest-body">
+    </>
+  );
+  const list = (
         <aside className="rest-list">
           <div className="rest-list-head">
             <span className="mono-label">{t('rest.saved')}</span>
@@ -249,13 +253,16 @@ export function RestScreen({ settings, onSave }: { settings: RestViewSettings; o
             </div>
           ))}
         </aside>
-        <div className="rest-main">
+  );
+  const tabBar = (
         <RestTabBar
           tabs={tabs}
           active={tab.id}
           saved={saved.data}
           env={{ environments: environments.data, environment, onEnvironment: setEnvironment, onManage: () => setManaging(true), history: historyOpen, onHistory: () => setHistoryOpen((v) => !v) }}
         />
+  );
+  const split = (req: ReactNode, res: ReactNode) => (
         <SplitView
           direction="column"
           sizes={[sizes[0], sizes[1]]}
@@ -266,6 +273,11 @@ export function RestScreen({ settings, onSave }: { settings: RestViewSettings; o
             persist(next);
           }}
         >
+          {req}
+          {res}
+        </SplitView>
+  );
+  const request = (
           <div key="request" className="rest-pane">
             <RequestEditor
               key={tab.id}
@@ -285,14 +297,16 @@ export function RestScreen({ settings, onSave }: { settings: RestViewSettings; o
               }}
             />
           </div>
+  );
+  const response_ = (
           <div key="response" className="rest-pane">
             {savedPath && <p className="muted">{t('rest.responseSaved', { path: savedPath })}</p>}
             <ResponseView response={response} error={error} sending={sending} onSave={response ? () => saveResponse(response) : undefined} />
           </div>
-        </SplitView>
-        </div>
-        {historyOpen && <HistoryPanel refresh={historyTick} confirm={confirm} onClose={() => setHistoryOpen(false)} />}
-      </div>
+  );
+  const history = historyOpen ? <HistoryPanel refresh={historyTick} confirm={confirm} onClose={() => setHistoryOpen(false)} /> : null;
+  const dialogsEl = (
+    <>
       {importing && <ImportDialog onLoad={loadImported} onSaveMany={saveImported} onClose={() => setImporting(false)} />}
       {managing && (
         <EnvironmentsDialog
@@ -304,6 +318,53 @@ export function RestScreen({ settings, onSave }: { settings: RestViewSettings; o
       )}
       {curl !== undefined && <CurlDialog curl={curl} onClose={() => setCurl(undefined)} />}
       {element}
+    </>
+  );
+
+  if (design !== 'current') {
+    const label = (r: { id: string; title?: string; draft: HttpRequestDraft }) => r.title || r.draft.url || r.draft.method;
+    return (
+      <RestDesign
+        variant={design}
+        actions={actions}
+        banners={banners}
+        list={list}
+        tabBar={tabBar}
+        request={request}
+        response={response_}
+        split={split(request, response_)}
+        history={history}
+        dialogs={dialogsEl}
+        chips={tabs.map((x) => ({ id: x.id, label: label(x), active: x.id === tab.id }))}
+        onChip={restTabs.activate}
+        onNew={restTabs.newTab}
+        onSend={send}
+        onCancel={cancel}
+        sending={sending}
+        info={{
+          method: draft.method,
+          url: draft.url,
+          headers: draft.headers.length,
+          env: activeEnv?.name ?? 'None',
+          timing: response ? `${response.ms} ms / ${response.totalMs} ms` : '-',
+        }}
+      />
+    );
+  }
+
+  return (
+    <div className="content screen-edges">
+      <PageHead title={t('nav.rest')}>{actions}</PageHead>
+      {banners}
+      <div className="rest-body">
+        {list}
+        <div className="rest-main">
+          {tabBar}
+          {split(request, response_)}
+        </div>
+        {history}
+      </div>
+      {dialogsEl}
     </div>
   );
 }

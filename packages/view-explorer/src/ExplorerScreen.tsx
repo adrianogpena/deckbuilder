@@ -1,7 +1,8 @@
 import './explorer.css';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { editorSettingsOf, type ExplorerSettings, type ExplorerViewSettings as Settings, generalSettingsOf, windowSettingsOf } from './settings';
-import { gitSettingsOf, setZen, useZen } from '@kedalion/ui';
+import { gitSettingsOf, setZen, useDesign, useZen } from '@kedalion/ui';
+import { ExplorerDesign } from './design/ExplorerDesign';
 import { openEditorSearch } from '@kedalion/editor';
 import {
   activate,
@@ -545,6 +546,7 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
     ),
   );
 
+  const design = useDesign('explorer');
   const trees = useRef<Array<ProjectTreeApi | null>>([]);
   const revealRequest = useRef<{ project: string; path: string }>();
   const [revealTick, setRevealTick] = useState(0);
@@ -681,7 +683,7 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
     </>
   );
 
-  return (
+  const screen = (
     <>
       <Explorer
         hidden={zen || maximized}
@@ -791,6 +793,12 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
         </Modal>
       )}
     </>
+  );
+  if (design === 'current') return screen;
+  return (
+    <ExplorerDesign variant={design} projects={shown.map((p) => p.name)} file={activeFile ? { project: nameOf(activeFile.project), path: activeFile.path } : undefined}>
+      {screen}
+    </ExplorerDesign>
   );
 }
 

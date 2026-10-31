@@ -46,8 +46,8 @@ export interface Palette {
   tokens: Record<Token, string>;
 }
 
-export const DEFAULT_DARK = 'kedalion-dark';
-export const DEFAULT_LIGHT = 'kedalion-light';
+export const DEFAULT_DARK = 'transit-dark';
+export const DEFAULT_LIGHT = 'transit-light';
 
 const KEDALION_DARK: Record<Token, string> = {
   '--bg': '#0d0e11',
@@ -231,8 +231,8 @@ const atlas = (id: string, label: string, kind: ThemeKind, roles: Roles, exact: 
 });
 
 export const PALETTES: readonly Palette[] = [
-  { id: DEFAULT_DARK, label: 'Kedalion Dark', family: 'kedalion', kind: 'dark', tokens: KEDALION_DARK },
-  { id: DEFAULT_LIGHT, label: 'Kedalion Light', family: 'kedalion', kind: 'light', tokens: KEDALION_LIGHT },
+  { id: 'kedalion-dark', label: 'Kedalion Dark', family: 'kedalion', kind: 'dark', tokens: KEDALION_DARK },
+  { id: 'kedalion-light', label: 'Kedalion Light', family: 'kedalion', kind: 'light', tokens: KEDALION_LIGHT },
   // Ported from session-deck (crates/sdeck/src/theme.rs).
   deck('tokyo-night', 'Tokyo Night', 'tokyo-night', 'dark', [
     0x1a1b26, 0x24283b, 0x414868, 0xc0caf5, 0x787fa0, 0x7aa2f7, 0xbb9af7, 0x7dcfff, 0x9ece6a, 0xe0af68, 0xff9e64, 0xf7768e]),

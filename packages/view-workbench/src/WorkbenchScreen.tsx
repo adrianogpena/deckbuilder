@@ -1,4 +1,4 @@
-import { type MouseEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { type MouseEvent, type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { CodeEditor, type CodeEditorHandle, type SqlProblem, SqlSteps, type SqlStepsTab } from '@kedalion/editor';
 import {
   type ApiError,
@@ -15,6 +15,7 @@ import {
   useCommand,
   useShortcutTip,
   useDebouncedSave,
+  useDesign,
   useDialogs,
   useViewToast,
 } from '@kedalion/ui';
@@ -28,6 +29,7 @@ import { Connections } from './workbench/Connections';
 import { HistoryPanel } from './workbench/HistoryPanel';
 import { SchemaPanel } from './workbench/SchemaPanel';
 import './workbench.css';
+import { WorkbenchDesign } from './design/WorkbenchDesign';
 
 const SAVE_DELAY = 500;
 const DEMO_SOURCE = 'demo';
@@ -37,6 +39,7 @@ const DEFAULT_MAIN: [number, number] = [0.3, 0.7];
 const commandById = (id: string) => workbenchCommands().find((c) => c.id === id)!;
 
 export function WorkbenchScreen({ settings, onSave, client }: { settings: WorkbenchViewSettings; onSave: (patch: Partial<WorkbenchViewSettings>) => void; client: WorkbenchClient }) {
+  const design = useDesign('workbench');
   const [state, setState] = useState<WorkbenchSettings>(() => withWorkbenchDefaults(settings.workbench));
   const [query, setQuery] = useState('');
   const [docError, setDocError] = useState<ApiError>();
@@ -235,10 +238,7 @@ ${sql}` : sql);
   };
   const connectionName = (id: string) => connections.data?.find((c) => c.id === id)?.name ?? id;
 
-  return (
-    <div className="content">
-      {dialogs}
-      <PageHead title={t('nav.workbench')}>
+  const bar = (
       <div className="row wb-bar">
           <select value={connection ? connection.id : DEMO_SOURCE} onChange={(e) => changeSource(e.target.value)} aria-label={t('workbench.source')} title={t('workbench.source')}>
             <option value={DEMO_SOURCE}>{t('workbench.source.demo')}</option>
@@ -295,11 +295,14 @@ ${sql}` : sql);
           )}
           <span className="muted">{t('workbench.exportHint', { count: EXPORT_ROWS })}</span>
       </div>
-      </PageHead>
+  );
+  const banners = (
+    <>
       {runner.actionError && <ErrorBanner error={runner.actionError} compact />}
       {docError && <ErrorBanner error={docError} compact />}
-      <div className="wb-body">
-      {schemaOpen && (
+    </>
+  );
+  const schemaEl = schemaOpen && (
         <SchemaPanel
           schema={schema}
           loading={schemaLoading}
@@ -310,16 +313,24 @@ ${sql}` : sql);
           details={tableDetails}
           onDdl={(table, tableOwner) => void showDdl(table, tableOwner)}
         />
-      )}
+  );
+  const split = (ed: ReactNode, res: ReactNode) => (
       <SplitView
         direction="column"
         sizes={[sizes.main[0], sizes.main[1]]}
         defaultSizes={DEFAULT_MAIN}
         onResize={(s) => update((cur) => ({ sizes: { ...(cur.sizes ?? sizes), main: [s[0], s[1]] } }))}
       >
+        {ed}
+        {res}
+      </SplitView>
+  );
+  const editorEl = (
         <div key="editor" className="wb-pane">
           <CodeEditor ref={editor} value={query} lang="sql" sqlDialect="plsql" sqlSchema={sqlSchema} onChange={edit} onRun={runner.run} onSelection={(s) => setCursor(s.pos)} height="100%" sqlLint onSqlProblems={onSqlProblems} />
         </div>
+  );
+  const resultsEl = (
         <div key="results" className="wb-pane">
           <SqlResults
             runner={runner}
@@ -329,8 +340,8 @@ ${sql}` : sql);
             onWidths={demoWidths ? (widths) => update(() => ({ widths })) : undefined}
           />
         </div>
-      </SplitView>
-      {state.steps && (
+  );
+  const stepsEl = state.steps && (
         <SqlSteps
           text={query}
           cursor={cursor}
@@ -341,12 +352,54 @@ ${sql}` : sql);
           width={state.stepsWidth}
           onWidth={(stepsWidth) => update(() => ({ stepsWidth }))}
         />
-      )}
-      {state.history && (
+  );
+  const historyEl = state.history && (
         <HistoryPanel client={client} connection={db} refresh={runsDone} connectionName={connectionName} onInsert={insertSql} onOpen={edit} confirm={confirm} />
-      )}
+  );
+  const managingEl = managing && <Connections client={client} onClose={() => setManaging(false)} onChanged={connections.reload} />;
+
+  if (design !== 'current') {
+    return (
+      <WorkbenchDesign
+        variant={design}
+        dialogs={dialogs}
+        bar={bar}
+        banners={banners}
+        schema={schemaEl}
+        editor={editorEl}
+        results={resultsEl}
+        split={split(editorEl, resultsEl)}
+        steps={stepsEl}
+        history={historyEl}
+        managing={managingEl}
+        sources={[{ id: DEMO_SOURCE, label: t('workbench.source.demo') }, ...(connections.data ?? []).map((c) => ({ id: c.id, label: c.name }))]}
+        source={connection ? connection.id : DEMO_SOURCE}
+        onSource={changeSource}
+        onRun={run}
+        busy={busy}
+        info={{
+          source: connection?.name ?? t('workbench.source.demo'),
+          state: status?.connected ? (status.pending ? 'Transaction pending' : 'Connected') : 'Not connected',
+          rows: tableRows.length,
+          selected: selection.length,
+          problems: lintErrors,
+        }}
+      />
+    );
+  }
+
+  return (
+    <div className="content">
+      {dialogs}
+      <PageHead title={t('nav.workbench')}>{bar}</PageHead>
+      {banners}
+      <div className="wb-body">
+        {schemaEl}
+        {split(editorEl, resultsEl)}
+        {stepsEl}
+        {historyEl}
       </div>
-      {managing && <Connections client={client} onClose={() => setManaging(false)} onChanged={connections.reload} />}
+      {managingEl}
     </div>
   );
 }

@@ -11,6 +11,7 @@
   "scripts": {
     "dev": "bun run --cwd app dev",
     "dev:window": "bun run --cwd app dev:window",
+    "dev:design": "bun scripts/dev-design.ts",
     "start": "bun run --cwd app start",
     "start:browser": "bun run --cwd app start:browser",
     "build:web": "bun run --cwd app build:web",

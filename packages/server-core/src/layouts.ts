@@ -30,7 +30,7 @@ export function applyMainMenu(s: LayoutStructure, mode?: MainMenu): LayoutStruct
 }
 
 /** Layouts whose navigation is a header (or otherwise not a side dock): the dock side does not apply. */
-export const HEADER_NAV_LAYOUTS: readonly string[] = ['ribbon', 'ledger'];
+export const HEADER_NAV_LAYOUTS: readonly string[] = ['ribbon', 'ledger', 'cockpit'];
 
 export function supportsDock(layoutId: string): boolean {
   return !HEADER_NAV_LAYOUTS.includes(layoutId);
@@ -49,7 +49,7 @@ export interface Layout {
   structure: LayoutStructure;
 }
 
-export const DEFAULT_LAYOUT = 'original';
+export const DEFAULT_LAYOUT = 'ribbon';
 
 export const ORIGINAL_STRUCTURE: LayoutStructure = {
   sidebarSide: 'left',
@@ -75,7 +75,8 @@ export const LAYOUTS: readonly Layout[] = [
   { id: 'transit', label: 'Transit', icons: 'original', structure: { ...ORIGINAL_STRUCTURE, sidebarMode: 'expanded' } },
   { id: 'islands', label: 'Islands', icons: 'original', structure: { ...ORIGINAL_STRUCTURE, sidebarMode: 'collapsed', sidebarBrand: false, statusBar: true } },
   { id: 'modeline', label: 'Modeline', icons: 'original', structure: { ...ORIGINAL_STRUCTURE, sidebarBrand: false, tabBarPosition: 'bottom' } },
-  { id: 'ribbon', label: 'Ribbon', icons: 'original', structure: { ...ORIGINAL_STRUCTURE, navPlacement: 'header', navFooter: 'none' } },
+  { id: 'ribbon', label: 'Ribbon', icons: 'atom', structure: { ...ORIGINAL_STRUCTURE, navPlacement: 'header', navFooter: 'none' } },
+  { id: 'cockpit', label: 'Cockpit', icons: 'atom', structure: { ...ORIGINAL_STRUCTURE, navPlacement: 'header', navFooter: 'none' } },
   {
     id: 'ledger', label: 'Ledger', icons: 'original',
     structure: { ...ORIGINAL_STRUCTURE, navFooter: 'none', navPlacement: 'header', tabBarPosition: 'top' },

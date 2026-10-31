@@ -35,6 +35,7 @@ import {
   TabWorkspace,
   useCommand,
   useDebouncedSave,
+  useDesign,
   useDialogs,
   useKeybindings,
 } from '@kedalion/ui';
@@ -42,6 +43,7 @@ import { TERMINAL_SCREEN_COMMANDS, terminalCommandById } from './commands';
 import { t } from './i18n';
 import { type TerminalViewSettings as Settings, terminalSettingsOf } from './settings';
 import './terminal-screen.css';
+import { TerminalDesign } from './design/TerminalDesign';
 
 /**
  * A terminal tab: the session it shows (none: opens one), the project folder a new one starts in, the
@@ -103,6 +105,7 @@ function Seen({ visible, onSeen }: { visible: boolean; onSeen: () => void }) {
 }
 
 export function TerminalScreen({ settings, onSave }: { settings: Settings; onSave: (patch: Partial<Settings>) => void }) {
+  const design = useDesign('terminal');
   const term = terminalSettingsOf(settings);
   const [layout, setLayout] = useState<Layout<Route>>(
     () => (term.restoreTabs ? restore(settings.terminalLayout, isRoute) : null) ?? singlePane(newTab(newRoute())),
@@ -335,8 +338,7 @@ export function TerminalScreen({ settings, onSave }: { settings: Settings; onSav
   const sessionOf = (tabId: string) => tabOf(tabId)?.route.session;
   const iconRoute = iconTab ? tabOf(iconTab)?.route : undefined;
 
-  return (
-    <div className="terminal-screen screen-edges">
+  const workspace = (
       <TabWorkspace
         confirmCloseDirty={settings.general?.confirmCloseDirty ?? true}
         confirmClose={confirmClose}
@@ -397,6 +399,9 @@ export function TerminalScreen({ settings, onSave }: { settings: Settings; onSav
           </>
         )}
       />
+  );
+  const extras = (
+    <>
       {iconTab && (
         <IconPicker
           value={iconRoute?.icon as IconName | undefined}
@@ -408,6 +413,40 @@ export function TerminalScreen({ settings, onSave }: { settings: Settings; onSav
         />
       )}
       {dialogs.element}
+    </>
+  );
+
+  if (design !== 'current') {
+    const focusedPane = layout.panes.find((p) => p.id === layout.focused) ?? layout.panes[0]!;
+    const current = focusedPane.tabs.find((x) => x.id === focusedPane.active) ?? focusedPane.tabs[0];
+    const session = current?.route.session ? infos[current.route.session] : undefined;
+    const profile = current ? profileOf(current.route, session) : undefined;
+    const shellId = session?.shell ?? (profile?.shell !== 'custom' ? profile?.shell : undefined);
+    return (
+      <TerminalDesign
+        variant={design}
+        workspace={workspace}
+        extras={extras}
+        chips={layout.panes.flatMap((p) => p.tabs.map((x) => ({ id: x.id, label: titleOf(x.route).title, active: p.id === focusedPane.id && x.id === p.active })))}
+        onChip={(id) => {
+          const pane = layout.panes.find((p) => p.tabs.some((x) => x.id === id));
+          if (!pane) return;
+          change({ ...layout, focused: pane.id, panes: layout.panes.map((p) => (p.id === pane.id ? { ...p, active: id } : p)) });
+        }}
+        onNew={() => change(addTab(latest.current, newTab<Route>(newRoute()), focusedPane.id))}
+        info={{
+          shell: shellId ? (SHELL_NAMES[shellId as keyof typeof SHELL_NAMES] ?? shellId) : '-',
+          cwd: (current && cwdOf(current.route)) || '-',
+          size: session ? `${session.cols} x ${session.rows}` : '-',
+        }}
+      />
+    );
+  }
+
+  return (
+    <div className="terminal-screen screen-edges">
+      {workspace}
+      {extras}
     </div>
   );
 }
