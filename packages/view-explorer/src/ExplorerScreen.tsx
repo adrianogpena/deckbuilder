@@ -605,6 +605,10 @@ export function ExplorerScreen({ settings, onSave }: { settings: Settings; onSav
       setForm({ project: p });
     },
     onRemove: (p: Project) => void removeProject(p),
+    onReorder: (ids: string[]) => {
+      setActionError(undefined);
+      api.reorderProjects(ids).then(projects.reload, (err) => setActionError(errorOf(err)));
+    },
   };
 
   const sidebar = (

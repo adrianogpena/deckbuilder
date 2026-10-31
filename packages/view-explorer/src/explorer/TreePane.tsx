@@ -30,7 +30,7 @@ export interface TreePaneProps extends ProjectTreeProps, Omit<ProjectPickerProps
 }
 
 /** One sidebar tree: the project picker, and the project's tree or, while searching, its search panel. */
-export function TreePane({ focused, showHidden = false, onFocus, exclude, sort, names, ensureNames, onSplit, onCloseTree, onGoToFile, apiRef, projects, onPick, onAdd, onEdit, onRemove, ...tree }: TreePaneProps) {
+export function TreePane({ focused, showHidden = false, onFocus, exclude, sort, names, ensureNames, onSplit, onCloseTree, onGoToFile, apiRef, projects, onPick, onAdd, onEdit, onRemove, onReorder, ...tree }: TreePaneProps) {
   const { project } = tree;
   const own = useRef<ProjectTreeApi>(null);
   useImperativeHandle(apiRef, () => ({
@@ -144,6 +144,7 @@ export function TreePane({ focused, showHidden = false, onFocus, exclude, sort, 
         onAdd={onAdd}
         onEdit={onEdit}
         onRemove={onRemove}
+        onReorder={onReorder}
         actions={
           <>
             <IconButton icon="file-plus" onClick={() => own.current?.newFile()} label={t('explorer.newFile')} />

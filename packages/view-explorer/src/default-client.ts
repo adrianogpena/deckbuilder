@@ -10,6 +10,7 @@ export const explorerClient: ExplorerClient = {
   createProject: (input) => request<Project>('POST', '/api/projects', {}, input),
   updateProject: (id, input) => request<Project>('PUT', '/api/projects', { id }, input),
   deleteProject: (id) => request<{ ok: true }>('DELETE', '/api/projects', { id }),
+  reorderProjects: (ids) => request<{ ok: true }>('POST', '/api/projects/order', {}, { ids }),
   fsList: (root, path, view) =>
     request<{ entries: FsEntry[] }>('GET', '/api/fs/list', {
       root,

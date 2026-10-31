@@ -48,6 +48,7 @@ export interface ExplorerClient {
   createProject: (input: Record<string, unknown>) => Promise<Project>;
   updateProject: (id: string, input: Record<string, unknown>) => Promise<Project>;
   deleteProject: (id: string) => Done;
+  reorderProjects: (ids: string[]) => Done;
   fsList: (root: string, path: string, view?: { exclude?: string[]; sort?: string; all?: boolean }) => Promise<FsEntry[]>;
   fsArchive: (root: string, path: string) => Promise<ArchiveContent>;
   fsSqlite: (root: string, path: string, table?: string, offset?: number) => Promise<SqliteContent>;

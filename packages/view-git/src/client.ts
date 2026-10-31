@@ -14,6 +14,7 @@ export type GitFsRead = { binary: true } | { text: string; truncated: boolean };
 /** The server calls the Git view makes; the app builds it from its api and passes it to `gitView`. */
 export interface GitClient {
   projects: () => Promise<GitProject[]>;
+  reorderProjects: (ids: string[]) => Promise<unknown>;
   gitRepos: () => Promise<GitRepoInfo[]>;
   gitStatus: (root: string) => Promise<GitStatus>;
   gitFile: (root: string, path: string, from: 'head' | 'index' | 'commit' | 'parent', commit?: string) => Promise<GitFileContent>;
@@ -40,6 +41,7 @@ export const gitApi: GitClient = new Proxy({} as GitClient, {
 /** The default `GitClient`: the server's `/api/projects`, `/api/git/*` and `/api/fs/read` routes over fetch. */
 export const gitClient: GitClient = {
   projects: () => request<GitProject[]>('GET', '/api/projects'),
+  reorderProjects: (ids) => request<{ ok: true }>('POST', '/api/projects/order', {}, { ids }),
   gitRepos: () => request<GitRepoInfo[]>('GET', '/api/git/repos'),
   gitStatus: (root) => request<GitStatus>('GET', '/api/git/status', { root }),
   gitFile: (root, path, from, commit) => request<GitFileContent>('GET', '/api/git/file', { root, path, from, ...(commit && { commit }) }),

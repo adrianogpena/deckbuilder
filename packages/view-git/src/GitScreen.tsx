@@ -356,10 +356,15 @@ export function GitScreen({ settings, onSave }: { settings: GitViewSettings; onS
     </>
   );
 
+  const reorderProjects = (ids: string[]) => {
+    setProjects((list) => list && ids.flatMap((id) => list.find((p) => p.id === id) ?? []));
+    api.reorderProjects(ids).catch((e) => toast({ message: errorMessage(errorOf(e)), kind: 'error' }));
+  };
+
   const project = projects?.find((p) => p.id === root);
   const sidebar = (
     <div className="xp-pane">
-      <ProjectPicker projects={projects ?? []} current={project} onPick={pick} actions={actions} />
+      <ProjectPicker projects={projects ?? []} current={project} onPick={pick} onReorder={reorderProjects} actions={actions} />
       {loadError && <ErrorBanner error={loadError} onRetry={() => void refresh()} compact />}
       {status && (
         <div className="git-branch-line" title={info?.upstream}>

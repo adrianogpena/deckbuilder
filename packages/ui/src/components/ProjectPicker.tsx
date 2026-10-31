@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { t } from '../i18n';
 import { Icon, useDialogs } from './ui';
@@ -18,13 +18,16 @@ export interface ProjectPickerProps<P extends PickerProject = PickerProject> {
   onAdd?(): void;
   onEdit?(project: P): void;
   onRemove?(project: P): void;
+  /** Drag a project in the dropdown to reorder (pointer based); receives all ids in the new order. Dragging is on only when given. */
+  onReorder?(ids: string[]): void;
   /** Extra header buttons on the right. */
   actions?: ReactNode;
 }
 
 /** Header of a sidebar tree: the project's name, with a dropdown to switch, add, edit and remove projects. */
-export function ProjectPicker<P extends PickerProject>({ projects, current, onPick, onAdd, onEdit, onRemove, actions }: ProjectPickerProps<P>) {
+export function ProjectPicker<P extends PickerProject>({ projects, current, onPick, onAdd, onEdit, onRemove, onReorder, actions }: ProjectPickerProps<P>) {
   const [open, setOpen] = useState(false);
+  const [drag, setDrag] = useState<{ id: string; over?: string; after?: boolean }>();
   const wrap = useRef<HTMLDivElement>(null);
   const list = useRef<HTMLDivElement>(null);
   const { confirm, element } = useDialogs();
@@ -49,6 +52,43 @@ export function ProjectPicker<P extends PickerProject>({ projects, current, onPi
   const close = (act: () => void) => () => {
     setOpen(false);
     act();
+  };
+
+  const suppressClick = useRef(false);
+  const finish = (d: { id: string; over?: string; after?: boolean }) => {
+    if (!d.over || d.over === d.id || !onReorder) return;
+    const ids = projects.map((p) => p.id).filter((id) => id !== d.id);
+    ids.splice(ids.indexOf(d.over) + (d.after ? 1 : 0), 0, d.id);
+    if (ids.some((id, i) => id !== projects[i]!.id)) onReorder(ids);
+  };
+  const startDrag = (e: PointerEvent<HTMLElement>, id: string) => {
+    if (!onReorder || projects.length < 2 || e.button !== 0) return;
+    const y0 = e.clientY;
+    let active = false;
+    let last: { id: string; over?: string; after?: boolean } = { id };
+    const move = (ev: globalThis.PointerEvent) => {
+      if (!active && Math.abs(ev.clientY - y0) < 5) return;
+      active = true;
+      const rows = Array.from(list.current?.querySelectorAll<HTMLElement>('[data-pid]') ?? []);
+      const row = rows.find((r) => ev.clientY < r.getBoundingClientRect().bottom) ?? rows[rows.length - 1];
+      if (!row) return;
+      const r = row.getBoundingClientRect();
+      last = { id, over: row.dataset.pid, after: ev.clientY > r.top + r.height / 2 };
+      setDrag(last);
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+      setDrag(undefined);
+      if (!active) return;
+      suppressClick.current = true;
+      setTimeout(() => (suppressClick.current = false), 0);
+      finish(last);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
   };
 
   const remove = async (project: P) => {
@@ -80,13 +120,20 @@ export function ProjectPicker<P extends PickerProject>({ projects, current, onPi
         {open && box && createPortal(
           <div ref={list} className="menu xp-picker-menu" role="menu" onKeyDown={(e) => e.key === 'Escape' && setOpen(false)} style={{ position: 'fixed', right: 'auto', overflowY: 'auto', ...box }}>
             {projects.map((p) => (
-              <button title={p.name} key={p.id} type="button" className="menu-item" role="menuitemradio" aria-checked={p.id === current?.id} onClick={close(() => onPick(p))}>
-                <span className="menu-icon">{p.id === current?.id && <Icon name="check" size={14} />}</span>
-                <span className="xp-picker-item">
-                  <span className="menu-label">{p.name}</span>
-                  <span className="xp-picker-path muted">{p.path}</span>
-                </span>
-              </button>
+              <div
+                key={p.id}
+                data-pid={p.id}
+                className={`xp-picker-row${drag?.over === p.id && drag.id !== p.id ? (drag.after ? ' xp-drop-after' : ' xp-drop-before') : ''}${drag?.id === p.id && drag.over ? ' xp-dragging' : ''}`}
+                onPointerDown={(e) => startDrag(e, p.id)}
+              >
+                <button title={p.name} type="button" className="menu-item" role="menuitemradio" aria-checked={p.id === current?.id} onClick={() => !suppressClick.current && close(() => onPick(p))()}>
+                  <span className="menu-icon">{p.id === current?.id && <Icon name="check" size={14} />}</span>
+                  <span className="xp-picker-item">
+                    <span className="menu-label">{p.name}</span>
+                    <span className="xp-picker-path muted">{p.path}</span>
+                  </span>
+                </button>
+              </div>
             ))}
             {projects.length > 0 && onAdd && <div className="menu-sep" />}
             {onAdd && (
